@@ -115,11 +115,11 @@ export function buildSiigoSupportDocumentRequest(
       ? {
           savePreferences: true,
           supplierPreferences: {
-            accountDescription: account.name,
+            accountDescription: account.description,
             paymentMethod: {
               id: paymentMethod.id,
               name: paymentMethod.name,
-              type: paymentMethod.type,
+              type: paymentMethod.type ?? '',
               dueDate: paymentMethod.dueDate,
             },
             retentions: documentRetentions.map((retention) => {
