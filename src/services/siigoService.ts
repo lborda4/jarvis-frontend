@@ -78,7 +78,6 @@ export async function validateSiigoImport(
     url: SIIGO_IMPORT_ENDPOINT,
     body: request,
   })
-
   try {
     const response = await apiClient.post<ValidateSiigoImportResponse>(
       SIIGO_IMPORT_ENDPOINT,
