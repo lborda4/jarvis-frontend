@@ -53,7 +53,6 @@ export async function fetchSiigoPaymentMethods(
       },
     },
   )
-
   return response.data
 }
 
