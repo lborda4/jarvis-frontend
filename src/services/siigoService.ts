@@ -39,7 +39,6 @@ export async function fetchSiigoAccounts(): Promise<SiigoAccountCatalogItem[]> {
   const response = await apiClient.get<SiigoAccountCatalogItem[]>(
     SIIGO_ACCOUNTS_ENDPOINT,
   )
-
   return response.data
 }
 
