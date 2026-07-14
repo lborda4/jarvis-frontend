@@ -67,7 +67,6 @@ export async function fetchSiigoTaxes(
       },
     },
   )
-
   return response.data
 }
 
