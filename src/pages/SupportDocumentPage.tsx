@@ -282,13 +282,10 @@ function SupportDocumentPage() {
   const {
     importStatuses,
     isResuming,
-    isCreatingSupplier,
     isModalOpen,
     errorMessage: resumeErrorMessage,
-    supplierFeedbackMessage,
     accountModal,
     resumeDocuments,
-    continueSupplier,
     closeAccountModal,
     selectAccount,
     setAutoApply,
@@ -700,12 +697,6 @@ function SupportDocumentPage() {
       )}
 
       <div className="support-document-page__alerts">
-        {supplierFeedbackMessage && (
-          <p className="support-document-page__feedback" role="status">
-            {supplierFeedbackMessage}
-          </p>
-        )}
-
         {feedbackMessage && (
           <p className="support-document-page__feedback" role="status">
             {feedbackMessage}
@@ -724,7 +715,7 @@ function SupportDocumentPage() {
         <SupportDocumentToolbar
           suppliers={supplierOptions}
           selectedSupplierNits={selectedSupplierNits}
-          disabled={isLoading || isImporting || isResuming || isCreatingSupplier || isModalOpen || isSending}
+          disabled={isLoading || isImporting || isResuming || isModalOpen || isSending}
           onSupplierNitsChange={handleSupplierNitsChange}
         />
 
@@ -739,7 +730,7 @@ function SupportDocumentPage() {
           selectedRetentions={selectedRetentions}
           canSend={canSendSelected}
           isSending={isSending}
-          disabled={isLoading || isImporting || isResuming || isCreatingSupplier || isModalOpen}
+          disabled={isLoading || isImporting || isResuming || isModalOpen}
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onRetentionsChange={handleConfigRetentionsChange}
@@ -757,13 +748,12 @@ function SupportDocumentPage() {
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
         isLoading={isLoading}
-        isResuming={isResuming || isCreatingSupplier}
+        isResuming={isResuming}
         isSending={isSending}
         selectionDisabled={
           isLoading ||
           isImporting ||
           isResuming ||
-          isCreatingSupplier ||
           isModalOpen ||
           isSending
         }
@@ -771,7 +761,6 @@ function SupportDocumentPage() {
         documentsById={documentsById}
         onToggleRow={handleToggleRow}
         onSelectRows={handleSelectRows}
-        onContinueSupplier={continueSupplier}
         onSendDocument={handleSendDocument}
       />
 

@@ -23,9 +23,10 @@ function AppLayout() {
             className="app-layout__sidebar-open"
             onClick={() => setIsSidebarOpen(true)}
             aria-label="Mostrar menú lateral"
+            title="Mostrar menú"
           >
             <PanelLeftIcon className="app-layout__sidebar-open-icon" />
-            <span>Menú</span>
+            <span className="app-layout__sidebar-open-label">Menú</span>
           </button>
         )}
 

@@ -338,6 +338,15 @@ export async function createSiigoSupportDocument(
   }
 }
 
+export async function fetchSiigoCredentialsConfigured(): Promise<boolean> {
+  try {
+    await apiClient.get(SIIGO_CREDENTIALS_ENDPOINT)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function saveSiigoCredentials(
   request: SaveSiigoCredentialsRequest,
 ): Promise<SaveSiigoCredentialsResponse> {

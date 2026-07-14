@@ -14,9 +14,6 @@ import {
   mapDocumentToImportRowStatus,
   mapResumeNextStepToImportStatus,
 } from '../utils/mapImportRowStatus'
-import { createSiigoSupplier } from '../services/siigoService'
-import { formatSiigoSupplierCreatedMessage } from '../utils/formatSiigoSupplierCreatedMessage'
-import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
 import { useAccountMappingModal } from './useAccountMappingModal'
 
 interface UseSupportDocumentResumeOptions {
@@ -36,12 +33,9 @@ export function useSupportDocumentResume({
     Record<string, ImportRowStatus>
   >({})
   const [isResuming, setIsResuming] = useState(false)
-  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false)
   const [errorMessage, setErrorMessage] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
   )
-  const [supplierFeedbackMessage, setSupplierFeedbackMessage] =
-    useAutoDismissMessage()
 
   useEffect(() => {
     setImportStatuses((current) => {
@@ -162,71 +156,6 @@ export function useSupportDocumentResume({
     [openAccountMappingModal],
   )
 
-  const continueSupplier = useCallback(
-    async (document: ElectronicDocumentListItem) => {
-      const documentId = document.id.trim()
-      const supplierName = document.supplierName?.trim() ?? ''
-      const supplierDocument = document.supplierNit?.trim() ?? ''
-
-      if (!documentId) {
-        setErrorMessage('No se encontró el documento para crear el proveedor.')
-        return
-      }
-
-      if (!supplierName || !supplierDocument) {
-        setErrorMessage(
-          'Faltan el nombre o el documento del proveedor para crearlo en SIIGO.',
-        )
-        return
-      }
-
-      const { personType, idType } = inferSiigoSupplierIdentity(supplierDocument)
-
-      setIsCreatingSupplier(true)
-      setErrorMessage(null)
-      setSupplierFeedbackMessage(null)
-      setImportStatuses((current) => ({
-        ...current,
-        [documentId]: IMPORT_ROW_STATUS.EN_PROCESO,
-      }))
-
-      const payload = {
-        documentId,
-        name: supplierName,
-        identification: supplierDocument,
-        person_type: personType,
-        id_type: idType,
-      }
-
-      console.log('[Support Document] Creando proveedor directamente:', payload)
-
-      try {
-        await createSiigoSupplier(payload)
-
-        setSupplierFeedbackMessage(formatSiigoSupplierCreatedMessage())
-
-        await resumeDocument(documentId)
-        onFlowCompleted()
-      } catch (error) {
-        console.error('[Support Document] Error al crear proveedor:', error)
-
-        setImportStatuses((current) => ({
-          ...current,
-          [documentId]: IMPORT_ROW_STATUS.ERROR,
-        }))
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'No se pudo crear el proveedor en SIIGO.',
-          ),
-        )
-      } finally {
-        setIsCreatingSupplier(false)
-      }
-    },
-    [onFlowCompleted, resumeDocument],
-  )
-
   const continueAccount = useCallback(
     (document: ElectronicDocumentListItem) => {
       openAccountModalForDocument(document)
@@ -276,13 +205,10 @@ export function useSupportDocumentResume({
   return {
     importStatuses,
     isResuming,
-    isCreatingSupplier,
     isModalOpen,
     errorMessage,
-    supplierFeedbackMessage,
     accountModal,
     resumeDocuments,
-    continueSupplier,
     continueAccount,
     retryDocument,
     closeAccountModal,

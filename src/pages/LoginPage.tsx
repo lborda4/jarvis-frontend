@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { getAuthErrorMessage, useAuth } from '../context/AuthContext'
+import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
@@ -16,7 +17,7 @@ function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const redirectPath =
-    (location.state as { from?: string } | null)?.from ?? '/facturas/importar'
+    (location.state as { from?: string } | null)?.from ?? '/documento-soporte'
 
   if (!isLoading && isAuthenticated) {
     return <Navigate to={redirectPath} replace />
@@ -32,6 +33,7 @@ function LoginPage() {
         email: email.trim(),
         password,
       })
+      setAuthEntryMode('login')
       navigate(redirectPath, { replace: true })
     } catch (error) {
       setErrorMessage(

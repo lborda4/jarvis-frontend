@@ -18,6 +18,7 @@ function SiigoIntegrationSettings() {
     isBusy,
     credentialsSuccessMessage,
     suppliersSuccessMessage,
+    showSetupRequiredNotice,
     errorMessage,
     setUsername,
     setAccessKey,
@@ -46,6 +47,13 @@ function SiigoIntegrationSettings() {
         </p>
       </header>
 
+      {showSetupRequiredNotice && (
+        <div className="settings-page__setup-notice" role="status">
+          Para usar Documento soporte, primero configure las credenciales de SIIGO
+          en el formulario de abajo.
+        </div>
+      )}
+
       <section className="settings-card">
         <div className="settings-card__header">
           <h2 className="settings-card__title">Credenciales SIIGO</h2>
@@ -59,6 +67,15 @@ function SiigoIntegrationSettings() {
             <strong>
               Configuración → Alianzas e integraciones → Credenciales Siigo API
             </strong>
+            . Consulta la guía oficial de SIIGO con el paso a paso en{' '}
+            <a
+              href="https://siigonube.portaldeclientes.siigo.com/generar-credenciales-api/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="settings-card__hint-link"
+            >
+              Generar credenciales API
+            </a>
             .
           </p>
         </div>

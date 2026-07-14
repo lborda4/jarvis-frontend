@@ -52,10 +52,10 @@ export function mapDocumentToImportRowStatus(
 
 export function getSupportDocumentActionFromImportStatus(
   importStatus: ImportRowStatus,
-): 'continue_supplier' | 'send' | 'none' {
+): 'supplier_missing' | 'send' | 'none' {
   switch (importStatus) {
     case IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR:
-      return 'continue_supplier'
+      return 'supplier_missing'
     case IMPORT_ROW_STATUS.LISTA:
       return 'none'
     default:

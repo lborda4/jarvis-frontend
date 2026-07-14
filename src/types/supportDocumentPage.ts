@@ -1,6 +1,6 @@
 import type { ImportRowStatus } from './import'
 
-export type SupportDocumentAction = 'continue_supplier' | 'send' | 'none'
+export type SupportDocumentAction = 'supplier_missing' | 'send' | 'none'
 
 export interface SuggestedAccount {
   code: string

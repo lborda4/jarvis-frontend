@@ -31,7 +31,6 @@ interface SupportDocumentTableProps {
   canSendRow: (rowId: string) => boolean
   onToggleRow: (id: string) => void
   onSelectRows: (ids: string[]) => void
-  onContinueSupplier: (document: ElectronicDocumentListItem) => void
   onSendDocument: (document: ElectronicDocumentListItem) => void
   documentsById: Record<string, ElectronicDocumentListItem>
 }
@@ -46,7 +45,7 @@ function ImportStatusBadge({ status }: { status: ImportRowStatus }) {
   )
 }
 
-function ActionButton({
+function ActionCell({
   action,
   disabled = false,
   onClick,
@@ -55,6 +54,14 @@ function ActionButton({
   disabled?: boolean
   onClick?: () => void
 }) {
+  if (action === 'supplier_missing') {
+    return (
+      <span className="support-table__action support-table__action--hint">
+        Debe crear el proveedor en SIIGO
+      </span>
+    )
+  }
+
   if (action === 'none') {
     return (
       <span className="support-table__action support-table__action--completed">
@@ -63,8 +70,6 @@ function ActionButton({
     )
   }
 
-  const label = action === 'continue_supplier' ? 'Crear proveedor' : 'Enviar'
-
   return (
     <button
       type="button"
@@ -72,7 +77,7 @@ function ActionButton({
       disabled={disabled}
       onClick={onClick}
     >
-      {label}
+      Enviar
     </button>
   )
 }
@@ -91,7 +96,6 @@ function SupportDocumentTable({
   canSendRow,
   onToggleRow,
   onSelectRows,
-  onContinueSupplier,
   onSendDocument,
   documentsById,
 }: SupportDocumentTableProps) {
@@ -171,16 +175,8 @@ function SupportDocumentTable({
               (isSendAction && !canSendRow(row.id))
 
             const handleAction = () => {
-              if (!document) return
-
-              if (row.action === 'continue_supplier') {
-                onContinueSupplier(document)
-                return
-              }
-
-              if (row.action === 'send') {
-                void onSendDocument(document)
-              }
+              if (!document || row.action !== 'send') return
+              void onSendDocument(document)
             }
 
             return (
@@ -228,7 +224,7 @@ function SupportDocumentTable({
                   <ImportStatusBadge status={row.importStatus} />
                 </td>
                 <td>
-                  <ActionButton
+                  <ActionCell
                     action={row.action}
                     disabled={actionDisabled}
                     onClick={handleAction}

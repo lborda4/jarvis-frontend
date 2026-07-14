@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { getAuthErrorMessage, useAuth } from '../context/AuthContext'
+import { clearSiigoConfigured, setAuthEntryMode } from '../utils/siigoSetupStorage'
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
@@ -18,7 +19,7 @@ function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isLoading && isAuthenticated) {
-    return <Navigate to="/facturas/importar" replace />
+    return <Navigate to="/configuracion/integracion-siigo" replace />
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -36,7 +37,9 @@ function RegisterPage() {
           nit: companyNit.trim(),
         },
       })
-      navigate('/facturas/importar', { replace: true })
+      setAuthEntryMode('register')
+      clearSiigoConfigured()
+      navigate('/configuracion/integracion-siigo', { replace: true })
     } catch (error) {
       setErrorMessage(
         getAuthErrorMessage(error, 'No se pudo completar el registro. Intenta nuevamente.'),

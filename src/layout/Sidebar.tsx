@@ -1,36 +1,27 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useSiigoSetup } from '../context/SiigoSetupContext'
 import {
-  AccountsIcon,
   CompanyLogoIcon,
   DocumentIcon,
   HelpIcon,
-  HomeIcon,
-  IntegrationsIcon,
-  InvoiceIcon,
   PanelLeftIcon,
   SettingsIcon,
-  SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 
 const NAV_ITEMS = [
-  { label: 'Inicio', to: '/', icon: HomeIcon, disabled: true },
-  { label: 'Facturas de compra', to: '/facturas/importar', icon: InvoiceIcon },
-  { label: 'Documento soporte', to: '/documento-soporte', icon: DocumentIcon },
-  { label: 'Proveedores', to: '/proveedores', icon: SuppliersIcon, disabled: true },
-  {
-    label: 'Cuentas contables',
-    to: '/cuentas-contables',
-    icon: AccountsIcon,
-    disabled: true,
-  },
-  { label: 'Integraciones', to: '/integraciones', icon: IntegrationsIcon, disabled: true },
   {
     label: 'Configuración',
     to: '/configuracion/integracion-siigo',
     icon: SettingsIcon,
   },
-]
+  {
+    label: 'Documento soporte',
+    to: '/documento-soporte',
+    icon: DocumentIcon,
+    requiresSiigoSetup: true,
+  },
+] as const
 
 interface SidebarProps {
   isOpen: boolean
@@ -55,6 +46,7 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, isLoading, logout } = useAuth()
+  const { isSupportDocumentEnabled, requiresSiigoSetup } = useSiigoSetup()
   const companyName = user?.company?.name ?? 'Mi Empresa'
   const userName = user?.name?.trim() || 'Usuario'
   const userEmail = user?.email?.trim() || ''
@@ -67,10 +59,6 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
   const isActive = (to: string) => {
     if (to === '/documento-soporte') {
       return location.pathname.startsWith('/documento-soporte')
-    }
-
-    if (to === '/facturas/importar') {
-      return location.pathname.startsWith('/facturas')
     }
 
     return location.pathname === to
@@ -100,14 +88,19 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
       <nav className="app-sidebar__nav">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon
-          const active = !item.disabled && isActive(item.to)
+          const isDisabled =
+            'requiresSiigoSetup' in item &&
+            item.requiresSiigoSetup &&
+            !isSupportDocumentEnabled
+          const active = !isDisabled && isActive(item.to)
 
-          if (item.disabled) {
+          if (isDisabled) {
             return (
               <span
                 key={item.label}
                 className="app-sidebar__link app-sidebar__link--disabled"
                 aria-disabled="true"
+                title="Configure SIIGO en Configuración para habilitar Documento soporte"
               >
                 <Icon className="app-sidebar__link-icon" />
                 <span>{item.label}</span>
@@ -127,6 +120,12 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
           )
         })}
       </nav>
+
+      {requiresSiigoSetup && (
+        <p className="app-sidebar__setup-hint">
+          Configure las credenciales de SIIGO para habilitar Documento soporte.
+        </p>
+      )}
 
       <div className="app-sidebar__footer">
         <div className="app-sidebar__help">

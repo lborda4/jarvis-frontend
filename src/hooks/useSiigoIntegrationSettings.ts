@@ -1,5 +1,7 @@
 import { useCallback, useState, type FormEvent } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useSiigoSetup } from '../context/SiigoSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
   saveSiigoCredentials,
@@ -11,6 +13,11 @@ import { formatSiigoCredentialsSuccessMessage } from '../utils/formatSiigoCreden
 
 export function useSiigoIntegrationSettings() {
   const { user, isLoading: isAuthLoading } = useAuth()
+  const { markSiigoConfigured, requiresSiigoSetup } = useSiigoSetup()
+  const location = useLocation()
+  const showSetupRequiredNotice =
+    requiresSiigoSetup ||
+    Boolean((location.state as { siigoSetupRequired?: boolean } | null)?.siigoSetupRequired)
   const [username, setUsername] = useState('')
   const [accessKey, setAccessKey] = useState('')
   const [partnerId, setPartnerId] = useState('')
@@ -57,6 +64,7 @@ export function useSiigoIntegrationSettings() {
           },
         )
         setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
+        markSiigoConfigured()
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
@@ -72,6 +80,7 @@ export function useSiigoIntegrationSettings() {
       accessKey,
       clearMessages,
       isSavingCredentials,
+      markSiigoConfigured,
       partnerId,
       user?.company,
       username,
@@ -121,6 +130,7 @@ export function useSiigoIntegrationSettings() {
     isBusy,
     credentialsSuccessMessage,
     suppliersSuccessMessage,
+    showSetupRequiredNotice,
     errorMessage,
     setUsername,
     setAccessKey,

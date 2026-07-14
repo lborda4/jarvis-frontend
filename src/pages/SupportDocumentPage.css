@@ -1,7 +1,9 @@
 .support-document-page {
-  max-width: 1280px;
+  width: 100%;
+  max-width: var(--app-content-max-width, 1280px);
   margin: 0 auto;
   padding: 2rem 2rem 2.5rem;
+  transition: max-width 0.2s ease;
 }
 
 .support-document-page__header {
@@ -407,6 +409,15 @@
   color: #6b7280;
   font-size: 0.86rem;
   font-weight: 500;
+}
+
+.support-table__action--hint {
+  display: block;
+  max-width: 11rem;
+  color: #b45309;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .support-table__action--retry {
