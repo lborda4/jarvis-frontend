@@ -1,6 +1,6 @@
 import type { ImportRowStatus } from './import'
 
-export type SupportDocumentAction = 'supplier_missing' | 'send' | 'none'
+export type SupportDocumentAction = 'supplier_missing' | 'processing' | 'send' | 'none'
 
 export interface SuggestedAccount {
   code: string
@@ -13,6 +13,7 @@ export interface SupportDocumentRow {
   supplierName: string
   supplierNit: string
   documentCode: string
+  siigoDocumentNumber: number | null
   supplierExistsInSiigo: boolean
   suggestedAccount: SuggestedAccount | null
   importStatus: ImportRowStatus

@@ -21,8 +21,6 @@ interface SupportDocumentConfigPanelProps {
   onAccountChange: (account: SiigoAccountOption | null) => void
   onPaymentMethodChange: (paymentMethod: SiigoPaymentMethodOption | null) => void
   onRetentionsChange: (taxes: SiigoTaxOption[]) => void
-  savePreferences: boolean
-  onSavePreferencesChange: (value: boolean) => void
   onSend: () => void
 }
 
@@ -41,8 +39,6 @@ function SupportDocumentConfigPanel({
   onAccountChange,
   onPaymentMethodChange,
   onRetentionsChange,
-  savePreferences,
-  onSavePreferencesChange,
   onSend,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
@@ -115,19 +111,6 @@ function SupportDocumentConfigPanel({
               />
             </div>
           </div>
-
-          <label className="account-mapping-form__checkbox support-config-panel__save-preferences">
-            <input
-              type="checkbox"
-              checked={savePreferences}
-              disabled={controlsDisabled}
-              onChange={(event) => onSavePreferencesChange(event.target.checked)}
-            />
-            <span>
-              Guardar cuenta, medio de pago y retenciones como preferencias del
-              proveedor
-            </span>
-          </label>
 
           <div className="support-config-panel__actions support-config-panel__actions--end">
             <button

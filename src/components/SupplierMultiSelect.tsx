@@ -16,6 +16,7 @@ interface SupplierMultiSelectProps {
   onChange: (selectedNits: string[]) => void
   disabled?: boolean
   placeholder?: string
+  embedded?: boolean
 }
 
 function SupplierMultiSelect({
@@ -25,6 +26,7 @@ function SupplierMultiSelect({
   onChange,
   disabled = false,
   placeholder = 'Buscar proveedor...',
+  embedded = false,
 }: SupplierMultiSelectProps) {
   const listboxId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -96,6 +98,70 @@ function SupplierMultiSelect({
     return `${selectedNits.length} proveedores seleccionados`
   }, [isAllSelected, options, selectedNits])
 
+  const panel = (
+    <div
+      id={listboxId}
+      className={[
+        'supplier-multi-select__panel',
+        embedded ? 'supplier-multi-select__panel--embedded' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      role="listbox"
+    >
+      <div className="supplier-multi-select__search-wrap">
+        <span className="supplier-multi-select__search-icon" aria-hidden="true">
+          ⌕
+        </span>
+        <input
+          type="search"
+          className="supplier-multi-select__search"
+          value={inputValue}
+          onChange={(event) => setInputValue(event.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+        />
+      </div>
+
+      <label className="supplier-multi-select__option supplier-multi-select__option--all">
+        <input
+          type="checkbox"
+          checked={isAllSelected}
+          onChange={selectAll}
+        />
+        <span>Todos</span>
+      </label>
+
+      <div className="supplier-multi-select__options">
+        {filteredOptions.length === 0 ? (
+          <p className="supplier-multi-select__empty">No se encontraron proveedores</p>
+        ) : (
+          filteredOptions.map((supplier) => (
+            <label
+              key={supplier.nit}
+              className="supplier-multi-select__option"
+            >
+              <input
+                type="checkbox"
+                checked={selectedSet.has(supplier.nit)}
+                onChange={() => toggleSupplier(supplier.nit)}
+              />
+              <span>{formatSupplierOptionLabel(supplier)}</span>
+            </label>
+          ))
+        )}
+      </div>
+    </div>
+  )
+
+  if (embedded) {
+    return (
+      <div className="supplier-multi-select supplier-multi-select--embedded" ref={containerRef}>
+        {panel}
+      </div>
+    )
+  }
+
   return (
     <div className="supplier-multi-select" ref={containerRef}>
       <button
@@ -114,52 +180,7 @@ function SupplierMultiSelect({
         </span>
       </button>
 
-      {isOpen && !disabled && (
-        <div id={listboxId} className="supplier-multi-select__panel" role="listbox">
-          <div className="supplier-multi-select__search-wrap">
-            <span className="supplier-multi-select__search-icon" aria-hidden="true">
-              ⌕
-            </span>
-            <input
-              type="search"
-              className="supplier-multi-select__search"
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              placeholder={placeholder}
-              autoComplete="off"
-            />
-          </div>
-
-          <label className="supplier-multi-select__option supplier-multi-select__option--all">
-            <input
-              type="checkbox"
-              checked={isAllSelected}
-              onChange={selectAll}
-            />
-            <span>Todos</span>
-          </label>
-
-          <div className="supplier-multi-select__options">
-            {filteredOptions.length === 0 ? (
-              <p className="supplier-multi-select__empty">No se encontraron proveedores</p>
-            ) : (
-              filteredOptions.map((supplier) => (
-                <label
-                  key={supplier.nit}
-                  className="supplier-multi-select__option"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedSet.has(supplier.nit)}
-                    onChange={() => toggleSupplier(supplier.nit)}
-                  />
-                  <span>{formatSupplierOptionLabel(supplier)}</span>
-                </label>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {isOpen && !disabled && panel}
     </div>
   )
 }

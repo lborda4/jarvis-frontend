@@ -75,6 +75,7 @@ export interface ElectronicDocumentListItem {
   total: number
   status: ElectronicDocumentStatus
   electronicDocumentType?: string | null
+  siigoDocumentNumber?: number | null
   supplierExistsInSiigo?: boolean | null
   suggestedAccount?: SuggestedAccount | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
@@ -104,6 +105,9 @@ export interface ElectronicDocumentListFilters {
   dateTo: string
   search: string
   electronicDocumentType?: ElectronicDocumentType
+  page?: number
+  limit?: number
+  supplierNits?: string[]
 }
 
 export type DocumentDashboardAction =

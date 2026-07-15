@@ -64,7 +64,7 @@ export function useSupportDocumentSend({
         rowRetentions,
         rowDates,
         retentionsConfiguredIds,
-        savePreferences,
+        savePreferences = true,
       } = params
 
       const targets = documentIds.filter((documentId) => {
@@ -139,14 +139,6 @@ export function useSupportDocumentSend({
             error,
             'No se pudo enviar el documento a SIIGO.',
           )
-
-          if (errorMessage.toLowerCase().includes('no existe en siigo')) {
-            onDocumentStatusChange?.(
-              documentId,
-              IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR,
-            )
-            onCompleted()
-          }
 
           return {
             documentId,

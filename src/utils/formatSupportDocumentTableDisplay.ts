@@ -58,3 +58,13 @@ export function formatSupportDocumentTableSupplierDocument(
 ): string {
   return formatSupplierDocumentDisplay(documentNumber?.trim() || '—')
 }
+
+export function formatSupportDocumentTableSiigoNumber(
+  siigoDocumentNumber: number | null | undefined,
+): string {
+  if (siigoDocumentNumber === null || siigoDocumentNumber === undefined) {
+    return '—'
+  }
+
+  return String(siigoDocumentNumber)
+}

@@ -1,0 +1,1 @@
+export const ELECTRONIC_DOCUMENTS_PAGE_SIZE = 10

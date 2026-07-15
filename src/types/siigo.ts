@@ -162,6 +162,7 @@ export interface CreateSiigoSupportDocumentRequest {
   payments: CreateSiigoSupportDocumentPayment[]
   savePreferences?: boolean
   supplierPreferences?: {
+    accountCode?: string
     accountDescription?: string
     paymentMethod?: {
       id: number

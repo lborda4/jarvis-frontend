@@ -12,7 +12,7 @@ import {
   getSupportDocumentActionFromImportStatus,
   mapDocumentToImportRowStatus,
 } from './mapImportRowStatus'
-import { isSupplierMissingInSiigo } from './supplierSiigoStatus'
+import { isSupplierReadyInSiigo } from './supplierSiigoStatus'
 
 export function mapElectronicDocumentToSupportRow(
   document: ElectronicDocumentListItem,
@@ -20,7 +20,7 @@ export function mapElectronicDocumentToSupportRow(
 ): SupportDocumentRow {
   const importStatus =
     importStatusOverride ?? mapDocumentToImportRowStatus(document)
-  const supplierMissing = isSupplierMissingInSiigo(document)
+  const supplierReady = isSupplierReadyInSiigo(document)
   const action: SupportDocumentAction =
     getSupportDocumentActionFromImportStatus(importStatus)
 
@@ -29,7 +29,8 @@ export function mapElectronicDocumentToSupportRow(
     supplierName: getDocumentSupplierName(document),
     supplierNit: document.supplierNit?.trim() || '—',
     documentCode: getDocumentInvoiceNumber(document),
-    supplierExistsInSiigo: !supplierMissing,
+    siigoDocumentNumber: document.siigoDocumentNumber ?? null,
+    supplierExistsInSiigo: supplierReady,
     suggestedAccount: document.suggestedAccount ?? null,
     importStatus,
     action,

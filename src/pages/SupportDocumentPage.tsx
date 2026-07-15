@@ -11,8 +11,9 @@ import AccountMappingModal from '../components/AccountMappingModal'
 import ErrorMessage from '../components/ErrorMessage'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
+import SupportDocumentPagination from '../components/supportDocument/SupportDocumentPagination'
 import SupportDocumentTable from '../components/supportDocument/SupportDocumentTable'
-import SupportDocumentToolbar from '../components/supportDocument/SupportDocumentToolbar'
+import { ELECTRONIC_DOCUMENTS_PAGE_SIZE } from '../constants/electronicDocuments'
 import { useSupportDocumentSend } from '../hooks/useSupportDocumentSend'
 import { useSupportDocumentResume } from '../hooks/useSupportDocumentResume'
 import {
@@ -31,16 +32,24 @@ import {
   type ElectronicDocumentListItem,
 } from '../types/electronicDocument'
 import type { SupportDocumentImportNotice } from '../types/supportDocumentPage'
+import {
+  EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS,
+  type SupportDocumentColumnFilters,
+  type SupportDocumentSortColumn,
+  type SupportDocumentSortDirection,
+} from '../types/supportDocumentTableFilters'
 import { EXCEL_FILE_INPUT, isExcelFile } from '../utils/fileType'
 import { validateSupportDocumentExcelDates } from '../utils/validateSupportDocumentExcel'
 import { mapElectronicDocumentToSupportRow } from '../utils/mapSupportDocumentRow'
+import { isSupportDocumentRowSelectable } from '../utils/mapImportRowStatus'
+import { IMPORT_ROW_STATUS } from '../types/import'
 import {
+  buildInitialRowAccounts,
   mapCatalogToAccountOptions,
-  mapSuggestedAccountToOption,
   mergeSuggestedAccountsIntoOptions,
 } from '../utils/siigoAccounts'
 import { mapCatalogToPaymentMethodOptions, mapSuggestedPaymentMethodToOption } from '../utils/siigoPaymentMethods'
-import { extractSupplierOptions } from '../utils/supplierOptions'
+import { extractSupplierOptions, mergeSupplierOptions } from '../utils/supplierOptions'
 import {
   mapCatalogToTaxOptions,
   mapSuggestedRetentionsToTaxOptions,
@@ -49,24 +58,17 @@ import {
 import {
   buildInitialRowDates,
 } from '../utils/supportDocumentDate'
-import { isSupplierMissingInSiigo } from '../utils/supplierSiigoStatus'
+import { isSupplierReadyInSiigo } from '../utils/supplierSiigoStatus'
 import {
   canSendDocument,
   countSendableDocuments,
 } from '../utils/supportDocumentSend'
+import {
+  rowMatchesColumnFilters,
+  sortSupportDocumentRows,
+} from '../utils/filterSupportDocumentRows'
 import './SupportDocumentPage.css'
 import '../pages/InvoiceUpload.css'
-
-function buildInitialRowAccounts(
-  documents: ElectronicDocumentListItem[],
-): Record<string, SiigoAccountOption | null> {
-  return Object.fromEntries(
-    documents.map((document) => [
-      document.id,
-      mapSuggestedAccountToOption(document.suggestedAccount),
-    ]),
-  )
-}
 
 function buildInitialRowPaymentMethods(
   documents: ElectronicDocumentListItem[],
@@ -102,7 +104,15 @@ function buildInitialRetentionsConfiguredIds(
 
 function SupportDocumentPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const controlsAnchorRef = useRef<HTMLDivElement>(null)
+  const [isControlsAnchored, setIsControlsAnchored] = useState(false)
   const [documents, setDocuments] = useState<ElectronicDocumentListItem[]>([])
+  const [page, setPage] = useState(1)
+  const [totalDocuments, setTotalDocuments] = useState(0)
+  const [refreshToken, setRefreshToken] = useState(0)
+  const [supplierOptions, setSupplierOptions] = useState<
+    ReturnType<typeof extractSupplierOptions>
+  >([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
@@ -113,6 +123,13 @@ function SupportDocumentPage() {
   const [isImporting, setIsImporting] = useState(false)
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
   const [selectedSupplierNits, setSelectedSupplierNits] = useState<string[]>([])
+  const [columnFilters, setColumnFilters] =
+    useState<SupportDocumentColumnFilters>(EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS)
+  const [sortColumn, setSortColumn] = useState<SupportDocumentSortColumn | null>(
+    null,
+  )
+  const [sortDirection, setSortDirection] =
+    useState<SupportDocumentSortDirection>('asc')
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(
     new Set(),
   )
@@ -143,7 +160,6 @@ function SupportDocumentPage() {
   const [selectedRetentions, setSelectedRetentions] = useState<SiigoTaxOption[]>(
     [],
   )
-  const [savePreferences, setSavePreferences] = useState(true)
   const [accountsError, setAccountsError] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
   )
@@ -154,32 +170,126 @@ function SupportDocumentPage() {
     AUTO_DISMISS_ERROR_MS,
   )
 
-  const reloadDocuments = useCallback(async () => {
-    setIsLoading(true)
-    setErrorMessage(null)
+  const reloadDocuments = useCallback((options?: { resetPage?: boolean }) => {
+    if (options?.resetPage) {
+      setPage((currentPage) => {
+        if (currentPage === 1) {
+          setRefreshToken((token) => token + 1)
+        }
 
-    try {
-      const response = await fetchElectronicDocuments({
-        electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+        return 1
       })
-      setDocuments(response.items)
-      setRowAccounts(buildInitialRowAccounts(response.items))
-      setRowPaymentMethods(buildInitialRowPaymentMethods(response.items))
-      setRowRetentions(buildInitialRowRetentions(response.items))
-      setRetentionsConfiguredIds(buildInitialRetentionsConfiguredIds(response.items))
-      setRowDates((current) => buildInitialRowDates(response.items, current))
-    } catch (error) {
-      setErrorMessage(
-        getApiErrorMessage(error, 'No se pudieron cargar los documentos soporte.'),
-      )
-    } finally {
-      setIsLoading(false)
+      return
     }
+
+    setRefreshToken((token) => token + 1)
   }, [])
 
   useEffect(() => {
-    void reloadDocuments()
-  }, [reloadDocuments])
+    let cancelled = false
+
+    void (async () => {
+      setIsLoading(true)
+      setErrorMessage(null)
+
+      try {
+        const response = await fetchElectronicDocuments({
+          electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+          page,
+          limit: ELECTRONIC_DOCUMENTS_PAGE_SIZE,
+          supplierNits:
+            selectedSupplierNits.length > 0 ? selectedSupplierNits : undefined,
+        })
+
+        if (cancelled) {
+          return
+        }
+
+        setDocuments(response.items)
+        setTotalDocuments(response.total)
+        setPage(response.page)
+        setSupplierOptions((current) =>
+          mergeSupplierOptions(current, response.items),
+        )
+        setRowAccounts(buildInitialRowAccounts(response.items))
+        setRowPaymentMethods(buildInitialRowPaymentMethods(response.items))
+        setRowRetentions(buildInitialRowRetentions(response.items))
+        setRetentionsConfiguredIds(
+          buildInitialRetentionsConfiguredIds(response.items),
+        )
+        setRowDates((current) => buildInitialRowDates(response.items, current))
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(
+            getApiErrorMessage(
+              error,
+              'No se pudieron cargar los documentos soporte.',
+            ),
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [page, selectedSupplierNits, refreshToken])
+
+  useEffect(() => {
+    const sentinel = controlsAnchorRef.current
+
+    if (!sentinel || selectedDocumentIds.size === 0) {
+      setIsControlsAnchored(false)
+      return
+    }
+
+    const scrollRoot = sentinel.closest(
+      '.app-layout__content',
+    ) as HTMLElement | null
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsControlsAnchored(!entry.isIntersecting)
+      },
+      {
+        threshold: 0,
+        root: scrollRoot,
+      },
+    )
+
+    observer.observe(sentinel)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [selectedDocumentIds.size])
+
+  useEffect(() => {
+    if (documents.length === 0) {
+      return
+    }
+
+    setRowAccounts((current) => {
+      const resolved = buildInitialRowAccounts(documents, accountOptions)
+      let changed = false
+      const next = { ...current }
+
+      for (const document of documents) {
+        const account = resolved[document.id]
+
+        if (account && !next[document.id]) {
+          next[document.id] = account
+          changed = true
+        }
+      }
+
+      return changed ? next : current
+    })
+  }, [documents, accountOptions])
 
   useEffect(() => {
     void (async () => {
@@ -244,11 +354,6 @@ function SupportDocumentPage() {
     })()
   }, [])
 
-  const supplierOptions = useMemo(
-    () => extractSupplierOptions(documents),
-    [documents],
-  )
-
   const importFilteredDocuments = useMemo(() => {
     if (!showImportOnly || !importNotice) {
       return documents
@@ -258,16 +363,7 @@ function SupportDocumentPage() {
     return documents.filter((document) => importedIds.has(document.id))
   }, [documents, importNotice, showImportOnly])
 
-  const filteredDocuments = useMemo(() => {
-    if (selectedSupplierNits.length === 0) {
-      return importFilteredDocuments
-    }
-
-    const supplierSet = new Set(selectedSupplierNits)
-    return importFilteredDocuments.filter((document) =>
-      supplierSet.has(document.supplierNit?.trim() ?? ''),
-    )
-  }, [importFilteredDocuments, selectedSupplierNits])
+  const filteredDocuments = importFilteredDocuments
 
   const tableAccountOptions = useMemo(
     () => mergeSuggestedAccountsIntoOptions(accountOptions, filteredDocuments),
@@ -285,7 +381,7 @@ function SupportDocumentPage() {
     isModalOpen,
     errorMessage: resumeErrorMessage,
     accountModal,
-    resumeDocuments,
+    watchImportedDocuments,
     closeAccountModal,
     selectAccount,
     setAutoApply,
@@ -296,7 +392,7 @@ function SupportDocumentPage() {
   } = useSupportDocumentResume({
     documents,
     setDocuments,
-    onFlowCompleted: reloadDocuments,
+    onFlowCompleted: () => reloadDocuments({ resetPage: true }),
   })
 
   const documentsById = useMemo(
@@ -304,16 +400,67 @@ function SupportDocumentPage() {
     [documents],
   )
 
-  const tableRows = useMemo(
-    () =>
-      filteredDocuments.map((document) =>
-        mapElectronicDocumentToSupportRow(
-          document,
-          importStatuses[document.id],
-        ),
+  const tableRows = useMemo(() => {
+    const mapped = filteredDocuments.map((document) =>
+      mapElectronicDocumentToSupportRow(
+        document,
+        importStatuses[document.id],
       ),
-    [filteredDocuments, importStatuses],
-  )
+    )
+
+    const filtered = mapped.filter((row) =>
+      rowMatchesColumnFilters(
+        row,
+        columnFilters,
+        rowDates,
+        rowAccounts,
+        rowPaymentMethods,
+        rowRetentions,
+      ),
+    )
+
+    return sortSupportDocumentRows(
+      filtered,
+      sortColumn,
+      sortDirection,
+      rowDates,
+      rowAccounts,
+      rowPaymentMethods,
+      rowRetentions,
+    )
+  }, [
+    columnFilters,
+    filteredDocuments,
+    importStatuses,
+    rowAccounts,
+    rowDates,
+    rowPaymentMethods,
+    rowRetentions,
+    sortColumn,
+    sortDirection,
+  ])
+
+  useEffect(() => {
+    setSelectedDocumentIds((current) => {
+      if (current.size === 0) {
+        return current
+      }
+
+      const next = new Set(
+        [...current].filter((documentId) => {
+          const importStatus = importStatuses[documentId]
+
+          if (!importStatus) {
+            return true
+          }
+
+          return isSupportDocumentRowSelectable(importStatus)
+        }),
+      )
+
+      return next.size === current.size ? current : next
+    })
+  }, [importStatuses])
 
   const {
     isSending,
@@ -321,7 +468,7 @@ function SupportDocumentPage() {
     errorMessage: sendErrorMessage,
     sendDocuments,
   } = useSupportDocumentSend({
-    onCompleted: reloadDocuments,
+    onCompleted: () => reloadDocuments({ resetPage: true }),
     onDocumentStatusChange: setImportStatus,
   })
 
@@ -340,7 +487,7 @@ function SupportDocumentPage() {
         for (const documentId of selectedDocumentIds) {
           const document = documents.find((item) => item.id === documentId)
 
-          if (document && !isSupplierMissingInSiigo(document)) {
+          if (document && isSupplierReadyInSiigo(document)) {
             next[documentId] = value
           }
         }
@@ -366,7 +513,7 @@ function SupportDocumentPage() {
         for (const documentId of selectedDocumentIds) {
           const document = documents.find((item) => item.id === documentId)
 
-          if (document && !isSupplierMissingInSiigo(document)) {
+          if (document && isSupplierReadyInSiigo(document)) {
             next[documentId] = values
           }
         }
@@ -388,7 +535,7 @@ function SupportDocumentPage() {
       for (const documentId of selectedDocumentIds) {
         const document = documents.find((item) => item.id === documentId)
 
-        if (document && !isSupplierMissingInSiigo(document)) {
+        if (document && isSupplierReadyInSiigo(document)) {
           next.add(documentId)
         }
       }
@@ -411,7 +558,7 @@ function SupportDocumentPage() {
         for (const documentId of selectedDocumentIds) {
           const document = documents.find((item) => item.id === documentId)
 
-          if (document && !isSupplierMissingInSiigo(document)) {
+          if (document && isSupplierReadyInSiigo(document)) {
             next[documentId] = account
           }
         }
@@ -500,7 +647,6 @@ function SupportDocumentPage() {
       rowRetentions,
       rowDates,
       retentionsConfiguredIds,
-      savePreferences,
     })
   }, [
     documentsById,
@@ -510,7 +656,6 @@ function SupportDocumentPage() {
     rowDates,
     rowPaymentMethods,
     rowRetentions,
-    savePreferences,
     selectedDocumentIds,
     sendDocuments,
   ])
@@ -526,7 +671,6 @@ function SupportDocumentPage() {
         rowRetentions,
         rowDates,
         retentionsConfiguredIds,
-        savePreferences,
       })
     },
     [
@@ -537,47 +681,72 @@ function SupportDocumentPage() {
       rowDates,
       rowPaymentMethods,
       rowRetentions,
-      savePreferences,
       sendDocuments,
     ],
   )
 
-  const handleToggleRow = useCallback((documentId: string) => {
-    setSelectedDocumentIds((current) => {
-      const next = new Set(current)
+  const handleToggleRow = useCallback(
+    (documentId: string) => {
+      const importStatus = importStatuses[documentId]
 
-      if (next.has(documentId)) {
-        next.delete(documentId)
-      } else {
-        next.add(documentId)
+      if (importStatus && !isSupportDocumentRowSelectable(importStatus)) {
+        return
       }
 
-      return next
-    })
-  }, [])
+      setSelectedDocumentIds((current) => {
+        const next = new Set(current)
+
+        if (next.has(documentId)) {
+          next.delete(documentId)
+        } else {
+          next.add(documentId)
+        }
+
+        return next
+      })
+    },
+    [importStatuses],
+  )
 
   const handleSelectRows = useCallback((documentIds: string[]) => {
     setSelectedDocumentIds(new Set(documentIds))
   }, [])
 
-  const handleSupplierNitsChange = useCallback(
-    (nits: string[]) => {
-      setSelectedSupplierNits(nits)
+  const handleSupplierNitsChange = useCallback((nits: string[]) => {
+    setSelectedSupplierNits(nits)
+    setPage(1)
+    setSelectedDocumentIds(new Set())
+  }, [])
 
-      if (nits.length === 0) {
-        setSelectedDocumentIds(new Set())
-        return
+  const handleColumnFiltersChange = useCallback(
+    (
+      updater: (
+        current: SupportDocumentColumnFilters,
+      ) => SupportDocumentColumnFilters,
+    ) => {
+      setColumnFilters((current) => updater(current))
+    },
+    [],
+  )
+
+  const handleSortChange = useCallback((column: SupportDocumentSortColumn) => {
+    setSortColumn((currentColumn) => {
+      if (currentColumn === column) {
+        setSortDirection((currentDirection) =>
+          currentDirection === 'asc' ? 'desc' : 'asc',
+        )
+        return currentColumn
       }
 
-      const supplierSet = new Set(nits)
-      const matchingIds = documents
-        .filter((document) => supplierSet.has(document.supplierNit?.trim() ?? ''))
-        .map((document) => document.id)
+      setSortDirection('asc')
+      return column
+    })
+  }, [])
 
-      setSelectedDocumentIds(new Set(matchingIds))
-    },
-    [documents],
-  )
+  const handlePageChange = useCallback((nextPage: number) => {
+    setSelectedDocumentIds(new Set())
+    setPage(nextPage)
+  }, [])
 
   const openFilePicker = () => {
     fileInputRef.current?.click()
@@ -631,10 +800,16 @@ function SupportDocumentPage() {
         const documentIds = response.documentIds ?? []
         const documentCount = response.documentsCreated ?? documentIds.length
 
+        for (const documentId of documentIds) {
+          setImportStatus(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+        }
+
         setImportNotice({ documentCount, documentIds })
         setShowImportOnly(true)
-        await reloadDocuments()
-        await resumeDocuments(documentIds)
+        reloadDocuments({ resetPage: true })
+        await watchImportedDocuments(documentIds, () =>
+          reloadDocuments({ resetPage: false }),
+        )
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(error, 'No se pudo importar el archivo Excel.'),
@@ -711,14 +886,20 @@ function SupportDocumentPage() {
         {retentionsError && <ErrorMessage message={retentionsError} />}
       </div>
 
-      <div className="support-document-page__controls">
-        <SupportDocumentToolbar
-          suppliers={supplierOptions}
-          selectedSupplierNits={selectedSupplierNits}
-          disabled={isLoading || isImporting || isResuming || isModalOpen || isSending}
-          onSupplierNitsChange={handleSupplierNitsChange}
-        />
+      <div
+        ref={controlsAnchorRef}
+        className="support-document-page__controls-anchor"
+        aria-hidden="true"
+      />
 
+      <div
+        className={[
+          'support-document-page__controls',
+          isControlsAnchored ? 'support-document-page__controls--anchored' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <SupportDocumentConfigPanel
           selectedCount={selectedDocumentIds.size}
           sendableCount={sendableSelectedCount}
@@ -734,8 +915,6 @@ function SupportDocumentPage() {
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onRetentionsChange={handleConfigRetentionsChange}
-          savePreferences={savePreferences}
-          onSavePreferencesChange={setSavePreferences}
           onSend={handleSendSelected}
         />
       </div>
@@ -747,6 +926,11 @@ function SupportDocumentPage() {
         rowAccounts={rowAccounts}
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
+        supplierOptions={supplierOptions}
+        selectedSupplierNits={selectedSupplierNits}
+        columnFilters={columnFilters}
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
         isLoading={isLoading}
         isResuming={isResuming}
         isSending={isSending}
@@ -757,11 +941,17 @@ function SupportDocumentPage() {
           isModalOpen ||
           isSending
         }
+        filtersDisabled={
+          isLoading || isImporting || isResuming || isModalOpen || isSending
+        }
         canSendRow={canSendRow}
         documentsById={documentsById}
         onToggleRow={handleToggleRow}
         onSelectRows={handleSelectRows}
         onSendDocument={handleSendDocument}
+        onSupplierNitsChange={handleSupplierNitsChange}
+        onColumnFiltersChange={handleColumnFiltersChange}
+        onSortChange={handleSortChange}
       />
 
       <AccountMappingModal
@@ -780,11 +970,17 @@ function SupportDocumentPage() {
         onRetry={retrySaveAccount}
       />
 
-      {!isLoading && filteredDocuments.length > 0 && (
+      <SupportDocumentPagination
+        page={page}
+        limit={ELECTRONIC_DOCUMENTS_PAGE_SIZE}
+        total={totalDocuments}
+        disabled={isLoading || isImporting || isResuming || isSending}
+        onPageChange={handlePageChange}
+      />
+
+      {!isLoading && totalDocuments > 0 && selectedDocumentIds.size > 0 && (
         <p className="support-document-page__count">
-          {filteredDocuments.length} documento(s) mostrados
-          {selectedDocumentIds.size > 0 &&
-            ` · ${selectedDocumentIds.size} seleccionado(s)`}
+          {selectedDocumentIds.size} documento(s) seleccionado(s) en esta página
         </p>
       )}
     </main>

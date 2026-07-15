@@ -7,7 +7,7 @@ import {
   IMPORT_ROW_STATUS,
   type ImportRowStatus,
 } from '../types/import'
-import { isSupplierMissingInSiigo } from './supplierSiigoStatus'
+import { isSupplierCheckPending, isSupplierMissingInSiigo } from './supplierSiigoStatus'
 
 export function mapResumeNextStepToImportStatus(
   nextStep: ResumeNextStep,
@@ -29,10 +29,6 @@ export function mapResumeNextStepToImportStatus(
 export function mapDocumentToImportRowStatus(
   document: ElectronicDocumentListItem,
 ): ImportRowStatus {
-  if (isSupplierMissingInSiigo(document)) {
-    return IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR
-  }
-
   if (
     document.status === ELECTRONIC_DOCUMENT_STATUS.PURCHASE_CREATED ||
     document.status === ELECTRONIC_DOCUMENT_STATUS.COMPLETED
@@ -47,18 +43,37 @@ export function mapDocumentToImportRowStatus(
     return IMPORT_ROW_STATUS.ERROR
   }
 
+  if (isSupplierCheckPending(document)) {
+    return IMPORT_ROW_STATUS.EN_PROCESO
+  }
+
+  if (isSupplierMissingInSiigo(document)) {
+    return IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR
+  }
+
   return IMPORT_ROW_STATUS.PENDIENTE
 }
 
 export function getSupportDocumentActionFromImportStatus(
   importStatus: ImportRowStatus,
-): 'supplier_missing' | 'send' | 'none' {
+): 'supplier_missing' | 'processing' | 'send' | 'none' {
   switch (importStatus) {
     case IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR:
       return 'supplier_missing'
+    case IMPORT_ROW_STATUS.EN_PROCESO:
+      return 'processing'
     case IMPORT_ROW_STATUS.LISTA:
       return 'none'
     default:
       return 'send'
   }
+}
+
+export function isSupportDocumentRowSelectable(
+  importStatus: ImportRowStatus,
+): boolean {
+  return (
+    importStatus !== IMPORT_ROW_STATUS.LISTA &&
+    importStatus !== IMPORT_ROW_STATUS.EN_PROCESO
+  )
 }

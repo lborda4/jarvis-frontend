@@ -47,7 +47,7 @@ export function buildSiigoSupportDocumentRequest(
   paymentMethod: SiigoPaymentMethodOption,
   retentions: SiigoTaxOption[],
   selectedDate: string,
-  savePreferences = false,
+  savePreferences = true,
 ): CreateSiigoSupportDocumentRequest {
   const supplierIdentification = normalizeSupplierIdentification(
     document.supplierNit?.trim() || '',
@@ -115,6 +115,7 @@ export function buildSiigoSupportDocumentRequest(
       ? {
           savePreferences: true,
           supplierPreferences: {
+            accountCode: account.code,
             accountDescription: account.description,
             paymentMethod: {
               id: paymentMethod.id,

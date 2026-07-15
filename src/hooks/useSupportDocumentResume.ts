@@ -3,9 +3,15 @@ import {
   AUTO_DISMISS_ERROR_MS,
   useAutoDismissMessage,
 } from './useAutoDismissMessage'
-import { resumeElectronicDocument } from '../services/electronicDocumentService'
+import {
+  fetchElectronicDocuments,
+  resumeElectronicDocument,
+} from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
-import type { ElectronicDocumentListItem } from '../types/electronicDocument'
+import {
+  ELECTRONIC_DOCUMENT_TYPE,
+  type ElectronicDocumentListItem,
+} from '../types/electronicDocument'
 import {
   IMPORT_ROW_STATUS,
   type ImportRowStatus,
@@ -14,7 +20,11 @@ import {
   mapDocumentToImportRowStatus,
   mapResumeNextStepToImportStatus,
 } from '../utils/mapImportRowStatus'
+import { isSupplierCheckPending } from '../utils/supplierSiigoStatus'
 import { useAccountMappingModal } from './useAccountMappingModal'
+
+const VALIDATION_POLL_INTERVAL_MS = 1000
+const VALIDATION_MAX_ATTEMPTS = 45
 
 interface UseSupportDocumentResumeOptions {
   documents: ElectronicDocumentListItem[]
@@ -22,6 +32,29 @@ interface UseSupportDocumentResumeOptions {
     React.SetStateAction<ElectronicDocumentListItem[]>
   >
   onFlowCompleted: () => void
+}
+
+function mergeImportedDocuments(
+  current: ElectronicDocumentListItem[],
+  imported: ElectronicDocumentListItem[],
+): ElectronicDocumentListItem[] {
+  if (imported.length === 0) {
+    return current
+  }
+
+  const updates = new Map(imported.map((document) => [document.id, document]))
+  const merged = current.map((document) => updates.get(document.id) ?? document)
+  const missing = imported.filter(
+    (document) => !current.some((item) => item.id === document.id),
+  )
+
+  return missing.length > 0 ? [...missing, ...merged] : merged
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
 }
 
 export function useSupportDocumentResume({
@@ -42,11 +75,17 @@ export function useSupportDocumentResume({
       const next = { ...current }
 
       for (const document of documents) {
-        if (current[document.id] === IMPORT_ROW_STATUS.EN_PROCESO) {
+        const mappedStatus = mapDocumentToImportRowStatus(document)
+        const currentStatus = current[document.id]
+
+        if (currentStatus === IMPORT_ROW_STATUS.EN_PROCESO) {
+          if (mappedStatus !== IMPORT_ROW_STATUS.EN_PROCESO) {
+            next[document.id] = mappedStatus
+          }
           continue
         }
 
-        next[document.id] = mapDocumentToImportRowStatus(document)
+        next[document.id] = mappedStatus
       }
 
       return next
@@ -97,9 +136,11 @@ export function useSupportDocumentResume({
     [updateDocumentFromResume],
   )
 
-  const resumeDocuments = useCallback(
-    async (documentIds: string[]) => {
-      const uniqueIds = [...new Set(documentIds.map((id) => id.trim()).filter(Boolean))]
+  const watchImportedDocuments = useCallback(
+    async (documentIds: string[], onRefresh?: () => void) => {
+      const uniqueIds = [
+        ...new Set(documentIds.map((id) => id.trim()).filter(Boolean)),
+      ]
 
       if (uniqueIds.length === 0) {
         return
@@ -108,10 +149,44 @@ export function useSupportDocumentResume({
       setIsResuming(true)
       setErrorMessage(null)
 
-      try {
+      setImportStatuses((current) => {
+        const next = { ...current }
+
         for (const documentId of uniqueIds) {
-          await resumeDocument(documentId)
+          next[documentId] = IMPORT_ROW_STATUS.EN_PROCESO
         }
+
+        return next
+      })
+
+      try {
+        for (let attempt = 0; attempt < VALIDATION_MAX_ATTEMPTS; attempt += 1) {
+          const response = await fetchElectronicDocuments({
+            electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+            page: 1,
+            limit: Math.max(uniqueIds.length + 10, 50),
+          })
+
+          const imported = response.items.filter((document) =>
+            uniqueIds.includes(document.id),
+          )
+
+          setDocuments((current) => mergeImportedDocuments(current, imported))
+
+          if (
+            imported.length === uniqueIds.length &&
+            imported.every((document) => !isSupplierCheckPending(document))
+          ) {
+            onRefresh?.()
+            return
+          }
+
+          await sleep(VALIDATION_POLL_INTERVAL_MS)
+        }
+
+        setErrorMessage(
+          'La validación de proveedores está tardando más de lo esperado. Actualice la página en unos segundos.',
+        )
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
@@ -121,9 +196,10 @@ export function useSupportDocumentResume({
         )
       } finally {
         setIsResuming(false)
+        onRefresh?.()
       }
     },
-    [resumeDocument],
+    [setDocuments],
   )
 
   const {
@@ -208,7 +284,7 @@ export function useSupportDocumentResume({
     isModalOpen,
     errorMessage,
     accountModal,
-    resumeDocuments,
+    watchImportedDocuments,
     continueAccount,
     retryDocument,
     closeAccountModal,

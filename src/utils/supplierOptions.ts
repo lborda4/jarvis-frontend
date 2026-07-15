@@ -24,6 +24,30 @@ export function extractSupplierOptions(
   )
 }
 
+export function mergeSupplierOptions(
+  current: SupplierOption[],
+  documents: ElectronicDocumentListItem[],
+): SupplierOption[] {
+  const suppliers = new Map(current.map((supplier) => [supplier.nit, supplier]))
+
+  for (const document of documents) {
+    const nit = document.supplierNit?.trim()
+
+    if (!nit || suppliers.has(nit)) {
+      continue
+    }
+
+    suppliers.set(nit, {
+      nit,
+      name: document.supplierName?.trim() || nit,
+    })
+  }
+
+  return [...suppliers.values()].sort((left, right) =>
+    left.name.localeCompare(right.name, 'es'),
+  )
+}
+
 export function filterDocumentsBySupplier(
   documents: ElectronicDocumentListItem[],
   supplier: SupplierOption | null,

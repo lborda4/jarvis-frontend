@@ -2,7 +2,7 @@ import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
-import { isSupplierMissingInSiigo } from './supplierSiigoStatus'
+import { isSupplierCheckPending, isSupplierMissingInSiigo } from './supplierSiigoStatus'
 
 export function isDocumentReadyToSend(
   documentId: string,
@@ -25,11 +25,14 @@ export function canSendDocument(
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
   retentionsConfiguredIds: Set<string>,
 ): boolean {
-  if (isSupplierMissingInSiigo(document)) {
+  if (isSupplierMissingInSiigo(document) || isSupplierCheckPending(document)) {
     return false
   }
 
-  if (importStatus === IMPORT_ROW_STATUS.LISTA) {
+  if (
+    importStatus === IMPORT_ROW_STATUS.LISTA ||
+    importStatus === IMPORT_ROW_STATUS.EN_PROCESO
+  ) {
     return false
   }
 

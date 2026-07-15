@@ -1,4 +1,4 @@
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -7,17 +7,17 @@ import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
+const LOGIN_LANDING_PATH = '/documento-soporte'
+
 function LoginPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { login, isAuthenticated, isLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const redirectPath =
-    (location.state as { from?: string } | null)?.from ?? '/documento-soporte'
+  const redirectPath = LOGIN_LANDING_PATH
 
   if (!isLoading && isAuthenticated) {
     return <Navigate to={redirectPath} replace />
@@ -34,7 +34,7 @@ function LoginPage() {
         password,
       })
       setAuthEntryMode('login')
-      navigate(redirectPath, { replace: true })
+      navigate(LOGIN_LANDING_PATH, { replace: true })
     } catch (error) {
       setErrorMessage(
         getAuthErrorMessage(error, 'No se pudo iniciar sesión. Intenta nuevamente.'),
