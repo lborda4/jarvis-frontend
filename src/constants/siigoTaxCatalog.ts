@@ -44,6 +44,53 @@ function normalizeRetentionTaxType(type: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+export function retentionTaxTypesMatch(
+  leftType: string,
+  rightType: string,
+): boolean {
+  return normalizeRetentionTaxType(leftType) === normalizeRetentionTaxType(rightType)
+}
+
+export function findRetentionByTaxType(
+  retentions: SiigoTaxOption[],
+  taxType: string,
+): SiigoTaxOption | null {
+  return (
+    retentions.find((tax) => retentionTaxTypesMatch(tax.type, taxType)) ?? null
+  )
+}
+
+export function splitRetentionsByTypes(
+  retentions: SiigoTaxOption[],
+  taxTypes: readonly string[],
+): Record<string, SiigoTaxOption | null> {
+  return Object.fromEntries(
+    taxTypes.map((taxType) => [
+      taxType,
+      findRetentionByTaxType(retentions, taxType),
+    ]),
+  )
+}
+
+export function mergeRetentionsByTypes(
+  selections: Record<string, SiigoTaxOption | null>,
+  taxTypes: readonly string[],
+): SiigoTaxOption[] {
+  return taxTypes
+    .map((taxType) => selections[taxType])
+    .filter((tax): tax is SiigoTaxOption => Boolean(tax))
+}
+
+export function normalizeRetentionsForTypes(
+  retentions: SiigoTaxOption[],
+  taxTypes: readonly string[],
+): SiigoTaxOption[] {
+  return mergeRetentionsByTypes(
+    splitRetentionsByTypes(retentions, taxTypes),
+    taxTypes,
+  )
+}
+
 export function isAllowedRetentionTaxType(
   type: string,
   allowedTypes: readonly string[],

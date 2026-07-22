@@ -4,6 +4,11 @@ import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import { NONE_COST_CENTER_OPTION } from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
+import {
+  normalizeRetentionsForTypes,
+  retentionTaxTypesMatch,
+  splitRetentionsByTypes,
+} from '../constants/siigoTaxCatalog'
 import type { DocumentWorkspaceConfig } from '../constants/documentWorkspaceConfig'
 import { SUPPORT_DOCUMENT_WORKSPACE } from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
@@ -55,7 +60,6 @@ import {
   buildInitialRowDates,
   buildInitialRowObservations,
 } from '../utils/supportDocumentDate'
-import { isSupplierReadyInSiigo } from '../utils/supplierSiigoStatus'
 import {
   canSendDocument,
   countSendableDocuments,
@@ -92,24 +96,55 @@ function buildInitialRowPaymentMethods(
 
 function buildInitialRowRetentions(
   documents: ElectronicDocumentListItem[],
+  retentionCatalogTypes: readonly string[],
 ): Record<string, SiigoTaxOption[]> {
   return Object.fromEntries(
     documents.map((document) => [
       document.id,
-      mapSuggestedRetentionsToTaxOptions(document.suggestedRetentions),
+      normalizeRetentionsForTypes(
+        mapSuggestedRetentionsToTaxOptions(document.suggestedRetentions),
+        retentionCatalogTypes,
+      ),
     ]),
   )
 }
 
-function buildInitialRetentionsConfiguredIds(
-  documents: ElectronicDocumentListItem[],
-): Set<string> {
-  return new Set(
-    documents
-      .filter((document) => (document.suggestedRetentions?.length ?? 0) > 0)
-      .map((document) => document.id),
+function buildEmptyRetentionsByType(
+  retentionCatalogTypes: readonly string[],
+): Record<string, SiigoTaxOption | null> {
+  return Object.fromEntries(
+    retentionCatalogTypes.map((taxType) => [taxType, null]),
   )
 }
+
+function resolveSharedSelectionValue<T>(
+  selectedIds: Set<string>,
+  getValue: (documentId: string) => T | null | undefined,
+  isEqual: (left: T, right: T) => boolean,
+): T | null {
+  const documentIds = [...selectedIds]
+
+  if (documentIds.length === 0) {
+    return null
+  }
+
+  const firstValue = getValue(documentIds[0])
+
+  if (firstValue == null) {
+    return null
+  }
+
+  for (const documentId of documentIds.slice(1)) {
+    const value = getValue(documentId)
+
+    if (value == null || !isEqual(firstValue, value)) {
+      return null
+    }
+  }
+
+  return firstValue
+}
+
 
 export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -147,7 +182,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const {
     accountOptions,
     paymentMethodOptions,
-    retentionCatalogOptions,
+    retentionOptionsByType,
     costCenterOptions,
     accountsError,
     paymentMethodsError,
@@ -168,9 +203,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   >({})
   const [rowDates, setRowDates] = useState<Record<string, string>>({})
   const [rowObservations, setRowObservations] = useState<Record<string, string>>({})
-  const [retentionsConfiguredIds, setRetentionsConfiguredIds] = useState<
-    Set<string>
-  >(new Set())
   const [selectedAccount, setSelectedAccount] = useState<SiigoAccountOption | null>(
     null,
   )
@@ -178,9 +210,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     useState<SiigoPaymentMethodOption | null>(null)
   const [selectedCostCenter, setSelectedCostCenter] =
     useState<SiigoCostCenterOption>(NONE_COST_CENTER_OPTION)
-  const [selectedRetentions, setSelectedRetentions] = useState<SiigoTaxOption[]>(
-    [],
-  )
+  const [selectedRetentionsByType, setSelectedRetentionsByType] = useState<
+    Record<string, SiigoTaxOption | null>
+  >(() => buildEmptyRetentionsByType(config.retentionCatalogTypes))
 
   const reloadDocuments = useCallback((options?: { resetPage?: boolean }) => {
     if (options?.resetPage) {
@@ -234,9 +266,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         setRowAccounts(buildInitialRowAccounts(response.items))
         setRowPaymentMethods(buildInitialRowPaymentMethods(response.items))
         setRowCostCenters(buildInitialRowCostCenters(response.items))
-        setRowRetentions(buildInitialRowRetentions(response.items))
-        setRetentionsConfiguredIds(
-          buildInitialRetentionsConfiguredIds(response.items),
+        setRowRetentions(
+          buildInitialRowRetentions(
+            response.items,
+            config.retentionCatalogTypes,
+          ),
         )
         setRowDates((current) => buildInitialRowDates(response.items, current))
         setRowObservations((current) =>
@@ -267,6 +301,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     columnFilters.statuses,
     config.electronicDocumentType,
     config.loadDocumentsError,
+    config.retentionCatalogTypes,
     page,
     pageLimit,
     selectedSupplierNits,
@@ -365,9 +400,32 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [accountOptions, filteredDocuments],
   )
 
-  const retentionOptions = useMemo(
-    () => retentionCatalogOptions,
-    [retentionCatalogOptions],
+  const handleRetentionTypeChange = useCallback(
+    (taxType: string, tax: SiigoTaxOption | null) => {
+      setSelectedRetentionsByType((current) => ({
+        ...current,
+        [taxType]: tax,
+      }))
+
+      if (selectedDocumentIds.size === 0) {
+        return
+      }
+
+      setRowRetentions((current) => {
+        const next = { ...current }
+
+        for (const documentId of selectedDocumentIds) {
+          const existing = current[documentId] ?? []
+          const withoutType = existing.filter(
+            (item) => !retentionTaxTypesMatch(item.type, taxType),
+          )
+          next[documentId] = tax ? [...withoutType, tax] : withoutType
+        }
+
+        return next
+      })
+    },
+    [selectedDocumentIds],
   )
 
   const {
@@ -426,6 +484,63 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     sortDirection,
   ])
 
+  const selectedDocumentIdsKey = useMemo(
+    () => [...selectedDocumentIds].sort().join(','),
+    [selectedDocumentIds],
+  )
+
+  useEffect(() => {
+    if (selectedDocumentIds.size === 0) {
+      setSelectedAccount(null)
+      setSelectedPaymentMethod(null)
+      setSelectedCostCenter(NONE_COST_CENTER_OPTION)
+      setSelectedRetentionsByType(
+        buildEmptyRetentionsByType(config.retentionCatalogTypes),
+      )
+      return
+    }
+
+    setSelectedAccount(
+      resolveSharedSelectionValue(
+        selectedDocumentIds,
+        (documentId) => rowAccounts[documentId] ?? null,
+        (left, right) => left.code === right.code,
+      ),
+    )
+
+    setSelectedPaymentMethod(
+      resolveSharedSelectionValue(
+        selectedDocumentIds,
+        (documentId) => rowPaymentMethods[documentId] ?? null,
+        (left, right) => left.id === right.id,
+      ),
+    )
+
+    const sharedCostCenter = resolveSharedSelectionValue(
+      selectedDocumentIds,
+      (documentId) => rowCostCenters[documentId] ?? null,
+      (left, right) => left.id === right.id,
+    )
+    setSelectedCostCenter(sharedCostCenter ?? NONE_COST_CENTER_OPTION)
+
+    const sharedRetentions = resolveSharedSelectionValue(
+      selectedDocumentIds,
+      (documentId) => rowRetentions[documentId] ?? [],
+      (left, right) =>
+        left.length === right.length &&
+        left.every((tax, index) => tax.id === right[index]?.id),
+    )
+
+    setSelectedRetentionsByType(
+      sharedRetentions
+        ? splitRetentionsByTypes(
+            sharedRetentions,
+            config.retentionCatalogTypes,
+          )
+        : buildEmptyRetentionsByType(config.retentionCatalogTypes),
+    )
+  }, [config.retentionCatalogTypes, selectedDocumentIdsKey])
+
   useEffect(() => {
     setSelectedDocumentIds((current) => {
       if (current.size === 0) {
@@ -472,64 +587,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         const next = { ...current }
 
         for (const documentId of selectedDocumentIds) {
-          const document = documents.find((item) => item.id === documentId)
-
-          if (document && isSupplierReadyInSiigo(document)) {
-            next[documentId] = value
-          }
+          next[documentId] = value
         }
 
         return next
       })
     },
-    [documents, selectedDocumentIds],
+    [selectedDocumentIds],
   )
-
-  const applyArraySelectionToCheckedRows = useCallback(
-    <T,>(
-      values: T[],
-      setter: Dispatch<SetStateAction<Record<string, T[]>>>,
-    ) => {
-      if (selectedDocumentIds.size === 0) {
-        return
-      }
-
-      setter((current) => {
-        const next = { ...current }
-
-        for (const documentId of selectedDocumentIds) {
-          const document = documents.find((item) => item.id === documentId)
-
-          if (document && isSupplierReadyInSiigo(document)) {
-            next[documentId] = values
-          }
-        }
-
-        return next
-      })
-    },
-    [documents, selectedDocumentIds],
-  )
-
-  const markRetentionsConfiguredForSelection = useCallback(() => {
-    if (selectedDocumentIds.size === 0) {
-      return
-    }
-
-    setRetentionsConfiguredIds((current) => {
-      const next = new Set(current)
-
-      for (const documentId of selectedDocumentIds) {
-        const document = documents.find((item) => item.id === documentId)
-
-        if (document && isSupplierReadyInSiigo(document)) {
-          next.add(documentId)
-        }
-      }
-
-      return next
-    })
-  }, [documents, selectedDocumentIds])
 
   const handleConfigAccountChange = useCallback(
     (account: SiigoAccountOption | null) => {
@@ -543,17 +608,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         const next = { ...current }
 
         for (const documentId of selectedDocumentIds) {
-          const document = documents.find((item) => item.id === documentId)
-
-          if (document && isSupplierReadyInSiigo(document)) {
-            next[documentId] = account
-          }
+          next[documentId] = account
         }
 
         return next
       })
     },
-    [documents, selectedDocumentIds],
+    [selectedDocumentIds],
   )
 
   const handleConfigPaymentMethodChange = useCallback(
@@ -572,18 +633,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [applySelectionToCheckedRows],
   )
 
-  const handleConfigRetentionsChange = useCallback(
-    (taxes: SiigoTaxOption[]) => {
-      setSelectedRetentions(taxes)
-      applyArraySelectionToCheckedRows(taxes, setRowRetentions)
-      markRetentionsConfiguredForSelection()
-    },
-    [
-      applyArraySelectionToCheckedRows,
-      markRetentionsConfiguredForSelection,
-    ],
-  )
-
   const sendableSelectedCount = useMemo(
     () =>
       countSendableDocuments(
@@ -592,7 +641,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         importStatuses,
         rowAccounts,
         rowPaymentMethods,
-        retentionsConfiguredIds,
       ),
     [
       selectedDocumentIds,
@@ -600,7 +648,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       importStatuses,
       rowAccounts,
       rowPaymentMethods,
-      retentionsConfiguredIds,
     ],
   )
 
@@ -620,16 +667,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         importStatuses[rowId],
         rowAccounts,
         rowPaymentMethods,
-        retentionsConfiguredIds,
       )
     },
-    [
-      documentsById,
-      importStatuses,
-      rowAccounts,
-      rowPaymentMethods,
-      retentionsConfiguredIds,
-    ],
+    [documentsById, importStatuses, rowAccounts, rowPaymentMethods],
   )
 
   const handleSendSelected = useCallback(() => {
@@ -643,12 +683,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowRetentions,
       rowDates,
       rowObservations,
-      retentionsConfiguredIds,
     })
   }, [
     documentsById,
     importStatuses,
-    retentionsConfiguredIds,
     rowAccounts,
     rowCostCenters,
     rowDates,
@@ -671,13 +709,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowRetentions,
         rowDates,
         rowObservations,
-        retentionsConfiguredIds,
       })
     },
     [
       documentsById,
       importStatuses,
-      retentionsConfiguredIds,
       rowAccounts,
       rowCostCenters,
       rowDates,
@@ -940,18 +976,19 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           accountOptions={tableAccountOptions}
           paymentMethodOptions={paymentMethodOptions}
           costCenterOptions={costCenterOptions}
-          retentionOptions={retentionOptions}
+          retentionCatalogTypes={config.retentionCatalogTypes}
+          retentionOptionsByType={retentionOptionsByType}
+          selectedRetentionsByType={selectedRetentionsByType}
           selectedAccount={selectedAccount}
           selectedPaymentMethod={selectedPaymentMethod}
           selectedCostCenter={selectedCostCenter}
-          selectedRetentions={selectedRetentions}
           canSend={canSendSelected}
           isSending={isSending}
           disabled={isLoading || isImporting || isResuming || isModalOpen}
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onCostCenterChange={handleConfigCostCenterChange}
-          onRetentionsChange={handleConfigRetentionsChange}
+          onRetentionTypeChange={handleRetentionTypeChange}
           onSend={handleSendSelected}
         />
       </div>

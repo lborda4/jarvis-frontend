@@ -2,7 +2,7 @@ import { useState } from 'react'
 import AccountAutocomplete from '../AccountAutocomplete'
 import CostCenterAutocomplete from '../CostCenterAutocomplete'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
-import TaxMultiSelect from '../TaxMultiSelect'
+import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
@@ -14,19 +14,32 @@ interface SupportDocumentConfigPanelProps {
   accountOptions: SiigoAccountOption[]
   paymentMethodOptions: SiigoPaymentMethodOption[]
   costCenterOptions: SiigoCostCenterOption[]
-  retentionOptions: SiigoTaxOption[]
+  retentionCatalogTypes: readonly string[]
+  retentionOptionsByType: Record<string, SiigoTaxOption[]>
+  selectedRetentionsByType: Record<string, SiigoTaxOption | null>
   selectedAccount: SiigoAccountOption | null
   selectedPaymentMethod: SiigoPaymentMethodOption | null
   selectedCostCenter: SiigoCostCenterOption
-  selectedRetentions: SiigoTaxOption[]
   canSend: boolean
   isSending: boolean
   disabled?: boolean
   onAccountChange: (account: SiigoAccountOption | null) => void
   onPaymentMethodChange: (paymentMethod: SiigoPaymentMethodOption | null) => void
   onCostCenterChange: (costCenter: SiigoCostCenterOption) => void
-  onRetentionsChange: (taxes: SiigoTaxOption[]) => void
+  onRetentionTypeChange: (taxType: string, tax: SiigoTaxOption | null) => void
   onSend: () => void
+}
+
+function formatRetentionTypeLabel(taxType: string): string {
+  if (taxType === 'Retefuente') {
+    return 'Retefuente'
+  }
+
+  if (taxType === 'ReteICA') {
+    return 'ReteICA'
+  }
+
+  return taxType
 }
 
 function SupportDocumentConfigPanel({
@@ -35,18 +48,19 @@ function SupportDocumentConfigPanel({
   accountOptions,
   paymentMethodOptions,
   costCenterOptions,
-  retentionOptions,
+  retentionCatalogTypes,
+  retentionOptionsByType,
+  selectedRetentionsByType,
   selectedAccount,
   selectedPaymentMethod,
   selectedCostCenter,
-  selectedRetentions,
   canSend,
   isSending,
   disabled = false,
   onAccountChange,
   onPaymentMethodChange,
   onCostCenterChange,
-  onRetentionsChange,
+  onRetentionTypeChange,
   onSend,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
@@ -73,7 +87,7 @@ function SupportDocumentConfigPanel({
         <span className="support-config-panel__meta">
           {sendableCount > 0
             ? `${sendableCount} listo(s) para enviar`
-            : 'Complete cuenta, medio de pago y retenciones'}
+            : 'Complete cuenta contable y medio de pago'}
         </span>
         <span className="support-config-panel__chevron" aria-hidden="true">
           {isExpanded ? '▾' : '▸'}
@@ -121,17 +135,21 @@ function SupportDocumentConfigPanel({
               />
             </div>
 
-            <div className="support-config-panel__field">
-              <label htmlFor="support-config-retentions">Retenciones</label>
-              <TaxMultiSelect
-                id="support-config-retentions"
-                options={retentionOptions}
-                selectedTaxes={selectedRetentions}
-                onChange={onRetentionsChange}
-                disabled={controlsDisabled}
-                placeholder="Buscar ReteICA o Retefuente..."
-              />
-            </div>
+            {retentionCatalogTypes.map((taxType) => (
+              <div key={taxType} className="support-config-panel__field">
+                <label htmlFor={`support-config-retention-${taxType}`}>
+                  {formatRetentionTypeLabel(taxType)} (opcional)
+                </label>
+                <TaxAutocomplete
+                  id={`support-config-retention-${taxType}`}
+                  options={retentionOptionsByType[taxType] ?? []}
+                  value={selectedRetentionsByType[taxType] ?? null}
+                  onChange={(tax) => onRetentionTypeChange(taxType, tax)}
+                  disabled={controlsDisabled}
+                  placeholder={`Buscar ${formatRetentionTypeLabel(taxType)}...`}
+                />
+              </div>
+            ))}
           </div>
 
           <div className="support-config-panel__actions support-config-panel__actions--end">

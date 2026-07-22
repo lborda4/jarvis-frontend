@@ -97,7 +97,7 @@ function SiigoIntegrationSettings() {
           autoComplete="off"
         >
           <div className="settings-form__field">
-            <label htmlFor="siigo-username">Usuario de SIIGO</label>
+            <label htmlFor="siigo-username">Correo acceso SIIGO</label>
             <input
               id="siigo-username"
               name="jarvis-siigo-username"

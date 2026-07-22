@@ -30,7 +30,6 @@ interface SendDocumentsParams {
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowDates: Record<string, string>
   rowObservations: Record<string, string>
-  retentionsConfiguredIds: Set<string>
   savePreferences?: boolean
 }
 
@@ -82,7 +81,6 @@ export function useSupportDocumentSend({
         rowRetentions,
         rowDates,
         rowObservations,
-        retentionsConfiguredIds,
         savePreferences = true,
       } = params
 
@@ -97,14 +95,13 @@ export function useSupportDocumentSend({
             importStatuses[documentId],
             rowAccounts,
             rowPaymentMethods,
-            retentionsConfiguredIds,
           )
         )
       })
 
       if (targets.length === 0) {
         setErrorMessage(
-          'Seleccione documentos con cuenta, medio de pago y retenciones configurados.',
+          'Seleccione documentos con cuenta contable y medio de pago configurados.',
         )
         return
       }

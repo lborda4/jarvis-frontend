@@ -286,14 +286,24 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     [catalog.paymentMethodOptionsByDocumentType, config.paymentDocumentType],
   )
 
+  const retentionOptionsByType = useMemo(() => {
+    const optionsByType: Record<string, SiigoTaxOption[]> = {}
+
+    for (const taxType of config.retentionCatalogTypes) {
+      optionsByType[taxType] = catalog.retentionOptionsByTaxType[taxType] ?? []
+    }
+
+    return optionsByType
+  }, [catalog.retentionOptionsByTaxType, config.retentionCatalogTypes])
+
   const retentionCatalogOptions = useMemo(
     () =>
       mergeRetentionTaxOptions(
         ...config.retentionCatalogTypes.map(
-          (taxType) => catalog.retentionOptionsByTaxType[taxType] ?? [],
+          (taxType) => retentionOptionsByType[taxType] ?? [],
         ),
       ),
-    [catalog.retentionOptionsByTaxType, config.retentionCatalogTypes],
+    [config.retentionCatalogTypes, retentionOptionsByType],
   )
 
   return {
@@ -301,6 +311,7 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     accountOptions: catalog.accountOptions,
     paymentMethodOptions,
     retentionCatalogOptions,
+    retentionOptionsByType,
     costCenterOptions: catalog.costCenterOptions,
     accountsError: catalog.accountsError,
     paymentMethodsError: catalog.paymentMethodsError,

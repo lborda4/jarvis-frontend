@@ -8,13 +8,8 @@ export function isDocumentReadyToSend(
   documentId: string,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
-  retentionsConfiguredIds: Set<string>,
 ): boolean {
-  return Boolean(
-    rowAccounts[documentId] &&
-      rowPaymentMethods[documentId] &&
-      retentionsConfiguredIds.has(documentId),
-  )
+  return Boolean(rowAccounts[documentId] && rowPaymentMethods[documentId])
 }
 
 export function canSendDocument(
@@ -23,7 +18,6 @@ export function canSendDocument(
   importStatus: ImportRowStatus | undefined,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
-  retentionsConfiguredIds: Set<string>,
 ): boolean {
   if (isSupplierMissingInSiigo(document) || isSupplierCheckPending(document)) {
     return false
@@ -36,12 +30,7 @@ export function canSendDocument(
     return false
   }
 
-  return isDocumentReadyToSend(
-    documentId,
-    rowAccounts,
-    rowPaymentMethods,
-    retentionsConfiguredIds,
-  )
+  return isDocumentReadyToSend(documentId, rowAccounts, rowPaymentMethods)
 }
 
 export function countSendableDocuments(
@@ -50,7 +39,6 @@ export function countSendableDocuments(
   importStatuses: Record<string, ImportRowStatus>,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
-  retentionsConfiguredIds: Set<string>,
 ): number {
   let count = 0
 
@@ -65,7 +53,6 @@ export function countSendableDocuments(
         importStatuses[documentId],
         rowAccounts,
         rowPaymentMethods,
-        retentionsConfiguredIds,
       )
     ) {
       count += 1
