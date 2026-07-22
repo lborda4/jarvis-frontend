@@ -4,18 +4,21 @@ import {
   useAutoDismissMessage,
 } from './useAutoDismissMessage'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
+import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import { getApiErrorMessage } from '../services/apiClient'
-import {
-  createSiigoSupportDocument,
-} from '../services/siigoService'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
-import { buildSiigoSupportDocumentRequest } from '../utils/buildSiigoSupportDocumentRequest'
+import type { DocumentWorkspaceConfig } from '../constants/documentWorkspaceConfig'
+import type { SiigoDocumentSendRequest } from '../utils/buildSiigoDocumentRequest'
 import { canSendDocument } from '../utils/supportDocumentSend'
+import { isSiigoDuplicatedDocumentError } from '../utils/siigoSendErrors'
 
-const SEND_STAGGER_MS = 300
+const SEND_INTERVAL_MS = 1000
+const DUPLICATE_RETRY_PAUSE_MS = 2000
+const DUPLICATE_RETRY_INTERVAL_MS = 2000
+const MAX_DUPLICATE_RETRY_ROUNDS = 3
 
 interface SendDocumentsParams {
   documentIds: string[]
@@ -23,18 +26,31 @@ interface SendDocumentsParams {
   importStatuses: Record<string, ImportRowStatus>
   rowAccounts: Record<string, SiigoAccountOption | null>
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
+  rowCostCenters: Record<string, SiigoCostCenterOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowDates: Record<string, string>
+  rowObservations: Record<string, string>
   retentionsConfiguredIds: Set<string>
   savePreferences?: boolean
 }
 
 interface UseSupportDocumentSendOptions {
+  workspace: Pick<
+    DocumentWorkspaceConfig,
+    'buildSendRequest' | 'sendToSiigo' | 'sendSuccessFeedback'
+  >
   onCompleted: () => void
   onDocumentStatusChange?: (
     documentId: string,
     status: ImportRowStatus,
   ) => void
+}
+
+interface SendAttemptResult {
+  documentId: string
+  success: boolean
+  error?: string
+  isDuplicated: boolean
 }
 
 function wait(ms: number): Promise<void> {
@@ -44,6 +60,7 @@ function wait(ms: number): Promise<void> {
 }
 
 export function useSupportDocumentSend({
+  workspace,
   onCompleted,
   onDocumentStatusChange,
 }: UseSupportDocumentSendOptions) {
@@ -61,8 +78,10 @@ export function useSupportDocumentSend({
         importStatuses,
         rowAccounts,
         rowPaymentMethods,
+        rowCostCenters,
         rowRetentions,
         rowDates,
+        rowObservations,
         retentionsConfiguredIds,
         savePreferences = true,
       } = params
@@ -94,64 +113,150 @@ export function useSupportDocumentSend({
       setErrorMessage(null)
       setFeedbackMessage(null)
 
-      const sendSingleDocument = async (
+      const buildRequest = (
         documentId: string,
-        staggerIndex: number,
-      ): Promise<{ documentId: string; success: boolean; error?: string }> => {
-        if (staggerIndex > 0) {
-          await wait(staggerIndex * SEND_STAGGER_MS)
-        }
-
+      ): SiigoDocumentSendRequest | null => {
         const document = documentsById[documentId]
         const account = rowAccounts[documentId]
         const paymentMethod = rowPaymentMethods[documentId]
-        const retentions = rowRetentions[documentId] ?? []
-        const selectedDate = rowDates[documentId]
 
         if (!document || !account || !paymentMethod) {
+          return null
+        }
+
+        return workspace.buildSendRequest(
+          document,
+          account,
+          paymentMethod,
+          rowRetentions[documentId] ?? [],
+          rowCostCenters[documentId] ?? null,
+          rowDates[documentId],
+          rowObservations[documentId],
+          savePreferences,
+        ) as SiigoDocumentSendRequest
+      }
+
+      const attemptSend = async (
+        documentId: string,
+      ): Promise<SendAttemptResult> => {
+        const request = buildRequest(documentId)
+
+        if (!request) {
           return {
             documentId,
             success: false,
             error: 'Faltan datos para enviar el documento.',
+            isDuplicated: false,
           }
         }
 
-        onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
-
         try {
-          const request = buildSiigoSupportDocumentRequest(
-            document,
-            account,
-            paymentMethod,
-            retentions,
-            selectedDate,
-            savePreferences,
-          )
-
-          await createSiigoSupportDocument(request)
-          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.LISTA)
-
-          return { documentId, success: true }
-        } catch (error) {
-          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
-
-          const errorMessage = getApiErrorMessage(
-            error,
-            'No se pudo enviar el documento a SIIGO.',
-          )
+          await workspace.sendToSiigo(request)
 
           return {
             documentId,
+            success: true,
+            isDuplicated: false,
+          }
+        } catch (error) {
+          return {
+            documentId,
             success: false,
-            error: errorMessage,
+            error: getApiErrorMessage(
+              error,
+              'No se pudo enviar el documento a SIIGO.',
+            ),
+            isDuplicated: isSiigoDuplicatedDocumentError(error),
           }
         }
       }
 
-      const results = await Promise.all(
-        targets.map((documentId, index) =>
-          sendSingleDocument(documentId, index),
-        ),
+      const initialResults = await Promise.all(
+        targets.map(async (documentId, index) => {
+          if (index > 0) {
+            await wait(index * SEND_INTERVAL_MS)
+          }
+
+          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+
+          return attemptSend(documentId)
+        }),
+      )
+
+      const finalResults = new Map<string, SendAttemptResult>(
+        initialResults.map((result) => [result.documentId, result]),
+      )
+
+      for (const result of initialResults) {
+        if (result.success) {
+          onDocumentStatusChange?.(result.documentId, IMPORT_ROW_STATUS.LISTA)
+          continue
+        }
+
+        if (!result.isDuplicated) {
+          onDocumentStatusChange?.(result.documentId, IMPORT_ROW_STATUS.ERROR)
+        }
+      }
+
+      let duplicatedDocumentIds = initialResults
+        .filter((result) => !result.success && result.isDuplicated)
+        .map((result) => result.documentId)
+
+      if (duplicatedDocumentIds.length > 0) {
+        await wait(DUPLICATE_RETRY_PAUSE_MS)
+      }
+
+      for (
+        let retryRound = 0;
+        retryRound < MAX_DUPLICATE_RETRY_ROUNDS &&
+        duplicatedDocumentIds.length > 0;
+        retryRound += 1
+      ) {
+        if (retryRound > 0) {
+          await wait(DUPLICATE_RETRY_PAUSE_MS)
+        }
+
+        const pendingAfterRound: string[] = []
+
+        for (let index = 0; index < duplicatedDocumentIds.length; index += 1) {
+          if (index > 0) {
+            await wait(DUPLICATE_RETRY_INTERVAL_MS)
+          }
+
+          const documentId = duplicatedDocumentIds[index]
+          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+
+          const result = await attemptSend(documentId)
+          finalResults.set(documentId, result)
+
+          if (result.success) {
+            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.LISTA)
+            continue
+          }
+
+          if (result.isDuplicated) {
+            pendingAfterRound.push(documentId)
+            continue
+          }
+
+          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+        }
+
+        duplicatedDocumentIds = pendingAfterRound
+      }
+
+      for (const documentId of duplicatedDocumentIds) {
+        onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+      }
+
+      const results = targets.map(
+        (documentId) =>
+          finalResults.get(documentId) ?? {
+            documentId,
+            success: false,
+            error: 'No se pudo enviar el documento a SIIGO.',
+            isDuplicated: false,
+          },
       )
 
       const sentCount = results.filter((result) => result.success).length
@@ -162,11 +267,7 @@ export function useSupportDocumentSend({
       setIsSending(false)
 
       if (sentCount > 0) {
-        setFeedbackMessage(
-          failedCount > 0
-            ? `${sentCount} documento(s) enviados. ${failedCount} fallaron.`
-            : `${sentCount} documento(s) enviados correctamente a SIIGO.`,
-        )
+        setFeedbackMessage(workspace.sendSuccessFeedback(sentCount, failedCount))
         onCompleted()
       }
 
@@ -181,6 +282,7 @@ export function useSupportDocumentSend({
       onDocumentStatusChange,
       setErrorMessage,
       setFeedbackMessage,
+      workspace,
     ],
   )
 

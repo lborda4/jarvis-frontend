@@ -1,4 +1,5 @@
 import type {
+  ElectronicDocumentFilterOptions,
   ElectronicDocumentListFilters,
   ElectronicDocumentListResponse,
   ResumeElectronicDocumentResponse,
@@ -6,6 +7,8 @@ import type {
 import { apiClient } from './apiClient'
 
 const ELECTRONIC_DOCUMENTS_ENDPOINT = '/electronic-documents'
+const ELECTRONIC_DOCUMENT_FILTER_OPTIONS_ENDPOINT =
+  '/electronic-documents/filter-options'
 const RESUME_DOCUMENT_ENDPOINT = '/integrations/siigo/documents/resume'
 const RESUME_DOCUMENTS_BATCH_ENDPOINT =
   '/integrations/siigo/documents/resume-batch'
@@ -28,6 +31,37 @@ export async function fetchElectronicDocuments(
           filters.supplierNits && filters.supplierNits.length > 0
             ? filters.supplierNits.join(',')
             : undefined,
+        issueDates:
+          filters.issueDates && filters.issueDates.length > 0
+            ? filters.issueDates.join(',')
+            : undefined,
+        siigoDocumentNumbers:
+          filters.siigoDocumentNumbers &&
+          filters.siigoDocumentNumbers.length > 0
+            ? filters.siigoDocumentNumbers.join(',')
+            : undefined,
+        importStatuses:
+          filters.importStatuses && filters.importStatuses.length > 0
+            ? filters.importStatuses.join(',')
+            : undefined,
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function fetchElectronicDocumentFilterOptions(
+  filters: Pick<
+    ElectronicDocumentListFilters,
+    'electronicDocumentType'
+  > = {},
+): Promise<ElectronicDocumentFilterOptions> {
+  const response = await apiClient.get<ElectronicDocumentFilterOptions>(
+    ELECTRONIC_DOCUMENT_FILTER_OPTIONS_ENDPOINT,
+    {
+      params: {
+        electronicDocumentType: filters.electronicDocumentType || undefined,
       },
     },
   )

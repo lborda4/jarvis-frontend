@@ -92,17 +92,15 @@ export function useDocumentDashboard(
     openAccountMappingModal,
     closeModal: closeAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
   } = useAccountMappingModal({
-    onAccountSaved: ({ documentId, accountCode, autoApply }) => {
+    onAccountSaved: ({ documentId, accountCode }) => {
       if (!orchestratorDepsRef.current) return
 
       markAccountSavedBeforePurchase(
         documentId,
         accountCode,
-        autoApply,
         orchestratorDepsRef.current,
       )
     },
@@ -279,7 +277,6 @@ export function useDocumentDashboard(
     retryCreateSupplier,
     continueAfterSupplierCreated: handleContinueAfterSupplierCreated,
     selectAccount,
-    setAutoApply,
     saveAccount: handleSaveAccount,
     retrySaveAccount,
     acceptPurchase: handleAcceptPurchase,

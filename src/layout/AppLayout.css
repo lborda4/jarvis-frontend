@@ -44,9 +44,9 @@
 }
 
 .app-layout__sidebar-open:hover {
-  background-color: #f5f3ff;
-  border-color: #c4b5fd;
-  color: #5b21b6;
+  background-color: var(--jarvis-brand-soft);
+  border-color: rgba(var(--jarvis-brand-rgb), 0.45);
+  color: var(--jarvis-brand-hover);
 }
 
 .app-layout__sidebar-open-icon {
@@ -80,10 +80,23 @@
 
 .app-sidebar__brand {
   display: flex;
-  align-items: center;
-  gap: 0.65rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
   margin-bottom: 1.75rem;
   padding: 0 0.5rem;
+}
+
+.app-sidebar__brand-logo-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0.15rem 0 0.1rem;
+}
+
+.app-sidebar__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
 .app-sidebar__collapse-btn {
@@ -112,10 +125,18 @@
   height: 1.1rem;
 }
 
+.app-sidebar__brand-logo {
+  width: min(100%, 10.5rem);
+  max-height: 3.75rem;
+  height: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .app-sidebar__brand-icon {
   width: 2rem;
   height: 2rem;
-  color: #7c5cfc;
+  color: var(--jarvis-brand);
 }
 
 .app-sidebar__brand-title {
@@ -124,9 +145,37 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   font-weight: 700;
   color: #111827;
+  line-height: 1.25;
+}
+
+.app-sidebar__company-select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.15rem 0.35rem 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: #111827;
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23111827' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.1rem center;
+  padding-right: 1.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar__company-select:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .app-sidebar__nav {
@@ -156,8 +205,8 @@
 
 .app-sidebar__link--active {
   position: relative;
-  background-color: #f5f3ff;
-  color: #7c5cfc;
+  background-color: var(--jarvis-brand-soft);
+  color: var(--jarvis-brand);
   font-weight: 600;
 }
 
@@ -169,7 +218,7 @@
   bottom: 0.45rem;
   width: 3px;
   border-radius: 999px;
-  background-color: #7c5cfc;
+  background-color: var(--jarvis-brand);
 }
 
 .app-sidebar__link--disabled {
@@ -215,7 +264,7 @@
   width: 1.25rem;
   height: 1.25rem;
   flex-shrink: 0;
-  color: #7c5cfc;
+  color: var(--jarvis-brand);
 }
 
 .app-sidebar__help-title {
@@ -229,7 +278,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: #7c5cfc;
+  color: var(--jarvis-brand);
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
@@ -276,7 +325,7 @@
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #7c5cfc, #a78bfa);
+  background: linear-gradient(135deg, var(--jarvis-brand), var(--jarvis-brand-light));
   color: #ffffff;
   font-size: 0.78rem;
   font-weight: 700;

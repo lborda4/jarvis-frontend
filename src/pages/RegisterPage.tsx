@@ -3,7 +3,7 @@ import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { getAuthErrorMessage, useAuth } from '../context/AuthContext'
-import { clearSiigoConfigured, setAuthEntryMode } from '../utils/siigoSetupStorage'
+import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
@@ -19,7 +19,7 @@ function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isLoading && isAuthenticated) {
-    return <Navigate to="/configuracion/integracion-siigo" replace />
+    return <Navigate to="/" replace />
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -38,8 +38,7 @@ function RegisterPage() {
         },
       })
       setAuthEntryMode('register')
-      clearSiigoConfigured()
-      navigate('/configuracion/integracion-siigo', { replace: true })
+      navigate('/', { replace: true })
     } catch (error) {
       setErrorMessage(
         getAuthErrorMessage(error, 'No se pudo completar el registro. Intenta nuevamente.'),
@@ -63,7 +62,11 @@ function RegisterPage() {
         <header className="auth-card__header">
           <p className="auth-card__eyebrow">Nueva cuenta</p>
           <h1>Crear cuenta</h1>
-          <p>Registra tu usuario y la empresa con la que operarás.</p>
+          <p>
+            Registra tu usuario por correo. Si la empresa ya existe (mismo NIT),
+            se vinculará a ella. Si ya tienes cuenta, usa tu mismo correo y
+            contraseña para vincular otra empresa.
+          </p>
         </header>
 
         <form className="auth-form" onSubmit={handleSubmit}>

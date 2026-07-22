@@ -32,6 +32,27 @@
   line-height: 1.6;
 }
 
+.settings-page__ready-notice {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #bbf7d0;
+  background-color: #f0fdf4;
+  color: #166534;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.settings-page__ready-notice a {
+  color: #15803d;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.settings-page__ready-notice a:hover {
+  text-decoration: underline;
+}
+
 .settings-card {
   padding: 1.5rem;
   border: 1px solid #e2e8f0;
@@ -135,7 +156,8 @@
   color: #374151;
 }
 
-.settings-form__field input {
+.settings-form__field input,
+.settings-form__field select {
   width: 100%;
   padding: 0.72rem 0.85rem;
   border: 1px solid #d1d5db;
@@ -145,12 +167,14 @@
   font-size: 0.94rem;
 }
 
-.settings-form__field input:focus {
-  outline: 2px solid rgba(124, 92, 252, 0.25);
-  border-color: #7c5cfc;
+.settings-form__field input:focus,
+.settings-form__field select:focus {
+  outline: 2px solid var(--jarvis-brand-ring);
+  border-color: var(--jarvis-brand);
 }
 
-.settings-form__field input:disabled {
+.settings-form__field input:disabled,
+.settings-form__field select:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }

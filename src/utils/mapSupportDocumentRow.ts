@@ -34,5 +34,6 @@ export function mapElectronicDocumentToSupportRow(
     suggestedAccount: document.suggestedAccount ?? null,
     importStatus,
     action,
+    createdAt: document.createdAt,
   }
 }

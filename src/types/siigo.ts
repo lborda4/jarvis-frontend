@@ -28,7 +28,6 @@ export interface ValidateSiigoImportResponse {
   supplierConfigurationId: string | null
   supplierDocument: string
   supplierName: string | null
-  autoApply: boolean
   accountCode: string | null
   message?: string
 }
@@ -75,7 +74,6 @@ export interface ValidateAccountMappingResponse {
 export interface SaveAccountMappingRequest extends DocumentIdRequest {
   accountCode: string
   accountDescription: string
-  autoApply: boolean
   paymentMethod?: {
     id: number
     name: string
@@ -88,6 +86,11 @@ export interface SaveAccountMappingRequest extends DocumentIdRequest {
     type: string
     percentage: number
   }>
+  costCenter?: {
+    id: number
+    code: string
+    name: string
+  }
 }
 
 export interface SaveAccountMappingResponse {
@@ -96,6 +99,51 @@ export interface SaveAccountMappingResponse {
 }
 
 export interface CreateSiigoPurchaseRequest extends DocumentIdRequest {}
+
+export interface CreateSiigoPurchaseSendProviderInvoice {
+  prefix: string
+  number: string
+}
+
+export interface CreateSiigoPurchaseSendRequest {
+  documentId: string
+  date: string
+  supplier: CreateSiigoSupportDocumentSupplier
+  provider_invoice: CreateSiigoPurchaseSendProviderInvoice
+  observations?: string
+  retentions?: CreateSiigoSupportDocumentRetention[]
+  items: CreateSiigoSupportDocumentItem[]
+  payments: CreateSiigoSupportDocumentPayment[]
+  cost_center?: number
+  savePreferences?: boolean
+  supplierPreferences?: {
+    accountCode?: string
+    accountDescription?: string
+    paymentMethod?: {
+      id: number
+      name: string
+      type: string
+      dueDate?: boolean
+    }
+    retentions?: Array<{
+      id: number
+      name: string
+      type: string
+      percentage: number
+    }>
+    costCenter?: {
+      id: number
+      code: string
+      name: string
+    }
+  }
+}
+
+export interface CreateSiigoPurchaseSendResponse {
+  success: boolean
+  purchase: SiigoCreatedPurchase
+  document?: Record<string, unknown>
+}
 
 export interface SiigoCreatedPurchase {
   id: string
@@ -160,6 +208,7 @@ export interface CreateSiigoSupportDocumentRequest {
   retentions?: CreateSiigoSupportDocumentRetention[]
   items: CreateSiigoSupportDocumentItem[]
   payments: CreateSiigoSupportDocumentPayment[]
+  cost_center?: number
   savePreferences?: boolean
   supplierPreferences?: {
     accountCode?: string
@@ -176,6 +225,11 @@ export interface CreateSiigoSupportDocumentRequest {
       type: string
       percentage: number
     }>
+    costCenter?: {
+      id: number
+      code: string
+      name: string
+    }
   }
 }
 
@@ -218,10 +272,10 @@ export function isAccountMappingResolvedStatus(
 
 export interface ImportBalanceTrialResponse {
   processedRows: number
-  suppliersCreated: number
-  suppliersUpdated: number
-  accountsAdded: number
-  duplicatedAccounts: number
+  accountsCreated: number
+  accountsUpdated: number
+  skippedRows: number
+  yearsProcessed: number
 }
 
 export interface SaveSiigoCredentialsRequest {
@@ -237,6 +291,12 @@ export interface SaveSiigoCredentialsResponse {
   expires_at: string
 }
 
+export interface SiigoCredentialsStatusResponse {
+  configured: boolean
+  username?: string
+  partner_id?: string
+}
+
 export interface SiigoAccountCatalogItem {
   code: string
   name: string
@@ -247,6 +307,12 @@ export interface SiigoPaymentMethodCatalogItem {
   name: string
   type: string
   dueDate: boolean
+}
+
+export interface SiigoCostCenterCatalogItem {
+  id: number
+  code: string
+  name: string
 }
 
 export interface SiigoTaxCatalogItem {

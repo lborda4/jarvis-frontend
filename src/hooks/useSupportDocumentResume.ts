@@ -3,14 +3,15 @@ import {
   AUTO_DISMISS_ERROR_MS,
   useAutoDismissMessage,
 } from './useAutoDismissMessage'
+import { pickSmallestPageSizeCovering } from '../constants/electronicDocuments'
 import {
   fetchElectronicDocuments,
   resumeElectronicDocument,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
-  ELECTRONIC_DOCUMENT_TYPE,
   type ElectronicDocumentListItem,
+  type ElectronicDocumentType,
 } from '../types/electronicDocument'
 import {
   IMPORT_ROW_STATUS,
@@ -27,6 +28,7 @@ const VALIDATION_POLL_INTERVAL_MS = 1000
 const VALIDATION_MAX_ATTEMPTS = 45
 
 interface UseSupportDocumentResumeOptions {
+  electronicDocumentType: ElectronicDocumentType
   documents: ElectronicDocumentListItem[]
   setDocuments: React.Dispatch<
     React.SetStateAction<ElectronicDocumentListItem[]>
@@ -47,8 +49,12 @@ function mergeImportedDocuments(
   const missing = imported.filter(
     (document) => !current.some((item) => item.id === document.id),
   )
+  const combined =
+    missing.length > 0 ? [...missing, ...merged] : merged
 
-  return missing.length > 0 ? [...missing, ...merged] : merged
+  return [...combined].sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt),
+  )
 }
 
 function sleep(ms: number): Promise<void> {
@@ -58,6 +64,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 export function useSupportDocumentResume({
+  electronicDocumentType,
   documents,
   setDocuments,
   onFlowCompleted,
@@ -159,17 +166,30 @@ export function useSupportDocumentResume({
         return next
       })
 
+      await Promise.all(
+        uniqueIds.map(async (documentId) => {
+          try {
+            await resumeElectronicDocument(documentId)
+          } catch {
+            // El polling continuará leyendo el estado actualizado del documento.
+          }
+        }),
+      )
+
+      let lastImported: ElectronicDocumentListItem[] = []
+
       try {
         for (let attempt = 0; attempt < VALIDATION_MAX_ATTEMPTS; attempt += 1) {
           const response = await fetchElectronicDocuments({
-            electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+            electronicDocumentType,
             page: 1,
-            limit: Math.max(uniqueIds.length + 10, 50),
+            limit: pickSmallestPageSizeCovering(uniqueIds.length + 10),
           })
 
           const imported = response.items.filter((document) =>
             uniqueIds.includes(document.id),
           )
+          lastImported = imported
 
           setDocuments((current) => mergeImportedDocuments(current, imported))
 
@@ -177,6 +197,15 @@ export function useSupportDocumentResume({
             imported.length === uniqueIds.length &&
             imported.every((document) => !isSupplierCheckPending(document))
           ) {
+            setImportStatuses((current) => {
+              const next = { ...current }
+
+              for (const document of imported) {
+                next[document.id] = mapDocumentToImportRowStatus(document)
+              }
+
+              return next
+            })
             onRefresh?.()
             return
           }
@@ -195,11 +224,23 @@ export function useSupportDocumentResume({
           ),
         )
       } finally {
+        if (lastImported.length > 0) {
+          setImportStatuses((current) => {
+            const next = { ...current }
+
+            for (const document of lastImported) {
+              next[document.id] = mapDocumentToImportRowStatus(document)
+            }
+
+            return next
+          })
+        }
+
         setIsResuming(false)
         onRefresh?.()
       }
     },
-    [setDocuments],
+    [electronicDocumentType, setDocuments, setErrorMessage],
   )
 
   const {
@@ -207,7 +248,6 @@ export function useSupportDocumentResume({
     openAccountMappingModal,
     closeModal: closeAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
   } = useAccountMappingModal({
@@ -289,7 +329,6 @@ export function useSupportDocumentResume({
     retryDocument,
     closeAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount: handleSaveAccount,
     retrySaveAccount,
     acceptPurchase: handleAcceptPurchase,

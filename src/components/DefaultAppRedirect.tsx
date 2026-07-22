@@ -1,13 +1,18 @@
 import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
-import { useSiigoSetup } from '../context/SiigoSetupContext'
-import { getAuthEntryMode } from '../utils/siigoSetupStorage'
+import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import '../pages/AuthPages.css'
 
 function DefaultAppRedirect() {
-  const { isCheckingSiigoSetup, requiresSiigoSetup } = useSiigoSetup()
+  const {
+    isCheckingSetup,
+    requiresSetup,
+    setupPath,
+    isJarvisCompany,
+    isConfigured,
+  } = useIntegrationSetup()
 
-  if (isCheckingSiigoSetup) {
+  if (isCheckingSetup) {
     return (
       <div className="auth-loading-screen">
         <LoadingIndicator message="Cargando..." />
@@ -15,8 +20,18 @@ function DefaultAppRedirect() {
     )
   }
 
-  if (getAuthEntryMode() === 'register' && requiresSiigoSetup) {
-    return <Navigate to="/configuracion/integracion-siigo" replace />
+  if (requiresSetup) {
+    return (
+      <Navigate
+        to={setupPath}
+        replace
+        state={{ integrationSetupRequired: true }}
+      />
+    )
+  }
+
+  if (isJarvisCompany && isConfigured) {
+    return <Navigate to="/configuracion/integracion-jarvis" replace />
   }
 
   return <Navigate to="/documento-soporte" replace />

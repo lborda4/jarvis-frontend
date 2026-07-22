@@ -11,41 +11,54 @@ import {
   AUTH_ME_ENDPOINT,
   AUTH_REFRESH_ENDPOINT,
   AUTH_REGISTER_ENDPOINT,
+  AUTH_SWITCH_COMPANY_ENDPOINT,
 } from '../constants/authEndpoints'
-import { extractAuthTokens, extractAuthUser } from '../utils/authTokens'
+import {
+  extractAuthSession,
+  extractAuthTokens,
+  extractAuthUser,
+  extractAuthCompanies,
+} from '../utils/authTokens'
 import { apiClient } from './apiClient'
 import { clearTokens, getRefreshToken, setTokens } from './authStorage'
 
+function toAuthSession(data: unknown): AuthSession {
+  const session = extractAuthSession(data)
+
+  if (!session) {
+    throw new Error('La respuesta de autenticación no incluyó tokens válidos.')
+  }
+
+  return session
+}
+
 export async function login(request: LoginRequest): Promise<AuthSession> {
   const response = await apiClient.post(AUTH_LOGIN_ENDPOINT, request)
-  const tokens = extractAuthTokens(response.data)
+  const session = toAuthSession(response.data)
 
-  if (!tokens) {
-    throw new Error('La respuesta de inicio de sesión no incluyó tokens válidos.')
-  }
+  setTokens(session.tokens)
 
-  setTokens(tokens)
-
-  return {
-    tokens,
-    user: extractAuthUser(response.data),
-  }
+  return session
 }
 
 export async function register(request: RegisterRequest): Promise<AuthSession> {
   const response = await apiClient.post(AUTH_REGISTER_ENDPOINT, request)
-  const tokens = extractAuthTokens(response.data)
+  const session = toAuthSession(response.data)
 
-  if (!tokens) {
-    throw new Error('La respuesta de registro no incluyó tokens válidos.')
-  }
+  setTokens(session.tokens)
 
-  setTokens(tokens)
+  return session
+}
 
-  return {
-    tokens,
-    user: extractAuthUser(response.data),
-  }
+export async function switchCompany(companyId: string): Promise<AuthSession> {
+  const response = await apiClient.post(AUTH_SWITCH_COMPANY_ENDPOINT, {
+    companyId,
+  })
+  const session = toAuthSession(response.data)
+
+  setTokens(session.tokens)
+
+  return session
 }
 
 export async function refreshSession(
@@ -70,10 +83,11 @@ export async function refreshSession(
   return tokens
 }
 
-export async function fetchCurrentUser(): Promise<AuthUser> {
+export async function fetchCurrentUser(): Promise<{
+  user: AuthUser
+  companies: AuthSession['companies']
+}> {
   const response = await apiClient.get(AUTH_ME_ENDPOINT)
-
-  console.log('[Auth] Respuesta GET /auth/me:', response.data)
 
   const user = extractAuthUser(response.data)
 
@@ -81,7 +95,10 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
     throw new Error('No se pudo obtener la información del usuario.')
   }
 
-  return user
+  return {
+    user,
+    companies: extractAuthCompanies(response.data),
+  }
 }
 
 export function logout(): void {

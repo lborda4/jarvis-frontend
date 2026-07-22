@@ -58,3 +58,15 @@ export function buildInitialRowDates(
     }),
   )
 }
+
+export function buildInitialRowObservations(
+  documents: Array<{ id: string; observations?: string | null }>,
+  current: Record<string, string> = {},
+): Record<string, string> {
+  return Object.fromEntries(
+    documents.map((document) => [
+      document.id,
+      current[document.id] ?? document.observations?.trim() ?? '',
+    ]),
+  )
+}

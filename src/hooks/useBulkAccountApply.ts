@@ -23,7 +23,6 @@ export function useBulkAccountApply(onCompleted: () => void) {
   const [selectedAccount, setSelectedAccount] = useState<SiigoAccountOption | null>(
     null,
   )
-  const [saveAsDefault, setSaveAsDefault] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -62,7 +61,6 @@ export function useBulkAccountApply(onCompleted: () => void) {
             documentId: document.id,
             accountCode: selectedAccount.code,
             accountDescription: selectedAccount.description,
-            autoApply: saveAsDefault,
           })
           appliedCount += 1
         } catch (error) {
@@ -80,41 +78,26 @@ export function useBulkAccountApply(onCompleted: () => void) {
         setFeedbackMessage(
           failedCount > 0
             ? `Cuenta aplicada en ${appliedCount} documento(s). ${failedCount} fallaron.`
-            : `Cuenta aplicada correctamente en ${appliedCount} documento(s).`,
+            : `Cuenta aplicada en ${appliedCount} documento(s).`,
         )
         onCompleted()
       }
 
       if (failedCount > 0 && appliedCount === 0) {
         setErrorMessage(
-          lastError ?? 'No se pudo aplicar la cuenta a los documentos seleccionados.',
+          lastError ?? 'No se pudo aplicar la cuenta en los documentos seleccionados.',
         )
       }
     },
-    [onCompleted, saveAsDefault, selectedAccount],
+    [onCompleted, selectedAccount],
   )
-
-  const canApply = (
-    visibleDocuments: ElectronicDocumentListItem[],
-    selectedDocumentIds: Set<string>,
-  ) => {
-    if (!selectedAccount) return false
-
-    return visibleDocuments.some(
-      (document) =>
-        selectedDocumentIds.has(document.id) && isAccountPending(document),
-    )
-  }
 
   return {
     selectedAccount,
     setSelectedAccount,
-    saveAsDefault,
-    setSaveAsDefault,
     isApplying,
     feedbackMessage,
     errorMessage,
-    canApply,
     applyAccount,
   }
 }

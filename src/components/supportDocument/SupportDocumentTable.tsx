@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import SupplierMultiSelect from '../SupplierMultiSelect'
 import SupportDocumentColumnHeader from './SupportDocumentColumnHeader'
+import ColumnCheckboxFilter, {
+  buildSupportDocumentFilterOptions,
+} from './SupportDocumentTableFilters'
+import type { ElectronicDocumentFilterOptions } from '../../types/electronicDocument'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
@@ -25,18 +29,24 @@ import {
   formatSupportDocumentTableSiigoNumber,
   formatSupportDocumentTableSupplierDocument,
 } from '../../utils/formatSupportDocumentTableDisplay'
-import { columnFilterIsActive } from '../../utils/filterSupportDocumentRows'
+import {
+  columnFilterIsActive,
+  isSupportDocumentColumnFilterActive,
+} from '../../utils/filterSupportDocumentRows'
 import { normalizeStatusClass } from '../../utils/formatters'
 import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
+import DocumentRowDetailPanel from './DocumentRowDetailPanel'
+
+const TABLE_COLUMN_COUNT = 10
 
 interface SupportDocumentTableProps {
   rows: SupportDocumentRow[]
+  filterOptions: ElectronicDocumentFilterOptions | null
   selectedIds: Set<string>
   rowDates: Record<string, string>
   rowAccounts: Record<string, SiigoAccountOption | null>
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
-  supplierOptions: SupplierOption[]
   selectedSupplierNits: string[]
   columnFilters: SupportDocumentColumnFilters
   sortColumn: SupportDocumentSortColumn | null
@@ -47,6 +57,7 @@ interface SupportDocumentTableProps {
   selectionDisabled?: boolean
   filtersDisabled?: boolean
   canSendRow: (rowId: string) => boolean
+  sendProcessingLabel?: string
   onToggleRow: (id: string) => void
   onSelectRows: (ids: string[]) => void
   onSendDocument: (document: ElectronicDocumentListItem) => void
@@ -54,18 +65,22 @@ interface SupportDocumentTableProps {
   onColumnFiltersChange: (
     updater: (current: SupportDocumentColumnFilters) => SupportDocumentColumnFilters,
   ) => void
+  onColumnHeaderClick: (column: SupportDocumentSortColumn) => void
   onSortChange: (column: SupportDocumentSortColumn) => void
   documentsById: Record<string, ElectronicDocumentListItem>
 }
 
-type FilterColumnKey =
-  | 'date'
-  | 'supplier'
-  | 'siigoNumber'
-  | 'account'
-  | 'paymentMethod'
-  | 'retentions'
-  | 'status'
+type FilterColumnKey = 'date' | 'supplier' | 'siigoNumber' | 'status'
+
+const FILTER_COLUMN_TO_SORT: Record<
+  FilterColumnKey,
+  SupportDocumentSortColumn
+> = {
+  date: 'date',
+  supplier: 'supplier',
+  siigoNumber: 'siigoNumber',
+  status: 'status',
+}
 
 function ImportStatusBadge({ status }: { status: ImportRowStatus }) {
   return (
@@ -82,11 +97,13 @@ function ActionCell({
   disabled = false,
   onClick,
   isSendingDocument = false,
+  sendProcessingLabel = 'Enviando documento a SIIGO...',
 }: {
   action: SupportDocumentAction
   disabled?: boolean
   onClick?: () => void
   isSendingDocument?: boolean
+  sendProcessingLabel?: string
 }) {
   if (action === 'supplier_missing') {
     return (
@@ -99,9 +116,7 @@ function ActionCell({
   if (action === 'processing') {
     return (
       <span className="support-table__action support-table__action--hint">
-        {isSendingDocument
-          ? 'Enviando documento soporte a SIIGO...'
-          : 'Procesando documento...'}
+        {isSendingDocument ? sendProcessingLabel : 'Procesando documento...'}
       </span>
     )
   }
@@ -126,38 +141,27 @@ function ActionCell({
   )
 }
 
-function ColumnTextFilter({
-  value,
-  placeholder,
-  disabled,
-  onChange,
-}: {
-  value: string
-  placeholder: string
-  disabled?: boolean
-  onChange: (value: string) => void
-}) {
-  return (
-    <input
-      type="search"
-      className="support-table__column-filter-input"
-      value={value}
-      placeholder={placeholder}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      autoComplete="off"
-    />
-  )
+function buildSupplierFilterOptions(
+  filterOptions: ElectronicDocumentFilterOptions | null,
+): SupplierOption[] {
+  if (!filterOptions) {
+    return []
+  }
+
+  return filterOptions.suppliers.map((supplier) => ({
+    nit: supplier.nit,
+    name: supplier.name,
+  }))
 }
 
 function SupportDocumentTable({
   rows,
+  filterOptions,
   selectedIds,
   rowDates,
   rowAccounts,
   rowPaymentMethods,
   rowRetentions,
-  supplierOptions,
   selectedSupplierNits,
   columnFilters,
   sortColumn,
@@ -168,16 +172,28 @@ function SupportDocumentTable({
   selectionDisabled = false,
   filtersDisabled = false,
   canSendRow,
+  sendProcessingLabel,
   onToggleRow,
   onSelectRows,
   onSendDocument,
   onSupplierNitsChange,
   onColumnFiltersChange,
+  onColumnHeaderClick,
   onSortChange,
   documentsById,
 }: SupportDocumentTableProps) {
   const [openFilterColumn, setOpenFilterColumn] =
     useState<FilterColumnKey | null>(null)
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set())
+
+  const columnFilterOptions = useMemo(
+    () => buildSupportDocumentFilterOptions(filterOptions),
+    [filterOptions],
+  )
+  const supplierFilterOptions = useMemo(
+    () => buildSupplierFilterOptions(filterOptions),
+    [filterOptions],
+  )
 
   const selectableVisibleIds = rows
     .filter((row) => isSupportDocumentRowSelectable(row.importStatus))
@@ -204,21 +220,54 @@ function SupportDocumentTable({
     onSelectRows([...new Set([...selectedIds, ...selectableVisibleIds])])
   }
 
+  const handleFilterableColumnHeaderClick = (
+    column: SupportDocumentSortColumn,
+  ) => {
+    setOpenFilterColumn(null)
+    onColumnHeaderClick(column)
+  }
+
   const toggleFilter = (column: FilterColumnKey) => {
+    const sortColumn = FILTER_COLUMN_TO_SORT[column]
+
+    if (
+      isSupportDocumentColumnFilterActive(
+        sortColumn,
+        columnFilters,
+        selectedSupplierNits,
+      )
+    ) {
+      handleFilterableColumnHeaderClick(sortColumn)
+      return
+    }
+
     setOpenFilterColumn((current) => (current === column ? null : column))
   }
 
-  const updateTextFilter = (
-    key: keyof Pick<
-      SupportDocumentColumnFilters,
-      'date' | 'siigoNumber' | 'account' | 'paymentMethod' | 'retentions'
-    >,
-    value: string,
-  ) => {
-    onColumnFiltersChange((current) => ({
-      ...current,
-      [key]: value,
-    }))
+  const toggleDateFilter = (date: string) => {
+    onColumnFiltersChange((current) => {
+      const nextDates = current.dates.includes(date)
+        ? current.dates.filter((value) => value !== date)
+        : [...current.dates, date]
+
+      return {
+        ...current,
+        dates: nextDates,
+      }
+    })
+  }
+
+  const toggleSiigoNumberFilter = (siigoNumber: string) => {
+    onColumnFiltersChange((current) => {
+      const nextSiigoNumbers = current.siigoNumbers.includes(siigoNumber)
+        ? current.siigoNumbers.filter((value) => value !== siigoNumber)
+        : [...current.siigoNumbers, siigoNumber]
+
+      return {
+        ...current,
+        siigoNumbers: nextSiigoNumbers,
+      }
+    })
   }
 
   const toggleStatusFilter = (status: ImportRowStatus) => {
@@ -231,6 +280,20 @@ function SupportDocumentTable({
         ...current,
         statuses: nextStatuses,
       }
+    })
+  }
+
+  const toggleRowExpanded = (rowId: string) => {
+    setExpandedRowIds((current) => {
+      const next = new Set(current)
+
+      if (next.has(rowId)) {
+        next.delete(rowId)
+      } else {
+        next.add(rowId)
+      }
+
+      return next
     })
   }
 
@@ -248,6 +311,8 @@ function SupportDocumentTable({
       <table>
         <thead>
           <tr>
+            <th className="support-table__expand-col" aria-label="Detalle" />
+
             <th className="support-table__checkbox-col">
               <input
                 type="checkbox"
@@ -268,18 +333,18 @@ function SupportDocumentTable({
               sortColumn="date"
               activeSortColumn={sortColumn}
               sortDirection={sortDirection}
-              isFilterActive={columnFilterIsActive(columnFilters, 'date')}
+              isFilterActive={columnFilterIsActive(columnFilters, 'dates')}
               isFilterOpen={openFilterColumn === 'date'}
               disabled={filtersDisabled}
-              onSort={onSortChange}
+              onHeaderClick={handleFilterableColumnHeaderClick}
               onToggleFilter={() => toggleFilter('date')}
               onCloseFilter={() => setOpenFilterColumn(null)}
             >
-              <ColumnTextFilter
-                value={columnFilters.date}
-                placeholder="Filtrar fecha..."
+              <ColumnCheckboxFilter
+                options={columnFilterOptions.dates}
+                selectedValues={columnFilters.dates}
                 disabled={filtersDisabled}
-                onChange={(value) => updateTextFilter('date', value)}
+                onToggle={toggleDateFilter}
               />
             </SupportDocumentColumnHeader>
 
@@ -288,15 +353,19 @@ function SupportDocumentTable({
               sortColumn="supplier"
               activeSortColumn={sortColumn}
               sortDirection={sortDirection}
-              isFilterActive={selectedSupplierNits.length > 0}
+              isFilterActive={isSupportDocumentColumnFilterActive(
+                'supplier',
+                columnFilters,
+                selectedSupplierNits,
+              )}
               isFilterOpen={openFilterColumn === 'supplier'}
               disabled={filtersDisabled}
-              onSort={onSortChange}
+              onHeaderClick={handleFilterableColumnHeaderClick}
               onToggleFilter={() => toggleFilter('supplier')}
               onCloseFilter={() => setOpenFilterColumn(null)}
             >
               <SupplierMultiSelect
-                options={supplierOptions}
+                options={supplierFilterOptions}
                 selectedNits={selectedSupplierNits}
                 onChange={onSupplierNitsChange}
                 disabled={filtersDisabled}
@@ -311,18 +380,21 @@ function SupportDocumentTable({
               sortColumn="siigoNumber"
               activeSortColumn={sortColumn}
               sortDirection={sortDirection}
-              isFilterActive={columnFilterIsActive(columnFilters, 'siigoNumber')}
+              isFilterActive={columnFilterIsActive(
+                columnFilters,
+                'siigoNumbers',
+              )}
               isFilterOpen={openFilterColumn === 'siigoNumber'}
               disabled={filtersDisabled}
-              onSort={onSortChange}
+              onHeaderClick={handleFilterableColumnHeaderClick}
               onToggleFilter={() => toggleFilter('siigoNumber')}
               onCloseFilter={() => setOpenFilterColumn(null)}
             >
-              <ColumnTextFilter
-                value={columnFilters.siigoNumber}
-                placeholder="Filtrar consecutivo..."
+              <ColumnCheckboxFilter
+                options={columnFilterOptions.siigoNumbers}
+                selectedValues={columnFilters.siigoNumbers}
                 disabled={filtersDisabled}
-                onChange={(value) => updateTextFilter('siigoNumber', value)}
+                onToggle={toggleSiigoNumberFilter}
               />
             </SupportDocumentColumnHeader>
 
@@ -331,20 +403,9 @@ function SupportDocumentTable({
               sortColumn="account"
               activeSortColumn={sortColumn}
               sortDirection={sortDirection}
-              isFilterActive={columnFilterIsActive(columnFilters, 'account')}
-              isFilterOpen={openFilterColumn === 'account'}
               disabled={filtersDisabled}
               onSort={onSortChange}
-              onToggleFilter={() => toggleFilter('account')}
-              onCloseFilter={() => setOpenFilterColumn(null)}
-            >
-              <ColumnTextFilter
-                value={columnFilters.account}
-                placeholder="Filtrar cuenta..."
-                disabled={filtersDisabled}
-                onChange={(value) => updateTextFilter('account', value)}
-              />
-            </SupportDocumentColumnHeader>
+            />
 
             <SupportDocumentColumnHeader
               label="Medio de pago"
@@ -352,40 +413,18 @@ function SupportDocumentTable({
               sortColumn="paymentMethod"
               activeSortColumn={sortColumn}
               sortDirection={sortDirection}
-              isFilterActive={columnFilterIsActive(columnFilters, 'paymentMethod')}
-              isFilterOpen={openFilterColumn === 'paymentMethod'}
               disabled={filtersDisabled}
               onSort={onSortChange}
-              onToggleFilter={() => toggleFilter('paymentMethod')}
-              onCloseFilter={() => setOpenFilterColumn(null)}
-            >
-              <ColumnTextFilter
-                value={columnFilters.paymentMethod}
-                placeholder="Filtrar medio de pago..."
-                disabled={filtersDisabled}
-                onChange={(value) => updateTextFilter('paymentMethod', value)}
-              />
-            </SupportDocumentColumnHeader>
+            />
 
             <SupportDocumentColumnHeader
               label="Retenciones"
               sortColumn="retentions"
               activeSortColumn={sortColumn}
               sortDirection={sortDirection}
-              isFilterActive={columnFilterIsActive(columnFilters, 'retentions')}
-              isFilterOpen={openFilterColumn === 'retentions'}
               disabled={filtersDisabled}
               onSort={onSortChange}
-              onToggleFilter={() => toggleFilter('retentions')}
-              onCloseFilter={() => setOpenFilterColumn(null)}
-            >
-              <ColumnTextFilter
-                value={columnFilters.retentions}
-                placeholder="Filtrar retenciones..."
-                disabled={filtersDisabled}
-                onChange={(value) => updateTextFilter('retentions', value)}
-              />
-            </SupportDocumentColumnHeader>
+            />
 
             <SupportDocumentColumnHeader
               label="Estado"
@@ -395,26 +434,16 @@ function SupportDocumentTable({
               isFilterActive={columnFilterIsActive(columnFilters, 'statuses')}
               isFilterOpen={openFilterColumn === 'status'}
               disabled={filtersDisabled}
-              onSort={onSortChange}
+              onHeaderClick={handleFilterableColumnHeaderClick}
               onToggleFilter={() => toggleFilter('status')}
               onCloseFilter={() => setOpenFilterColumn(null)}
             >
-              <div className="support-table__column-status-filters">
-                {Object.values(IMPORT_ROW_STATUS).map((status) => (
-                  <label
-                    key={status}
-                    className="support-table__column-status-option"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={columnFilters.statuses.includes(status)}
-                      disabled={filtersDisabled}
-                      onChange={() => toggleStatusFilter(status)}
-                    />
-                    <span>{status}</span>
-                  </label>
-                ))}
-              </div>
+              <ColumnCheckboxFilter
+                options={columnFilterOptions.statuses}
+                selectedValues={columnFilters.statuses}
+                disabled={filtersDisabled}
+                onToggle={toggleStatusFilter}
+              />
             </SupportDocumentColumnHeader>
 
             <th className="support-table__column-header support-table__column-header--plain">
@@ -425,13 +454,14 @@ function SupportDocumentTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={9} className="support-table__empty-cell">
+              <td colSpan={TABLE_COLUMN_COUNT} className="support-table__empty-cell">
                 No se encontraron documentos con los filtros actuales.
               </td>
             </tr>
           ) : (
-            rows.map((row) => {
+            rows.flatMap((row) => {
               const document = documentsById[row.id]
+              const isExpanded = expandedRowIds.has(row.id)
               const isProcessing =
                 row.importStatus === IMPORT_ROW_STATUS.EN_PROCESO
               const isRowSelectable = isSupportDocumentRowSelectable(
@@ -449,17 +479,33 @@ function SupportDocumentTable({
                 void onSendDocument(document)
               }
 
-              return (
+              return [
                 <tr
                   key={row.id}
                   className={[
                     isProcessing ? 'support-table__row--processing' : '',
                     !isRowSelectable ? 'support-table__row--locked' : '',
                     selectedIds.has(row.id) ? 'support-table__row--selected' : '',
+                    isExpanded ? 'support-table__row--expanded' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
                 >
+                  <td className="support-table__expand-col">
+                    <button
+                      type="button"
+                      className="support-table__expand-button"
+                      onClick={() => toggleRowExpanded(row.id)}
+                      aria-expanded={isExpanded}
+                      aria-label={
+                        isExpanded
+                          ? `Ocultar detalle de ${row.supplierName}`
+                          : `Ver detalle de ${row.supplierName}`
+                      }
+                    >
+                      {isExpanded ? '▾' : '▸'}
+                    </button>
+                  </td>
                   <td className="support-table__checkbox-col">
                     <input
                       type="checkbox"
@@ -511,10 +557,21 @@ function SupportDocumentTable({
                       disabled={actionDisabled}
                       onClick={handleAction}
                       isSendingDocument={isProcessing && isSending}
+                      sendProcessingLabel={sendProcessingLabel}
                     />
                   </td>
-                </tr>
-              )
+                </tr>,
+                isExpanded && document ? (
+                  <tr
+                    key={`${row.id}-detail`}
+                    className="support-table__detail-row"
+                  >
+                    <td colSpan={TABLE_COLUMN_COUNT}>
+                      <DocumentRowDetailPanel document={document} />
+                    </td>
+                  </tr>
+                ) : null,
+              ].filter(Boolean)
             })
           )}
         </tbody>

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import AccountAutocomplete from '../AccountAutocomplete'
+import CostCenterAutocomplete from '../CostCenterAutocomplete'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
 import TaxMultiSelect from '../TaxMultiSelect'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
+import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 
@@ -11,15 +13,18 @@ interface SupportDocumentConfigPanelProps {
   sendableCount: number
   accountOptions: SiigoAccountOption[]
   paymentMethodOptions: SiigoPaymentMethodOption[]
+  costCenterOptions: SiigoCostCenterOption[]
   retentionOptions: SiigoTaxOption[]
   selectedAccount: SiigoAccountOption | null
   selectedPaymentMethod: SiigoPaymentMethodOption | null
+  selectedCostCenter: SiigoCostCenterOption
   selectedRetentions: SiigoTaxOption[]
   canSend: boolean
   isSending: boolean
   disabled?: boolean
   onAccountChange: (account: SiigoAccountOption | null) => void
   onPaymentMethodChange: (paymentMethod: SiigoPaymentMethodOption | null) => void
+  onCostCenterChange: (costCenter: SiigoCostCenterOption) => void
   onRetentionsChange: (taxes: SiigoTaxOption[]) => void
   onSend: () => void
 }
@@ -29,15 +34,18 @@ function SupportDocumentConfigPanel({
   sendableCount,
   accountOptions,
   paymentMethodOptions,
+  costCenterOptions,
   retentionOptions,
   selectedAccount,
   selectedPaymentMethod,
+  selectedCostCenter,
   selectedRetentions,
   canSend,
   isSending,
   disabled = false,
   onAccountChange,
   onPaymentMethodChange,
+  onCostCenterChange,
   onRetentionsChange,
   onSend,
 }: SupportDocumentConfigPanelProps) {
@@ -96,6 +104,20 @@ function SupportDocumentConfigPanel({
                 options={paymentMethodOptions}
                 disabled={controlsDisabled}
                 placeholder="Buscar medio de pago..."
+              />
+            </div>
+
+            <div className="support-config-panel__field">
+              <label htmlFor="support-config-cost-center">
+                Centros de costo (opcional)
+              </label>
+              <CostCenterAutocomplete
+                id="support-config-cost-center"
+                value={selectedCostCenter}
+                onChange={onCostCenterChange}
+                options={costCenterOptions}
+                disabled={controlsDisabled}
+                placeholder="Ninguno"
               />
             </div>
 

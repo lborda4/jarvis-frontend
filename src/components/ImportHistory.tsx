@@ -30,7 +30,6 @@ function ImportHistory({ title, electronicDocumentType }: ImportHistoryProps) {
     retryCreateSupplier,
     continueAfterSupplierCreated,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
     acceptPurchase,
@@ -86,13 +85,11 @@ function ImportHistory({ title, electronicDocumentType }: ImportHistoryProps) {
         isOpen={accountModal.isOpen}
         view={accountModal.view}
         selectedAccount={accountModal.selectedAccount}
-        autoApply={accountModal.autoApply}
         createdPurchase={accountModal.createdPurchase}
         errorMessage={accountModal.errorMessage}
         errorPhase={accountModal.errorPhase}
         onCancel={closeAccountModal}
         onSelectAccount={selectAccount}
-        onAutoApplyChange={setAutoApply}
         onSave={saveAccount}
         onAccept={acceptPurchase}
         onRetry={retrySaveAccount}

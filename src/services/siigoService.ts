@@ -2,6 +2,8 @@ import axios from 'axios'
 import type {
   CreateSiigoPurchaseRequest,
   CreateSiigoPurchaseResponse,
+  CreateSiigoPurchaseSendRequest,
+  CreateSiigoPurchaseSendResponse,
   CreateSiigoSupportDocumentRequest,
   CreateSiigoSupportDocumentResponse,
   CreateSiigoSupplierRequest,
@@ -15,7 +17,9 @@ import type {
   ImportBalanceTrialResponse,
   SaveSiigoCredentialsRequest,
   SaveSiigoCredentialsResponse,
+  SiigoCredentialsStatusResponse,
   SiigoAccountCatalogItem,
+  SiigoCostCenterCatalogItem,
   SiigoPaymentMethodCatalogItem,
   SiigoTaxCatalogItem,
 } from '../types/siigo'
@@ -27,13 +31,21 @@ const SIIGO_ACCOUNT_MAPPINGS_VALIDATE_ENDPOINT =
   '/integrations/siigo/account-mappings/validate'
 const SIIGO_ACCOUNT_MAPPINGS_ENDPOINT = '/integrations/siigo/account-mappings'
 const SIIGO_PURCHASES_ENDPOINT = '/integrations/siigo/purchases'
+const SIIGO_PURCHASES_SEND_ENDPOINT = '/integrations/siigo/purchases/send'
 const SIIGO_SUPPORT_DOCUMENTS_ENDPOINT = '/integrations/siigo/support-documents'
 const SIIGO_ACCOUNTS_ENDPOINT = '/integrations/siigo/accounts'
 const SIIGO_PAYMENT_TYPES_ENDPOINT = '/integrations/siigo/payment-types'
 const SIIGO_TAXES_ENDPOINT = '/integrations/siigo/taxes'
+const SIIGO_COST_CENTERS_ENDPOINT = '/integrations/siigo/cost-centers'
 const SIIGO_BALANCE_TRIAL_IMPORT_ENDPOINT =
   '/integrations/siigo/balance-trial/import'
+const SIIGO_CREDENTIALS_STATUS_ENDPOINT = '/integrations/siigo/credentials/status'
 const SIIGO_CREDENTIALS_ENDPOINT = '/integrations/siigo/credentials'
+const SIIGO_CATALOG_SYNC_ENDPOINT = '/integrations/siigo/catalog/sync'
+
+export async function syncSiigoCatalogs(): Promise<void> {
+  await apiClient.post(SIIGO_CATALOG_SYNC_ENDPOINT)
+}
 
 export async function fetchSiigoAccounts(): Promise<SiigoAccountCatalogItem[]> {
   const response = await apiClient.get<SiigoAccountCatalogItem[]>(
@@ -67,6 +79,14 @@ export async function fetchSiigoTaxes(
       },
     },
   )
+  return response.data
+}
+
+export async function fetchSiigoCostCenters(): Promise<SiigoCostCenterCatalogItem[]> {
+  const response = await apiClient.get<SiigoCostCenterCatalogItem[]>(
+    SIIGO_COST_CENTERS_ENDPOINT,
+  )
+
   return response.data
 }
 
@@ -338,13 +358,28 @@ export async function createSiigoSupportDocument(
   }
 }
 
+export async function createSiigoPurchaseSend(
+  request: CreateSiigoPurchaseSendRequest,
+): Promise<CreateSiigoPurchaseSendResponse> {
+  const response = await apiClient.post<CreateSiigoPurchaseSendResponse>(
+    SIIGO_PURCHASES_SEND_ENDPOINT,
+    request,
+  )
+
+  return response.data
+}
+
+export async function fetchSiigoCredentialsStatus(): Promise<SiigoCredentialsStatusResponse> {
+  const response = await apiClient.get<SiigoCredentialsStatusResponse>(
+    SIIGO_CREDENTIALS_STATUS_ENDPOINT,
+  )
+
+  return response.data
+}
+
 export async function fetchSiigoCredentialsConfigured(): Promise<boolean> {
-  try {
-    await apiClient.get(SIIGO_CREDENTIALS_ENDPOINT)
-    return true
-  } catch {
-    return false
-  }
+  const status = await fetchSiigoCredentialsStatus()
+  return status.configured
 }
 
 export async function saveSiigoCredentials(

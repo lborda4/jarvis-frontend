@@ -1,4 +1,5 @@
-import type { AuthTokens, AuthUser } from '../types/auth'
+import type { AuthCompany, AuthSession, AuthTokens, AuthUser } from '../types/auth'
+import { USER_ROLE } from '../constants/userRole'
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
@@ -89,6 +90,39 @@ export function extractAuthTokens(data: unknown): AuthTokens | null {
   return null
 }
 
+export function extractAuthCompanies(data: unknown): AuthCompany[] {
+  if (!data || typeof data !== 'object') {
+    return []
+  }
+
+  const record = data as Record<string, unknown>
+
+  if (!Array.isArray(record.companies)) {
+    const activeCompany = extractCompany(record.company)
+    return activeCompany ? [activeCompany] : []
+  }
+
+  return record.companies
+    .map((company) => extractCompany(company))
+    .filter((company): company is NonNullable<AuthUser['company']> =>
+      Boolean(company),
+    )
+}
+
+export function extractAuthSession(data: unknown): AuthSession | null {
+  const tokens = extractAuthTokens(data)
+
+  if (!tokens) {
+    return null
+  }
+
+  return {
+    tokens,
+    user: extractAuthUser(data),
+    companies: extractAuthCompanies(data),
+  }
+}
+
 export function extractAuthUser(data: unknown): AuthUser | null {
   if (!data || typeof data !== 'object') {
     return null
@@ -113,10 +147,13 @@ export function extractAuthUser(data: unknown): AuthUser | null {
 
   company = extractCompany(companyPayload)
 
+  const role = readString(payload.role) ?? USER_ROLE.USER
+
   const user = {
     id,
     name,
     email,
+    role,
     company,
   }
 

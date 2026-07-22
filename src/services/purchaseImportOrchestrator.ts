@@ -29,7 +29,6 @@ export interface ImportOrchestratorDeps {
   updateAccountMapping: (
     documentId: string,
     accountCode: string | null,
-    autoApply: boolean,
     stepStatus: ImportRowStatus,
   ) => void
 }
@@ -121,7 +120,6 @@ export async function proceedToAccountMappingStep(
       deps.updateAccountMapping(
         documentId,
         accountResponse.accountCode ?? null,
-        false,
         IMPORT_ROW_STATUS.REQUIERE_CUENTA,
       )
 
@@ -131,7 +129,6 @@ export async function proceedToAccountMappingStep(
     deps.updateAccountMapping(
       documentId,
       accountResponse.accountCode ?? null,
-      true,
       IMPORT_ROW_STATUS.EN_PROCESO,
     )
 
@@ -254,13 +251,11 @@ export async function refreshImportStatusAfterSupplierCreated(
 export function markAccountSavedBeforePurchase(
   documentId: string,
   accountCode: string,
-  autoApply: boolean,
   deps: ImportOrchestratorDeps,
 ): void {
   deps.updateAccountMapping(
     documentId,
     accountCode,
-    autoApply,
     IMPORT_ROW_STATUS.EN_PROCESO,
   )
 }

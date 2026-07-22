@@ -33,7 +33,6 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
     updateAccountMapping: (
       documentId: string,
       accountCode: string | null,
-      autoApply: boolean,
       stepStatus: ImportRowStatus,
     ) => void
   } | null>(null)
@@ -56,7 +55,6 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
     (
       documentId: string,
       accountCode: string | null,
-      autoApply: boolean,
       stepStatus: ImportRowStatus,
     ) => {
       setRows((currentRows) =>
@@ -68,7 +66,6 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
         stepStatus,
         siigo: {
           accountCode,
-          autoApply,
         },
         userInput: { accountCode },
       })
@@ -106,17 +103,15 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
     openAccountMappingModal,
     closeModal: closeAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
   } = useAccountMappingModal({
-    onAccountSaved: ({ documentId, accountCode, autoApply }) => {
+    onAccountSaved: ({ documentId, accountCode }) => {
       if (!orchestratorDepsRef.current) return
 
       markAccountSavedBeforePurchase(
         documentId,
         accountCode,
-        autoApply,
         orchestratorDepsRef.current,
       )
     },
@@ -359,7 +354,6 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
     continueAfterSupplierCreated: handleContinueAfterSupplierCreated,
     closeAccountModal: handleCloseAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount: handleSaveAccount,
     retrySaveAccount,
     acceptPurchase: handleAcceptPurchase,

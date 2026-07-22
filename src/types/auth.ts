@@ -8,6 +8,7 @@ export interface AuthUser {
   id: string
   name: string
   email: string
+  role?: string
   company?: AuthCompany | null
 }
 
@@ -19,6 +20,7 @@ export interface AuthTokens {
 export interface AuthSession {
   tokens: AuthTokens
   user: AuthUser | null
+  companies: AuthCompany[]
 }
 
 export interface LoginRequest {

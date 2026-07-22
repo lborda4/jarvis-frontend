@@ -11,6 +11,7 @@ interface SupportDocumentColumnHeaderProps {
   isFilterOpen?: boolean
   disabled?: boolean
   onSort?: (column: SupportDocumentSortColumn) => void
+  onHeaderClick?: (column: SupportDocumentSortColumn) => void
   onToggleFilter?: () => void
   onCloseFilter?: () => void
   children?: React.ReactNode
@@ -71,13 +72,16 @@ function SupportDocumentColumnHeader({
   isFilterOpen = false,
   disabled = false,
   onSort,
+  onHeaderClick,
   onToggleFilter,
   onCloseFilter,
   children,
 }: SupportDocumentColumnHeaderProps) {
   const popoverId = useId()
   const containerRef = useRef<HTMLTableCellElement>(null)
-  const isSortable = Boolean(sortColumn && onSort)
+  const handleHeaderClick =
+    sortColumn != null ? (onHeaderClick ?? onSort) : undefined
+  const isSortable = Boolean(sortColumn && handleHeaderClick)
   const isSortActive = sortColumn != null && activeSortColumn === sortColumn
 
   useEffect(() => {
@@ -125,7 +129,7 @@ function SupportDocumentColumnHeader({
           <button
             type="button"
             className="support-table__column-label"
-            onClick={() => sortColumn && onSort?.(sortColumn)}
+            onClick={() => sortColumn && handleHeaderClick?.(sortColumn)}
             disabled={disabled}
           >
             <span
@@ -138,6 +142,12 @@ function SupportDocumentColumnHeader({
             >
               {label}
             </span>
+            {!children && (
+              <ColumnSortIcon
+                isActive={isSortActive}
+                sortDirection={sortDirection}
+              />
+            )}
           </button>
         ) : (
           <span

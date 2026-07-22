@@ -1,4 +1,8 @@
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
+import {
+  isNoneCostCenterOption,
+  type SiigoCostCenterOption,
+} from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
@@ -46,7 +50,9 @@ export function buildSiigoSupportDocumentRequest(
   account: SiigoAccountOption,
   paymentMethod: SiigoPaymentMethodOption,
   retentions: SiigoTaxOption[],
+  costCenter: SiigoCostCenterOption | null,
   selectedDate: string,
+  observations?: string,
   savePreferences = true,
 ): CreateSiigoSupportDocumentRequest {
   const supplierIdentification = normalizeSupplierIdentification(
@@ -87,6 +93,8 @@ export function buildSiigoSupportDocumentRequest(
   const documentDate = isSupportDocumentDateInRange(selectedDate)
     ? selectedDate
     : getTodayLocalDate()
+  const resolvedObservations =
+    observations?.trim() || document.observations?.trim() || undefined
 
   return {
     documentId: document.id,
@@ -95,8 +103,11 @@ export function buildSiigoSupportDocumentRequest(
       identification: supplierIdentification,
       branch_office: 0,
     },
+    ...(costCenter && !isNoneCostCenterOption(costCenter)
+      ? { cost_center: costCenter.id }
+      : {}),
     supplier_receipt_number: receiptNumber,
-    observations: `Documento Soporte ${receiptNumber.prefix}${receiptNumber.number}`,
+    ...(resolvedObservations ? { observations: resolvedObservations } : {}),
     stamp: {
       send: false,
     },
@@ -123,6 +134,15 @@ export function buildSiigoSupportDocumentRequest(
               type: paymentMethod.type ?? '',
               dueDate: paymentMethod.dueDate,
             },
+            ...(costCenter && !isNoneCostCenterOption(costCenter)
+              ? {
+                  costCenter: {
+                    id: costCenter.id,
+                    code: costCenter.code,
+                    name: costCenter.name,
+                  },
+                }
+              : {}),
             retentions: documentRetentions.map((retention) => {
               const source = retentions.find((tax) => tax.id === retention.id)
 

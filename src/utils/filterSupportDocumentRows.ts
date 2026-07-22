@@ -15,27 +15,18 @@ import {
   formatSupportDocumentTableSiigoNumber,
 } from './formatSupportDocumentTableDisplay'
 
-function normalizeQuery(value: string): string {
-  return value.trim().toLowerCase()
+function compareStrings(left: string, right: string): number {
+  return left.localeCompare(right, 'es', { sensitivity: 'base' })
 }
 
-function matchesQuery(haystack: string, query: string): boolean {
-  const normalizedQuery = normalizeQuery(query)
-
-  if (!normalizedQuery) {
-    return true
-  }
-
-  return haystack.toLowerCase().includes(normalizedQuery)
+function compareCreatedAt(left: string, right: string): number {
+  return left.localeCompare(right)
 }
 
 export function rowMatchesColumnFilters(
   row: SupportDocumentRow,
   filters: SupportDocumentColumnFilters,
   rowDates: Record<string, string>,
-  rowAccounts: Record<string, SiigoAccountOption | null>,
-  rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
-  rowRetentions: Record<string, SiigoTaxOption[]>,
 ): boolean {
   if (
     filters.statuses.length > 0 &&
@@ -44,56 +35,25 @@ export function rowMatchesColumnFilters(
     return false
   }
 
-  if (
-    !matchesQuery(
-      formatSupportDocumentTableDate(rowDates[row.id]),
-      filters.date,
-    )
-  ) {
-    return false
+  if (filters.dates.length > 0) {
+    const dateLabel = formatSupportDocumentTableDate(rowDates[row.id])
+
+    if (!filters.dates.includes(dateLabel)) {
+      return false
+    }
   }
 
-  if (
-    !matchesQuery(
-      formatSupportDocumentTableSiigoNumber(row.siigoDocumentNumber),
-      filters.siigoNumber,
+  if (filters.siigoNumbers.length > 0) {
+    const siigoLabel = formatSupportDocumentTableSiigoNumber(
+      row.siigoDocumentNumber,
     )
-  ) {
-    return false
-  }
 
-  if (
-    !matchesQuery(
-      formatSupportDocumentTableAccount(rowAccounts[row.id]),
-      filters.account,
-    )
-  ) {
-    return false
-  }
-
-  if (
-    !matchesQuery(
-      formatSupportDocumentTablePaymentMethod(rowPaymentMethods[row.id]),
-      filters.paymentMethod,
-    )
-  ) {
-    return false
-  }
-
-  if (
-    !matchesQuery(
-      formatSupportDocumentTableRetentions(rowRetentions[row.id]),
-      filters.retentions,
-    )
-  ) {
-    return false
+    if (!filters.siigoNumbers.includes(siigoLabel)) {
+      return false
+    }
   }
 
   return true
-}
-
-function compareStrings(left: string, right: string): number {
-  return left.localeCompare(right, 'es', { sensitivity: 'base' })
 }
 
 export function sortSupportDocumentRows(
@@ -105,16 +65,17 @@ export function sortSupportDocumentRows(
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
   rowRetentions: Record<string, SiigoTaxOption[]>,
 ): SupportDocumentRow[] {
-  if (!sortColumn) {
-    return rows
-  }
-
-  const direction = sortDirection === 'asc' ? 1 : -1
+  const effectiveSortColumn = sortColumn ?? 'createdAt'
+  const effectiveSortDirection = sortColumn == null ? 'desc' : sortDirection
+  const direction = effectiveSortDirection === 'asc' ? 1 : -1
 
   return [...rows].sort((left, right) => {
     let comparison = 0
 
-    switch (sortColumn) {
+    switch (effectiveSortColumn) {
+      case 'createdAt':
+        comparison = compareCreatedAt(left.createdAt, right.createdAt)
+        break
       case 'date':
         comparison = compareStrings(
           formatSupportDocumentTableDate(rowDates[left.id]),
@@ -169,5 +130,40 @@ export function columnFilterIsActive(
     return value.length > 0
   }
 
-  return value.trim().length > 0
+  return false
+}
+
+export function isSupportDocumentColumnFilterActive(
+  column: SupportDocumentSortColumn,
+  filters: SupportDocumentColumnFilters,
+  selectedSupplierNits: string[],
+): boolean {
+  switch (column) {
+    case 'date':
+      return columnFilterIsActive(filters, 'dates')
+    case 'supplier':
+      return selectedSupplierNits.length > 0
+    case 'siigoNumber':
+      return columnFilterIsActive(filters, 'siigoNumbers')
+    case 'status':
+      return columnFilterIsActive(filters, 'statuses')
+    default:
+      return false
+  }
+}
+
+export function clearSupportDocumentColumnFilter(
+  column: SupportDocumentSortColumn,
+  filters: SupportDocumentColumnFilters,
+): SupportDocumentColumnFilters {
+  switch (column) {
+    case 'date':
+      return { ...filters, dates: [] }
+    case 'siigoNumber':
+      return { ...filters, siigoNumbers: [] }
+    case 'status':
+      return { ...filters, statuses: [] }
+    default:
+      return filters
+  }
 }

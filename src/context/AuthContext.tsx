@@ -7,13 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AuthUser, LoginRequest, RegisterRequest } from '../types/auth'
+import type { AuthCompany, AuthUser, LoginRequest, RegisterRequest } from '../types/auth'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
   fetchCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
   register as registerRequest,
+  switchCompany as switchCompanyRequest,
 } from '../services/authService'
 import {
   AUTH_SESSION_EXPIRED_EVENT,
@@ -22,10 +23,13 @@ import {
 
 interface AuthContextValue {
   user: AuthUser | null
+  companies: AuthCompany[]
   isAuthenticated: boolean
   isLoading: boolean
-  login: (payload: LoginRequest) => Promise<void>
+  isSwitchingCompany: boolean
+  login: (payload: LoginRequest) => Promise<AuthUser>
   register: (payload: RegisterRequest) => Promise<void>
+  switchCompany: (companyId: string) => Promise<void>
   logout: () => void
 }
 
@@ -33,12 +37,15 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [companies, setCompanies] = useState<AuthCompany[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSwitchingCompany, setIsSwitchingCompany] = useState(false)
 
   useEffect(() => {
     const handleSessionExpired = () => {
       logoutRequest()
       setUser(null)
+      setCompanies([])
     }
 
     window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -60,16 +67,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const currentUser = await fetchCurrentUser()
+        const currentSession = await fetchCurrentUser()
 
         if (isMounted) {
-          setUser(currentUser)
+          setUser(currentSession.user)
+          setCompanies(currentSession.companies)
         }
       } catch {
         logoutRequest()
 
         if (isMounted) {
           setUser(null)
+          setCompanies([])
         }
       } finally {
         if (isMounted) {
@@ -87,31 +96,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (payload: LoginRequest) => {
     const session = await loginRequest(payload)
-    const currentUser = session.user ?? (await fetchCurrentUser())
-    setUser(currentUser)
+    const currentSession =
+      session.user && session.companies.length > 0
+        ? { user: session.user, companies: session.companies }
+        : await fetchCurrentUser()
+
+    setUser(currentSession.user)
+    setCompanies(currentSession.companies)
+
+    return currentSession.user
   }, [])
 
   const register = useCallback(async (payload: RegisterRequest) => {
     const session = await registerRequest(payload)
-    const currentUser = session.user ?? (await fetchCurrentUser())
+    const currentUser = session.user ?? (await fetchCurrentUser()).user
+
     setUser(currentUser)
+    setCompanies(session.companies)
   }, [])
+
+  const switchCompany = useCallback(async (companyId: string) => {
+    if (companyId === user?.company?.id) {
+      return
+    }
+
+    setIsSwitchingCompany(true)
+
+    try {
+      const session = await switchCompanyRequest(companyId)
+      const currentSession =
+        session.user && session.companies.length > 0
+          ? { user: session.user, companies: session.companies }
+          : await fetchCurrentUser()
+
+      setUser(currentSession.user)
+      setCompanies(currentSession.companies)
+    } finally {
+      setIsSwitchingCompany(false)
+    }
+  }, [user?.company?.id])
 
   const logout = useCallback(() => {
     logoutRequest()
     setUser(null)
+    setCompanies([])
   }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      companies,
       isAuthenticated: Boolean(user),
       isLoading,
+      isSwitchingCompany,
       login,
       register,
+      switchCompany,
       logout,
     }),
-    [user, isLoading, login, register, logout],
+    [
+      user,
+      companies,
+      isLoading,
+      isSwitchingCompany,
+      login,
+      register,
+      switchCompany,
+      logout,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

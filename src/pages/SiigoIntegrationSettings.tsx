@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -19,6 +20,7 @@ function SiigoIntegrationSettings() {
     credentialsSuccessMessage,
     suppliersSuccessMessage,
     showSetupRequiredNotice,
+    isSiigoConfigured,
     errorMessage,
     setUsername,
     setAccessKey,
@@ -42,8 +44,8 @@ function SiigoIntegrationSettings() {
       <header className="settings-page__header">
         <h1>Configuración de integración SIIGO</h1>
         <p>
-          Configure las credenciales de SIIGO y sincronice proveedores para su
-          empresa.
+          Configure las credenciales de SIIGO y sincronice el catálogo de cuentas
+          contables para su empresa.
         </p>
       </header>
 
@@ -51,6 +53,13 @@ function SiigoIntegrationSettings() {
         <div className="settings-page__setup-notice" role="status">
           Para usar Documento soporte, primero configure las credenciales de SIIGO
           en el formulario de abajo.
+        </div>
+      )}
+
+      {isSiigoConfigured && (
+        <div className="settings-page__ready-notice" role="status">
+          SIIGO ya está configurado para esta empresa. Puede continuar a{' '}
+          <Link to="/documento-soporte">Documento soporte</Link>.
         </div>
       )}
 
@@ -82,13 +91,18 @@ function SiigoIntegrationSettings() {
 
         <AuthCompanyDisplay />
 
-        <form className="settings-form" onSubmit={handleSaveCredentials}>
+        <form
+          className="settings-form"
+          onSubmit={handleSaveCredentials}
+          autoComplete="off"
+        >
           <div className="settings-form__field">
-            <label htmlFor="siigo-username">Usuario</label>
+            <label htmlFor="siigo-username">Usuario de SIIGO</label>
             <input
               id="siigo-username"
-              type="email"
-              autoComplete="username"
+              name="jarvis-siigo-username"
+              type="text"
+              autoComplete="off"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               disabled={isBusy}
@@ -100,8 +114,9 @@ function SiigoIntegrationSettings() {
             <label htmlFor="siigo-access-key">Access key</label>
             <input
               id="siigo-access-key"
+              name="jarvis-siigo-access-key"
               type="password"
-              autoComplete="off"
+              autoComplete="new-password"
               value={accessKey}
               onChange={(event) => setAccessKey(event.target.value)}
               disabled={isBusy}
@@ -113,6 +128,7 @@ function SiigoIntegrationSettings() {
             <label htmlFor="siigo-partner-id">Partner ID</label>
             <input
               id="siigo-partner-id"
+              name="jarvis-siigo-partner-id"
               type="text"
               autoComplete="off"
               value={partnerId}
@@ -143,10 +159,10 @@ function SiigoIntegrationSettings() {
 
       <section className="settings-card settings-card--spaced">
         <div className="settings-card__header">
-          <h2 className="settings-card__title">Proveedores y cuentas contables</h2>
+          <h2 className="settings-card__title">Cuentas contables</h2>
           <p className="settings-card__description">
-            Sincronice los proveedores desde SIIGO para configurar
-            automáticamente las cuentas contables utilizadas por cada tercero.
+            Sincronice las cuentas contables desde el Balance de Prueba general
+            de SIIGO (últimos 3 años).
           </p>
         </div>
 
@@ -158,13 +174,13 @@ function SiigoIntegrationSettings() {
             disabled={!canSyncSuppliers}
           >
             {isSyncingSuppliers
-              ? 'Actualizando proveedores...'
-              : 'Actualizar proveedores desde SIIGO'}
+              ? 'Actualizando cuentas...'
+              : 'Actualizar cuentas desde SIIGO'}
           </button>
         </div>
 
         {isSyncingSuppliers && (
-          <LoadingIndicator message="Sincronizando proveedores desde SIIGO..." />
+          <LoadingIndicator message="Sincronizando cuentas contables desde SIIGO..." />
         )}
         {suppliersSuccessMessage && (
           <SuccessMessage message={suppliersSuccessMessage} />

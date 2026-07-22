@@ -18,6 +18,7 @@ export interface SupportDocumentRow {
   suggestedAccount: SuggestedAccount | null
   importStatus: ImportRowStatus
   action: SupportDocumentAction
+  createdAt: string
 }
 
 export interface SupportDocumentImportNotice {

@@ -44,7 +44,6 @@ function ImportModule({
     continueAfterSupplierCreated,
     closeAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
     acceptPurchase,
@@ -111,13 +110,11 @@ function ImportModule({
         isOpen={accountModal.isOpen}
         view={accountModal.view}
         selectedAccount={accountModal.selectedAccount}
-        autoApply={accountModal.autoApply}
         createdPurchase={accountModal.createdPurchase}
         errorMessage={accountModal.errorMessage}
         errorPhase={accountModal.errorPhase}
         onCancel={closeAccountModal}
         onSelectAccount={selectAccount}
-        onAutoApplyChange={setAutoApply}
         onSave={saveAccount}
         onAccept={acceptPurchase}
         onRetry={retrySaveAccount}

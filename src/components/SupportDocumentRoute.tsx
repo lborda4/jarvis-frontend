@@ -1,26 +1,35 @@
 import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
-import { useSiigoSetup } from '../context/SiigoSetupContext'
+import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import SupportDocumentPage from '../pages/SupportDocumentPage'
 import '../pages/AuthPages.css'
 
 function SupportDocumentRoute() {
-  const { isCheckingSiigoSetup, isSupportDocumentEnabled } = useSiigoSetup()
+  const {
+    isCheckingSetup,
+    isSupportDocumentEnabled,
+    isJarvisCompany,
+    setupPath,
+  } = useIntegrationSetup()
 
-  if (isCheckingSiigoSetup) {
+  if (isCheckingSetup) {
     return (
       <div className="auth-loading-screen">
-        <LoadingIndicator message="Verificando configuración de SIIGO..." />
+        <LoadingIndicator message="Verificando configuración..." />
       </div>
     )
+  }
+
+  if (isJarvisCompany) {
+    return <Navigate to={setupPath} replace />
   }
 
   if (!isSupportDocumentEnabled) {
     return (
       <Navigate
-        to="/configuracion/integracion-siigo"
+        to={setupPath}
         replace
-        state={{ siigoSetupRequired: true }}
+        state={{ integrationSetupRequired: true }}
       />
     )
   }

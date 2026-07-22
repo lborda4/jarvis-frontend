@@ -18,10 +18,8 @@ export interface AccountMappingModalState {
   documentId: string
   view: AccountMappingModalView
   selectedAccount: SiigoAccountOption | null
-  autoApply: boolean
   accountSaved: boolean
   savedAccountCode: string | null
-  savedAutoApply: boolean
   createdPurchase: SiigoCreatedPurchase | null
   errorMessage: string | null
   errorPhase: AccountMappingErrorPhase | null
@@ -31,7 +29,6 @@ interface UseAccountMappingModalOptions {
   onAccountSaved?: (params: {
     documentId: string
     accountCode: string
-    autoApply: boolean
   }) => void
   onPurchaseCreated?: (params: {
     documentId: string
@@ -45,10 +42,8 @@ const initialModalState: AccountMappingModalState = {
   documentId: '',
   view: 'select',
   selectedAccount: null,
-  autoApply: false,
   accountSaved: false,
   savedAccountCode: null,
-  savedAutoApply: false,
   createdPurchase: null,
   errorMessage: null,
   errorPhase: null,
@@ -81,10 +76,8 @@ export function useAccountMappingModal(
       documentId,
       view: 'select',
       selectedAccount: null,
-      autoApply: false,
       accountSaved: false,
       savedAccountCode: null,
-      savedAutoApply: false,
       createdPurchase: null,
       errorMessage: null,
       errorPhase: null,
@@ -101,13 +94,6 @@ export function useAccountMappingModal(
       ...current,
       selectedAccount: account,
       errorMessage: null,
-    }))
-  }, [])
-
-  const setAutoApply = useCallback((autoApply: boolean) => {
-    setModalState((current) => ({
-      ...current,
-      autoApply,
     }))
   }, [])
 
@@ -137,12 +123,8 @@ export function useAccountMappingModal(
         errorPhase: null,
       }))
 
-      console.log('[Account Mapping Modal] ANTES — crear factura:', { documentId })
-
       try {
         const response = await createSiigoPurchase({ documentId })
-
-        console.log('[Account Mapping Modal] DESPUÉS — factura creada:', response)
 
         onPurchaseCreated?.({
           documentId,
@@ -154,12 +136,8 @@ export function useAccountMappingModal(
           documentId,
           view: 'purchase_success',
           createdPurchase: response.purchase,
-          errorMessage: null,
-          errorPhase: null,
         }))
       } catch (error) {
-        console.error('[Account Mapping Modal] DESPUÉS — falló la creación:', error)
-
         onPurchaseFailed?.({ documentId })
 
         setModalState((current) => ({
@@ -186,7 +164,6 @@ export function useAccountMappingModal(
           currentState.documentId,
       )
       const selectedAccount = currentState.selectedAccount
-      const autoApply = currentState.autoApply
 
       if (!selectedAccount) {
         setModalState((current) => ({
@@ -220,20 +197,14 @@ export function useAccountMappingModal(
         documentId,
         accountCode: selectedAccount.code,
         accountDescription: selectedAccount.description,
-        autoApply,
       }
-
-      console.log('[Account Mapping Modal] ANTES — guardar cuenta:', payload)
 
       try {
         await saveAccountMapping(payload)
 
-        console.log('[Account Mapping Modal] DESPUÉS — cuenta guardada')
-
         onAccountSaved?.({
           documentId,
           accountCode: selectedAccount.code,
-          autoApply,
         })
 
         setModalState((current) => ({
@@ -241,13 +212,10 @@ export function useAccountMappingModal(
           documentId,
           accountSaved: true,
           savedAccountCode: selectedAccount.code,
-          savedAutoApply: autoApply,
         }))
 
         await createPurchase(documentId)
       } catch (error) {
-        console.error('[Account Mapping Modal] DESPUÉS — falló el guardado:', error)
-
         setModalState((current) => ({
           ...current,
           documentId,
@@ -285,7 +253,6 @@ export function useAccountMappingModal(
     openAccountMappingModal,
     closeModal,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
   }

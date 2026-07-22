@@ -12,6 +12,12 @@ export function isExcelFile(file: File): boolean {
   return EXCEL_EXTENSIONS.some((extension) => fileName.endsWith(extension))
 }
 
+export function isXmlFile(file: File): boolean {
+  const fileName = file.name.toLowerCase()
+
+  return XML_EXTENSIONS.some((extension) => fileName.endsWith(extension))
+}
+
 export function detectDocumentSourceType(
   file: File,
 ): DocumentSourceType | null {
@@ -40,3 +46,5 @@ export const ACCEPTED_FILE_EXTENSIONS = [
 
 export const ACCEPTED_FILE_INPUT =
   '.xlsx,.xls,.xml,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/xml,text/xml'
+
+export const XML_AND_EXCEL_FILE_INPUT = ACCEPTED_FILE_INPUT

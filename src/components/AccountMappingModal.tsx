@@ -11,13 +11,11 @@ interface AccountMappingModalProps {
   isOpen: boolean
   view: AccountMappingModalView
   selectedAccount: SiigoAccountOption | null
-  autoApply: boolean
   createdPurchase: SiigoCreatedPurchase | null
   errorMessage: string | null
   errorPhase: AccountMappingErrorPhase | null
   onCancel: () => void
   onSelectAccount: (account: SiigoAccountOption | null) => void
-  onAutoApplyChange: (autoApply: boolean) => void
   onSave: () => void
   onAccept: () => void
   onRetry: () => void
@@ -35,13 +33,11 @@ function AccountMappingModal({
   isOpen,
   view,
   selectedAccount,
-  autoApply,
   createdPurchase,
   errorMessage,
   errorPhase,
   onCancel,
   onSelectAccount,
-  onAutoApplyChange,
   onSave,
   onAccept,
   onRetry,
@@ -85,18 +81,6 @@ function AccountMappingModal({
                   onChange={onSelectAccount}
                   disabled={buttonsDisabled}
                 />
-                <label className="account-mapping-form__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={autoApply}
-                    onChange={(event) => onAutoApplyChange(event.target.checked)}
-                    disabled={buttonsDisabled}
-                  />
-                  <span>
-                    Utilizar esta misma cuenta automáticamente para las próximas
-                    facturas de este proveedor.
-                  </span>
-                </label>
                 {errorMessage && (
                   <p className="modal-dialog__error-message">{errorMessage}</p>
                 )}

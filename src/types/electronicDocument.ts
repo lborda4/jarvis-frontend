@@ -56,6 +56,12 @@ export interface SuggestedRetention {
   percentage: number
 }
 
+export interface SuggestedCostCenter {
+  id: number
+  code: string
+  name: string
+}
+
 export interface ElectronicDocumentListItemItem {
   description: string
   quantity: number
@@ -80,7 +86,9 @@ export interface ElectronicDocumentListItem {
   suggestedAccount?: SuggestedAccount | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
   suggestedRetentions?: SuggestedRetention[]
+  suggestedCostCenter?: SuggestedCostCenter | null
   processingStatus?: ElectronicDocumentProcessingStatus
+  observations?: string | null
   items?: ElectronicDocumentListItemItem[]
   createdAt: string
   updatedAt: string
@@ -108,6 +116,21 @@ export interface ElectronicDocumentListFilters {
   page?: number
   limit?: number
   supplierNits?: string[]
+  issueDates?: string[]
+  siigoDocumentNumbers?: string[]
+  importStatuses?: string[]
+}
+
+export interface ElectronicDocumentSupplierFilterOption {
+  nit: string
+  name: string
+}
+
+export interface ElectronicDocumentFilterOptions {
+  issueDates: string[]
+  siigoDocumentNumbers: number[]
+  importStatuses: string[]
+  suppliers: ElectronicDocumentSupplierFilterOption[]
 }
 
 export type DocumentDashboardAction =

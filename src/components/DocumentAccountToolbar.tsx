@@ -8,7 +8,6 @@ interface DocumentAccountToolbarProps {
   selectedSupplier: SupplierOption | null
   selectedAccount: SiigoAccountOption | null
   applyToAllFiltered: boolean
-  saveAsDefault: boolean
   applyTargetsCount: number
   canApply: boolean
   isApplying: boolean
@@ -18,7 +17,6 @@ interface DocumentAccountToolbarProps {
   onSupplierChange: (supplier: SupplierOption | null) => void
   onAccountChange: (account: SiigoAccountOption | null) => void
   onApplyToAllFilteredChange: (value: boolean) => void
-  onSaveAsDefaultChange: (value: boolean) => void
   onApply: () => void
 }
 
@@ -27,7 +25,6 @@ function DocumentAccountToolbar({
   selectedSupplier,
   selectedAccount,
   applyToAllFiltered,
-  saveAsDefault,
   applyTargetsCount,
   canApply,
   isApplying,
@@ -37,7 +34,6 @@ function DocumentAccountToolbar({
   onSupplierChange,
   onAccountChange,
   onApplyToAllFilteredChange,
-  onSaveAsDefaultChange,
   onApply,
 }: DocumentAccountToolbarProps) {
   const controlsDisabled = disabled || isApplying
@@ -88,18 +84,6 @@ function DocumentAccountToolbar({
             disabled={controlsDisabled}
           />
           <span>Aplicar esta cuenta a todos los documentos filtrados.</span>
-        </label>
-
-        <label className="document-account-toolbar__checkbox">
-          <input
-            type="checkbox"
-            checked={saveAsDefault}
-            onChange={(event) => onSaveAsDefaultChange(event.target.checked)}
-            disabled={controlsDisabled}
-          />
-          <span>
-            Guardar esta cuenta como predeterminada para estos proveedores.
-          </span>
         </label>
       </div>
 

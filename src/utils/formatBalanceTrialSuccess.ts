@@ -1,14 +1,17 @@
 import type { ImportBalanceTrialResponse } from '../types/siigo'
 
+export const BALANCE_TRIAL_IMPORT_ERROR_MESSAGE =
+  'Error al importar balance de prueba general'
+
 export function formatBalanceTrialSuccessMessage(
   response: ImportBalanceTrialResponse,
 ): string {
   return [
     'Importación completada correctamente.',
-    `Filas procesadas: ${response.processedRows}.`,
-    `Proveedores creados: ${response.suppliersCreated}.`,
-    `Proveedores actualizados: ${response.suppliersUpdated}.`,
-    `Cuentas agregadas: ${response.accountsAdded}.`,
-    `Cuentas duplicadas omitidas: ${response.duplicatedAccounts}.`,
+    `Años consultados: ${response.yearsProcessed}.`,
+    `Cuentas procesadas: ${response.processedRows}.`,
+    `Cuentas creadas: ${response.accountsCreated}.`,
+    `Cuentas actualizadas: ${response.accountsUpdated}.`,
+    `Filas duplicadas omitidas: ${response.skippedRows}.`,
   ].join(' ')
 }

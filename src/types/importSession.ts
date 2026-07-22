@@ -14,7 +14,6 @@ export interface SiigoSessionData {
   supplierDocument: string | null
   supplierName: string | null
   accountCode: string | null
-  autoApply: boolean
   providerId: string | null
 }
 
@@ -45,7 +44,6 @@ export function createEmptySiigoSessionData(): SiigoSessionData {
     supplierDocument: null,
     supplierName: null,
     accountCode: null,
-    autoApply: false,
     providerId: null,
   }
 }
@@ -59,7 +57,6 @@ export function mapSiigoResponseToSessionData(
     supplierDocument: response.supplierDocument,
     supplierName: response.supplierName,
     accountCode: response.accountCode,
-    autoApply: response.autoApply,
     providerId: null,
   }
 }

@@ -1,35 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
+import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
+import { NONE_COST_CENTER_OPTION } from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
-import {
-  SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE,
-  SUPPORT_DOCUMENT_RETE_ICA_TAX_TYPE,
-  SUPPORT_DOCUMENT_RETEFUENTE_TAX_TYPE,
-} from '../constants/siigoTaxCatalog'
+import type { DocumentWorkspaceConfig } from '../constants/documentWorkspaceConfig'
+import { SUPPORT_DOCUMENT_WORKSPACE } from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
 import ErrorMessage from '../components/ErrorMessage'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
 import SupportDocumentPagination from '../components/supportDocument/SupportDocumentPagination'
 import SupportDocumentTable from '../components/supportDocument/SupportDocumentTable'
-import { ELECTRONIC_DOCUMENTS_PAGE_SIZE } from '../constants/electronicDocuments'
+import { DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE, type ElectronicDocumentPageSize } from '../constants/electronicDocuments'
+import { useSiigoWorkspaceCatalog } from '../context/SiigoCatalogContext'
 import { useSupportDocumentSend } from '../hooks/useSupportDocumentSend'
 import { useSupportDocumentResume } from '../hooks/useSupportDocumentResume'
 import {
   AUTO_DISMISS_ERROR_MS,
   useAutoDismissMessage,
 } from '../hooks/useAutoDismissMessage'
-import { supportDocumentExcelSource } from '../services/documentSources/supportDocumentExcelSource'
-import { downloadSupportDocumentTemplate } from '../services/supportDocumentService'
 import {
+  fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
 } from '../services/electronicDocumentService'
-import { fetchSiigoAccounts, fetchSiigoPaymentMethods, fetchSiigoTaxes } from '../services/siigoService'
 import { getApiErrorMessage } from '../services/apiClient'
-import {
-  ELECTRONIC_DOCUMENT_TYPE,
-  type ElectronicDocumentListItem,
+import type {
+  ElectronicDocumentFilterOptions,
+  ElectronicDocumentListItem,
 } from '../types/electronicDocument'
 import type { SupportDocumentImportNotice } from '../types/supportDocumentPage'
 import {
@@ -38,25 +36,24 @@ import {
   type SupportDocumentSortColumn,
   type SupportDocumentSortDirection,
 } from '../types/supportDocumentTableFilters'
-import { EXCEL_FILE_INPUT, isExcelFile } from '../utils/fileType'
-import { validateSupportDocumentExcelDates } from '../utils/validateSupportDocumentExcel'
+import { detectDocumentSourceType } from '../utils/fileType'
 import { mapElectronicDocumentToSupportRow } from '../utils/mapSupportDocumentRow'
 import { isSupportDocumentRowSelectable } from '../utils/mapImportRowStatus'
 import { IMPORT_ROW_STATUS } from '../types/import'
 import {
   buildInitialRowAccounts,
-  mapCatalogToAccountOptions,
   mergeSuggestedAccountsIntoOptions,
 } from '../utils/siigoAccounts'
-import { mapCatalogToPaymentMethodOptions, mapSuggestedPaymentMethodToOption } from '../utils/siigoPaymentMethods'
-import { extractSupplierOptions, mergeSupplierOptions } from '../utils/supplierOptions'
+import { mapSuggestedPaymentMethodToOption } from '../utils/siigoPaymentMethods'
 import {
-  mapCatalogToTaxOptions,
+  mapSuggestedCostCenterToOption,
+} from '../utils/siigoCostCenters'
+import {
   mapSuggestedRetentionsToTaxOptions,
-  mergeRetentionTaxOptions,
 } from '../utils/siigoTaxes'
 import {
   buildInitialRowDates,
+  buildInitialRowObservations,
 } from '../utils/supportDocumentDate'
 import { isSupplierReadyInSiigo } from '../utils/supplierSiigoStatus'
 import {
@@ -64,11 +61,23 @@ import {
   countSendableDocuments,
 } from '../utils/supportDocumentSend'
 import {
-  rowMatchesColumnFilters,
+  clearSupportDocumentColumnFilter,
+  isSupportDocumentColumnFilterActive,
   sortSupportDocumentRows,
 } from '../utils/filterSupportDocumentRows'
 import './SupportDocumentPage.css'
 import '../pages/InvoiceUpload.css'
+
+function buildInitialRowCostCenters(
+  documents: ElectronicDocumentListItem[],
+): Record<string, SiigoCostCenterOption | null> {
+  return Object.fromEntries(
+    documents.map((document) => [
+      document.id,
+      mapSuggestedCostCenterToOption(document.suggestedCostCenter),
+    ]),
+  )
+}
 
 function buildInitialRowPaymentMethods(
   documents: ElectronicDocumentListItem[],
@@ -102,17 +111,17 @@ function buildInitialRetentionsConfiguredIds(
   )
 }
 
-function SupportDocumentPage() {
+export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const controlsAnchorRef = useRef<HTMLDivElement>(null)
   const [isControlsAnchored, setIsControlsAnchored] = useState(false)
   const [documents, setDocuments] = useState<ElectronicDocumentListItem[]>([])
   const [page, setPage] = useState(1)
+  const [pageLimit, setPageLimit] = useState<ElectronicDocumentPageSize>(
+    DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE,
+  )
   const [totalDocuments, setTotalDocuments] = useState(0)
   const [refreshToken, setRefreshToken] = useState(0)
-  const [supplierOptions, setSupplierOptions] = useState<
-    ReturnType<typeof extractSupplierOptions>
-  >([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
@@ -125,30 +134,40 @@ function SupportDocumentPage() {
   const [selectedSupplierNits, setSelectedSupplierNits] = useState<string[]>([])
   const [columnFilters, setColumnFilters] =
     useState<SupportDocumentColumnFilters>(EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS)
+  const [filterOptions, setFilterOptions] =
+    useState<ElectronicDocumentFilterOptions | null>(null)
   const [sortColumn, setSortColumn] = useState<SupportDocumentSortColumn | null>(
-    null,
+    'createdAt',
   )
   const [sortDirection, setSortDirection] =
-    useState<SupportDocumentSortDirection>('asc')
+    useState<SupportDocumentSortDirection>('desc')
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(
     new Set(),
   )
-  const [accountOptions, setAccountOptions] = useState<SiigoAccountOption[]>([])
-  const [paymentMethodOptions, setPaymentMethodOptions] = useState<
-    SiigoPaymentMethodOption[]
-  >([])
-  const [reteIcaOptions, setReteIcaOptions] = useState<SiigoTaxOption[]>([])
-  const [reteFuenteOptions, setReteFuenteOptions] = useState<SiigoTaxOption[]>([])
+  const {
+    accountOptions,
+    paymentMethodOptions,
+    retentionCatalogOptions,
+    costCenterOptions,
+    accountsError,
+    paymentMethodsError,
+    costCentersError,
+    retentionsError,
+  } = useSiigoWorkspaceCatalog(config)
   const [rowAccounts, setRowAccounts] = useState<
     Record<string, SiigoAccountOption | null>
   >({})
   const [rowPaymentMethods, setRowPaymentMethods] = useState<
     Record<string, SiigoPaymentMethodOption | null>
   >({})
+  const [rowCostCenters, setRowCostCenters] = useState<
+    Record<string, SiigoCostCenterOption | null>
+  >({})
   const [rowRetentions, setRowRetentions] = useState<
     Record<string, SiigoTaxOption[]>
   >({})
   const [rowDates, setRowDates] = useState<Record<string, string>>({})
+  const [rowObservations, setRowObservations] = useState<Record<string, string>>({})
   const [retentionsConfiguredIds, setRetentionsConfiguredIds] = useState<
     Set<string>
   >(new Set())
@@ -157,17 +176,10 @@ function SupportDocumentPage() {
   )
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<SiigoPaymentMethodOption | null>(null)
+  const [selectedCostCenter, setSelectedCostCenter] =
+    useState<SiigoCostCenterOption>(NONE_COST_CENTER_OPTION)
   const [selectedRetentions, setSelectedRetentions] = useState<SiigoTaxOption[]>(
     [],
-  )
-  const [accountsError, setAccountsError] = useAutoDismissMessage(
-    AUTO_DISMISS_ERROR_MS,
-  )
-  const [paymentMethodsError, setPaymentMethodsError] = useAutoDismissMessage(
-    AUTO_DISMISS_ERROR_MS,
-  )
-  const [retentionsError, setRetentionsError] = useAutoDismissMessage(
-    AUTO_DISMISS_ERROR_MS,
   )
 
   const reloadDocuments = useCallback((options?: { resetPage?: boolean }) => {
@@ -194,11 +206,21 @@ function SupportDocumentPage() {
 
       try {
         const response = await fetchElectronicDocuments({
-          electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+          electronicDocumentType: config.electronicDocumentType,
           page,
-          limit: ELECTRONIC_DOCUMENTS_PAGE_SIZE,
+          limit: pageLimit,
           supplierNits:
             selectedSupplierNits.length > 0 ? selectedSupplierNits : undefined,
+          issueDates:
+            columnFilters.dates.length > 0 ? columnFilters.dates : undefined,
+          siigoDocumentNumbers:
+            columnFilters.siigoNumbers.length > 0
+              ? columnFilters.siigoNumbers
+              : undefined,
+          importStatuses:
+            columnFilters.statuses.length > 0
+              ? columnFilters.statuses
+              : undefined,
         })
 
         if (cancelled) {
@@ -208,22 +230,24 @@ function SupportDocumentPage() {
         setDocuments(response.items)
         setTotalDocuments(response.total)
         setPage(response.page)
-        setSupplierOptions((current) =>
-          mergeSupplierOptions(current, response.items),
-        )
+        setPageLimit(response.limit as ElectronicDocumentPageSize)
         setRowAccounts(buildInitialRowAccounts(response.items))
         setRowPaymentMethods(buildInitialRowPaymentMethods(response.items))
+        setRowCostCenters(buildInitialRowCostCenters(response.items))
         setRowRetentions(buildInitialRowRetentions(response.items))
         setRetentionsConfiguredIds(
           buildInitialRetentionsConfiguredIds(response.items),
         )
         setRowDates((current) => buildInitialRowDates(response.items, current))
+        setRowObservations((current) =>
+          buildInitialRowObservations(response.items, current),
+        )
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
             getApiErrorMessage(
               error,
-              'No se pudieron cargar los documentos soporte.',
+              config.loadDocumentsError,
             ),
           )
         }
@@ -237,7 +261,41 @@ function SupportDocumentPage() {
     return () => {
       cancelled = true
     }
-  }, [page, selectedSupplierNits, refreshToken])
+  }, [
+    columnFilters.dates,
+    columnFilters.siigoNumbers,
+    columnFilters.statuses,
+    config.electronicDocumentType,
+    config.loadDocumentsError,
+    page,
+    pageLimit,
+    selectedSupplierNits,
+    refreshToken,
+  ])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const options = await fetchElectronicDocumentFilterOptions({
+          electronicDocumentType: config.electronicDocumentType,
+        })
+
+        if (!cancelled) {
+          setFilterOptions(options)
+        }
+      } catch {
+        if (!cancelled) {
+          setFilterOptions(null)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [config.electronicDocumentType, refreshToken])
 
   useEffect(() => {
     const sentinel = controlsAnchorRef.current
@@ -291,69 +349,6 @@ function SupportDocumentPage() {
     })
   }, [documents, accountOptions])
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const catalog = await fetchSiigoAccounts()
-        setAccountOptions(mapCatalogToAccountOptions(catalog))
-      } catch (error) {
-        setAccountsError(
-          getApiErrorMessage(
-            error,
-            'No se pudo cargar el catálogo de cuentas contables.',
-          ),
-        )
-      }
-
-      try {
-        const paymentMethods = await fetchSiigoPaymentMethods(
-          SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE,
-        )
-        setPaymentMethodOptions(mapCatalogToPaymentMethodOptions(paymentMethods))
-      } catch (error) {
-        setPaymentMethodsError(
-          getApiErrorMessage(
-            error,
-            'No se pudo cargar el catálogo de medios de pago.',
-          ),
-        )
-      }
-
-      const retentionLoadErrors: string[] = []
-      let reteIcaCatalog: SiigoTaxOption[] = []
-      let reteFuenteCatalog: SiigoTaxOption[] = []
-
-      try {
-        reteIcaCatalog = mapCatalogToTaxOptions(
-          await fetchSiigoTaxes(SUPPORT_DOCUMENT_RETE_ICA_TAX_TYPE),
-        )
-      } catch (error) {
-        retentionLoadErrors.push(
-          getApiErrorMessage(error, 'No se pudo cargar el catálogo de ReteICA.'),
-        )
-      }
-
-      try {
-        reteFuenteCatalog = mapCatalogToTaxOptions(
-          await fetchSiigoTaxes(SUPPORT_DOCUMENT_RETEFUENTE_TAX_TYPE),
-        )
-      } catch (error) {
-        retentionLoadErrors.push(
-          getApiErrorMessage(error, 'No se pudo cargar el catálogo de Retefuente.'),
-        )
-      }
-
-      setReteIcaOptions(reteIcaCatalog)
-      setReteFuenteOptions(reteFuenteCatalog)
-
-      if (retentionLoadErrors.length === 2) {
-        setRetentionsError('No se pudieron cargar los catálogos de retenciones.')
-      } else if (retentionLoadErrors.length > 0) {
-        setRetentionsError(retentionLoadErrors[0])
-      }
-    })()
-  }, [])
-
   const importFilteredDocuments = useMemo(() => {
     if (!showImportOnly || !importNotice) {
       return documents
@@ -371,8 +366,8 @@ function SupportDocumentPage() {
   )
 
   const retentionOptions = useMemo(
-    () => mergeRetentionTaxOptions(reteIcaOptions, reteFuenteOptions),
-    [reteFuenteOptions, reteIcaOptions],
+    () => retentionCatalogOptions,
+    [retentionCatalogOptions],
   )
 
   const {
@@ -384,12 +379,12 @@ function SupportDocumentPage() {
     watchImportedDocuments,
     closeAccountModal,
     selectAccount,
-    setAutoApply,
     saveAccount,
     retrySaveAccount,
     acceptPurchase,
     setImportStatus,
   } = useSupportDocumentResume({
+    electronicDocumentType: config.electronicDocumentType,
     documents,
     setDocuments,
     onFlowCompleted: () => reloadDocuments({ resetPage: true }),
@@ -400,27 +395,20 @@ function SupportDocumentPage() {
     [documents],
   )
 
+  const pageTableRows = useMemo(
+    () =>
+      filteredDocuments.map((document) =>
+        mapElectronicDocumentToSupportRow(
+          document,
+          importStatuses[document.id],
+        ),
+      ),
+    [filteredDocuments, importStatuses],
+  )
+
   const tableRows = useMemo(() => {
-    const mapped = filteredDocuments.map((document) =>
-      mapElectronicDocumentToSupportRow(
-        document,
-        importStatuses[document.id],
-      ),
-    )
-
-    const filtered = mapped.filter((row) =>
-      rowMatchesColumnFilters(
-        row,
-        columnFilters,
-        rowDates,
-        rowAccounts,
-        rowPaymentMethods,
-        rowRetentions,
-      ),
-    )
-
     return sortSupportDocumentRows(
-      filtered,
+      pageTableRows,
       sortColumn,
       sortDirection,
       rowDates,
@@ -429,9 +417,7 @@ function SupportDocumentPage() {
       rowRetentions,
     )
   }, [
-    columnFilters,
-    filteredDocuments,
-    importStatuses,
+    pageTableRows,
     rowAccounts,
     rowDates,
     rowPaymentMethods,
@@ -468,6 +454,7 @@ function SupportDocumentPage() {
     errorMessage: sendErrorMessage,
     sendDocuments,
   } = useSupportDocumentSend({
+    workspace: config,
     onCompleted: () => reloadDocuments({ resetPage: true }),
     onDocumentStatusChange: setImportStatus,
   })
@@ -577,6 +564,14 @@ function SupportDocumentPage() {
     [applySelectionToCheckedRows],
   )
 
+  const handleConfigCostCenterChange = useCallback(
+    (costCenter: SiigoCostCenterOption) => {
+      setSelectedCostCenter(costCenter)
+      applySelectionToCheckedRows(costCenter, setRowCostCenters)
+    },
+    [applySelectionToCheckedRows],
+  )
+
   const handleConfigRetentionsChange = useCallback(
     (taxes: SiigoTaxOption[]) => {
       setSelectedRetentions(taxes)
@@ -644,8 +639,10 @@ function SupportDocumentPage() {
       importStatuses,
       rowAccounts,
       rowPaymentMethods,
+      rowCostCenters,
       rowRetentions,
       rowDates,
+      rowObservations,
       retentionsConfiguredIds,
     })
   }, [
@@ -653,7 +650,9 @@ function SupportDocumentPage() {
     importStatuses,
     retentionsConfiguredIds,
     rowAccounts,
+    rowCostCenters,
     rowDates,
+    rowObservations,
     rowPaymentMethods,
     rowRetentions,
     selectedDocumentIds,
@@ -668,8 +667,10 @@ function SupportDocumentPage() {
         importStatuses,
         rowAccounts,
         rowPaymentMethods,
+        rowCostCenters,
         rowRetentions,
         rowDates,
+        rowObservations,
         retentionsConfiguredIds,
       })
     },
@@ -678,7 +679,9 @@ function SupportDocumentPage() {
       importStatuses,
       retentionsConfiguredIds,
       rowAccounts,
+      rowCostCenters,
       rowDates,
+      rowObservations,
       rowPaymentMethods,
       rowRetentions,
       sendDocuments,
@@ -725,6 +728,8 @@ function SupportDocumentPage() {
       ) => SupportDocumentColumnFilters,
     ) => {
       setColumnFilters((current) => updater(current))
+      setPage(1)
+      setSelectedDocumentIds(new Set())
     },
     [],
   )
@@ -743,9 +748,44 @@ function SupportDocumentPage() {
     })
   }, [])
 
+  const handleColumnHeaderClick = useCallback(
+    (column: SupportDocumentSortColumn) => {
+      if (
+        isSupportDocumentColumnFilterActive(
+          column,
+          columnFilters,
+          selectedSupplierNits,
+        )
+      ) {
+        if (column === 'supplier') {
+          setSelectedSupplierNits([])
+          setPage(1)
+          setSelectedDocumentIds(new Set())
+          return
+        }
+
+        setColumnFilters((current) =>
+          clearSupportDocumentColumnFilter(column, current),
+        )
+        setPage(1)
+        setSelectedDocumentIds(new Set())
+        return
+      }
+
+      handleSortChange(column)
+    },
+    [columnFilters, handleSortChange, selectedSupplierNits],
+  )
+
   const handlePageChange = useCallback((nextPage: number) => {
     setSelectedDocumentIds(new Set())
     setPage(nextPage)
+  }, [])
+
+  const handleLimitChange = useCallback((nextLimit: ElectronicDocumentPageSize) => {
+    setSelectedDocumentIds(new Set())
+    setPage(1)
+    setPageLimit(nextLimit)
   }, [])
 
   const openFilePicker = () => {
@@ -753,18 +793,19 @@ function SupportDocumentPage() {
   }
 
   const handleDownloadTemplate = () => {
+    if (!config.downloadTemplate) {
+      return
+    }
+
     void (async () => {
       setIsDownloadingTemplate(true)
       setErrorMessage(null)
 
       try {
-        await downloadSupportDocumentTemplate()
+        await config.downloadTemplate!()
       } catch (error) {
         setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'No se pudo descargar la plantilla de Documento soporte.',
-          ),
+          getApiErrorMessage(error, config.templateDownloadError),
         )
       } finally {
         setIsDownloadingTemplate(false)
@@ -778,8 +819,8 @@ function SupportDocumentPage() {
 
     if (!file) return
 
-    if (!isExcelFile(file)) {
-      window.alert('Solo se permiten archivos Excel (.xlsx, .xls).')
+    if (!detectDocumentSourceType(file)) {
+      window.alert('Seleccione un archivo válido para importar.')
       return
     }
 
@@ -788,17 +829,7 @@ function SupportDocumentPage() {
       setErrorMessage(null)
 
       try {
-        await validateSupportDocumentExcelDates(file)
-
-        const { rawResponse } = await supportDocumentExcelSource.upload(file, {
-          electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
-        })
-        const response = rawResponse as {
-          documentsCreated?: number
-          documentIds?: string[]
-        }
-        const documentIds = response.documentIds ?? []
-        const documentCount = response.documentsCreated ?? documentIds.length
+        const { documentIds, documentCount } = await config.importFile(file)
 
         for (const documentId of documentIds) {
           setImportStatus(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
@@ -811,9 +842,7 @@ function SupportDocumentPage() {
           reloadDocuments({ resetPage: false }),
         )
       } catch (error) {
-        setErrorMessage(
-          getApiErrorMessage(error, 'No se pudo importar el archivo Excel.'),
-        )
+        setErrorMessage(getApiErrorMessage(error, config.importFileError))
       } finally {
         setIsImporting(false)
       }
@@ -824,19 +853,23 @@ function SupportDocumentPage() {
     <main className="support-document-page">
       <header className="support-document-page__header">
         <div>
-          <h1>Documento Soporte</h1>
-          <p>Descarga la plantilla Excel, completa tus datos e impórtalos aquí.</p>
+          <h1>{config.pageTitle}</h1>
+          <p>{config.pageDescription}</p>
         </div>
 
         <div className="support-document-page__header-actions">
-          <button
-            type="button"
-            className="support-document-page__template-btn"
-            onClick={handleDownloadTemplate}
-            disabled={isDownloadingTemplate || isImporting}
-          >
-            {isDownloadingTemplate ? 'Descargando...' : 'Descargar plantilla'}
-          </button>
+          {config.showTemplateDownload && config.downloadTemplate && (
+            <button
+              type="button"
+              className="support-document-page__template-btn"
+              onClick={handleDownloadTemplate}
+              disabled={isDownloadingTemplate || isImporting}
+            >
+              {isDownloadingTemplate
+                ? config.downloadingTemplateLabel
+                : config.templateButtonLabel}
+            </button>
+          )}
 
           <button
             type="button"
@@ -845,14 +878,14 @@ function SupportDocumentPage() {
             disabled={isImporting}
           >
             <span aria-hidden="true">+</span>
-            {isImporting ? 'Importando...' : 'Importar Excel'}
+            {isImporting ? config.importingButtonLabel : config.importButtonLabel}
           </button>
         </div>
 
         <input
           ref={fileInputRef}
           type="file"
-          accept={EXCEL_FILE_INPUT}
+          accept={config.fileInputAccept}
           hidden
           onChange={handleFileChange}
         />
@@ -883,6 +916,7 @@ function SupportDocumentPage() {
         {sendErrorMessage && <ErrorMessage message={sendErrorMessage} />}
         {accountsError && <ErrorMessage message={accountsError} />}
         {paymentMethodsError && <ErrorMessage message={paymentMethodsError} />}
+        {costCentersError && <ErrorMessage message={costCentersError} />}
         {retentionsError && <ErrorMessage message={retentionsError} />}
       </div>
 
@@ -905,15 +939,18 @@ function SupportDocumentPage() {
           sendableCount={sendableSelectedCount}
           accountOptions={tableAccountOptions}
           paymentMethodOptions={paymentMethodOptions}
+          costCenterOptions={costCenterOptions}
           retentionOptions={retentionOptions}
           selectedAccount={selectedAccount}
           selectedPaymentMethod={selectedPaymentMethod}
+          selectedCostCenter={selectedCostCenter}
           selectedRetentions={selectedRetentions}
           canSend={canSendSelected}
           isSending={isSending}
           disabled={isLoading || isImporting || isResuming || isModalOpen}
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
+          onCostCenterChange={handleConfigCostCenterChange}
           onRetentionsChange={handleConfigRetentionsChange}
           onSend={handleSendSelected}
         />
@@ -921,12 +958,12 @@ function SupportDocumentPage() {
 
       <SupportDocumentTable
         rows={tableRows}
+        filterOptions={filterOptions}
         selectedIds={selectedDocumentIds}
         rowDates={rowDates}
         rowAccounts={rowAccounts}
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
-        supplierOptions={supplierOptions}
         selectedSupplierNits={selectedSupplierNits}
         columnFilters={columnFilters}
         sortColumn={sortColumn}
@@ -946,11 +983,13 @@ function SupportDocumentPage() {
         }
         canSendRow={canSendRow}
         documentsById={documentsById}
+        sendProcessingLabel={config.sendProcessingLabel}
         onToggleRow={handleToggleRow}
         onSelectRows={handleSelectRows}
         onSendDocument={handleSendDocument}
         onSupplierNitsChange={handleSupplierNitsChange}
         onColumnFiltersChange={handleColumnFiltersChange}
+        onColumnHeaderClick={handleColumnHeaderClick}
         onSortChange={handleSortChange}
       />
 
@@ -958,13 +997,11 @@ function SupportDocumentPage() {
         isOpen={accountModal.isOpen}
         view={accountModal.view}
         selectedAccount={accountModal.selectedAccount}
-        autoApply={accountModal.autoApply}
         createdPurchase={accountModal.createdPurchase}
         errorMessage={accountModal.errorMessage}
         errorPhase={accountModal.errorPhase}
         onCancel={closeAccountModal}
         onSelectAccount={selectAccount}
-        onAutoApplyChange={setAutoApply}
         onSave={saveAccount}
         onAccept={acceptPurchase}
         onRetry={retrySaveAccount}
@@ -972,10 +1009,11 @@ function SupportDocumentPage() {
 
       <SupportDocumentPagination
         page={page}
-        limit={ELECTRONIC_DOCUMENTS_PAGE_SIZE}
+        limit={pageLimit}
         total={totalDocuments}
         disabled={isLoading || isImporting || isResuming || isSending}
         onPageChange={handlePageChange}
+        onLimitChange={handleLimitChange}
       />
 
       {!isLoading && totalDocuments > 0 && selectedDocumentIds.size > 0 && (
@@ -987,4 +1025,6 @@ function SupportDocumentPage() {
   )
 }
 
-export default SupportDocumentPage
+export default function SupportDocumentPage() {
+  return <DocumentWorkspacePage config={SUPPORT_DOCUMENT_WORKSPACE} />
+}

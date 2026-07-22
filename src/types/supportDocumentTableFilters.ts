@@ -1,6 +1,7 @@
 import type { ImportRowStatus } from './import'
 
 export type SupportDocumentSortColumn =
+  | 'createdAt'
   | 'date'
   | 'supplier'
   | 'siigoNumber'
@@ -12,20 +13,14 @@ export type SupportDocumentSortColumn =
 export type SupportDocumentSortDirection = 'asc' | 'desc'
 
 export interface SupportDocumentColumnFilters {
-  date: string
-  siigoNumber: string
-  account: string
-  paymentMethod: string
-  retentions: string
+  dates: string[]
+  siigoNumbers: string[]
   statuses: ImportRowStatus[]
 }
 
 export const EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS: SupportDocumentColumnFilters =
   {
-    date: '',
-    siigoNumber: '',
-    account: '',
-    paymentMethod: '',
-    retentions: '',
+    dates: [],
+    siigoNumbers: [],
     statuses: [],
   }

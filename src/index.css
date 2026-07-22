@@ -1,4 +1,15 @@
 :root {
+  --jarvis-brand: rgb(26, 211, 204);
+  --jarvis-brand-rgb: 26, 211, 204;
+  --jarvis-brand-hover: rgb(20, 185, 179);
+  --jarvis-brand-light: rgb(56, 225, 218);
+  --jarvis-brand-soft: rgba(26, 211, 204, 0.12);
+  --jarvis-brand-ring: rgba(26, 211, 204, 0.25);
+  --jarvis-brand-shadow: rgba(26, 211, 204, 0.28);
+  --jarvis-navy: #0f172a;
+  --jarvis-navy-soft: #1a2b3c;
+  --jarvis-surface: #f8fafc;
+
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -22,4 +33,3 @@ body {
 #root {
   min-height: 100vh;
 }
-
