@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import './LandingPage.css'
 
 const APP_ENTRY_PATH = '/inicio'
+const LANDING_LOGO_LIGHT = '/jarvis-landing-logo.png?v=1'
+const LANDING_LOGO_DARK = '/jarvis-login-brand.png?v=1'
 
 const HERO_BENEFITS = [
   {
@@ -113,8 +115,8 @@ function LandingPage() {
         <div className="landing-container landing-header__inner">
           <a href="#inicio" className="landing-header__brand">
             <img
-              src="/jarvis-login-brand.png?v=1"
-              alt="Jarvis"
+              src={LANDING_LOGO_LIGHT}
+              alt="Jarvis — Automatiza. Conecta. Simplifica."
               className="landing-header__logo"
             />
           </a>
@@ -278,8 +280,8 @@ function LandingPage() {
         <div className="landing-container landing-footer__contact">
           <div>
             <img
-              src="/jarvis-login-brand.png?v=1"
-              alt="Jarvis"
+              src={LANDING_LOGO_DARK}
+              alt="Jarvis — Automatiza. Conecta. Simplifica."
               className="landing-footer__logo"
             />
             <p>Automatiza · Conecta · Simplifica</p>

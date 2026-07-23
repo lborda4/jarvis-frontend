@@ -50,7 +50,12 @@
   flex-shrink: 0;
 }
 
-.landing-header__logo,
+.landing-header__logo {
+  display: block;
+  width: min(100%, 9.5rem);
+  height: auto;
+}
+
 .landing-footer__logo {
   display: block;
   width: 7.5rem;
@@ -552,7 +557,10 @@
 }
 
 @media (max-width: 640px) {
-  .landing-header__logo,
+  .landing-header__logo {
+    width: min(100%, 8rem);
+  }
+
   .landing-footer__logo {
     width: 6rem;
   }
