@@ -148,7 +148,7 @@ function AdminPage() {
           <h1>Administración de empresas</h1>
           <p>Gestione empresas, integraciones y planes.</p>
         </div>
-        <Link to="/" className="admin-page__back-link">
+        <Link to="/inicio" className="admin-page__back-link">
           Volver a la aplicación
         </Link>
       </header>

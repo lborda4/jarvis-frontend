@@ -11,6 +11,7 @@ import { SiigoCatalogProvider } from './context/SiigoCatalogContext'
 import { ImportSessionProvider } from './context/ImportSessionContext'
 import AppLayout from './layout/AppLayout'
 import LoginPage from './pages/LoginPage'
+import LandingPage from './pages/LandingPage'
 import RegisterPage from './pages/RegisterPage'
 
 function App() {
@@ -20,13 +21,14 @@ function App() {
         <SiigoCatalogProvider>
           <ImportSessionProvider>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registro" element={<RegisterPage />} />
             <Route path="/admin" element={<AdminRoute />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route index element={<DefaultAppRedirect />} />
+                <Route path="/inicio" element={<DefaultAppRedirect />} />
 
                 <Route
                   path="/documento-soporte"

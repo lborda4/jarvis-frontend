@@ -12,7 +12,7 @@ import {
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
-const DEFAULT_APP_PATH = '/'
+const DEFAULT_APP_PATH = '/inicio'
 const ADMIN_APP_PATH = '/admin'
 
 function resolvePostLoginPath(role?: string): string {
@@ -70,18 +70,25 @@ function LoginPage() {
   return (
     <main className="auth-page auth-page--login">
       <div className="auth-login-backdrop" aria-hidden="true">
+        <span className="auth-login-backdrop__vignette" />
         <span className="auth-login-backdrop__grid" />
+        <span className="auth-login-backdrop__scanlines" />
         <span className="auth-login-backdrop__ring auth-login-backdrop__ring--outer" />
         <span className="auth-login-backdrop__ring auth-login-backdrop__ring--inner" />
+        <span className="auth-login-backdrop__triangle" />
         <span className="auth-login-backdrop__orb auth-login-backdrop__orb--one" />
         <span className="auth-login-backdrop__orb auth-login-backdrop__orb--two" />
+        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--tl" />
+        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--tr" />
+        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--bl" />
+        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--br" />
       </div>
 
       <div className="auth-login-shell">
         <header className="auth-login-top">
           <img
-            src="/jarvis-logo.png?v=5"
-            alt="Jarvis"
+            src="/jarvis-login-brand.png?v=1"
+            alt="Jarvis — Automatiza. Conecta. Simplifica."
             className="auth-login-top__logo"
           />
         </header>

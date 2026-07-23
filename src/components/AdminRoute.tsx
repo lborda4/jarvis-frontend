@@ -21,7 +21,7 @@ function AdminRoute() {
   }
 
   if (!isAdminRole(user?.role)) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/inicio" replace />
   }
 
   return <AdminPage />

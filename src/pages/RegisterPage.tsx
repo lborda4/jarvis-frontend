@@ -19,7 +19,7 @@ function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isLoading && isAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/inicio" replace />
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -38,7 +38,7 @@ function RegisterPage() {
         },
       })
       setAuthEntryMode('register')
-      navigate('/', { replace: true })
+      navigate('/inicio', { replace: true })
     } catch (error) {
       setErrorMessage(
         getAuthErrorMessage(error, 'No se pudo completar el registro. Intenta nuevamente.'),
