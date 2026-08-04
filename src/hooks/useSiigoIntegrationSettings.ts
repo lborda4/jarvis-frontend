@@ -15,10 +15,14 @@ export function useSiigoIntegrationSettings() {
   const { user, isLoading: isAuthLoading } = useAuth()
   const {
     markConfigured,
+    refreshSetupStatus,
     isCheckingSetup,
     isSiigoConfigured,
+    hasSiigoAccounts,
+    isSupportDocumentEnabled,
   } = useIntegrationSetup()
-  const showSetupRequiredNotice = !isCheckingSetup && !isSiigoConfigured
+  const showSetupRequiredNotice =
+    !isCheckingSetup && (!isSiigoConfigured || !hasSiigoAccounts)
   const [username, setUsername] = useState('')
   const [accessKey, setAccessKey] = useState('')
   const [partnerId, setPartnerId] = useState('')
@@ -53,7 +57,7 @@ export function useSiigoIntegrationSettings() {
           }
         }
       } catch {
-        // El estado global de SIIGO lo resuelve SiigoSetupContext.
+        // El estado global de SIIGO lo resuelve IntegrationSetupContext.
       }
     })()
   }, [markConfigured, user?.company?.id])
@@ -92,6 +96,7 @@ export function useSiigoIntegrationSettings() {
         )
         setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
         markConfigured()
+        await refreshSetupStatus()
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
@@ -109,6 +114,7 @@ export function useSiigoIntegrationSettings() {
       isSavingCredentials,
       markConfigured,
       partnerId,
+      refreshSetupStatus,
       user?.company,
       username,
     ],
@@ -132,12 +138,13 @@ export function useSiigoIntegrationSettings() {
     try {
       const response = await syncSiigoSuppliers()
       setSuppliersSuccessMessage(formatBalanceTrialSuccessMessage(response))
+      await refreshSetupStatus()
     } catch {
       setErrorMessage(BALANCE_TRIAL_IMPORT_ERROR_MESSAGE)
     } finally {
       setIsSyncingSuppliers(false)
     }
-  }, [clearMessages, isSyncingSuppliers, user?.company])
+  }, [clearMessages, isSyncingSuppliers, refreshSetupStatus, user?.company])
 
   const isBusy = isAuthLoading || isSavingCredentials || isSyncingSuppliers
 
@@ -154,6 +161,8 @@ export function useSiigoIntegrationSettings() {
     suppliersSuccessMessage,
     showSetupRequiredNotice,
     isSiigoConfigured,
+    hasSiigoAccounts,
+    isSupportDocumentEnabled,
     errorMessage,
     setUsername,
     setAccessKey,

@@ -299,6 +299,7 @@ export interface SaveSiigoCredentialsResponse {
 
 export interface SiigoCredentialsStatusResponse {
   configured: boolean
+  hasAccounts: boolean
   username?: string
   partner_id?: string
 }

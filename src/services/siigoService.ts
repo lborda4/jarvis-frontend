@@ -390,7 +390,7 @@ export async function fetchSiigoCredentialsStatus(): Promise<SiigoCredentialsSta
 
 export async function fetchSiigoCredentialsConfigured(): Promise<boolean> {
   const status = await fetchSiigoCredentialsStatus()
-  return status.configured
+  return Boolean(status.configured && status.hasAccounts)
 }
 
 export async function saveSiigoCredentials(

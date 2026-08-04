@@ -21,6 +21,8 @@ function SiigoIntegrationSettings() {
     suppliersSuccessMessage,
     showSetupRequiredNotice,
     isSiigoConfigured,
+    hasSiigoAccounts,
+    isSupportDocumentEnabled,
     errorMessage,
     setUsername,
     setAccessKey,
@@ -37,7 +39,11 @@ function SiigoIntegrationSettings() {
     !isSavingCredentials &&
     !isAuthLoading
 
-  const canSyncSuppliers = hasCompany && !isSyncingSuppliers && !isAuthLoading
+  const canSyncSuppliers =
+    hasCompany &&
+    isSiigoConfigured &&
+    !isSyncingSuppliers &&
+    !isAuthLoading
 
   return (
     <main className="settings-page">
@@ -51,14 +57,16 @@ function SiigoIntegrationSettings() {
 
       {showSetupRequiredNotice && (
         <div className="settings-page__setup-notice" role="status">
-          Para usar Documento soporte, primero configure las credenciales de SIIGO
-          en el formulario de abajo.
+          {!isSiigoConfigured
+            ? 'Para usar Documento soporte, primero configure las credenciales de SIIGO y luego actualice las cuentas contables.'
+            : 'Credenciales listas. Ahora actualice las cuentas contables desde SIIGO para habilitar Documento soporte.'}
         </div>
       )}
 
-      {isSiigoConfigured && (
+      {isSupportDocumentEnabled && (
         <div className="settings-page__ready-notice" role="status">
-          SIIGO ya está configurado para esta empresa. Puede continuar a{' '}
+          SIIGO ya está configurado y las cuentas contables están sincronizadas.
+          Puede continuar a{' '}
           <Link to="/documento-soporte">Documento soporte</Link>.
         </div>
       )}
@@ -162,8 +170,15 @@ function SiigoIntegrationSettings() {
           <h2 className="settings-card__title">Cuentas contables</h2>
           <p className="settings-card__description">
             Sincronice las cuentas contables desde el Balance de Prueba general
-            de SIIGO (últimos 3 años).
+            de SIIGO (últimos 3 años). Este paso es obligatorio para habilitar
+            Documento soporte.
           </p>
+          {isSiigoConfigured && hasSiigoAccounts && (
+            <p className="settings-card__hint">
+              Cuentas contables ya sincronizadas. Puede volver a actualizarlas
+              cuando lo necesite.
+            </p>
+          )}
         </div>
 
         <div className="settings-card__actions">
@@ -172,6 +187,11 @@ function SiigoIntegrationSettings() {
             className="import-siigo-button"
             onClick={() => void handleSyncSuppliers()}
             disabled={!canSyncSuppliers}
+            title={
+              !isSiigoConfigured
+                ? 'Primero guarde las credenciales de SIIGO'
+                : undefined
+            }
           >
             {isSyncingSuppliers
               ? 'Actualizando cuentas...'

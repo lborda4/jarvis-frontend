@@ -146,7 +146,7 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
                 title={
                   isJarvisCompany
                     ? 'Documento soporte no está disponible para empresas Jarvis'
-                    : 'Configure SIIGO en Configuración para habilitar Documento soporte'
+                    : 'Configure SIIGO y actualice las cuentas contables para habilitar Documento soporte'
                 }
               >
                 <Icon className="app-sidebar__link-icon" />

@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { fetchIntegrationProviders } from '../services/integrationService'
 import { fetchJarvisCredentialsConfigured } from '../services/jarvisService'
-import { fetchSiigoCredentialsConfigured } from '../services/siigoService'
+import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import {
   resolveIntegrationMode,
   type IntegrationMode,
@@ -29,6 +29,7 @@ interface IntegrationSetupContextValue {
   isSiigoCompany: boolean
   isJarvisCompany: boolean
   isSiigoConfigured: boolean
+  hasSiigoAccounts: boolean
   isJarvisConfigured: boolean
   isSupportDocumentEnabled: boolean
   requiresSetup: boolean
@@ -53,6 +54,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   const [integrationMode, setIntegrationMode] =
     useState<IntegrationMode>('unknown')
   const [isSiigoConfigured, setIsSiigoConfigured] = useState(false)
+  const [hasSiigoAccounts, setHasSiigoAccounts] = useState(false)
   const [isJarvisConfigured, setIsJarvisConfigured] = useState(false)
 
   const refreshSetupStatus = useCallback(async () => {
@@ -60,6 +62,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
+      setHasSiigoAccounts(false)
       setIsJarvisConfigured(false)
       clearIntegrationConfigured()
       setIsCheckingSetup(false)
@@ -76,11 +79,15 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIntegrationMode(mode)
 
       if (mode === 'siigo') {
-        const configured = await fetchSiigoCredentialsConfigured()
+        const status = await fetchSiigoCredentialsStatus()
+        const configured = Boolean(status.configured)
+        const accountsReady = Boolean(status.hasAccounts)
+
         setIsSiigoConfigured(configured)
+        setHasSiigoAccounts(accountsReady)
         setIsJarvisConfigured(false)
 
-        if (configured) {
+        if (configured && accountsReady) {
           persistIntegrationConfigured()
         } else {
           clearIntegrationConfigured()
@@ -93,6 +100,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         const configured = await fetchJarvisCredentialsConfigured()
         setIsJarvisConfigured(configured)
         setIsSiigoConfigured(false)
+        setHasSiigoAccounts(false)
 
         if (configured) {
           persistIntegrationConfigured()
@@ -104,12 +112,14 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       }
 
       setIsSiigoConfigured(false)
+      setHasSiigoAccounts(false)
       setIsJarvisConfigured(false)
       clearIntegrationConfigured()
     } catch {
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
+      setHasSiigoAccounts(false)
       setIsJarvisConfigured(false)
       clearIntegrationConfigured()
     } finally {
@@ -122,11 +132,12 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   }, [refreshSetupStatus])
 
   const markConfigured = useCallback(() => {
-    persistIntegrationConfigured()
-
+    // Solo marca credenciales; las cuentas se confirman vía refreshSetupStatus.
     if (integrationMode === 'jarvis') {
+      persistIntegrationConfigured()
       setIsJarvisConfigured(true)
       setIsSiigoConfigured(false)
+      setHasSiigoAccounts(false)
       return
     }
 
@@ -136,10 +147,13 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
   const isSiigoCompany = integrationMode === 'siigo'
   const isJarvisCompany = integrationMode === 'jarvis'
-  const isConfigured = isJarvisCompany ? isJarvisConfigured : isSiigoConfigured
+  const isSiigoFullyConfigured = isSiigoConfigured && hasSiigoAccounts
+  const isConfigured = isJarvisCompany
+    ? isJarvisConfigured
+    : isSiigoFullyConfigured
   const setupPath = isJarvisCompany ? JARVIS_SETUP_PATH : SIIGO_SETUP_PATH
   const requiresSetup = integrationMode !== 'unknown' && !isConfigured
-  const isSupportDocumentEnabled = isSiigoCompany && isSiigoConfigured
+  const isSupportDocumentEnabled = isSiigoCompany && isSiigoFullyConfigured
 
   const value = useMemo<IntegrationSetupContextValue>(
     () => ({
@@ -150,6 +164,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isSiigoCompany,
       isJarvisCompany,
       isSiigoConfigured,
+      hasSiigoAccounts,
       isJarvisConfigured,
       isSupportDocumentEnabled,
       requiresSetup,
@@ -165,6 +180,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isSiigoCompany,
       isJarvisCompany,
       isSiigoConfigured,
+      hasSiigoAccounts,
       isJarvisConfigured,
       isSupportDocumentEnabled,
       requiresSetup,
@@ -197,6 +213,7 @@ export function useSiigoSetup(): Pick<
   IntegrationSetupContextValue,
   | 'isCheckingSetup'
   | 'isSiigoConfigured'
+  | 'hasSiigoAccounts'
   | 'isSupportDocumentEnabled'
   | 'requiresSetup'
   | 'refreshSetupStatus'
@@ -212,6 +229,7 @@ export function useSiigoSetup(): Pick<
     isCheckingSetup: context.isCheckingSetup,
     isCheckingSiigoSetup: context.isCheckingSetup,
     isSiigoConfigured: context.isSiigoConfigured,
+    hasSiigoAccounts: context.hasSiigoAccounts,
     isSupportDocumentEnabled: context.isSupportDocumentEnabled,
     requiresSiigoSetup: context.isSiigoCompany && context.requiresSetup,
     requiresSetup: context.isSiigoCompany && context.requiresSetup,
