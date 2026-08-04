@@ -13,8 +13,7 @@ function BatchQueueProgressBanner({
     progress.total > 0
       ? Math.round((progress.completed / progress.total) * 100)
       : 0
-  const inFlight =
-    progress.completed < progress.total ? progress.current : progress.total
+  const inFlight = progress.completed < progress.total ? progress.current : progress.total
 
   return (
     <div
