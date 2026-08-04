@@ -11,6 +11,7 @@ import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 interface SupportDocumentConfigPanelProps {
   selectedCount: number
   sendableCount: number
+  deletableCount: number
   accountOptions: SiigoAccountOption[]
   paymentMethodOptions: SiigoPaymentMethodOption[]
   costCenterOptions: SiigoCostCenterOption[]
@@ -21,13 +22,17 @@ interface SupportDocumentConfigPanelProps {
   selectedPaymentMethod: SiigoPaymentMethodOption | null
   selectedCostCenter: SiigoCostCenterOption
   canSend: boolean
+  canDelete: boolean
   isSending: boolean
+  isDeleting: boolean
+  progressLabel?: string | null
   disabled?: boolean
   onAccountChange: (account: SiigoAccountOption | null) => void
   onPaymentMethodChange: (paymentMethod: SiigoPaymentMethodOption | null) => void
   onCostCenterChange: (costCenter: SiigoCostCenterOption) => void
   onRetentionTypeChange: (taxType: string, tax: SiigoTaxOption | null) => void
   onSend: () => void
+  onDelete: () => void
 }
 
 function formatRetentionTypeLabel(taxType: string): string {
@@ -45,6 +50,7 @@ function formatRetentionTypeLabel(taxType: string): string {
 function SupportDocumentConfigPanel({
   selectedCount,
   sendableCount,
+  deletableCount,
   accountOptions,
   paymentMethodOptions,
   costCenterOptions,
@@ -55,16 +61,22 @@ function SupportDocumentConfigPanel({
   selectedPaymentMethod,
   selectedCostCenter,
   canSend,
+  canDelete,
   isSending,
+  isDeleting,
+  progressLabel = null,
   disabled = false,
   onAccountChange,
   onPaymentMethodChange,
   onCostCenterChange,
   onRetentionTypeChange,
   onSend,
+  onDelete,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
-  const controlsDisabled = disabled || isSending
+  const isBusy = isSending || isDeleting
+  const controlsDisabled = disabled || isBusy
+  const isDeleteMode = canDelete && !canSend
 
   if (selectedCount === 0) {
     return null
@@ -85,9 +97,11 @@ function SupportDocumentConfigPanel({
           Documentos seleccionados: {selectedCount}
         </span>
         <span className="support-config-panel__meta">
-          {sendableCount > 0
-            ? `${sendableCount} listo(s) para enviar`
-            : 'Complete cuenta contable y medio de pago'}
+          {isDeleteMode
+            ? `${deletableCount} listo(s) para eliminar`
+            : sendableCount > 0
+              ? `${sendableCount} listo(s) para enviar`
+              : 'Complete cuenta contable y medio de pago'}
         </span>
         <span className="support-config-panel__chevron" aria-hidden="true">
           {isExpanded ? '▾' : '▸'}
@@ -96,70 +110,86 @@ function SupportDocumentConfigPanel({
 
       {isExpanded && (
         <div className="support-config-panel__body">
-          <div className="support-config-panel__fields">
-            <div className="support-config-panel__field">
-              <label htmlFor="support-config-account">Cuenta contable</label>
-              <AccountAutocomplete
-                id="support-config-account"
-                value={selectedAccount}
-                onChange={onAccountChange}
-                options={accountOptions}
-                disabled={controlsDisabled}
-                placeholder="Buscar cuenta (código o nombre)..."
-              />
-            </div>
-
-            <div className="support-config-panel__field">
-              <label htmlFor="support-config-payment-method">Medio de pago</label>
-              <PaymentMethodAutocomplete
-                id="support-config-payment-method"
-                value={selectedPaymentMethod}
-                onChange={onPaymentMethodChange}
-                options={paymentMethodOptions}
-                disabled={controlsDisabled}
-                placeholder="Buscar medio de pago..."
-              />
-            </div>
-
-            <div className="support-config-panel__field">
-              <label htmlFor="support-config-cost-center">
-                Centros de costo (opcional)
-              </label>
-              <CostCenterAutocomplete
-                id="support-config-cost-center"
-                value={selectedCostCenter}
-                onChange={onCostCenterChange}
-                options={costCenterOptions}
-                disabled={controlsDisabled}
-                placeholder="Ninguno"
-              />
-            </div>
-
-            {retentionCatalogTypes.map((taxType) => (
-              <div key={taxType} className="support-config-panel__field">
-                <label htmlFor={`support-config-retention-${taxType}`}>
-                  {formatRetentionTypeLabel(taxType)} (opcional)
-                </label>
-                <TaxAutocomplete
-                  id={`support-config-retention-${taxType}`}
-                  options={retentionOptionsByType[taxType] ?? []}
-                  value={selectedRetentionsByType[taxType] ?? null}
-                  onChange={(tax) => onRetentionTypeChange(taxType, tax)}
+          {!isDeleteMode && (
+            <div className="support-config-panel__fields">
+              <div className="support-config-panel__field">
+                <label htmlFor="support-config-account">Cuenta contable</label>
+                <AccountAutocomplete
+                  id="support-config-account"
+                  value={selectedAccount}
+                  onChange={onAccountChange}
+                  options={accountOptions}
                   disabled={controlsDisabled}
-                  placeholder={`Buscar ${formatRetentionTypeLabel(taxType)}...`}
+                  placeholder="Buscar cuenta (código o nombre)..."
                 />
               </div>
-            ))}
-          </div>
+
+              <div className="support-config-panel__field">
+                <label htmlFor="support-config-payment-method">
+                  Medio de pago
+                </label>
+                <PaymentMethodAutocomplete
+                  id="support-config-payment-method"
+                  value={selectedPaymentMethod}
+                  onChange={onPaymentMethodChange}
+                  options={paymentMethodOptions}
+                  disabled={controlsDisabled}
+                  placeholder="Buscar medio de pago..."
+                />
+              </div>
+
+              <div className="support-config-panel__field">
+                <label htmlFor="support-config-cost-center">
+                  Centros de costo (opcional)
+                </label>
+                <CostCenterAutocomplete
+                  id="support-config-cost-center"
+                  value={selectedCostCenter}
+                  onChange={onCostCenterChange}
+                  options={costCenterOptions}
+                  disabled={controlsDisabled}
+                  placeholder="Ninguno"
+                />
+              </div>
+
+              {retentionCatalogTypes.map((taxType) => (
+                <div key={taxType} className="support-config-panel__field">
+                  <label htmlFor={`support-config-retention-${taxType}`}>
+                    {formatRetentionTypeLabel(taxType)} (opcional)
+                  </label>
+                  <TaxAutocomplete
+                    id={`support-config-retention-${taxType}`}
+                    options={retentionOptionsByType[taxType] ?? []}
+                    value={selectedRetentionsByType[taxType] ?? null}
+                    onChange={(tax) => onRetentionTypeChange(taxType, tax)}
+                    disabled={controlsDisabled}
+                    placeholder={`Buscar ${formatRetentionTypeLabel(taxType)}...`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="support-config-panel__actions support-config-panel__actions--end">
             <button
               type="button"
-              className="support-config-panel__send"
-              onClick={onSend}
-              disabled={controlsDisabled || !canSend}
+              className={
+                isDeleteMode
+                  ? 'support-config-panel__send support-config-panel__send--danger'
+                  : 'support-config-panel__send'
+              }
+              onClick={isDeleteMode ? onDelete : onSend}
+              disabled={
+                controlsDisabled || (isDeleteMode ? !canDelete : !canSend)
+              }
             >
-              {isSending ? 'Enviando...' : 'Enviar'}
+              {isDeleteMode
+                ? isDeleting
+                  ? progressLabel ?? 'Eliminando...'
+                  : 'Eliminar'
+                : isSending
+                  ? progressLabel ?? 'Enviando...'
+                  : 'Enviar'}
             </button>
           </div>
         </div>

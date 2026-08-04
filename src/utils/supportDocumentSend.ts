@@ -61,3 +61,18 @@ export function countSendableDocuments(
 
   return count
 }
+
+export function countDeletableDocuments(
+  documentIds: Iterable<string>,
+  importStatuses: Record<string, ImportRowStatus>,
+): number {
+  let count = 0
+
+  for (const documentId of documentIds) {
+    if (importStatuses[documentId] === IMPORT_ROW_STATUS.LISTA) {
+      count += 1
+    }
+  }
+
+  return count
+}

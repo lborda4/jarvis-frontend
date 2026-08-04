@@ -249,6 +249,12 @@ export interface CreateSiigoSupportDocumentResponse {
   document?: Record<string, unknown>
 }
 
+export interface DeleteSiigoSupportDocumentResponse {
+  success: boolean
+  siigoSupportDocumentId: string
+  document?: Record<string, unknown>
+}
+
 export function isSupplierNotFoundStatus(
   status: SiigoImportValidationStatus,
 ): boolean {

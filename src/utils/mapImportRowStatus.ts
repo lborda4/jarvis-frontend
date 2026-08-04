@@ -56,14 +56,14 @@ export function mapDocumentToImportRowStatus(
 
 export function getSupportDocumentActionFromImportStatus(
   importStatus: ImportRowStatus,
-): 'supplier_missing' | 'processing' | 'send' | 'none' {
+): 'supplier_missing' | 'processing' | 'send' | 'delete' | 'none' {
   switch (importStatus) {
     case IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR:
       return 'supplier_missing'
     case IMPORT_ROW_STATUS.EN_PROCESO:
       return 'processing'
     case IMPORT_ROW_STATUS.LISTA:
-      return 'none'
+      return 'delete'
     default:
       return 'send'
   }
@@ -72,8 +72,5 @@ export function getSupportDocumentActionFromImportStatus(
 export function isSupportDocumentRowSelectable(
   importStatus: ImportRowStatus,
 ): boolean {
-  return (
-    importStatus !== IMPORT_ROW_STATUS.LISTA &&
-    importStatus !== IMPORT_ROW_STATUS.EN_PROCESO
-  )
+  return importStatus !== IMPORT_ROW_STATUS.EN_PROCESO
 }

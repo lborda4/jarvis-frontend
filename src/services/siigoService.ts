@@ -6,6 +6,7 @@ import type {
   CreateSiigoPurchaseSendResponse,
   CreateSiigoSupportDocumentRequest,
   CreateSiigoSupportDocumentResponse,
+  DeleteSiigoSupportDocumentResponse,
   CreateSiigoSupplierRequest,
   CreateSiigoSupplierResponse,
   SaveAccountMappingRequest,
@@ -356,6 +357,16 @@ export async function createSiigoSupportDocument(
 
     throw error
   }
+}
+
+export async function deleteSiigoSupportDocument(
+  documentId: string,
+): Promise<DeleteSiigoSupportDocumentResponse> {
+  const response = await apiClient.delete<DeleteSiigoSupportDocumentResponse>(
+    `${SIIGO_SUPPORT_DOCUMENTS_ENDPOINT}/${encodeURIComponent(documentId)}`,
+  )
+
+  return response.data
 }
 
 export async function createSiigoPurchaseSend(

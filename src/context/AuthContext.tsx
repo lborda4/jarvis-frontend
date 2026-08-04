@@ -20,6 +20,7 @@ import {
   AUTH_SESSION_EXPIRED_EVENT,
   hasStoredSession,
 } from '../services/authStorage'
+import { wakeBackend } from '../services/healthService'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -56,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // Arranca el cold start lo antes posible (compartido con login/landing).
+    void wakeBackend().catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
     let isMounted = true
 
     async function bootstrapSession() {
@@ -67,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        await wakeBackend().catch(() => undefined)
         const currentSession = await fetchCurrentUser()
 
         if (isMounted) {

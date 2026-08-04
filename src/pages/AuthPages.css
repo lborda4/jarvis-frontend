@@ -357,6 +357,9 @@
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.15s ease, transform 0.15s ease;
+  white-space: normal;
+  line-height: 1.35;
+  min-height: 2.85rem;
 }
 
 .auth-login-form__submit:hover:not(:disabled) {

@@ -14,12 +14,17 @@ import { SUPPORT_DOCUMENT_WORKSPACE } from '../constants/documentWorkspaceConfig
 import AccountMappingModal from '../components/AccountMappingModal'
 import ErrorMessage from '../components/ErrorMessage'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
+import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
+import SupportDocumentFilterBar from '../components/supportDocument/SupportDocumentFilterBar'
 import SupportDocumentPagination from '../components/supportDocument/SupportDocumentPagination'
 import SupportDocumentTable from '../components/supportDocument/SupportDocumentTable'
 import { DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE, type ElectronicDocumentPageSize } from '../constants/electronicDocuments'
 import { useSiigoWorkspaceCatalog } from '../context/SiigoCatalogContext'
-import { useSupportDocumentSend } from '../hooks/useSupportDocumentSend'
+import {
+  useSupportDocumentSend,
+  type BatchQueueProgress,
+} from '../hooks/useSupportDocumentSend'
 import { useSupportDocumentResume } from '../hooks/useSupportDocumentResume'
 import {
   AUTO_DISMISS_ERROR_MS,
@@ -30,6 +35,7 @@ import {
   fetchElectronicDocuments,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
+import { deleteSiigoSupportDocument } from '../services/siigoService'
 import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListItem,
@@ -62,11 +68,10 @@ import {
 } from '../utils/supportDocumentDate'
 import {
   canSendDocument,
+  countDeletableDocuments,
   countSendableDocuments,
 } from '../utils/supportDocumentSend'
 import {
-  clearSupportDocumentColumnFilter,
-  isSupportDocumentColumnFilterActive,
   sortSupportDocumentRows,
 } from '../utils/filterSupportDocumentRows'
 import './SupportDocumentPage.css'
@@ -161,6 +166,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [errorMessage, setErrorMessage] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
   )
+  const [deleteFeedbackMessage, setDeleteFeedbackMessage] =
+    useAutoDismissMessage()
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
+    null,
+  )
+  const [deleteQueueProgress, setDeleteQueueProgress] =
+    useState<BatchQueueProgress | null>(null)
   const [importNotice, setImportNotice] =
     useState<SupportDocumentImportNotice | null>(null)
   const [showImportOnly, setShowImportOnly] = useState(false)
@@ -565,6 +578,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const {
     isSending,
+    queueProgress: sendQueueProgress,
     feedbackMessage,
     errorMessage: sendErrorMessage,
     sendDocuments,
@@ -573,6 +587,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     onCompleted: () => reloadDocuments({ resetPage: true }),
     onDocumentStatusChange: setImportStatus,
   })
+
+  const queueProgress = sendQueueProgress ?? deleteQueueProgress
+  const queueProgressTone = sendQueueProgress
+    ? 'send'
+    : deleteQueueProgress
+      ? 'delete'
+      : 'send'
 
   const applySelectionToCheckedRows = useCallback(
     <T,>(
@@ -651,7 +672,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     ],
   )
 
+  const deletableSelectedCount = useMemo(
+    () => countDeletableDocuments(selectedDocumentIds, importStatuses),
+    [selectedDocumentIds, importStatuses],
+  )
+
   const canSendSelected = sendableSelectedCount > 0
+  const canDeleteSelected =
+    deletableSelectedCount > 0 && sendableSelectedCount === 0
 
   const canSendRow = useCallback(
     (rowId: string) => {
@@ -697,6 +725,114 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     sendDocuments,
   ])
 
+  const handleDeleteSelected = useCallback(async () => {
+    const targets = [...selectedDocumentIds].filter(
+      (documentId) => importStatuses[documentId] === IMPORT_ROW_STATUS.LISTA,
+    )
+
+    if (targets.length === 0) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      targets.length === 1
+        ? '¿Eliminar este Documento Soporte en SIIGO? Podrás volver a enviarlo después.'
+        : `¿Eliminar ${targets.length} Documentos Soporte en SIIGO? Podrás volver a enviarlos después.`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setIsDeleting(true)
+    setErrorMessage(null)
+    setDeleteFeedbackMessage(null)
+    setDeleteQueueProgress({
+      current: 0,
+      total: targets.length,
+      completed: 0,
+      label: 'Preparando eliminación en SIIGO...',
+    })
+
+    let deletedCount = 0
+    let failedCount = 0
+    let lastError: string | null = null
+    let completed = 0
+    let started = 0
+
+    const bumpProgress = (label: string) => {
+      setDeleteQueueProgress({
+        current: Math.min(Math.max(started, completed), targets.length),
+        total: targets.length,
+        completed,
+        label,
+      })
+    }
+
+    try {
+      await Promise.all(
+        targets.map(async (documentId, index) => {
+          if (index > 0) {
+            await new Promise((resolve) => {
+              window.setTimeout(resolve, index * 1000)
+            })
+          }
+
+          started += 1
+          setDeletingDocumentId(documentId)
+          bumpProgress(`Eliminando… ${completed} de ${targets.length} listos`)
+
+          try {
+            await deleteSiigoSupportDocument(documentId)
+            setImportStatus(documentId, IMPORT_ROW_STATUS.PENDIENTE)
+            deletedCount += 1
+          } catch (error) {
+            failedCount += 1
+            lastError = getApiErrorMessage(
+              error,
+              'No se pudo eliminar el Documento Soporte en SIIGO.',
+            )
+          }
+
+          completed += 1
+          bumpProgress(
+            completed === targets.length
+              ? `Completado ${completed} de ${targets.length}`
+              : `Eliminando… ${completed} de ${targets.length} listos`,
+          )
+        }),
+      )
+
+      if (deletedCount > 0) {
+        setDeleteFeedbackMessage(
+          failedCount > 0
+            ? `${deletedCount} eliminado(s), ${failedCount} con error.`
+            : deletedCount === 1
+              ? 'Documento Soporte eliminado en SIIGO.'
+              : `${deletedCount} Documentos Soporte eliminados en SIIGO.`,
+        )
+        reloadDocuments()
+      }
+
+      if (failedCount > 0 && deletedCount === 0) {
+        setErrorMessage(
+          lastError ?? 'No se pudieron eliminar los documentos seleccionados.',
+        )
+      }
+    } finally {
+      setIsDeleting(false)
+      setDeletingDocumentId(null)
+      setDeleteQueueProgress(null)
+    }
+  }, [
+    importStatuses,
+    reloadDocuments,
+    selectedDocumentIds,
+    setDeleteFeedbackMessage,
+    setErrorMessage,
+    setImportStatus,
+  ])
+
   const handleSendDocument = useCallback(
     (document: ElectronicDocumentListItem) => {
       void sendDocuments({
@@ -721,6 +857,59 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowPaymentMethods,
       rowRetentions,
       sendDocuments,
+    ],
+  )
+
+  const handleDeleteDocument = useCallback(
+    async (document: ElectronicDocumentListItem) => {
+      const confirmed = window.confirm(
+        '¿Eliminar este Documento Soporte en SIIGO? Podrás volver a enviarlo después.',
+      )
+
+      if (!confirmed) {
+        return
+      }
+
+      setIsDeleting(true)
+      setDeletingDocumentId(document.id)
+      setErrorMessage(null)
+      setDeleteFeedbackMessage(null)
+      setDeleteQueueProgress({
+        current: 1,
+        total: 1,
+        completed: 0,
+        label: 'Eliminando 1 de 1...',
+      })
+
+      try {
+        await deleteSiigoSupportDocument(document.id)
+        setImportStatus(document.id, IMPORT_ROW_STATUS.PENDIENTE)
+        setDeleteQueueProgress({
+          current: 1,
+          total: 1,
+          completed: 1,
+          label: 'Completado 1 de 1',
+        })
+        setDeleteFeedbackMessage('Documento Soporte eliminado en SIIGO.')
+        reloadDocuments()
+      } catch (error) {
+        setErrorMessage(
+          getApiErrorMessage(
+            error,
+            'No se pudo eliminar el Documento Soporte en SIIGO.',
+          ),
+        )
+      } finally {
+        setIsDeleting(false)
+        setDeletingDocumentId(null)
+        setDeleteQueueProgress(null)
+      }
+    },
+    [
+      reloadDocuments,
+      setDeleteFeedbackMessage,
+      setErrorMessage,
+      setImportStatus,
     ],
   )
 
@@ -783,35 +972,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       return column
     })
   }, [])
-
-  const handleColumnHeaderClick = useCallback(
-    (column: SupportDocumentSortColumn) => {
-      if (
-        isSupportDocumentColumnFilterActive(
-          column,
-          columnFilters,
-          selectedSupplierNits,
-        )
-      ) {
-        if (column === 'supplier') {
-          setSelectedSupplierNits([])
-          setPage(1)
-          setSelectedDocumentIds(new Set())
-          return
-        }
-
-        setColumnFilters((current) =>
-          clearSupportDocumentColumnFilter(column, current),
-        )
-        setPage(1)
-        setSelectedDocumentIds(new Set())
-        return
-      }
-
-      handleSortChange(column)
-    },
-    [columnFilters, handleSortChange, selectedSupplierNits],
-  )
 
   const handlePageChange = useCallback((nextPage: number) => {
     setSelectedDocumentIds(new Set())
@@ -941,9 +1101,20 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       )}
 
       <div className="support-document-page__alerts">
+        {queueProgress && (
+          <BatchQueueProgressBanner
+            progress={queueProgress}
+            tone={queueProgressTone}
+          />
+        )}
         {feedbackMessage && (
           <p className="support-document-page__feedback" role="status">
             {feedbackMessage}
+          </p>
+        )}
+        {deleteFeedbackMessage && (
+          <p className="support-document-page__feedback" role="status">
+            {deleteFeedbackMessage}
           </p>
         )}
 
@@ -973,6 +1144,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         <SupportDocumentConfigPanel
           selectedCount={selectedDocumentIds.size}
           sendableCount={sendableSelectedCount}
+          deletableCount={deletableSelectedCount}
           accountOptions={tableAccountOptions}
           paymentMethodOptions={paymentMethodOptions}
           costCenterOptions={costCenterOptions}
@@ -983,50 +1155,77 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           selectedPaymentMethod={selectedPaymentMethod}
           selectedCostCenter={selectedCostCenter}
           canSend={canSendSelected}
+          canDelete={canDeleteSelected}
           isSending={isSending}
+          isDeleting={isDeleting}
+          progressLabel={queueProgress?.label ?? null}
           disabled={isLoading || isImporting || isResuming || isModalOpen}
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onCostCenterChange={handleConfigCostCenterChange}
           onRetentionTypeChange={handleRetentionTypeChange}
           onSend={handleSendSelected}
+          onDelete={() => {
+            void handleDeleteSelected()
+          }}
         />
       </div>
 
+      <SupportDocumentFilterBar
+        filterOptions={filterOptions}
+        columnFilters={columnFilters}
+        selectedSupplierNits={selectedSupplierNits}
+        disabled={
+          isLoading ||
+          isImporting ||
+          isResuming ||
+          isModalOpen ||
+          isSending ||
+          isDeleting
+        }
+        onSupplierNitsChange={handleSupplierNitsChange}
+        onColumnFiltersChange={handleColumnFiltersChange}
+      />
+
       <SupportDocumentTable
         rows={tableRows}
-        filterOptions={filterOptions}
         selectedIds={selectedDocumentIds}
         rowDates={rowDates}
         rowAccounts={rowAccounts}
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
-        selectedSupplierNits={selectedSupplierNits}
-        columnFilters={columnFilters}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         isLoading={isLoading}
         isResuming={isResuming}
         isSending={isSending}
+        isDeleting={isDeleting}
+        deletingDocumentId={deletingDocumentId}
         selectionDisabled={
           isLoading ||
           isImporting ||
           isResuming ||
           isModalOpen ||
-          isSending
+          isSending ||
+          isDeleting
         }
-        filtersDisabled={
-          isLoading || isImporting || isResuming || isModalOpen || isSending
+        sortDisabled={
+          isLoading ||
+          isImporting ||
+          isResuming ||
+          isModalOpen ||
+          isSending ||
+          isDeleting
         }
         canSendRow={canSendRow}
         documentsById={documentsById}
-        sendProcessingLabel={config.sendProcessingLabel}
+        sendProcessingLabel={
+          queueProgress?.label ?? config.sendProcessingLabel
+        }
         onToggleRow={handleToggleRow}
         onSelectRows={handleSelectRows}
         onSendDocument={handleSendDocument}
-        onSupplierNitsChange={handleSupplierNitsChange}
-        onColumnFiltersChange={handleColumnFiltersChange}
-        onColumnHeaderClick={handleColumnHeaderClick}
+        onDeleteDocument={handleDeleteDocument}
         onSortChange={handleSortChange}
       />
 

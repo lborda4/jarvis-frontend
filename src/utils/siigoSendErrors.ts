@@ -23,10 +23,25 @@ export function isSiigoDuplicatedDocumentError(error: unknown): boolean {
     const data = error.response?.data
 
     if (typeof data === 'object' && data !== null) {
-      const code = 'code' in data ? String(data.code ?? '') : ''
+      const directCode = 'code' in data ? String(data.code ?? '') : ''
 
-      if (code.toLowerCase() === 'duplicated_document') {
+      if (directCode.toLowerCase() === 'duplicated_document') {
         return true
+      }
+
+      if (
+        'message' in data &&
+        typeof data.message === 'object' &&
+        data.message !== null &&
+        'code' in data.message
+      ) {
+        const nestedCode = String(
+          (data.message as { code?: unknown }).code ?? '',
+        )
+
+        if (nestedCode.toLowerCase() === 'duplicated_document') {
+          return true
+        }
       }
     }
   }

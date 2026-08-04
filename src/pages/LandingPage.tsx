@@ -1,6 +1,7 @@
 import { Link, Navigate } from 'react-router-dom'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
+import { useBackendWakeup } from '../hooks/useBackendWakeup'
 import './LandingPage.css'
 
 const APP_ENTRY_PATH = '/inicio'
@@ -96,11 +97,13 @@ const FOOTER_BADGES = [
 
 function LandingPage() {
   const { isAuthenticated, isLoading } = useAuth()
+  // Despierta el backend en background mientras el usuario lee el landing.
+  const { loadingMessage } = useBackendWakeup()
 
   if (isLoading) {
     return (
       <div className="landing-loading">
-        <LoadingIndicator message="Cargando..." />
+        <LoadingIndicator message={loadingMessage} />
       </div>
     )
   }

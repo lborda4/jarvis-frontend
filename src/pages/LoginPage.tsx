@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
+import { useBackendWakeup } from '../hooks/useBackendWakeup'
 import { isAdminRole } from '../constants/userRole'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import {
@@ -22,11 +23,19 @@ function resolvePostLoginPath(role?: string): string {
 function LoginPage() {
   const navigate = useNavigate()
   const { login, isAuthenticated, isLoading, user } = useAuth()
+  const {
+    isSlow,
+    isWaking,
+    error: wakeError,
+    ensureReady,
+    loadingMessage,
+  } = useBackendWakeup()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [errorKind, setErrorKind] = useState<LoginErrorKind | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitIsSlow, setSubmitIsSlow] = useState(false)
 
   const redirectPath = resolvePostLoginPath(user?.role)
 
@@ -39,8 +48,14 @@ function LoginPage() {
     setErrorMessage(null)
     setErrorKind(null)
     setIsSubmitting(true)
+    setSubmitIsSlow(false)
+
+    const slowTimer = window.setTimeout(() => {
+      setSubmitIsSlow(true)
+    }, 2500)
 
     try {
+      await ensureReady()
       const loggedInUser = await login({
         email: email.trim(),
         password,
@@ -55,17 +70,25 @@ function LoginPage() {
       setErrorMessage(resolved.message)
       setErrorKind(resolved.kind)
     } finally {
+      window.clearTimeout(slowTimer)
+      setSubmitIsSlow(false)
       setIsSubmitting(false)
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isWaking) {
     return (
       <div className="auth-loading-screen">
-        <LoadingIndicator message="Cargando..." />
+        <LoadingIndicator message={loadingMessage} />
       </div>
     )
   }
+
+  const submitLabel = isSubmitting
+    ? submitIsSlow || isSlow
+      ? 'Estamos iniciando el servicio, espera un momento...'
+      : 'Ingresando...'
+    : 'Continuar'
 
   return (
     <main className="auth-page auth-page--login">
@@ -98,6 +121,8 @@ function LoginPage() {
             <h1 id="login-title">Iniciar sesión</h1>
             <p>Usa tu correo corporativo para entrar al panel.</p>
           </div>
+
+          {wakeError && <ErrorMessage message={wakeError} />}
 
           <form className="auth-login-form" onSubmit={handleSubmit}>
             <div
@@ -151,7 +176,7 @@ function LoginPage() {
               className="auth-login-form__submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Ingresando...' : 'Continuar'}
+              {submitLabel}
             </button>
           </form>
         </section>

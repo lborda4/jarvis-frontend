@@ -15,10 +15,17 @@ import type { SiigoDocumentSendRequest } from '../utils/buildSiigoDocumentReques
 import { canSendDocument } from '../utils/supportDocumentSend'
 import { isSiigoDuplicatedDocumentError } from '../utils/siigoSendErrors'
 
-const SEND_INTERVAL_MS = 1000
-const DUPLICATE_RETRY_PAUSE_MS = 2000
-const DUPLICATE_RETRY_INTERVAL_MS = 2000
-const MAX_DUPLICATE_RETRY_ROUNDS = 3
+/** Espacio entre inicios de envío (requests pueden solaparse). */
+const SEND_STAGGER_MS = 1000
+const DUPLICATE_RETRY_PAUSE_MS = 5000
+const MAX_DUPLICATE_RETRY_ROUNDS = 2
+
+export interface BatchQueueProgress {
+  current: number
+  total: number
+  completed: number
+  label: string
+}
 
 interface SendDocumentsParams {
   documentIds: string[]
@@ -64,6 +71,9 @@ export function useSupportDocumentSend({
   onDocumentStatusChange,
 }: UseSupportDocumentSendOptions) {
   const [isSending, setIsSending] = useState(false)
+  const [queueProgress, setQueueProgress] = useState<BatchQueueProgress | null>(
+    null,
+  )
   const [feedbackMessage, setFeedbackMessage] = useAutoDismissMessage()
   const [errorMessage, setErrorMessage] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
@@ -109,6 +119,12 @@ export function useSupportDocumentSend({
       setIsSending(true)
       setErrorMessage(null)
       setFeedbackMessage(null)
+      setQueueProgress({
+        current: 0,
+        total: targets.length,
+        completed: 0,
+        label: 'Preparando envío a SIIGO...',
+      })
 
       const buildRequest = (
         documentId: string,
@@ -168,15 +184,46 @@ export function useSupportDocumentSend({
         }
       }
 
+      let completed = 0
+      let started = 0
+
+      const bumpProgress = (label: string) => {
+        setQueueProgress({
+          current: Math.min(Math.max(started, completed), targets.length),
+          total: targets.length,
+          completed,
+          label,
+        })
+      }
+
       const initialResults = await Promise.all(
         targets.map(async (documentId, index) => {
           if (index > 0) {
-            await wait(index * SEND_INTERVAL_MS)
+            await wait(index * SEND_STAGGER_MS)
           }
 
+          started += 1
           onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+          bumpProgress(
+            `Enviando… ${completed} de ${targets.length} listos`,
+          )
 
-          return attemptSend(documentId)
+          const result = await attemptSend(documentId)
+          completed += 1
+
+          if (result.success) {
+            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.LISTA)
+          } else if (!result.isDuplicated) {
+            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+          }
+
+          bumpProgress(
+            completed === targets.length
+              ? `Completado ${completed} de ${targets.length}`
+              : `Enviando… ${completed} de ${targets.length} listos`,
+          )
+
+          return result
         }),
       )
 
@@ -184,24 +231,9 @@ export function useSupportDocumentSend({
         initialResults.map((result) => [result.documentId, result]),
       )
 
-      for (const result of initialResults) {
-        if (result.success) {
-          onDocumentStatusChange?.(result.documentId, IMPORT_ROW_STATUS.LISTA)
-          continue
-        }
-
-        if (!result.isDuplicated) {
-          onDocumentStatusChange?.(result.documentId, IMPORT_ROW_STATUS.ERROR)
-        }
-      }
-
       let duplicatedDocumentIds = initialResults
         .filter((result) => !result.success && result.isDuplicated)
         .map((result) => result.documentId)
-
-      if (duplicatedDocumentIds.length > 0) {
-        await wait(DUPLICATE_RETRY_PAUSE_MS)
-      }
 
       for (
         let retryRound = 0;
@@ -209,19 +241,23 @@ export function useSupportDocumentSend({
         duplicatedDocumentIds.length > 0;
         retryRound += 1
       ) {
-        if (retryRound > 0) {
-          await wait(DUPLICATE_RETRY_PAUSE_MS)
-        }
+        bumpProgress(
+          `Reintentando ${duplicatedDocumentIds.length} documento(s)…`,
+        )
+        await wait(DUPLICATE_RETRY_PAUSE_MS)
 
         const pendingAfterRound: string[] = []
 
         for (let index = 0; index < duplicatedDocumentIds.length; index += 1) {
           if (index > 0) {
-            await wait(DUPLICATE_RETRY_INTERVAL_MS)
+            await wait(DUPLICATE_RETRY_PAUSE_MS)
           }
 
           const documentId = duplicatedDocumentIds[index]
           onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+          bumpProgress(
+            `Reintento ${index + 1} de ${duplicatedDocumentIds.length}…`,
+          )
 
           const result = await attemptSend(documentId)
           finalResults.set(documentId, result)
@@ -262,6 +298,7 @@ export function useSupportDocumentSend({
         results.find((result) => !result.success)?.error ?? null
 
       setIsSending(false)
+      setQueueProgress(null)
 
       if (sentCount > 0) {
         setFeedbackMessage(workspace.sendSuccessFeedback(sentCount, failedCount))
@@ -285,6 +322,7 @@ export function useSupportDocumentSend({
 
   return {
     isSending,
+    queueProgress,
     feedbackMessage,
     errorMessage,
     sendDocuments,

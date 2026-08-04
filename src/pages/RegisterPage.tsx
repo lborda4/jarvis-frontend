@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { getAuthErrorMessage, useAuth } from '../context/AuthContext'
+import { useBackendWakeup } from '../hooks/useBackendWakeup'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
@@ -10,6 +11,8 @@ import './AuthPages.css'
 function RegisterPage() {
   const navigate = useNavigate()
   const { register, isAuthenticated, isLoading } = useAuth()
+  const { isWaking, isSlow, ensureReady, loadingMessage, error: wakeError } =
+    useBackendWakeup()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,6 +20,7 @@ function RegisterPage() {
   const [companyNit, setCompanyNit] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitIsSlow, setSubmitIsSlow] = useState(false)
 
   if (!isLoading && isAuthenticated) {
     return <Navigate to="/inicio" replace />
@@ -26,8 +30,14 @@ function RegisterPage() {
     event.preventDefault()
     setErrorMessage(null)
     setIsSubmitting(true)
+    setSubmitIsSlow(false)
+
+    const slowTimer = window.setTimeout(() => {
+      setSubmitIsSlow(true)
+    }, 2500)
 
     try {
+      await ensureReady()
       await register({
         name: name.trim(),
         email: email.trim(),
@@ -44,14 +54,16 @@ function RegisterPage() {
         getAuthErrorMessage(error, 'No se pudo completar el registro. Intenta nuevamente.'),
       )
     } finally {
+      window.clearTimeout(slowTimer)
+      setSubmitIsSlow(false)
       setIsSubmitting(false)
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isWaking) {
     return (
       <div className="auth-page">
-        <LoadingIndicator message="Cargando..." />
+        <LoadingIndicator message={loadingMessage} />
       </div>
     )
   }
@@ -68,6 +80,8 @@ function RegisterPage() {
             contraseña para vincular otra empresa.
           </p>
         </header>
+
+        {wakeError && <ErrorMessage message={wakeError} />}
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-form__grid">
@@ -146,7 +160,11 @@ function RegisterPage() {
             className="auth-form__submit"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Creando cuenta...' : 'Registrarse'}
+            {isSubmitting
+              ? submitIsSlow || isSlow
+                ? 'Estamos iniciando el servicio, espera un momento...'
+                : 'Creando cuenta...'
+              : 'Registrarse'}
           </button>
         </form>
 
