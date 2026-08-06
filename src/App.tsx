@@ -3,6 +3,7 @@ import AdminRoute from './components/AdminRoute'
 import DefaultAppRedirect from './components/DefaultAppRedirect'
 import ProtectedRoute from './components/ProtectedRoute'
 import SupportDocumentRoute from './components/SupportDocumentRoute'
+import TercerosRoute from './components/TercerosRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
 import { AuthProvider } from './context/AuthContext'
@@ -35,6 +36,14 @@ function App() {
                   element={<SupportDocumentRoute />}
                 />
                 <Route
+                  path="/documento-soporte/masivo"
+                  element={<SupportDocumentRoute view="workspace" />}
+                />
+                <Route
+                  path="/documento-soporte/nuevo"
+                  element={<SupportDocumentRoute view="individual" />}
+                />
+                <Route
                   path="/documento-soporte/importar"
                   element={<Navigate to="/documento-soporte" replace />}
                 />
@@ -42,6 +51,8 @@ function App() {
                   path="/documento-soporte/historial"
                   element={<Navigate to="/documento-soporte" replace />}
                 />
+
+                <Route path="/terceros" element={<TercerosRoute />} />
 
                 <Route
                   path="/factura-compra/*"

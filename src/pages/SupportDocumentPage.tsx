@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import { NONE_COST_CENTER_OPTION } from '../constants/siigoCostCenterCatalog'
@@ -9,8 +10,10 @@ import {
   retentionTaxTypesMatch,
   splitRetentionsByTypes,
 } from '../constants/siigoTaxCatalog'
-import type { DocumentWorkspaceConfig } from '../constants/documentWorkspaceConfig'
-import { SUPPORT_DOCUMENT_WORKSPACE } from '../constants/documentWorkspaceConfig'
+import {
+  SUPPORT_DOCUMENT_WORKSPACE,
+  type DocumentWorkspaceConfig,
+} from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
 import ErrorMessage from '../components/ErrorMessage'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
@@ -152,6 +155,7 @@ function resolveSharedSelectionValue<T>(
 
 
 export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
+  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const controlsAnchorRef = useRef<HTMLDivElement>(null)
   const [isControlsAnchored, setIsControlsAnchored] = useState(false)
@@ -285,7 +289,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             config.retentionCatalogTypes,
           ),
         )
-        setRowDates((current) => buildInitialRowDates(response.items, current))
+        setRowDates((current) =>
+          buildInitialRowDates(response.items, current, {
+            allowAnyDate: config.provider === 'JARVIS',
+          }),
+        )
         setRowObservations((current) =>
           buildInitialRowObservations(response.items, current),
         )
@@ -314,6 +322,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     columnFilters.statuses,
     config.electronicDocumentType,
     config.loadDocumentsError,
+    config.provider,
     config.retentionCatalogTypes,
     page,
     pageLimit,
@@ -456,6 +465,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     setImportStatus,
   } = useSupportDocumentResume({
     electronicDocumentType: config.electronicDocumentType,
+    provider: config.provider,
     documents,
     setDocuments,
     onFlowCompleted: () => reloadDocuments({ resetPage: true }),
@@ -468,13 +478,19 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const pageTableRows = useMemo(
     () =>
-      filteredDocuments.map((document) =>
-        mapElectronicDocumentToSupportRow(
+      filteredDocuments.map((document) => {
+        const row = mapElectronicDocumentToSupportRow(
           document,
           importStatuses[document.id],
-        ),
-      ),
-    [filteredDocuments, importStatuses],
+        )
+
+        if (config.provider === 'JARVIS' && row.action === 'delete') {
+          return { ...row, action: 'none' as const }
+        }
+
+        return row
+      }),
+    [filteredDocuments, importStatuses, config.provider],
   )
 
   const tableRows = useMemo(() => {
@@ -662,6 +678,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         importStatuses,
         rowAccounts,
         rowPaymentMethods,
+        {
+          requiresAccount: config.requiresAccount,
+          requiresPaymentMethod: config.requiresPaymentMethod,
+        },
       ),
     [
       selectedDocumentIds,
@@ -669,12 +689,17 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       importStatuses,
       rowAccounts,
       rowPaymentMethods,
+      config.requiresAccount,
+      config.requiresPaymentMethod,
     ],
   )
 
   const deletableSelectedCount = useMemo(
-    () => countDeletableDocuments(selectedDocumentIds, importStatuses),
-    [selectedDocumentIds, importStatuses],
+    () =>
+      config.provider === 'JARVIS'
+        ? 0
+        : countDeletableDocuments(selectedDocumentIds, importStatuses),
+    [selectedDocumentIds, importStatuses, config.provider],
   )
 
   const canSendSelected = sendableSelectedCount > 0
@@ -695,9 +720,20 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         importStatuses[rowId],
         rowAccounts,
         rowPaymentMethods,
+        {
+          requiresAccount: config.requiresAccount,
+          requiresPaymentMethod: config.requiresPaymentMethod,
+        },
       )
     },
-    [documentsById, importStatuses, rowAccounts, rowPaymentMethods],
+    [
+      documentsById,
+      importStatuses,
+      rowAccounts,
+      rowPaymentMethods,
+      config.requiresAccount,
+      config.requiresPaymentMethod,
+    ],
   )
 
   const handleSendSelected = useCallback(() => {
@@ -1045,6 +1081,20 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     })()
   }
 
+  const handleCreateJarvisTercero = useCallback(
+    (document: ElectronicDocumentListItem) => {
+      const params = new URLSearchParams({
+        create: '1',
+        document_type: document.supplierDocumentType?.trim() || 'NIT',
+        document_number: document.supplierNit?.trim() || '',
+        document_id: document.id,
+        return_to: '/documento-soporte/masivo',
+      })
+      navigate(`/terceros?${params.toString()}`)
+    },
+    [navigate],
+  )
+
   return (
     <main className="support-document-page">
       <header className="support-document-page__header">
@@ -1154,6 +1204,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           selectedAccount={selectedAccount}
           selectedPaymentMethod={selectedPaymentMethod}
           selectedCostCenter={selectedCostCenter}
+          showAccountField={config.requiresAccount}
           canSend={canSendSelected}
           canDelete={canDeleteSelected}
           isSending={isSending}
@@ -1222,26 +1273,34 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         sendProcessingLabel={
           queueProgress?.label ?? config.sendProcessingLabel
         }
+        supplierMissingLabel={config.supplierMissingLabel}
         onToggleRow={handleToggleRow}
         onSelectRows={handleSelectRows}
         onSendDocument={handleSendDocument}
         onDeleteDocument={handleDeleteDocument}
+        onCreateSupplier={
+          config.provider === 'JARVIS'
+            ? handleCreateJarvisTercero
+            : undefined
+        }
         onSortChange={handleSortChange}
       />
 
-      <AccountMappingModal
-        isOpen={accountModal.isOpen}
-        view={accountModal.view}
-        selectedAccount={accountModal.selectedAccount}
-        createdPurchase={accountModal.createdPurchase}
-        errorMessage={accountModal.errorMessage}
-        errorPhase={accountModal.errorPhase}
-        onCancel={closeAccountModal}
-        onSelectAccount={selectAccount}
-        onSave={saveAccount}
-        onAccept={acceptPurchase}
-        onRetry={retrySaveAccount}
-      />
+      {config.requiresAccount && (
+        <AccountMappingModal
+          isOpen={accountModal.isOpen}
+          view={accountModal.view}
+          selectedAccount={accountModal.selectedAccount}
+          createdPurchase={accountModal.createdPurchase}
+          errorMessage={accountModal.errorMessage}
+          errorPhase={accountModal.errorPhase}
+          onCancel={closeAccountModal}
+          onSelectAccount={selectAccount}
+          onSave={saveAccount}
+          onAccept={acceptPurchase}
+          onRetry={retrySaveAccount}
+        />
+      )}
 
       <SupportDocumentPagination
         page={page}
@@ -1261,6 +1320,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
 }
 
-export default function SupportDocumentPage() {
-  return <DocumentWorkspacePage config={SUPPORT_DOCUMENT_WORKSPACE} />
+export default function SupportDocumentPage({
+  config = SUPPORT_DOCUMENT_WORKSPACE,
+}: {
+  config?: DocumentWorkspaceConfig
+}) {
+  return <DocumentWorkspacePage config={config} />
 }

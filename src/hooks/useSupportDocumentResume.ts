@@ -29,6 +29,7 @@ const VALIDATION_MAX_ATTEMPTS = 45
 
 interface UseSupportDocumentResumeOptions {
   electronicDocumentType: ElectronicDocumentType
+  provider?: 'SIIGO' | 'JARVIS'
   documents: ElectronicDocumentListItem[]
   setDocuments: React.Dispatch<
     React.SetStateAction<ElectronicDocumentListItem[]>
@@ -65,6 +66,7 @@ function sleep(ms: number): Promise<void> {
 
 export function useSupportDocumentResume({
   electronicDocumentType,
+  provider = 'SIIGO',
   documents,
   setDocuments,
   onFlowCompleted,
@@ -126,7 +128,7 @@ export function useSupportDocumentResume({
       }))
 
       try {
-        const response = await resumeElectronicDocument(normalizedId)
+        const response = await resumeElectronicDocument(normalizedId, provider)
         const importStatus = mapResumeNextStepToImportStatus(response.nextStep)
 
         updateDocumentFromResume(response.document, importStatus)
@@ -140,7 +142,7 @@ export function useSupportDocumentResume({
         throw error
       }
     },
-    [updateDocumentFromResume],
+    [provider, updateDocumentFromResume],
   )
 
   const watchImportedDocuments = useCallback(
@@ -169,7 +171,7 @@ export function useSupportDocumentResume({
       await Promise.all(
         uniqueIds.map(async (documentId) => {
           try {
-            await resumeElectronicDocument(documentId)
+            await resumeElectronicDocument(documentId, provider)
           } catch {
             // El polling continuará leyendo el estado actualizado del documento.
           }
@@ -240,7 +242,7 @@ export function useSupportDocumentResume({
         onRefresh?.()
       }
     },
-    [electronicDocumentType, setDocuments, setErrorMessage],
+    [electronicDocumentType, provider, setDocuments, setErrorMessage],
   )
 
   const {

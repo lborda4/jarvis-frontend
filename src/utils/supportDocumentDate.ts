@@ -36,8 +36,10 @@ export function isSupportDocumentDateInRange(
 export function buildInitialRowDates(
   documents: Array<{ id: string; issueDate?: string | null }>,
   current: Record<string, string> = {},
+  options?: { allowAnyDate?: boolean },
 ): Record<string, string> {
   const today = getTodayLocalDate()
+  const allowAnyDate = options?.allowAnyDate === true
 
   return Object.fromEntries(
     documents.map((document) => {
@@ -49,7 +51,8 @@ export function buildInitialRowDates(
 
       if (
         importedDate &&
-        isSupportDocumentDateInRange(importedDate)
+        /^\d{4}-\d{2}-\d{2}$/.test(importedDate) &&
+        (allowAnyDate || isSupportDocumentDateInRange(importedDate))
       ) {
         return [document.id, importedDate]
       }

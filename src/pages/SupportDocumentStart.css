@@ -1,0 +1,150 @@
+.ds-start {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 3rem 2rem 2.5rem;
+}
+
+.ds-start__header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.ds-start__greeting {
+  margin: 0 0 0.5rem;
+  color: var(--jarvis-text-muted);
+  font-size: 1rem;
+}
+
+.ds-start__title {
+  margin: 0 0 0.5rem;
+  color: var(--jarvis-navy);
+  font-size: 1.9rem;
+  font-weight: 600;
+}
+
+.ds-start__subtitle {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+  font-size: 0.98rem;
+}
+
+.ds-start__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.ds-start__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 2rem 1.5rem;
+  background-color: #ffffff;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.ds-start__card:hover {
+  border-color: var(--jarvis-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.ds-start__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  margin-bottom: 0.35rem;
+  border-radius: var(--r-md);
+}
+
+.ds-start__icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.ds-start__icon--create {
+  background-color: var(--jarvis-primary-soft);
+  color: var(--jarvis-primary);
+}
+
+.ds-start__icon--bulk {
+  background-color: #eaf6ed;
+  color: #16794c;
+}
+
+.ds-start__card-title {
+  margin: 0;
+  color: var(--jarvis-navy);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.ds-start__card-text {
+  margin: 0 0 0.9rem;
+  color: var(--jarvis-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.ds-start__action {
+  width: 100%;
+  max-width: 220px;
+  padding: 0.72rem 1.15rem;
+  border: none;
+  border-radius: var(--r-sm);
+  background-color: var(--jarvis-primary);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.ds-start__action:hover:not(:disabled) {
+  background-color: var(--jarvis-primary-hover);
+}
+
+.ds-start__action--secondary {
+  background-color: #ffffff;
+  border: 1px solid var(--jarvis-border);
+  color: var(--jarvis-text-muted);
+}
+
+.ds-start__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.ds-start__tip {
+  margin: 1.75rem 0 0;
+  padding: 0.9rem 1.1rem;
+  background-color: var(--jarvis-surface);
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  color: var(--jarvis-text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.ds-start__tip strong {
+  color: var(--jarvis-text);
+}
+
+@media (max-width: 640px) {
+  .ds-start {
+    padding: 2rem 1.25rem;
+  }
+
+  .ds-start__title {
+    font-size: 1.55rem;
+  }
+}

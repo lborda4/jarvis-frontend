@@ -11,8 +11,10 @@ import {
   AUTH_ME_ENDPOINT,
   AUTH_REFRESH_ENDPOINT,
   AUTH_REGISTER_ENDPOINT,
+  AUTH_RUT_PARSE_ENDPOINT,
   AUTH_SWITCH_COMPANY_ENDPOINT,
 } from '../constants/authEndpoints'
+import type { ParseRutResponse } from '../types/admin'
 import {
   extractAuthSession,
   extractAuthTokens,
@@ -48,6 +50,20 @@ export async function register(request: RegisterRequest): Promise<AuthSession> {
   setTokens(session.tokens)
 
   return session
+}
+
+export async function parseRegistrationRut(
+  file: File,
+): Promise<ParseRutResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await apiClient.post<ParseRutResponse>(
+    AUTH_RUT_PARSE_ENDPOINT,
+    formData,
+  )
+
+  return response.data
 }
 
 export async function switchCompany(companyId: string): Promise<AuthSession> {

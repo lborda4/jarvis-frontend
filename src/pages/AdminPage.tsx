@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -7,15 +7,68 @@ import {
   createAdminCompany,
   fetchAdminCompanies,
   fetchAdminPlans,
+  parseAdminCompanyRut,
+  updateIntegrationSubscription,
 } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
+  COMPANY_PERSON_TYPE,
+  ELECTRONIC_DOCUMENT_TYPE,
   INTEGRATION_PROVIDER,
+  SUBSCRIPTION_STATUS,
   type AdminCompanyListItem,
+  type AdminIntegrationItem,
   type AdminPlan,
+  type CompanyPersonType,
+  type ElectronicDocumentType,
   type IntegrationProvider,
+  type JarvisCredentialsSeed,
+  type SubscriptionStatus,
 } from '../types/admin'
+import { toJarvisCredentialsSeed } from '../utils/toJarvisCredentialsSeed'
 import './AdminPage.css'
+
+const AVAILABLE_DOCUMENT_TYPES: Array<{
+  value: ElectronicDocumentType
+  label: string
+}> = [
+  {
+    value: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+    label: 'Documento soporte',
+  },
+  {
+    value: ELECTRONIC_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    label: 'Factura de compra',
+  },
+]
+
+function formatDocumentLimit(limit: number | null | undefined): string {
+  if (limit == null) {
+    return 'Sin límite'
+  }
+
+  return `${limit} docs`
+}
+
+function formatPlanName(plan: AdminPlan): string {
+  return plan.name
+}
+
+function formatProviderLabel(provider: IntegrationProvider): string {
+  return provider === INTEGRATION_PROVIDER.SIIGO ? 'SIIGO' : 'Jarvis'
+}
+
+function formatPersonType(personType: CompanyPersonType | null): string {
+  if (personType === COMPANY_PERSON_TYPE.NATURAL_PERSON) {
+    return 'Persona natural'
+  }
+
+  if (personType === COMPANY_PERSON_TYPE.LEGAL_ENTITY) {
+    return 'Persona jurídica'
+  }
+
+  return '—'
+}
 
 function formatIntegrations(company: AdminCompanyListItem): string {
   if (company.integrations.length === 0) {
@@ -23,18 +76,8 @@ function formatIntegrations(company: AdminCompanyListItem): string {
   }
 
   return company.integrations
-    .map((integration) =>
-      integration.provider === INTEGRATION_PROVIDER.SIIGO ? 'SIIGO' : 'Jarvis',
-    )
+    .map((integration) => formatProviderLabel(integration.provider))
     .join(' · ')
-}
-
-function formatPlanLabel(plan: AdminPlan): string {
-  if (plan.documentLimit == null) {
-    return `${plan.name} (sin límite)`
-  }
-
-  return `${plan.name} (${plan.documentLimit} docs)`
 }
 
 function formatResponsible(
@@ -52,17 +95,40 @@ function AdminPage() {
   const [plans, setPlans] = useState<AdminPlan[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isParsingRut, setIsParsingRut] = useState(false)
+  const [updatingIntegrationId, setUpdatingIntegrationId] = useState<
+    string | null
+  >(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nit, setNit] = useState('')
   const [name, setName] = useState('')
+  const [personType, setPersonType] = useState<CompanyPersonType | ''>('')
   const [responsibleName, setResponsibleName] = useState('')
   const [responsiblePhone, setResponsiblePhone] = useState('')
   const [responsibleEmail, setResponsibleEmail] = useState('')
-  const [companyPlanId, setCompanyPlanId] = useState('')
+  const [rutFileName, setRutFileName] = useState('')
+  const [rutAddress, setRutAddress] = useState<string | null>(null)
+  const [rutWarnings, setRutWarnings] = useState<string[]>([])
+  const [jarvisCredentials, setJarvisCredentials] =
+    useState<JarvisCredentialsSeed | undefined>()
+  const [siigoPlanId, setSiigoPlanId] = useState('')
+  const [jarvisPlanId, setJarvisPlanId] = useState('')
+  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
+    ElectronicDocumentType[]
+  >([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
   const [selectedIntegrations, setSelectedIntegrations] = useState<
     IntegrationProvider[]
   >([INTEGRATION_PROVIDER.SIIGO])
+
+  const siigoPlans = useMemo(
+    () => plans.filter((plan) => plan.provider === INTEGRATION_PROVIDER.SIIGO),
+    [plans],
+  )
+  const jarvisPlans = useMemo(
+    () => plans.filter((plan) => plan.provider === INTEGRATION_PROVIDER.JARVIS),
+    [plans],
+  )
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -77,8 +143,18 @@ function AdminPage() {
       setCompanies(companiesResponse.items)
       setPlans(plansResponse.items)
 
-      if (plansResponse.items.length > 0) {
-        setCompanyPlanId((current) => current || plansResponse.items[0].id)
+      const firstSiigoPlan = plansResponse.items.find(
+        (plan) => plan.provider === INTEGRATION_PROVIDER.SIIGO,
+      )
+      const firstJarvisPlan = plansResponse.items.find(
+        (plan) => plan.provider === INTEGRATION_PROVIDER.JARVIS,
+      )
+
+      if (firstSiigoPlan) {
+        setSiigoPlanId((current) => current || firstSiigoPlan.id)
+      }
+      if (firstJarvisPlan) {
+        setJarvisPlanId((current) => current || firstJarvisPlan.id)
       }
     } catch (error) {
       setErrorMessage(
@@ -103,6 +179,65 @@ function AdminPage() {
     })
   }
 
+  const toggleCreateDocumentType = (documentType: ElectronicDocumentType) => {
+    setSelectedDocumentTypes((current) => {
+      if (current.includes(documentType)) {
+        return current.filter((item) => item !== documentType)
+      }
+
+      return [...current, documentType]
+    })
+  }
+
+  const handleRutUpload = async (file?: File) => {
+    if (!file) return
+
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setRutWarnings([])
+
+    if (
+      file.type !== 'application/pdf' &&
+      !file.name.toLowerCase().endsWith('.pdf')
+    ) {
+      setErrorMessage('El RUT debe ser un archivo PDF.')
+      return
+    }
+
+    setIsParsingRut(true)
+    setRutFileName(file.name)
+
+    try {
+      const response = await parseAdminCompanyRut(file)
+      const rut = response.data
+
+      setNit(rut.nit)
+      setName(rut.name)
+      setPersonType(rut.personType)
+      setResponsibleName(rut.responsibleName ?? '')
+      setResponsiblePhone(rut.phone ?? '')
+      setResponsibleEmail(rut.email ?? '')
+      setRutAddress(rut.address)
+      setRutWarnings(rut.warnings)
+      setJarvisCredentials(toJarvisCredentialsSeed(rut.jarvisCredentials))
+      setSuccessMessage(
+        'Datos extraídos del RUT. Revise la información antes de crear la empresa.',
+      )
+    } catch (error) {
+      setRutFileName('')
+      setRutAddress(null)
+      setJarvisCredentials(undefined)
+      setErrorMessage(
+        getApiErrorMessage(
+          error,
+          'No se pudieron extraer los datos del RUT.',
+        ),
+      )
+    } finally {
+      setIsParsingRut(false)
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
@@ -110,27 +245,56 @@ function AdminPage() {
     setIsSubmitting(true)
 
     try {
+      const includesSiigo = selectedIntegrations.includes(
+        INTEGRATION_PROVIDER.SIIGO,
+      )
+      const includesJarvis = selectedIntegrations.includes(
+        INTEGRATION_PROVIDER.JARVIS,
+      )
       const response = await createAdminCompany({
         nit: nit.trim(),
         name: name.trim(),
+        personType: personType as CompanyPersonType,
         responsible: {
           name: responsibleName.trim(),
           phone: responsiblePhone.trim(),
           email: responsibleEmail.trim(),
         },
         integrations: selectedIntegrations,
-        companyPlanId,
+        ...(includesSiigo
+          ? {
+              siigoPlanId,
+            }
+          : {}),
+        ...(includesJarvis
+          ? {
+              jarvisPlanId,
+            }
+          : {}),
+        ...((includesSiigo || includesJarvis) && selectedDocumentTypes.length > 0
+          ? { includedDocumentTypes: selectedDocumentTypes }
+          : {}),
+        ...(includesJarvis && jarvisCredentials
+          ? { jarvisCredentials }
+          : {}),
       })
 
       setCompanies((current) => [response.company, ...current])
       setSuccessMessage(`Empresa ${response.company.name} creada correctamente.`)
       setNit('')
       setName('')
+      setPersonType('')
       setResponsibleName('')
       setResponsiblePhone('')
       setResponsibleEmail('')
+      setRutFileName('')
+      setRutAddress(null)
+      setRutWarnings([])
+      setJarvisCredentials(undefined)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
-      setCompanyPlanId(plans[0]?.id ?? '')
+      setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
+      setSiigoPlanId(siigoPlans[0]?.id ?? '')
+      setJarvisPlanId(jarvisPlans[0]?.id ?? '')
     } catch (error) {
       setErrorMessage(
         getApiErrorMessage(error, 'No se pudo crear la empresa.'),
@@ -140,13 +304,151 @@ function AdminPage() {
     }
   }
 
+  const applyIntegrationUpdate = (
+    companyId: string,
+    integrationId: string,
+    updatedIntegration: AdminIntegrationItem,
+  ) => {
+    setCompanies((current) =>
+      current.map((item) => {
+        if (item.id !== companyId) {
+          return item
+        }
+
+        return {
+          ...item,
+          integrations: item.integrations.map((currentIntegration) =>
+            currentIntegration.id === integrationId
+              ? updatedIntegration
+              : currentIntegration,
+          ),
+        }
+      }),
+    )
+  }
+
+  const handleSubscriptionStatusChange = async (
+    company: AdminCompanyListItem,
+    integration: AdminIntegrationItem,
+    subscriptionStatus: SubscriptionStatus,
+  ) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setUpdatingIntegrationId(integration.id)
+
+    try {
+      const response = await updateIntegrationSubscription(
+        company.id,
+        integration.provider,
+        { subscriptionStatus },
+      )
+
+      applyIntegrationUpdate(company.id, integration.id, response.integration)
+      setSuccessMessage(
+        `Suscripción ${formatProviderLabel(integration.provider)} actualizada a ${subscriptionStatus}.`,
+      )
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo actualizar la suscripción.'),
+      )
+    } finally {
+      setUpdatingIntegrationId(null)
+    }
+  }
+
+  const handlePlanChange = async (
+    company: AdminCompanyListItem,
+    integration: AdminIntegrationItem,
+    planId: string,
+  ) => {
+    if (!planId || planId === integration.plan?.id) {
+      return
+    }
+
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setUpdatingIntegrationId(integration.id)
+
+    try {
+      const response = await updateIntegrationSubscription(
+        company.id,
+        integration.provider,
+        { planId },
+      )
+
+      applyIntegrationUpdate(company.id, integration.id, response.integration)
+      setSuccessMessage(
+        `Plan ${formatProviderLabel(integration.provider)} actualizado para ${company.name}.`,
+      )
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo actualizar el plan.'),
+      )
+    } finally {
+      setUpdatingIntegrationId(null)
+    }
+  }
+
+  const handleDocumentTypesChange = async (
+    company: AdminCompanyListItem,
+    integration: AdminIntegrationItem,
+    documentType: ElectronicDocumentType,
+    checked: boolean,
+  ) => {
+    const currentTypes = integration.includedDocumentTypes ?? []
+    const nextTypes = checked
+      ? [...new Set([...currentTypes, documentType])]
+      : currentTypes.filter((type) => type !== documentType)
+
+    if (nextTypes.length === 0) {
+      setErrorMessage('Debe dejar al menos un tipo de documento habilitado.')
+      return
+    }
+
+    const unchanged =
+      nextTypes.length === currentTypes.length &&
+      nextTypes.every((type) => currentTypes.includes(type))
+
+    if (unchanged) {
+      return
+    }
+
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setUpdatingIntegrationId(integration.id)
+
+    try {
+      const response = await updateIntegrationSubscription(
+        company.id,
+        integration.provider,
+        { includedDocumentTypes: nextTypes },
+      )
+
+      applyIntegrationUpdate(company.id, integration.id, response.integration)
+      setSuccessMessage(
+        `Documentos actualizados para ${company.name}.`,
+      )
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudieron actualizar los documentos.'),
+      )
+    } finally {
+      setUpdatingIntegrationId(null)
+    }
+  }
+
+  const includesSiigo = selectedIntegrations.includes(INTEGRATION_PROVIDER.SIIGO)
+  const includesJarvis = selectedIntegrations.includes(
+    INTEGRATION_PROVIDER.JARVIS,
+  )
+
   return (
     <main className="admin-page">
       <header className="admin-page__header">
         <div>
           <p className="admin-page__eyebrow">Panel interno</p>
           <h1>Administración de empresas</h1>
-          <p>Gestione empresas, integraciones y planes.</p>
+          <p>Gestione empresas, integraciones, planes y suscripciones.</p>
         </div>
         <Link to="/inicio" className="admin-page__back-link">
           Volver a la aplicación
@@ -157,8 +459,8 @@ function AdminPage() {
         <div className="admin-card__header">
           <h2>Crear empresa</h2>
           <p>
-            Registre una empresa por NIT, asigne un plan y seleccione las
-            integraciones habilitadas.
+            Registre una empresa por NIT, asigne un plan por integración y
+            seleccione las integraciones habilitadas.
           </p>
         </div>
 
@@ -190,26 +492,94 @@ function AdminPage() {
             </div>
 
             <div className="admin-form__field">
-              <label htmlFor="admin-company-plan">Plan</label>
+              <label htmlFor="admin-company-person-type">
+                Tipo de persona
+              </label>
               <select
-                id="admin-company-plan"
-                value={companyPlanId}
-                onChange={(event) => setCompanyPlanId(event.target.value)}
+                id="admin-company-person-type"
+                value={personType}
+                onChange={(event) =>
+                  setPersonType(event.target.value as CompanyPersonType | '')
+                }
                 required
-                disabled={isSubmitting || plans.length === 0}
+                disabled={isSubmitting || isParsingRut}
               >
-                {plans.length === 0 ? (
-                  <option value="">Sin planes disponibles</option>
-                ) : (
-                  plans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {formatPlanLabel(plan)}
-                    </option>
-                  ))
-                )}
+                <option value="">Seleccione una opción</option>
+                <option value={COMPANY_PERSON_TYPE.NATURAL_PERSON}>
+                  Persona natural
+                </option>
+                <option value={COMPANY_PERSON_TYPE.LEGAL_ENTITY}>
+                  Persona jurídica
+                </option>
               </select>
             </div>
+
+            {includesSiigo && (
+              <div className="admin-form__field">
+                <label htmlFor="admin-company-plan-siigo">Plan SIIGO</label>
+                <select
+                  id="admin-company-plan-siigo"
+                  value={siigoPlanId}
+                  onChange={(event) => setSiigoPlanId(event.target.value)}
+                  required
+                  disabled={isSubmitting || siigoPlans.length === 0}
+                >
+                  {siigoPlans.length === 0 ? (
+                    <option value="">Sin planes SIIGO disponibles</option>
+                  ) : (
+                    siigoPlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
+
+            {includesJarvis && (
+              <div className="admin-form__field">
+                <label htmlFor="admin-company-plan-jarvis">Plan Jarvis</label>
+                <select
+                  id="admin-company-plan-jarvis"
+                  value={jarvisPlanId}
+                  onChange={(event) => setJarvisPlanId(event.target.value)}
+                  required
+                  disabled={isSubmitting || jarvisPlans.length === 0}
+                >
+                  {jarvisPlans.length === 0 ? (
+                    <option value="">Sin planes Jarvis disponibles</option>
+                  ) : (
+                    jarvisPlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
           </div>
+
+          {(includesSiigo || includesJarvis) && (
+            <fieldset className="admin-form__integrations">
+              <legend>Documentos incluidos</legend>
+              {AVAILABLE_DOCUMENT_TYPES.map((documentType) => (
+                <label
+                  key={documentType.value}
+                  className="admin-form__checkbox"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDocumentTypes.includes(documentType.value)}
+                    onChange={() => toggleCreateDocumentType(documentType.value)}
+                    disabled={isSubmitting}
+                  />
+                  {documentType.label}
+                </label>
+              ))}
+            </fieldset>
+          )}
 
           <fieldset className="admin-form__responsible">
             <legend>Persona a cargo</legend>
@@ -276,6 +646,52 @@ function AdminPage() {
             </label>
           </fieldset>
 
+          {includesJarvis && (
+            <section className="admin-rut-upload" aria-labelledby="admin-rut-title">
+              <div>
+                <h3 id="admin-rut-title">Autocompletar con el RUT</h3>
+                <p>
+                  Adjunte el PDF de la DIAN. Extraeremos los datos para que los
+                  revise antes de crear la empresa.
+                </p>
+              </div>
+
+              <label className="admin-rut-upload__button">
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    void handleRutUpload(file)
+                    event.target.value = ''
+                  }}
+                  disabled={isSubmitting || isParsingRut}
+                />
+                {isParsingRut ? 'Leyendo RUT...' : 'Seleccionar RUT (PDF)'}
+              </label>
+
+              {rutFileName && (
+                <p className="admin-rut-upload__file">
+                  Archivo: <strong>{rutFileName}</strong>
+                </p>
+              )}
+
+              {rutAddress && (
+                <p className="admin-rut-upload__detected">
+                  Dirección detectada: <strong>{rutAddress}</strong>
+                </p>
+              )}
+
+              {rutWarnings.length > 0 && (
+                <ul className="admin-rut-upload__warnings">
+                  {rutWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           <button
             type="submit"
             className="admin-form__submit"
@@ -284,10 +700,15 @@ function AdminPage() {
               selectedIntegrations.length === 0 ||
               !nit.trim() ||
               !name.trim() ||
+              !personType ||
               !responsibleName.trim() ||
               !responsiblePhone.trim() ||
               !responsibleEmail.trim() ||
-              !companyPlanId
+              isParsingRut ||
+              (includesSiigo &&
+                (!siigoPlanId || selectedDocumentTypes.length === 0)) ||
+              (includesJarvis &&
+                (!jarvisPlanId || selectedDocumentTypes.length === 0))
             }
           >
             {isSubmitting ? 'Creando empresa...' : 'Crear empresa'}
@@ -313,29 +734,227 @@ function AdminPage() {
                 <tr>
                   <th>NIT</th>
                   <th>Empresa</th>
+                  <th>Tipo</th>
                   <th>Persona a cargo</th>
-                  <th>Plan</th>
                   <th>Integraciones</th>
+                  <th>Plan</th>
+                  <th>Documentos</th>
+                  <th>Límite</th>
+                  <th>Suscripción</th>
                   <th>Creada</th>
                 </tr>
               </thead>
               <tbody>
-                {companies.map((company) => (
-                  <tr key={company.id}>
-                    <td>{company.nit}</td>
-                    <td>{company.name}</td>
-                    <td>{formatResponsible(company.responsible)}</td>
-                    <td>
-                      {company.companyPlan
-                        ? formatPlanLabel(company.companyPlan)
-                        : '—'}
-                    </td>
-                    <td>{formatIntegrations(company)}</td>
-                    <td>
-                      {new Date(company.createdAt).toLocaleDateString('es-CO')}
-                    </td>
-                  </tr>
-                ))}
+                {companies.map((company) => {
+                  const plansByProvider = {
+                    [INTEGRATION_PROVIDER.SIIGO]: siigoPlans,
+                    [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
+                  }
+
+                  return (
+                    <tr key={company.id}>
+                      <td>{company.nit}</td>
+                      <td>{company.name}</td>
+                      <td>{formatPersonType(company.personType)}</td>
+                      <td>{formatResponsible(company.responsible)}</td>
+                      <td>{formatIntegrations(company)}</td>
+                      <td>
+                        {company.integrations.length === 0 ? (
+                          '—'
+                        ) : (
+                          <div className="admin-integration-stack">
+                            {company.integrations.map((integration) => {
+                              const providerPlans =
+                                plansByProvider[integration.provider] ?? []
+
+                              return (
+                                <div
+                                  key={integration.id}
+                                  className="admin-integration-stack__item"
+                                >
+                                  <span className="admin-integration-stack__label">
+                                    {formatProviderLabel(integration.provider)}
+                                  </span>
+                                  <select
+                                    className="admin-plan-select"
+                                    aria-label={`Plan ${formatProviderLabel(integration.provider)} de ${company.name}`}
+                                    value={integration.plan?.id ?? ''}
+                                    disabled={
+                                      updatingIntegrationId ===
+                                        integration.id ||
+                                      providerPlans.length === 0
+                                    }
+                                    onChange={(event) =>
+                                      void handlePlanChange(
+                                        company,
+                                        integration,
+                                        event.target.value,
+                                      )
+                                    }
+                                  >
+                                    {!integration.plan && (
+                                      <option value="">Seleccione un plan</option>
+                                    )}
+                                    {providerPlans.map((plan) => (
+                                      <option key={plan.id} value={plan.id}>
+                                        {formatPlanName(plan)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {company.integrations.length === 0 ? (
+                          '—'
+                        ) : (
+                          <div className="admin-integration-stack">
+                            {company.integrations.map((integration) => (
+                              <div
+                                key={integration.id}
+                                className="admin-integration-stack__item"
+                              >
+                                <span className="admin-integration-stack__label">
+                                  {formatProviderLabel(integration.provider)}
+                                </span>
+                                <div className="admin-document-types">
+                                  {AVAILABLE_DOCUMENT_TYPES.map(
+                                    (documentType) => {
+                                      const checked = (
+                                        integration.includedDocumentTypes ?? []
+                                      ).includes(documentType.value)
+
+                                      return (
+                                        <label
+                                          key={documentType.value}
+                                          className="admin-form__checkbox"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            disabled={
+                                              updatingIntegrationId ===
+                                              integration.id
+                                            }
+                                            onChange={(event) =>
+                                              void handleDocumentTypesChange(
+                                                company,
+                                                integration,
+                                                documentType.value,
+                                                event.target.checked,
+                                              )
+                                            }
+                                          />
+                                          {documentType.label}
+                                        </label>
+                                      )
+                                    },
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {company.integrations.length === 0 ? (
+                          '—'
+                        ) : (
+                          <div className="admin-integration-stack">
+                            {company.integrations.map((integration) => (
+                              <div
+                                key={integration.id}
+                                className="admin-integration-stack__item"
+                              >
+                                <span className="admin-integration-stack__label">
+                                  {formatProviderLabel(integration.provider)}
+                                </span>
+                                <span>
+                                  {formatDocumentLimit(
+                                    integration.plan?.documentLimit,
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {company.integrations.length === 0 ? (
+                          '—'
+                        ) : (
+                          <div className="admin-integration-stack">
+                            {company.integrations.map((integration) => (
+                              <div
+                                key={integration.id}
+                                className="admin-integration-stack__item"
+                              >
+                                <span className="admin-integration-stack__label">
+                                  {formatProviderLabel(integration.provider)}
+                                </span>
+                                <div className="admin-subscription-actions">
+                                  <span className="admin-subscription-status">
+                                    {integration.subscriptionStatus ??
+                                      'sin estado'}
+                                    {integration.subscriptionStartedAt
+                                      ? ` · desde ${new Date(
+                                          integration.subscriptionStartedAt,
+                                        ).toLocaleDateString('es-CO')}`
+                                      : ''}
+                                  </span>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        updatingIntegrationId ===
+                                          integration.id ||
+                                        integration.subscriptionStatus ===
+                                          SUBSCRIPTION_STATUS.ACTIVE
+                                      }
+                                      onClick={() =>
+                                        void handleSubscriptionStatusChange(
+                                          company,
+                                          integration,
+                                          SUBSCRIPTION_STATUS.ACTIVE,
+                                        )
+                                      }
+                                    >
+                                      Activar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        updatingIntegrationId ===
+                                          integration.id ||
+                                        integration.subscriptionStatus ===
+                                          SUBSCRIPTION_STATUS.SUSPENDED
+                                      }
+                                      onClick={() =>
+                                        void handleSubscriptionStatusChange(
+                                          company,
+                                          integration,
+                                          SUBSCRIPTION_STATUS.SUSPENDED,
+                                        )
+                                      }
+                                    >
+                                      Suspender
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {new Date(company.createdAt).toLocaleDateString('es-CO')}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

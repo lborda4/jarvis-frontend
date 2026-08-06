@@ -94,6 +94,7 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
     modalState: supplierModal,
     openSupplierNotFoundModal,
     closeModal: closeSupplierModal,
+    setPersonType: setSupplierPersonType,
     createSupplier,
     retryCreateSupplier,
   } = useSupplierCreateModal()
@@ -349,6 +350,7 @@ export function useInvoiceTable(data: ExtractInvoicesResponse | null) {
     clearSelection,
     importSelected,
     closeSupplierModal: handleCloseSupplierModal,
+    setSupplierPersonType,
     createSupplier: handleCreateSupplier,
     retryCreateSupplier,
     continueAfterSupplierCreated: handleContinueAfterSupplierCreated,

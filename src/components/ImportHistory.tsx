@@ -27,6 +27,7 @@ function ImportHistory({ title, electronicDocumentType }: ImportHistoryProps) {
     closeSupplierModal,
     closeAccountModal,
     handleCreateSupplier,
+    setSupplierPersonType,
     retryCreateSupplier,
     continueAfterSupplierCreated,
     selectAccount,
@@ -73,9 +74,11 @@ function ImportHistory({ title, electronicDocumentType }: ImportHistoryProps) {
         view={supplierModal.view}
         supplierName={supplierModal.supplierName}
         supplierDocument={supplierModal.supplierDocument}
+        personType={supplierModal.personType}
         errorMessage={supplierModal.errorMessage}
         createdSupplier={supplierModal.createdSupplier}
         onCancel={closeSupplierModal}
+        onPersonTypeChange={setSupplierPersonType}
         onCreateSupplier={handleCreateSupplier}
         onContinue={continueAfterSupplierCreated}
         onRetry={retryCreateSupplier}

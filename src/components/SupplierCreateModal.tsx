@@ -1,4 +1,4 @@
-import type { CreatedSiigoSupplier } from '../types/siigo'
+import type { CreatedSiigoSupplier, SiigoSupplierPersonType } from '../types/siigo'
 import type { SupplierModalView } from '../hooks/useSupplierCreateModal'
 import {
   formatSiigoDisplayValue,
@@ -10,9 +10,11 @@ interface SupplierCreateModalProps {
   view: SupplierModalView
   supplierName: string | null
   supplierDocument: string
+  personType: SiigoSupplierPersonType | ''
   errorMessage: string | null
   createdSupplier: CreatedSiigoSupplier | null
   onCancel: () => void
+  onPersonTypeChange: (personType: SiigoSupplierPersonType) => void
   onCreateSupplier: () => void
   onContinue: () => void
   onRetry: () => void
@@ -23,9 +25,11 @@ function SupplierCreateModal({
   view,
   supplierName,
   supplierDocument,
+  personType,
   errorMessage,
   createdSupplier,
   onCancel,
+  onPersonTypeChange,
   onCreateSupplier,
   onContinue,
   onRetry,
@@ -35,6 +39,7 @@ function SupplierCreateModal({
   const isLoading = view === 'loading'
   const buttonsDisabled = isLoading
   const canDismissOverlay = view === 'confirm' || view === 'error'
+  const canCreate = Boolean(personType) && !buttonsDisabled
 
   const handleOverlayClick = () => {
     if (canDismissOverlay) {
@@ -73,6 +78,40 @@ function SupplierCreateModal({
                   )}
                 </div>
               )}
+
+              <fieldset className="modal-dialog__fieldset">
+                <legend>
+                  Tipo de persona <span aria-hidden="true">*</span>
+                </legend>
+                <label className="modal-dialog__radio">
+                  <input
+                    type="radio"
+                    name="supplier-person-type"
+                    value="person"
+                    checked={personType === 'person'}
+                    onChange={() => onPersonTypeChange('person')}
+                    disabled={buttonsDisabled}
+                    required
+                  />
+                  Persona natural
+                </label>
+                <label className="modal-dialog__radio">
+                  <input
+                    type="radio"
+                    name="supplier-person-type"
+                    value="company"
+                    checked={personType === 'company'}
+                    onChange={() => onPersonTypeChange('company')}
+                    disabled={buttonsDisabled}
+                    required
+                  />
+                  Persona jurídica
+                </label>
+              </fieldset>
+
+              {errorMessage && (
+                <p className="modal-dialog__error-message">{errorMessage}</p>
+              )}
             </div>
             <div className="modal-dialog__actions">
               <button
@@ -87,7 +126,7 @@ function SupplierCreateModal({
                 type="button"
                 className="modal-dialog__button modal-dialog__button--primary"
                 onClick={onCreateSupplier}
-                disabled={buttonsDisabled}
+                disabled={!canCreate}
               >
                 Crear proveedor
               </button>

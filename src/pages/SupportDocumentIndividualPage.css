@@ -1,0 +1,321 @@
+.ds-individual {
+  width: 100%;
+  max-width: var(--app-content-max-width, 1280px);
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 2.5rem;
+}
+
+.ds-individual__header {
+  margin-bottom: 1.25rem;
+}
+
+.ds-individual__breadcrumb {
+  margin: 0 0 0.55rem;
+  color: var(--jarvis-text-muted);
+  font-size: 0.88rem;
+}
+
+.ds-individual__breadcrumb a {
+  color: var(--jarvis-primary);
+  text-decoration: none;
+}
+
+.ds-individual__breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.ds-individual__header h1 {
+  margin: 0 0 0.3rem;
+  color: var(--jarvis-navy);
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+
+.ds-individual__header p {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+  font-size: 0.94rem;
+}
+
+.ds-individual__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ds-individual__card {
+  padding: 1.25rem 1.35rem 1.4rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  background: #ffffff;
+  box-shadow: var(--shadow-xs);
+}
+
+.ds-individual__card h2 {
+  margin: 0 0 1rem;
+  color: var(--jarvis-navy);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.ds-individual__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ds-individual__section-head h2 {
+  margin: 0;
+}
+
+.ds-individual__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.ds-individual__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.ds-individual__field--wide {
+  grid-column: 1 / -1;
+}
+
+.ds-individual__field > span {
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.ds-individual__field input,
+.ds-individual__field select,
+.ds-individual__search input,
+.ds-individual__receipt input,
+.ds-individual__table input,
+.ds-individual__table select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.62rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--r-sm);
+  background: #fff;
+  color: var(--jarvis-text);
+  font-size: 0.92rem;
+}
+
+.ds-individual__field input:focus,
+.ds-individual__field select:focus,
+.ds-individual__search input:focus,
+.ds-individual__receipt input:focus,
+.ds-individual__table input:focus,
+.ds-individual__table select:focus {
+  outline: 2px solid var(--jarvis-brand-ring);
+  border-color: var(--jarvis-primary);
+}
+
+.ds-individual__field select:disabled {
+  background: #f8fafc;
+  color: var(--jarvis-text-muted);
+}
+
+.ds-individual__readonly {
+  margin: 0;
+  padding: 0.62rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--r-sm);
+  background: #f8fafc;
+  color: var(--jarvis-text-muted);
+  font-size: 0.92rem;
+}
+
+.ds-individual__receipt {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 0.5rem;
+}
+
+.ds-individual__hint {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+  font-size: 0.84rem;
+}
+
+.ds-individual__hint a {
+  color: var(--jarvis-primary);
+}
+
+.ds-individual__error {
+  display: block;
+  margin: 0.15rem 0 0;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.ds-individual__add-line {
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-sm);
+  background: #fff;
+  color: var(--jarvis-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.ds-individual__add-line:hover {
+  border-color: var(--jarvis-primary);
+  background: var(--jarvis-primary-soft);
+}
+
+.ds-individual__table-wrap {
+  overflow-x: auto;
+}
+
+.ds-individual__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.ds-individual__table th {
+  padding: 0.55rem 0.45rem;
+  border-bottom: 1px solid var(--jarvis-border);
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ds-individual__table td {
+  padding: 0.55rem 0.35rem;
+  vertical-align: top;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.ds-individual__table td:first-child {
+  width: 2rem;
+  padding-top: 0.95rem;
+  color: var(--jarvis-text-muted);
+  font-size: 0.88rem;
+}
+
+.ds-individual__total-cell {
+  padding-top: 0.95rem !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--jarvis-text);
+  font-weight: 600;
+}
+
+.ds-individual__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-top: 0.25rem;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+}
+
+.ds-individual__delete:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.ds-individual__delete:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ds-individual__delete svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ds-individual__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  padding-top: 0.35rem;
+}
+
+.ds-individual__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 140px;
+  padding: 0.72rem 1.15rem;
+  border-radius: var(--r-sm);
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ds-individual__btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ds-individual__btn--ghost {
+  border: 1px solid var(--jarvis-border);
+  background: #fff;
+  color: var(--jarvis-text);
+}
+
+.ds-individual__btn--ghost:hover:not(:disabled) {
+  border-color: var(--jarvis-border-strong);
+  background: #f8fafc;
+}
+
+.ds-individual__btn--outline {
+  border: 1px solid var(--jarvis-primary);
+  background: #fff;
+  color: var(--jarvis-primary);
+}
+
+.ds-individual__btn--outline:hover:not(:disabled) {
+  background: var(--jarvis-primary-soft);
+}
+
+.ds-individual__btn--primary {
+  border: 1px solid var(--jarvis-primary);
+  background: var(--jarvis-primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.ds-individual__btn--primary:hover:not(:disabled) {
+  background: var(--jarvis-primary-hover);
+  border-color: var(--jarvis-primary-hover);
+}
+
+@media (max-width: 900px) {
+  .ds-individual__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-individual__field--wide {
+    grid-column: auto;
+  }
+
+  .ds-individual__actions {
+    justify-content: stretch;
+  }
+
+  .ds-individual__btn {
+    flex: 1 1 100%;
+  }
+}

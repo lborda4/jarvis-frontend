@@ -18,7 +18,7 @@ export interface SupportDocumentRow {
   supplierName: string
   supplierNit: string
   documentCode: string
-  siigoDocumentNumber: number | null
+  siigoDocumentNumber: string | number | null
   supplierExistsInSiigo: boolean
   suggestedAccount: SuggestedAccount | null
   importStatus: ImportRowStatus

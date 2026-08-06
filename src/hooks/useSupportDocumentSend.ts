@@ -43,7 +43,11 @@ interface SendDocumentsParams {
 interface UseSupportDocumentSendOptions {
   workspace: Pick<
     DocumentWorkspaceConfig,
-    'buildSendRequest' | 'sendToSiigo' | 'sendSuccessFeedback'
+    | 'buildSendRequest'
+    | 'sendDocument'
+    | 'sendSuccessFeedback'
+    | 'requiresAccount'
+    | 'requiresPaymentMethod'
   >
   onCompleted: () => void
   onDocumentStatusChange?: (
@@ -105,13 +109,19 @@ export function useSupportDocumentSend({
             importStatuses[documentId],
             rowAccounts,
             rowPaymentMethods,
+            {
+              requiresAccount: workspace.requiresAccount,
+              requiresPaymentMethod: workspace.requiresPaymentMethod,
+            },
           )
         )
       })
 
       if (targets.length === 0) {
         setErrorMessage(
-          'Seleccione documentos con cuenta contable y medio de pago configurados.',
+          workspace.requiresAccount
+            ? 'Seleccione documentos con cuenta contable y medio de pago configurados.'
+            : 'Seleccione documentos listos para enviar.',
         )
         return
       }
@@ -130,10 +140,18 @@ export function useSupportDocumentSend({
         documentId: string,
       ): SiigoDocumentSendRequest | null => {
         const document = documentsById[documentId]
-        const account = rowAccounts[documentId]
-        const paymentMethod = rowPaymentMethods[documentId]
+        const account = rowAccounts[documentId] ?? null
+        const paymentMethod = rowPaymentMethods[documentId] ?? null
 
-        if (!document || !account || !paymentMethod) {
+        if (!document) {
+          return null
+        }
+
+        if (workspace.requiresAccount && !account) {
+          return null
+        }
+
+        if (workspace.requiresPaymentMethod && !paymentMethod) {
           return null
         }
 
@@ -164,7 +182,7 @@ export function useSupportDocumentSend({
         }
 
         try {
-          await workspace.sendToSiigo(request)
+          await workspace.sendDocument(request)
 
           return {
             documentId,
@@ -177,7 +195,7 @@ export function useSupportDocumentSend({
             success: false,
             error: getApiErrorMessage(
               error,
-              'No se pudo enviar el documento a SIIGO.',
+              'No se pudo enviar el documento.',
             ),
             isDuplicated: isSiigoDuplicatedDocumentError(error),
           }

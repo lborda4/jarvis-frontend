@@ -13,7 +13,7 @@ import {
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
-const DEFAULT_APP_PATH = '/inicio'
+const DEFAULT_APP_PATH = '/documento-soporte'
 const ADMIN_APP_PATH = '/admin'
 
 function resolvePostLoginPath(role?: string): string {

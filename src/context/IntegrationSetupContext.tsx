@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { fetchIntegrationProviders } from '../services/integrationService'
-import { fetchJarvisCredentialsConfigured } from '../services/jarvisService'
+import { fetchJarvisCredentialsStatus } from '../services/jarvisService'
 import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import {
   resolveIntegrationMode,
@@ -30,8 +30,21 @@ interface IntegrationSetupContextValue {
   isJarvisCompany: boolean
   isSiigoConfigured: boolean
   hasSiigoAccounts: boolean
+  /** Credenciales/datos de empresa Jarvis guardados (paso 1). */
+  isJarvisCompanyConfigured: boolean
+  /**
+   * @deprecated Prefer isJarvisCompanyConfigured for el paso empresa,
+   * o isConfigured para setup completo.
+   */
   isJarvisConfigured: boolean
+  includedDocumentTypes: string[]
+  isSubscriptionActive: boolean
+  hasSupportDocumentAccess: boolean
+  hasPurchaseInvoiceAccess: boolean
+  isSupportDocumentResolutionConfigured: boolean
+  isElectronicInvoiceResolutionConfigured: boolean
   isSupportDocumentEnabled: boolean
+  isPurchaseInvoiceEnabled: boolean
   requiresSetup: boolean
   setupPath: string
   markConfigured: () => void
@@ -44,8 +57,37 @@ const IntegrationSetupContext =
 const SIIGO_SETUP_PATH = '/configuracion/integracion-siigo'
 const JARVIS_SETUP_PATH = '/configuracion/integracion-jarvis'
 
+function isJarvisSetupComplete({
+  companyConfigured,
+  documentTypes,
+  supportResolutionConfigured,
+  invoiceResolutionConfigured,
+}: {
+  companyConfigured: boolean
+  documentTypes: string[]
+  supportResolutionConfigured: boolean
+  invoiceResolutionConfigured: boolean
+}): boolean {
+  if (!companyConfigured) {
+    return false
+  }
+
+  const needsSupport = documentTypes.includes('SUPPORT_DOCUMENT')
+  const needsInvoice = documentTypes.includes('PURCHASE_INVOICE')
+
+  if (needsSupport && !supportResolutionConfigured) {
+    return false
+  }
+
+  if (needsInvoice && !invoiceResolutionConfigured) {
+    return false
+  }
+
+  return true
+}
+
 export function IntegrationSetupProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth()
   const companyId = user?.company?.id
   const [isCheckingSetup, setIsCheckingSetup] = useState(true)
   const [integrationProviders, setIntegrationProviders] = useState<
@@ -55,15 +97,42 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     useState<IntegrationMode>('unknown')
   const [isSiigoConfigured, setIsSiigoConfigured] = useState(false)
   const [hasSiigoAccounts, setHasSiigoAccounts] = useState(false)
-  const [isJarvisConfigured, setIsJarvisConfigured] = useState(false)
+  const [isJarvisCompanyConfigured, setIsJarvisCompanyConfigured] =
+    useState(false)
+  const [
+    isSupportDocumentResolutionConfigured,
+    setIsSupportDocumentResolutionConfigured,
+  ] = useState(false)
+  const [
+    isElectronicInvoiceResolutionConfigured,
+    setIsElectronicInvoiceResolutionConfigured,
+  ] = useState(false)
+  const [includedDocumentTypes, setIncludedDocumentTypes] = useState<string[]>(
+    [],
+  )
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState(false)
+
+  const resetJarvisFlags = useCallback(() => {
+    setIsJarvisCompanyConfigured(false)
+    setIsSupportDocumentResolutionConfigured(false)
+    setIsElectronicInvoiceResolutionConfigured(false)
+  }, [])
 
   const refreshSetupStatus = useCallback(async () => {
+    // Evita un frame en falso "no configurado" durante el restore de sesión.
+    if (isAuthLoading) {
+      setIsCheckingSetup(true)
+      return
+    }
+
     if (!isAuthenticated || !companyId) {
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
-      setIsJarvisConfigured(false)
+      resetJarvisFlags()
+      setIncludedDocumentTypes([])
+      setIsSubscriptionActive(false)
       clearIntegrationConfigured()
       setIsCheckingSetup(false)
       return
@@ -82,10 +151,15 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         const status = await fetchSiigoCredentialsStatus()
         const configured = Boolean(status.configured)
         const accountsReady = Boolean(status.hasAccounts)
+        const subscription = status.subscription
+        const subscriptionActive = subscription?.status === 'ACTIVE'
+        const documentTypes = subscription?.includedDocumentTypes ?? []
 
         setIsSiigoConfigured(configured)
         setHasSiigoAccounts(accountsReady)
-        setIsJarvisConfigured(false)
+        resetJarvisFlags()
+        setIncludedDocumentTypes(documentTypes)
+        setIsSubscriptionActive(subscriptionActive)
 
         if (configured && accountsReady) {
           persistIntegrationConfigured()
@@ -97,12 +171,33 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       }
 
       if (mode === 'jarvis') {
-        const configured = await fetchJarvisCredentialsConfigured()
-        setIsJarvisConfigured(configured)
+        const status = await fetchJarvisCredentialsStatus()
+        const companyConfigured = Boolean(status.configured)
+        const subscription = status.subscription
+        const subscriptionActive = subscription?.status === 'ACTIVE'
+        const documentTypes = subscription?.includedDocumentTypes ?? []
+        const supportResolutionConfigured = Boolean(
+          status.supportDocumentResolutionConfigured,
+        )
+        const invoiceResolutionConfigured = Boolean(
+          status.electronicInvoiceResolutionConfigured,
+        )
+        const fullyConfigured = isJarvisSetupComplete({
+          companyConfigured,
+          documentTypes,
+          supportResolutionConfigured,
+          invoiceResolutionConfigured,
+        })
+
+        setIsJarvisCompanyConfigured(companyConfigured)
+        setIsSupportDocumentResolutionConfigured(supportResolutionConfigured)
+        setIsElectronicInvoiceResolutionConfigured(invoiceResolutionConfigured)
         setIsSiigoConfigured(false)
         setHasSiigoAccounts(false)
+        setIncludedDocumentTypes(documentTypes)
+        setIsSubscriptionActive(subscriptionActive)
 
-        if (configured) {
+        if (fullyConfigured) {
           persistIntegrationConfigured()
         } else {
           clearIntegrationConfigured()
@@ -113,51 +208,79 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
-      setIsJarvisConfigured(false)
+      resetJarvisFlags()
+      setIncludedDocumentTypes([])
+      setIsSubscriptionActive(false)
       clearIntegrationConfigured()
     } catch {
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
-      setIsJarvisConfigured(false)
+      resetJarvisFlags()
+      setIncludedDocumentTypes([])
+      setIsSubscriptionActive(false)
       clearIntegrationConfigured()
     } finally {
       setIsCheckingSetup(false)
     }
-  }, [companyId, isAuthenticated])
+  }, [companyId, isAuthLoading, isAuthenticated, resetJarvisFlags])
 
   useEffect(() => {
     void refreshSetupStatus()
   }, [refreshSetupStatus])
 
   const markConfigured = useCallback(() => {
-    // Solo marca credenciales; las cuentas se confirman vía refreshSetupStatus.
+    // Solo marca el paso de empresa; el setup completo se confirma con refresh.
     if (integrationMode === 'jarvis') {
-      persistIntegrationConfigured()
-      setIsJarvisConfigured(true)
+      setIsJarvisCompanyConfigured(true)
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
       return
     }
 
     setIsSiigoConfigured(true)
-    setIsJarvisConfigured(false)
+    setIsJarvisCompanyConfigured(false)
   }, [integrationMode])
 
   const isSiigoCompany = integrationMode === 'siigo'
   const isJarvisCompany = integrationMode === 'jarvis'
   const isSiigoFullyConfigured = isSiigoConfigured && hasSiigoAccounts
+  const isJarvisFullyConfigured = isJarvisSetupComplete({
+    companyConfigured: isJarvisCompanyConfigured,
+    documentTypes: includedDocumentTypes,
+    supportResolutionConfigured: isSupportDocumentResolutionConfigured,
+    invoiceResolutionConfigured: isElectronicInvoiceResolutionConfigured,
+  })
   const isConfigured = isJarvisCompany
-    ? isJarvisConfigured
+    ? isJarvisFullyConfigured
     : isSiigoFullyConfigured
   const setupPath = isJarvisCompany ? JARVIS_SETUP_PATH : SIIGO_SETUP_PATH
-  const requiresSetup = integrationMode !== 'unknown' && !isConfigured
-  const isSupportDocumentEnabled = isSiigoCompany && isSiigoFullyConfigured
+  const isSetupStatusPending = isAuthLoading || isCheckingSetup
+  const requiresSetup =
+    !isSetupStatusPending &&
+    integrationMode !== 'unknown' &&
+    !isConfigured
+  const hasSupportDocumentAccess = includedDocumentTypes.includes(
+    'SUPPORT_DOCUMENT',
+  )
+  const hasPurchaseInvoiceAccess = includedDocumentTypes.includes(
+    'PURCHASE_INVOICE',
+  )
+  const isSupportDocumentEnabled =
+    isConfigured &&
+    isSubscriptionActive &&
+    hasSupportDocumentAccess &&
+    (isSiigoCompany || isJarvisCompany)
+  const isPurchaseInvoiceEnabled =
+    isSiigoCompany &&
+    isSiigoFullyConfigured &&
+    isSubscriptionActive &&
+    hasPurchaseInvoiceAccess
 
   const value = useMemo<IntegrationSetupContextValue>(
     () => ({
-      isCheckingSetup,
+      isCheckingSetup: isSetupStatusPending,
       integrationMode,
       integrationProviders,
       isConfigured,
@@ -165,15 +288,23 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisCompany,
       isSiigoConfigured,
       hasSiigoAccounts,
-      isJarvisConfigured,
+      isJarvisCompanyConfigured,
+      isJarvisConfigured: isJarvisCompanyConfigured,
+      includedDocumentTypes,
+      isSubscriptionActive,
+      hasSupportDocumentAccess,
+      hasPurchaseInvoiceAccess,
+      isSupportDocumentResolutionConfigured,
+      isElectronicInvoiceResolutionConfigured,
       isSupportDocumentEnabled,
+      isPurchaseInvoiceEnabled,
       requiresSetup,
       setupPath,
       markConfigured,
       refreshSetupStatus,
     }),
     [
-      isCheckingSetup,
+      isSetupStatusPending,
       integrationMode,
       integrationProviders,
       isConfigured,
@@ -181,8 +312,15 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisCompany,
       isSiigoConfigured,
       hasSiigoAccounts,
-      isJarvisConfigured,
+      isJarvisCompanyConfigured,
+      includedDocumentTypes,
+      isSubscriptionActive,
+      hasSupportDocumentAccess,
+      hasPurchaseInvoiceAccess,
+      isSupportDocumentResolutionConfigured,
+      isElectronicInvoiceResolutionConfigured,
       isSupportDocumentEnabled,
+      isPurchaseInvoiceEnabled,
       requiresSetup,
       setupPath,
       markConfigured,

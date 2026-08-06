@@ -17,48 +17,20 @@ interface SupportDocumentColumnHeaderProps {
   children?: React.ReactNode
 }
 
-function ColumnSortIcon({
-  isActive,
-  sortDirection,
-}: {
-  isActive: boolean
-  sortDirection: 'asc' | 'desc'
-}) {
+function ColumnFilterIcon() {
   return (
-    <span
-      className={[
-        'support-table__column-sort',
-        isActive ? 'support-table__column-sort--active' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
+    <svg
+      className="support-table__column-filter-icon"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
     >
-      <span
-        className={[
-          'support-table__column-sort-arrow',
-          isActive && sortDirection === 'asc'
-            ? 'support-table__column-sort-arrow--active'
-            : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        ▲
-      </span>
-      <span
-        className={[
-          'support-table__column-sort-arrow',
-          isActive && sortDirection === 'desc'
-            ? 'support-table__column-sort-arrow--active'
-            : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        ▼
-      </span>
-    </span>
+      <path d="M2.5 3.5h11l-4.25 5v4l-2.5 1.25V8.5L2.5 3.5Z" />
+    </svg>
   )
 }
 
@@ -83,6 +55,9 @@ function SupportDocumentColumnHeader({
     sortColumn != null ? (onHeaderClick ?? onSort) : undefined
   const isSortable = Boolean(sortColumn && handleHeaderClick)
   const isSortActive = sortColumn != null && activeSortColumn === sortColumn
+  const sortAriaLabel = isSortActive
+    ? `${label}, ordenado ${sortDirection === 'asc' ? 'ascendente' : 'descendente'}`
+    : `Ordenar por ${label}`
 
   useEffect(() => {
     if (!isFilterOpen) {
@@ -131,6 +106,7 @@ function SupportDocumentColumnHeader({
             className="support-table__column-label"
             onClick={() => sortColumn && handleHeaderClick?.(sortColumn)}
             disabled={disabled}
+            aria-label={sortAriaLabel}
           >
             <span
               className={[
@@ -142,12 +118,6 @@ function SupportDocumentColumnHeader({
             >
               {label}
             </span>
-            {!children && (
-              <ColumnSortIcon
-                isActive={isSortActive}
-                sortDirection={sortDirection}
-              />
-            )}
           </button>
         ) : (
           <span
@@ -177,10 +147,7 @@ function SupportDocumentColumnHeader({
             aria-controls={popoverId}
             aria-label={`Filtrar ${label}`}
           >
-            <ColumnSortIcon
-              isActive={isFilterActive || isSortActive}
-              sortDirection={sortDirection}
-            />
+            <ColumnFilterIcon />
           </button>
         )}
       </div>

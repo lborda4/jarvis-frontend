@@ -78,10 +78,11 @@ export interface ElectronicDocumentListItem {
   issueDate: string | null
   supplierName: string | null
   supplierNit: string | null
+  supplierDocumentType?: string | null
   total: number
   status: ElectronicDocumentStatus
   electronicDocumentType?: string | null
-  siigoDocumentNumber?: number | null
+  siigoDocumentNumber?: string | number | null
   supplierExistsInSiigo?: boolean | null
   suggestedAccount?: SuggestedAccount | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
@@ -128,7 +129,7 @@ export interface ElectronicDocumentSupplierFilterOption {
 
 export interface ElectronicDocumentFilterOptions {
   issueDates: string[]
-  siigoDocumentNumbers: number[]
+  siigoDocumentNumbers: string[]
   importStatuses: string[]
   suppliers: ElectronicDocumentSupplierFilterOption[]
 }

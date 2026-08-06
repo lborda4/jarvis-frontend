@@ -61,7 +61,9 @@ function normalizeExcelDateCell(value: unknown): string | null {
 
 export async function validateSupportDocumentExcelDates(
   file: File,
+  options?: { enforceDateRange?: boolean },
 ): Promise<void> {
+  const enforceDateRange = options?.enforceDateRange !== false
   const buffer = await file.arrayBuffer()
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
   const sheetName = workbook.SheetNames[0]
@@ -95,7 +97,10 @@ export async function validateSupportDocumentExcelDates(
       return
     }
 
-    if (!isSupportDocumentDateInRange(normalizedDate, minDate, maxDate)) {
+    if (
+      enforceDateRange &&
+      !isSupportDocumentDateInRange(normalizedDate, minDate, maxDate)
+    ) {
       invalidRows.push(excelRowNumber)
     }
   })

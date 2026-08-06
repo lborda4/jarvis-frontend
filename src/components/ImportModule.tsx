@@ -40,6 +40,7 @@ function ImportModule({
     importSelected,
     closeSupplierModal,
     createSupplier,
+    setSupplierPersonType,
     retryCreateSupplier,
     continueAfterSupplierCreated,
     closeAccountModal,
@@ -98,9 +99,11 @@ function ImportModule({
         view={supplierModal.view}
         supplierName={supplierModal.supplierName}
         supplierDocument={supplierModal.supplierDocument}
+        personType={supplierModal.personType}
         errorMessage={supplierModal.errorMessage}
         createdSupplier={supplierModal.createdSupplier}
         onCancel={closeSupplierModal}
+        onPersonTypeChange={setSupplierPersonType}
         onCreateSupplier={createSupplier}
         onContinue={continueAfterSupplierCreated}
         onRetry={retryCreateSupplier}

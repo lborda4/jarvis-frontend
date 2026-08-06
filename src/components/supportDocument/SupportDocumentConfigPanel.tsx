@@ -21,6 +21,7 @@ interface SupportDocumentConfigPanelProps {
   selectedAccount: SiigoAccountOption | null
   selectedPaymentMethod: SiigoPaymentMethodOption | null
   selectedCostCenter: SiigoCostCenterOption
+  showAccountField?: boolean
   canSend: boolean
   canDelete: boolean
   isSending: boolean
@@ -60,6 +61,7 @@ function SupportDocumentConfigPanel({
   selectedAccount,
   selectedPaymentMethod,
   selectedCostCenter,
+  showAccountField = true,
   canSend,
   canDelete,
   isSending,
@@ -101,7 +103,9 @@ function SupportDocumentConfigPanel({
             ? `${deletableCount} listo(s) para eliminar`
             : sendableCount > 0
               ? `${sendableCount} listo(s) para enviar`
-              : 'Complete cuenta contable y medio de pago'}
+              : showAccountField
+                ? 'Complete cuenta contable y medio de pago'
+                : 'Revise medio de pago y retenciones (opcionales)'}
         </span>
         <span className="support-config-panel__chevron" aria-hidden="true">
           {isExpanded ? '▾' : '▸'}
@@ -112,17 +116,19 @@ function SupportDocumentConfigPanel({
         <div className="support-config-panel__body">
           {!isDeleteMode && (
             <div className="support-config-panel__fields">
-              <div className="support-config-panel__field">
-                <label htmlFor="support-config-account">Cuenta contable</label>
-                <AccountAutocomplete
-                  id="support-config-account"
-                  value={selectedAccount}
-                  onChange={onAccountChange}
-                  options={accountOptions}
-                  disabled={controlsDisabled}
-                  placeholder="Buscar cuenta (código o nombre)..."
-                />
-              </div>
+              {showAccountField && (
+                <div className="support-config-panel__field">
+                  <label htmlFor="support-config-account">Cuenta contable</label>
+                  <AccountAutocomplete
+                    id="support-config-account"
+                    value={selectedAccount}
+                    onChange={onAccountChange}
+                    options={accountOptions}
+                    disabled={controlsDisabled}
+                    placeholder="Buscar cuenta (código o nombre)..."
+                  />
+                </div>
+              )}
 
               <div className="support-config-panel__field">
                 <label htmlFor="support-config-payment-method">

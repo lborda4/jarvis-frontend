@@ -1,17 +1,16 @@
 import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
+import TercerosPage from '../pages/TercerosPage'
 import '../pages/AuthPages.css'
 
-function DefaultAppRedirect() {
+function TercerosRoute() {
   const {
     isCheckingSetup,
-    requiresSetup,
-    setupPath,
     isJarvisCompany,
     isConfigured,
-    isSupportDocumentEnabled,
     integrationMode,
+    setupPath,
   } = useIntegrationSetup()
 
   if (isCheckingSetup || integrationMode === 'unknown') {
@@ -22,7 +21,11 @@ function DefaultAppRedirect() {
     )
   }
 
-  if (requiresSetup) {
+  if (!isJarvisCompany) {
+    return <Navigate to={setupPath} replace />
+  }
+
+  if (!isConfigured) {
     return (
       <Navigate
         to={setupPath}
@@ -32,15 +35,7 @@ function DefaultAppRedirect() {
     )
   }
 
-  if (isSupportDocumentEnabled) {
-    return <Navigate to="/documento-soporte" replace />
-  }
-
-  if (isJarvisCompany && isConfigured) {
-    return <Navigate to="/terceros" replace />
-  }
-
-  return <Navigate to="/documento-soporte" replace />
+  return <TercerosPage />
 }
 
-export default DefaultAppRedirect
+export default TercerosRoute

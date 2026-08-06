@@ -7,7 +7,7 @@ import '../pages/AuthPages.css'
 function PurchaseInvoiceRoute() {
   const {
     isCheckingSetup,
-    isSupportDocumentEnabled,
+    isPurchaseInvoiceEnabled,
     isJarvisCompany,
     setupPath,
   } = useIntegrationSetup()
@@ -24,7 +24,7 @@ function PurchaseInvoiceRoute() {
     return <Navigate to={setupPath} replace />
   }
 
-  if (!isSupportDocumentEnabled) {
+  if (!isPurchaseInvoiceEnabled) {
     return (
       <Navigate
         to={setupPath}

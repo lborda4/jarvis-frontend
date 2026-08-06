@@ -14,7 +14,7 @@
 
 .admin-page__eyebrow {
   margin: 0 0 0.35rem;
-  color: var(--jarvis-brand);
+  color: var(--jarvis-primary);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -22,18 +22,19 @@
 }
 
 .admin-page__header h1 {
-  margin: 0 0 0.45rem;
-  color: #1a2b3c;
-  font-size: 2rem;
+  margin: 0 0 0.35rem;
+  color: var(--jarvis-navy);
+  font-size: 1.55rem;
 }
 
 .admin-page__header p {
   margin: 0;
-  color: #5a6b7d;
+  color: var(--jarvis-text-muted);
+  font-size: 0.94rem;
 }
 
 .admin-page__back-link {
-  color: var(--jarvis-brand);
+  color: var(--jarvis-primary);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -47,9 +48,9 @@
   margin-bottom: 1.5rem;
   padding: 1.5rem;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: #ffffff;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-card__header h2 {
@@ -94,7 +95,7 @@
   width: 100%;
   padding: 0.72rem 0.85rem;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   font-size: 0.94rem;
   background: #ffffff;
 }
@@ -107,7 +108,7 @@
   margin: 0;
   padding: 0.85rem 1rem;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
 }
 
 .admin-form__responsible {
@@ -127,12 +128,71 @@
   font-size: 0.94rem;
 }
 
+.admin-rut-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1rem;
+  border: 1px dashed #94a3b8;
+  border-radius: var(--r-sm);
+  background: #f8fafc;
+}
+
+.admin-rut-upload h3 {
+  margin: 0 0 0.25rem;
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.admin-rut-upload p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.admin-rut-upload__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.68rem 0.9rem;
+  border: 1px solid var(--jarvis-primary);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  color: var(--jarvis-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-rut-upload__button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.admin-rut-upload__file,
+.admin-rut-upload__detected,
+.admin-rut-upload__warnings {
+  grid-column: 1 / -1;
+}
+
+.admin-rut-upload__warnings {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #92400e;
+  font-size: 0.85rem;
+}
+
 .admin-form__submit {
   align-self: flex-start;
   padding: 0.78rem 1.1rem;
   border: none;
-  border-radius: 10px;
-  background: var(--jarvis-brand);
+  border-radius: var(--r-sm);
+  background: var(--jarvis-primary);
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
@@ -161,13 +221,93 @@
 }
 
 .admin-table th {
-  color: #6b7280;
-  font-weight: 600;
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .admin-empty {
   margin: 0;
   color: #6b7280;
+}
+
+.admin-document-types {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 11rem;
+}
+
+.admin-integration-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 12rem;
+}
+
+.admin-integration-stack__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-integration-stack__label {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-plan-select {
+  min-width: 12rem;
+  max-width: 18rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: var(--r-sm);
+  background: #fff;
+  font-size: 0.85rem;
+}
+
+.admin-plan-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-subscription-status {
+  display: block;
+  color: #4b5563;
+  font-size: 0.82rem;
+}
+
+.admin-subscription-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-subscription-actions div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-subscription-actions button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  border-radius: var(--r-sm);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.admin-subscription-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {
@@ -177,5 +317,9 @@
 
   .admin-page__header {
     flex-direction: column;
+  }
+
+  .admin-rut-upload {
+    grid-template-columns: 1fr;
   }
 }

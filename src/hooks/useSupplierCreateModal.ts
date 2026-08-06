@@ -1,7 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
-import type { CreatedSiigoSupplier } from '../types/siigo'
+import type {
+  CreatedSiigoSupplier,
+  SiigoSupplierPersonType,
+} from '../types/siigo'
 import { getApiErrorMessage } from '../services/apiClient'
 import { createSiigoSupplier } from '../services/siigoService'
+import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
 
 export type SupplierModalView = 'confirm' | 'loading' | 'success' | 'error'
 
@@ -10,6 +14,7 @@ export interface SupplierModalState {
   documentId: string
   supplierName: string | null
   supplierDocument: string
+  personType: SiigoSupplierPersonType | ''
   view: SupplierModalView
   errorMessage: string | null
   createdSupplier: CreatedSiigoSupplier | null
@@ -20,6 +25,7 @@ const initialModalState: SupplierModalState = {
   documentId: '',
   supplierName: null,
   supplierDocument: '',
+  personType: '',
   view: 'confirm',
   errorMessage: null,
   createdSupplier: null,
@@ -31,6 +37,7 @@ function normalizeDocumentId(documentId: string | null | undefined): string {
 
 export function useSupplierCreateModal() {
   const activeDocumentIdRef = useRef('')
+  const personTypeRef = useRef<SiigoSupplierPersonType | ''>('')
   const [modalState, setModalState] = useState<SupplierModalState>(
     initialModalState,
   )
@@ -42,14 +49,19 @@ export function useSupplierCreateModal() {
       supplierDocument: string
     }) => {
       const documentId = normalizeDocumentId(params.documentId)
+      const inferredPersonType = inferSiigoSupplierIdentity(
+        params.supplierDocument,
+      ).personType
 
       activeDocumentIdRef.current = documentId
+      personTypeRef.current = inferredPersonType
 
       setModalState({
         isOpen: true,
         documentId,
         supplierName: params.supplierName,
         supplierDocument: params.supplierDocument,
+        personType: inferredPersonType,
         view: 'confirm',
         errorMessage: null,
         createdSupplier: null,
@@ -60,13 +72,25 @@ export function useSupplierCreateModal() {
 
   const closeModal = useCallback(() => {
     activeDocumentIdRef.current = ''
+    personTypeRef.current = ''
     setModalState(initialModalState)
+  }, [])
+
+  const setPersonType = useCallback((personType: SiigoSupplierPersonType) => {
+    personTypeRef.current = personType
+    setModalState((current) => ({
+      ...current,
+      personType,
+      errorMessage:
+        current.view === 'confirm' ? null : current.errorMessage,
+    }))
   }, [])
 
   const createSupplier = useCallback(async (documentIdOverride?: string) => {
     const documentId = normalizeDocumentId(
       documentIdOverride || activeDocumentIdRef.current,
     )
+    const personType = personTypeRef.current
 
     if (!documentId) {
       setModalState((current) => ({
@@ -77,16 +101,27 @@ export function useSupplierCreateModal() {
       return
     }
 
+    if (!personType) {
+      setModalState((current) => ({
+        ...current,
+        view: 'confirm',
+        errorMessage:
+          'Debe indicar si el proveedor es persona natural o persona jurídica.',
+      }))
+      return
+    }
+
     activeDocumentIdRef.current = documentId
 
     setModalState((current) => ({
       ...current,
       documentId,
+      personType,
       view: 'loading',
       errorMessage: null,
     }))
 
-    const payload = { documentId }
+    const payload = { documentId, person_type: personType }
 
     console.log('[Supplier Modal] ANTES — crear proveedor:', payload)
 
@@ -125,6 +160,7 @@ export function useSupplierCreateModal() {
     modalState,
     openSupplierNotFoundModal,
     closeModal,
+    setPersonType,
     createSupplier,
     retryCreateSupplier,
   }

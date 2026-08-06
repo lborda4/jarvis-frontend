@@ -37,9 +37,9 @@ export type SiigoSupplierPersonType = 'person' | 'company'
 export type SiigoSupplierIdType = '13' | '31'
 
 export interface CreateSiigoSupplierRequest extends DocumentIdRequest {
+  person_type: SiigoSupplierPersonType
   name?: string
   identification?: string
-  person_type?: SiigoSupplierPersonType
   id_type?: SiigoSupplierIdType
 }
 
@@ -297,9 +297,27 @@ export interface SaveSiigoCredentialsResponse {
   expires_at: string
 }
 
+export interface SiigoSubscriptionPlan {
+  id: string
+  name: string
+  code: string
+  documentLimit: number | null
+  includedDocumentTypes: string[]
+}
+
+export interface SiigoSubscriptionStatus {
+  status: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED' | null
+  startedAt: string | null
+  documentLimit: number | null
+  documentsUsed: number
+  includedDocumentTypes: string[]
+  plan: SiigoSubscriptionPlan | null
+}
+
 export interface SiigoCredentialsStatusResponse {
   configured: boolean
   hasAccounts: boolean
+  subscription: SiigoSubscriptionStatus
   username?: string
   partner_id?: string
 }

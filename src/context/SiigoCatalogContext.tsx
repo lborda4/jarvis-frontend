@@ -278,15 +278,104 @@ export function useSiigoCatalog(): SiigoCatalogContextValue {
 
 export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
   const catalog = useSiigoCatalog()
-
-  const paymentMethodOptions = useMemo(
-    () =>
-      catalog.paymentMethodOptionsByDocumentType[config.paymentDocumentType] ??
-      [],
-    [catalog.paymentMethodOptionsByDocumentType, config.paymentDocumentType],
+  const [jarvisPaymentMethods, setJarvisPaymentMethods] = useState<
+    SiigoPaymentMethodOption[]
+  >([])
+  const [jarvisRetentionsByType, setJarvisRetentionsByType] = useState<
+    Record<string, SiigoTaxOption[]>
+  >({})
+  const [jarvisCatalogError, setJarvisCatalogError] = useState<string | null>(
+    null,
   )
+  const [isLoadingJarvisCatalogs, setIsLoadingJarvisCatalogs] = useState(false)
+
+  useEffect(() => {
+    if (config.provider !== 'JARVIS') {
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      setIsLoadingJarvisCatalogs(true)
+      setJarvisCatalogError(null)
+
+      try {
+        const { fetchJarvisCatalogs } = await import(
+          '../services/jarvisService'
+        )
+        const response = await fetchJarvisCatalogs()
+
+        if (cancelled) {
+          return
+        }
+
+        setJarvisPaymentMethods(
+          response.paymentMethods.map((item) => ({
+            id: item.id,
+            name: item.name,
+            type: item.type ?? 'NextPyme',
+          })),
+        )
+
+        const byType: Record<string, SiigoTaxOption[]> = {}
+        for (const taxType of config.retentionCatalogTypes) {
+          byType[taxType] = response.taxes
+            .filter((tax) =>
+              tax.name.toLowerCase().includes(taxType.toLowerCase()),
+            )
+            .map((tax) => ({
+              id: tax.id,
+              name: tax.name,
+              type: taxType,
+              percentage: tax.percentage ?? 0,
+              active: true,
+            }))
+        }
+
+        setJarvisRetentionsByType(byType)
+      } catch (error) {
+        if (!cancelled) {
+          setJarvisCatalogError(
+            getApiErrorMessage(
+              error,
+              'No se pudieron cargar los catálogos de Jarvis/NextPyme.',
+            ),
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingJarvisCatalogs(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [config.provider, config.retentionCatalogTypes])
+
+  const paymentMethodOptions = useMemo(() => {
+    if (config.provider === 'JARVIS') {
+      return jarvisPaymentMethods
+    }
+
+    return (
+      catalog.paymentMethodOptionsByDocumentType[config.paymentDocumentType] ??
+      []
+    )
+  }, [
+    catalog.paymentMethodOptionsByDocumentType,
+    config.paymentDocumentType,
+    config.provider,
+    jarvisPaymentMethods,
+  ])
 
   const retentionOptionsByType = useMemo(() => {
+    if (config.provider === 'JARVIS') {
+      return jarvisRetentionsByType
+    }
+
     const optionsByType: Record<string, SiigoTaxOption[]> = {}
 
     for (const taxType of config.retentionCatalogTypes) {
@@ -294,7 +383,12 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     }
 
     return optionsByType
-  }, [catalog.retentionOptionsByTaxType, config.retentionCatalogTypes])
+  }, [
+    catalog.retentionOptionsByTaxType,
+    config.provider,
+    config.retentionCatalogTypes,
+    jarvisRetentionsByType,
+  ])
 
   const retentionCatalogOptions = useMemo(
     () =>
@@ -307,16 +401,27 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
   )
 
   return {
-    isLoadingCatalogs: catalog.isLoadingCatalogs,
-    accountOptions: catalog.accountOptions,
+    isLoadingCatalogs:
+      config.provider === 'JARVIS'
+        ? isLoadingJarvisCatalogs
+        : catalog.isLoadingCatalogs,
+    accountOptions: config.provider === 'JARVIS' ? [] : catalog.accountOptions,
     paymentMethodOptions,
     retentionCatalogOptions,
     retentionOptionsByType,
-    costCenterOptions: catalog.costCenterOptions,
-    accountsError: catalog.accountsError,
-    paymentMethodsError: catalog.paymentMethodsError,
-    costCentersError: catalog.costCentersError,
-    retentionsError: catalog.retentionsError,
+    costCenterOptions:
+      config.provider === 'JARVIS' ? [] : catalog.costCenterOptions,
+    accountsError: config.provider === 'JARVIS' ? null : catalog.accountsError,
+    paymentMethodsError:
+      config.provider === 'JARVIS'
+        ? jarvisCatalogError
+        : catalog.paymentMethodsError,
+    costCentersError:
+      config.provider === 'JARVIS' ? null : catalog.costCentersError,
+    retentionsError:
+      config.provider === 'JARVIS'
+        ? jarvisCatalogError
+        : catalog.retentionsError,
     refreshCatalogs: catalog.refreshCatalogs,
   }
 }

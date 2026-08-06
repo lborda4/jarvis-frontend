@@ -18,11 +18,14 @@ function triggerBrowserDownload(blob: Blob, filename: string): void {
   window.URL.revokeObjectURL(url)
 }
 
-export async function downloadSupportDocumentTemplate(): Promise<void> {
+export async function downloadSupportDocumentTemplate(
+  provider?: 'SIIGO' | 'JARVIS',
+): Promise<void> {
   const response = await apiClient.get<Blob>(
     SUPPORT_DOCUMENT_TEMPLATE_ENDPOINT,
     {
       responseType: 'blob',
+      params: provider ? { provider } : undefined,
     },
   )
 

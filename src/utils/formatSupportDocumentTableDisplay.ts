@@ -60,11 +60,12 @@ export function formatSupportDocumentTableSupplierDocument(
 }
 
 export function formatSupportDocumentTableSiigoNumber(
-  siigoDocumentNumber: number | null | undefined,
+  siigoDocumentNumber: string | number | null | undefined,
 ): string {
   if (siigoDocumentNumber === null || siigoDocumentNumber === undefined) {
     return '—'
   }
 
-  return String(siigoDocumentNumber)
+  const normalized = String(siigoDocumentNumber).trim()
+  return normalized || '—'
 }

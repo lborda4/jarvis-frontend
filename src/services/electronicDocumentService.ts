@@ -9,9 +9,10 @@ import { apiClient } from './apiClient'
 const ELECTRONIC_DOCUMENTS_ENDPOINT = '/electronic-documents'
 const ELECTRONIC_DOCUMENT_FILTER_OPTIONS_ENDPOINT =
   '/electronic-documents/filter-options'
-const RESUME_DOCUMENT_ENDPOINT = '/integrations/siigo/documents/resume'
-const RESUME_DOCUMENTS_BATCH_ENDPOINT =
+const SIIGO_RESUME_DOCUMENT_ENDPOINT = '/integrations/siigo/documents/resume'
+const SIIGO_RESUME_DOCUMENTS_BATCH_ENDPOINT =
   '/integrations/siigo/documents/resume-batch'
+const JARVIS_RESUME_DOCUMENT_ENDPOINT = '/integrations/jarvis/documents/resume'
 
 export async function fetchElectronicDocuments(
   filters: Partial<ElectronicDocumentListFilters> = {},
@@ -71,9 +72,15 @@ export async function fetchElectronicDocumentFilterOptions(
 
 export async function resumeElectronicDocument(
   documentId: string,
+  provider: 'SIIGO' | 'JARVIS' = 'SIIGO',
 ): Promise<ResumeElectronicDocumentResponse> {
+  const endpoint =
+    provider === 'JARVIS'
+      ? JARVIS_RESUME_DOCUMENT_ENDPOINT
+      : SIIGO_RESUME_DOCUMENT_ENDPOINT
+
   const response = await apiClient.post<ResumeElectronicDocumentResponse>(
-    RESUME_DOCUMENT_ENDPOINT,
+    endpoint,
     { documentId },
   )
 
@@ -88,7 +95,7 @@ export async function resumeElectronicDocumentsBatch(
   documentIds: string[],
 ): Promise<ResumeElectronicDocumentsBatchResponse> {
   const response = await apiClient.post<ResumeElectronicDocumentsBatchResponse>(
-    RESUME_DOCUMENTS_BATCH_ENDPOINT,
+    SIIGO_RESUME_DOCUMENTS_BATCH_ENDPOINT,
     { documentIds },
   )
 

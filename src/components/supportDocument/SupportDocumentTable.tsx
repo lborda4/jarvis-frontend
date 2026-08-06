@@ -86,10 +86,12 @@ interface SupportDocumentTableProps {
   sortDisabled?: boolean
   canSendRow: (rowId: string) => boolean
   sendProcessingLabel?: string
+  supplierMissingLabel?: string
   onToggleRow: (id: string) => void
   onSelectRows: (ids: string[]) => void
   onSendDocument: (document: ElectronicDocumentListItem) => void
   onDeleteDocument: (document: ElectronicDocumentListItem) => void
+  onCreateSupplier?: (document: ElectronicDocumentListItem) => void
   onSortChange: (column: SupportDocumentSortColumn) => void
   documentsById: Record<string, ElectronicDocumentListItem>
 }
@@ -115,6 +117,7 @@ function ActionCell({
   isSendingDocument = false,
   isDeletingDocument = false,
   sendProcessingLabel = 'Enviando documento a SIIGO...',
+  supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
 }: {
   action: SupportDocumentAction
   disabled?: boolean
@@ -122,11 +125,25 @@ function ActionCell({
   isSendingDocument?: boolean
   isDeletingDocument?: boolean
   sendProcessingLabel?: string
+  supplierMissingLabel?: string
 }) {
   if (action === 'supplier_missing') {
+    if (onClick) {
+      return (
+        <button
+          type="button"
+          className="support-table__action support-table__action--primary"
+          disabled={disabled}
+          onClick={onClick}
+        >
+          {supplierMissingLabel}
+        </button>
+      )
+    }
+
     return (
       <span className="support-table__action support-table__action--hint">
-        Debe crear el proveedor en SIIGO
+        {supplierMissingLabel}
       </span>
     )
   }
@@ -194,10 +211,12 @@ function SupportDocumentTable({
   sortDisabled = false,
   canSendRow,
   sendProcessingLabel,
+  supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
   onToggleRow,
   onSelectRows,
   onSendDocument,
   onDeleteDocument,
+  onCreateSupplier,
   onSortChange,
   documentsById,
 }: SupportDocumentTableProps) {
@@ -374,6 +393,10 @@ function SupportDocumentTable({
                 }
                 if (row.action === 'delete') {
                   void onDeleteDocument(document)
+                  return
+                }
+                if (row.action === 'supplier_missing' && onCreateSupplier) {
+                  onCreateSupplier(document)
                 }
               }
 
@@ -455,10 +478,15 @@ function SupportDocumentTable({
                     <ActionCell
                       action={isRowDeleting ? 'processing' : row.action}
                       disabled={actionDisabled}
-                      onClick={handleAction}
+                      onClick={
+                        row.action === 'supplier_missing' && !onCreateSupplier
+                          ? undefined
+                          : handleAction
+                      }
                       isSendingDocument={isProcessing && isSending}
                       isDeletingDocument={isRowDeleting}
                       sendProcessingLabel={sendProcessingLabel}
+                      supplierMissingLabel={supplierMissingLabel}
                     />
                   </td>
                 </tr>,

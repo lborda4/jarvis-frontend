@@ -9,14 +9,15 @@
 }
 
 .invoice-upload__header h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
-  color: #1a2b3c;
+  margin: 0 0 0.35rem;
+  font-size: 1.55rem;
+  color: var(--jarvis-navy);
 }
 
 .invoice-upload__header p {
   margin: 0;
-  color: #5a6b7d;
+  color: var(--jarvis-text-muted);
+  font-size: 0.94rem;
 }
 
 .file-upload__area {
@@ -27,24 +28,24 @@
   gap: 0.5rem;
   padding: 2.5rem 1.5rem;
   border: 2px dashed #b8c5d6;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background-color: #f8fafc;
   cursor: pointer;
   transition: border-color 0.2s, background-color 0.2s;
 }
 
 .file-upload__area:hover:not(:disabled) {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
+  border-color: var(--jarvis-primary);
+  background-color: var(--jarvis-primary-soft);
 }
 
 .file-upload__area--dragging:not(:disabled) {
-  border-color: #2563eb;
-  background-color: #dbeafe;
+  border-color: var(--jarvis-primary);
+  background-color: var(--jarvis-primary-soft);
 }
 
 .file-upload__area:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--jarvis-primary);
   outline-offset: 2px;
 }
 
@@ -74,7 +75,7 @@
   gap: 0.75rem;
   margin-top: 1.5rem;
   padding: 1rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #eff6ff;
   color: #1d4ed8;
   font-weight: 500;
@@ -98,7 +99,7 @@
 .error-message {
   margin-top: 1.5rem;
   padding: 1rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #fef2f2;
   border: 1px solid #fecaca;
   color: #b91c1c;
@@ -107,7 +108,7 @@
 .success-message {
   margin-top: 1.5rem;
   padding: 1rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #ecfdf5;
   border: 1px solid #a7f3d0;
   color: #047857;
@@ -121,7 +122,7 @@
   margin-top: 1.5rem;
   padding: 1rem 1.25rem;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #f8fafc;
 }
 
@@ -162,7 +163,7 @@
 .loaded-file-info__change-button {
   padding: 0.45rem 0.85rem;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #ffffff;
   color: #334155;
   font-size: 0.88rem;
@@ -182,12 +183,14 @@
 
 .loaded-file-info__type {
   flex-shrink: 0;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background-color: #dbeafe;
-  color: #1d4ed8;
-  font-size: 0.82rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--r-sm);
+  background-color: #e2e8f0;
+  color: #334155;
+  font-size: 0.74rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -195,9 +198,9 @@
   margin-top: 2rem;
   padding: 1.5rem;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background-color: #ffffff;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+  box-shadow: var(--shadow-sm);
 }
 
 .results-panel__header {
@@ -231,8 +234,8 @@
   flex-shrink: 0;
   padding: 0.65rem 1.15rem;
   border: none;
-  border-radius: 8px;
-  background-color: var(--jarvis-brand);
+  border-radius: var(--r-sm);
+  background-color: var(--jarvis-primary);
   color: #ffffff;
   font-size: 0.95rem;
   font-weight: 600;
@@ -241,7 +244,7 @@
 }
 
 .import-siigo-button:hover:not(:disabled) {
-  background-color: var(--jarvis-brand-hover);
+  background-color: var(--jarvis-primary-hover);
 }
 
 .import-siigo-button:disabled {
@@ -256,7 +259,7 @@
   align-items: end;
   margin-bottom: 1.25rem;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #f8fafc;
 }
 
@@ -277,7 +280,7 @@
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #ffffff;
   color: #1e293b;
   font-size: 0.95rem;
@@ -285,16 +288,16 @@
 
 .invoice-filters__field input:focus-visible,
 .invoice-filters__field select:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--jarvis-brand-ring);
   outline-offset: 1px;
-  border-color: #3b82f6;
+  border-color: var(--jarvis-primary);
 }
 
 .invoice-filters__reset {
   align-self: end;
   padding: 0.6rem 0.9rem;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #ffffff;
   color: #475569;
   font-size: 0.9rem;
@@ -309,7 +312,7 @@
 .results-empty {
   margin: 0;
   padding: 1.5rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #f8fafc;
   color: #5a6b7d;
   text-align: center;
@@ -319,7 +322,7 @@
   max-height: 480px;
   overflow: auto;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 
 .results-table {
@@ -341,8 +344,11 @@
   top: 0;
   z-index: 1;
   background-color: #f1f5f9;
-  color: #334155;
-  font-weight: 600;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -392,10 +398,11 @@
 
 .status-badge {
   display: inline-block;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--r-sm);
+  font-size: 0.72rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   background-color: #e2e8f0;
   color: #475569;
@@ -434,8 +441,8 @@
 }
 
 .status-badge--requiere-cuenta {
-  background-color: #ede9fe;
-  color: var(--jarvis-brand-hover);
+  background-color: var(--jarvis-primary-soft);
+  color: var(--jarvis-primary-hover);
 }
 
 .status-badge--lista {
@@ -481,9 +488,9 @@
 .modal-dialog {
   width: min(100%, 520px);
   padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background-color: #ffffff;
-  box-shadow: 0 20px 40px rgb(15 23 42 / 18%);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-dialog__title {
@@ -508,7 +515,7 @@
 .modal-dialog__summary {
   margin-top: 0.25rem;
   padding: 0.85rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #f8fafc;
 }
 
@@ -518,6 +525,34 @@
 
 .modal-dialog__summary p + p {
   margin-top: 0.35rem;
+}
+
+.modal-dialog__fieldset {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--r-sm);
+}
+
+.modal-dialog__fieldset legend {
+  padding: 0 0.25rem;
+  color: #111827;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.modal-dialog__radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+  color: #374151;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.modal-dialog__radio input {
+  margin: 0;
 }
 
 .modal-dialog__success-message {
@@ -540,7 +575,7 @@
 
 .modal-dialog__button {
   padding: 0.65rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -563,12 +598,12 @@
 
 .modal-dialog__button--primary {
   border: none;
-  background-color: #0f766e;
+  background-color: var(--jarvis-primary);
   color: #ffffff;
 }
 
 .modal-dialog__button--primary:hover:not(:disabled) {
-  background-color: #0d9488;
+  background-color: var(--jarvis-primary-hover);
 }
 
 .supplier-details {
@@ -641,16 +676,16 @@
   width: 100%;
   padding: 0.65rem 0.75rem;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #ffffff;
   color: #1e293b;
   font-size: 0.95rem;
 }
 
 .account-autocomplete__input:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--jarvis-brand-ring);
   outline-offset: 1px;
-  border-color: #3b82f6;
+  border-color: var(--jarvis-primary);
 }
 
 .account-autocomplete__input:disabled {
@@ -672,9 +707,9 @@
   overflow-y: auto;
   list-style: none;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background-color: #ffffff;
-  box-shadow: 0 10px 24px rgb(15 23 42 / 12%);
+  box-shadow: var(--shadow-md);
 }
 
 .account-autocomplete__list--floating {

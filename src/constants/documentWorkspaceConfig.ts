@@ -10,6 +10,10 @@ import {
   createSiigoSupportDocument,
 } from '../services/siigoService'
 import {
+  createJarvisSupportDocument,
+  type CreateJarvisSupportDocumentRequest,
+} from '../services/jarvisService'
+import {
   ELECTRONIC_DOCUMENT_TYPE,
   type ElectronicDocumentType,
 } from '../types/electronicDocument'
@@ -30,19 +34,25 @@ import {
   buildSiigoSupportDocumentRequest,
 } from '../utils/buildSiigoDocumentRequest'
 import { EXCEL_FILE_INPUT, isExcelFile, isXmlFile, XML_AND_EXCEL_FILE_INPUT } from '../utils/fileType'
-import { validateSupportDocumentExcelDates } from '../utils/validateSupportDocumentExcel'
+  import { validateSupportDocumentExcelDates } from '../utils/validateSupportDocumentExcel'
+import { getTodayLocalDate } from '../utils/supportDocumentDate'
 
 export interface DocumentWorkspaceImportResult {
   documentIds: string[]
   documentCount: number
 }
 
+export type DocumentWorkspaceProvider = 'SIIGO' | 'JARVIS'
+
 export interface DocumentWorkspaceConfig {
   key: 'supportDocument' | 'purchaseInvoice'
+  provider: DocumentWorkspaceProvider
   routePath: string
   electronicDocumentType: ElectronicDocumentType
   paymentDocumentType: string
   retentionCatalogTypes: readonly string[]
+  requiresAccount: boolean
+  requiresPaymentMethod: boolean
   pageTitle: string
   pageDescription: string
   loadDocumentsError: string
@@ -55,28 +65,38 @@ export interface DocumentWorkspaceConfig {
   downloadingTemplateLabel: string
   fileInputAccept: string
   showTemplateDownload: boolean
+  supplierMissingLabel: string
   downloadTemplate?: () => Promise<void>
   importFile: (file: File) => Promise<DocumentWorkspaceImportResult>
   buildSendRequest: (
     document: ElectronicDocumentListItem,
-    account: SiigoAccountOption,
-    paymentMethod: SiigoPaymentMethodOption,
+    account: SiigoAccountOption | null,
+    paymentMethod: SiigoPaymentMethodOption | null,
     retentions: SiigoTaxOption[],
     costCenter: SiigoCostCenterOption | null,
     selectedDate: string,
     observations?: string,
     savePreferences?: boolean,
-  ) => CreateSiigoSupportDocumentRequest | CreateSiigoPurchaseSendRequest
-  sendToSiigo: (
-    request: CreateSiigoSupportDocumentRequest | CreateSiigoPurchaseSendRequest,
+  ) =>
+    | CreateSiigoSupportDocumentRequest
+    | CreateSiigoPurchaseSendRequest
+    | CreateJarvisSupportDocumentRequest
+  sendDocument: (
+    request:
+      | CreateSiigoSupportDocumentRequest
+      | CreateSiigoPurchaseSendRequest
+      | CreateJarvisSupportDocumentRequest,
   ) => Promise<unknown>
   sendSuccessFeedback: (sentCount: number, failedCount: number) => string
 }
 
 async function importSupportDocumentExcel(
   file: File,
+  options?: { enforceDateRange?: boolean },
 ): Promise<DocumentWorkspaceImportResult> {
-  await validateSupportDocumentExcelDates(file)
+  await validateSupportDocumentExcelDates(file, {
+    enforceDateRange: options?.enforceDateRange !== false,
+  })
 
   const { rawResponse } = await supportDocumentExcelSource.upload(file, {
     electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
@@ -119,12 +139,56 @@ async function importPurchaseInvoiceFile(
   throw new Error('Solo se permiten archivos XML (.xml) para factura de compra.')
 }
 
+function buildJarvisSupportDocumentRequest(
+  document: ElectronicDocumentListItem,
+  _account: SiigoAccountOption | null,
+  paymentMethod: SiigoPaymentMethodOption | null,
+  retentions: SiigoTaxOption[],
+  _costCenter: SiigoCostCenterOption | null,
+  selectedDate: string,
+  observations?: string,
+): CreateJarvisSupportDocumentRequest {
+  const documentDate =
+    selectedDate.trim() ||
+    document.issueDate?.trim() ||
+    getTodayLocalDate()
+  const resolvedObservations =
+    observations?.trim() || document.observations?.trim() || undefined
+
+  return {
+    documentId: document.id,
+    date: documentDate,
+    ...(resolvedObservations ? { observations: resolvedObservations } : {}),
+    ...(retentions.length > 0
+      ? {
+          retentions: retentions.map((tax) => ({
+            id: tax.id,
+            type: tax.type,
+            percentage: tax.percentage,
+          })),
+        }
+      : {}),
+    ...(paymentMethod
+      ? {
+          payment: {
+            id: paymentMethod.id,
+            payment_form_id: 1,
+            due_date: documentDate,
+          },
+        }
+      : {}),
+  }
+}
+
 export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   key: 'supportDocument',
+  provider: 'SIIGO',
   routePath: '/documento-soporte',
   electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
   paymentDocumentType: SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE,
   retentionCatalogTypes: SUPPORT_DOCUMENT_RETENTION_CATALOG_TYPES,
+  requiresAccount: true,
+  requiresPaymentMethod: true,
   pageTitle: 'Documento Soporte',
   pageDescription:
     'Descarga la plantilla Excel, completa tus datos e impórtalos aquí.',
@@ -139,22 +203,82 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   downloadingTemplateLabel: 'Descargando...',
   fileInputAccept: EXCEL_FILE_INPUT,
   showTemplateDownload: true,
-  downloadTemplate: downloadSupportDocumentTemplate,
+  supplierMissingLabel: 'Debe crear el proveedor en SIIGO',
+  downloadTemplate: () => downloadSupportDocumentTemplate('SIIGO'),
   importFile: importSupportDocumentExcel,
-  buildSendRequest: buildSiigoSupportDocumentRequest,
-  sendToSiigo: (request) => createSiigoSupportDocument(request as CreateSiigoSupportDocumentRequest),
+  buildSendRequest: (
+    document,
+    account,
+    paymentMethod,
+    retentions,
+    costCenter,
+    selectedDate,
+    observations,
+    savePreferences,
+  ) =>
+    buildSiigoSupportDocumentRequest(
+      document,
+      account!,
+      paymentMethod!,
+      retentions,
+      costCenter,
+      selectedDate,
+      observations,
+      savePreferences,
+    ),
+  sendDocument: (request) =>
+    createSiigoSupportDocument(request as CreateSiigoSupportDocumentRequest),
   sendSuccessFeedback: (sentCount, failedCount) =>
     failedCount > 0
       ? `${sentCount} documento(s) enviados. ${failedCount} fallaron.`
       : `${sentCount} documento(s) enviados correctamente a SIIGO.`,
 }
 
+export const JARVIS_SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
+  key: 'supportDocument',
+  provider: 'JARVIS',
+  routePath: '/documento-soporte',
+  electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
+  paymentDocumentType: SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE,
+  retentionCatalogTypes: ['ReteRenta', 'ReteICA', 'ReteIVA'],
+  requiresAccount: false,
+  requiresPaymentMethod: false,
+  pageTitle: 'Documento Soporte',
+  pageDescription:
+    'Descarga la plantilla Excel, completa tus datos e impórtalos aquí. Luego envíalos a DIAN vía Jarvis.',
+  loadDocumentsError: 'No se pudieron cargar los documentos soporte.',
+  templateDownloadError:
+    'No se pudo descargar la plantilla de Documento soporte.',
+  importFileError: 'No se pudo importar el archivo Excel.',
+  sendProcessingLabel: 'Enviando documento soporte a DIAN...',
+  importButtonLabel: 'Importar Excel',
+  importingButtonLabel: 'Importando...',
+  templateButtonLabel: 'Descargar plantilla',
+  downloadingTemplateLabel: 'Descargando...',
+  fileInputAccept: EXCEL_FILE_INPUT,
+  showTemplateDownload: true,
+  supplierMissingLabel: 'Crear tercero',
+  downloadTemplate: () => downloadSupportDocumentTemplate('JARVIS'),
+  importFile: (file) =>
+    importSupportDocumentExcel(file, { enforceDateRange: false }),
+  buildSendRequest: buildJarvisSupportDocumentRequest,
+  sendDocument: (request) =>
+    createJarvisSupportDocument(request as CreateJarvisSupportDocumentRequest),
+  sendSuccessFeedback: (sentCount, failedCount) =>
+    failedCount > 0
+      ? `${sentCount} documento(s) enviados. ${failedCount} fallaron.`
+      : `${sentCount} documento(s) enviados correctamente a DIAN.`,
+}
+
 export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   key: 'purchaseInvoice',
+  provider: 'SIIGO',
   routePath: '/factura-compra',
   electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.PURCHASE_INVOICE,
   paymentDocumentType: PURCHASE_INVOICE_PAYMENT_DOCUMENT_TYPE,
   retentionCatalogTypes: PURCHASE_INVOICE_RETENTION_CATALOG_TYPES,
+  requiresAccount: true,
+  requiresPaymentMethod: true,
   pageTitle: 'Factura de compra',
   pageDescription:
     'Carga un XML de factura electrónica de la DIAN, configura cuenta, pago y retenciones, y envíala a SIIGO.',
@@ -168,9 +292,30 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   downloadingTemplateLabel: 'Descargando...',
   fileInputAccept: XML_AND_EXCEL_FILE_INPUT,
   showTemplateDownload: false,
+  supplierMissingLabel: 'Debe crear el proveedor en SIIGO',
   importFile: importPurchaseInvoiceFile,
-  buildSendRequest: buildSiigoPurchaseSendRequest,
-  sendToSiigo: (request) => createSiigoPurchaseSend(request as CreateSiigoPurchaseSendRequest),
+  buildSendRequest: (
+    document,
+    account,
+    paymentMethod,
+    retentions,
+    costCenter,
+    selectedDate,
+    observations,
+    savePreferences,
+  ) =>
+    buildSiigoPurchaseSendRequest(
+      document,
+      account!,
+      paymentMethod!,
+      retentions,
+      costCenter,
+      selectedDate,
+      observations,
+      savePreferences,
+    ),
+  sendDocument: (request) =>
+    createSiigoPurchaseSend(request as CreateSiigoPurchaseSendRequest),
   sendSuccessFeedback: (sentCount, failedCount) =>
     failedCount > 0
       ? `${sentCount} factura(s) enviadas. ${failedCount} fallaron.`

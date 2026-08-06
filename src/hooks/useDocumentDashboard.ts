@@ -83,6 +83,7 @@ export function useDocumentDashboard(
     modalState: supplierModal,
     openSupplierNotFoundModal,
     closeModal: closeSupplierModal,
+    setPersonType: setSupplierPersonType,
     createSupplier,
     retryCreateSupplier,
   } = useSupplierCreateModal()
@@ -272,6 +273,7 @@ export function useDocumentDashboard(
     continueAccount,
     retryDocument,
     closeSupplierModal,
+    setSupplierPersonType,
     closeAccountModal,
     handleCreateSupplier,
     retryCreateSupplier,
