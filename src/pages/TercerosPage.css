@@ -216,6 +216,39 @@
   font-size: 0.95rem;
 }
 
+.terceros-page__document-row {
+  display: flex;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+
+.terceros-page__document-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.terceros-page__autocomplete-btn {
+  flex-shrink: 0;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--jarvis-primary);
+  border-radius: var(--r-sm);
+  background: #fff;
+  color: var(--jarvis-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.terceros-page__autocomplete-btn:hover:not(:disabled) {
+  background: var(--jarvis-primary-soft);
+}
+
+.terceros-page__autocomplete-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .terceros-page__lookup-feedback {
   grid-column: 1 / -1;
   margin: -0.15rem 0 0;

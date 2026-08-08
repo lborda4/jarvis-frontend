@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { useNavigate } from 'react-router-dom'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import { NONE_COST_CENTER_OPTION } from '../constants/siigoCostCenterCatalog'
@@ -15,6 +14,7 @@ import {
   type DocumentWorkspaceConfig,
 } from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
+import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
@@ -155,7 +155,6 @@ function resolveSharedSelectionValue<T>(
 
 
 export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
-  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const controlsAnchorRef = useRef<HTMLDivElement>(null)
   const [isControlsAnchored, setIsControlsAnchored] = useState(false)
@@ -183,6 +182,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [showImportOnly, setShowImportOnly] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
+  const [terceroModalDocument, setTerceroModalDocument] =
+    useState<ElectronicDocumentListItem | null>(null)
   const [selectedSupplierNits, setSelectedSupplierNits] = useState<string[]>([])
   const [columnFilters, setColumnFilters] =
     useState<SupportDocumentColumnFilters>(EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS)
@@ -1083,17 +1084,15 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const handleCreateJarvisTercero = useCallback(
     (document: ElectronicDocumentListItem) => {
-      const params = new URLSearchParams({
-        create: '1',
-        document_type: document.supplierDocumentType?.trim() || 'NIT',
-        document_number: document.supplierNit?.trim() || '',
-        document_id: document.id,
-        return_to: '/documento-soporte/masivo',
-      })
-      navigate(`/terceros?${params.toString()}`)
+      setTerceroModalDocument(document)
     },
-    [navigate],
+    [],
   )
+
+  const handleTerceroCreated = useCallback(() => {
+    setTerceroModalDocument(null)
+    reloadDocuments({ resetPage: false })
+  }, [reloadDocuments])
 
   return (
     <main className="support-document-page">
@@ -1301,6 +1300,15 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           onRetry={retrySaveAccount}
         />
       )}
+
+      <CreateJarvisTerceroModal
+        isOpen={terceroModalDocument != null}
+        onClose={() => setTerceroModalDocument(null)}
+        initialDocumentType={terceroModalDocument?.supplierDocumentType}
+        initialDocumentNumber={terceroModalDocument?.supplierNit}
+        resumeDocumentId={terceroModalDocument?.id}
+        onCreated={handleTerceroCreated}
+      />
 
       <SupportDocumentPagination
         page={page}

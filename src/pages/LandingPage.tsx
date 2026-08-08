@@ -309,8 +309,30 @@ function LandingPage() {
             </span>
           </a>
 
+          <nav
+            id="landing-nav"
+            className={`landing-nav${menuOpen ? ' is-open' : ''}`}
+            aria-label="Navegación principal"
+          >
+            {NAV_LINKS.map((link) => (
+              <a key={link.href} href={link.href} onClick={closeMenu}>
+                {link.label}
+              </a>
+            ))}
+            <Link
+              to="/login"
+              className="landing-btn landing-btn--primary landing-header__login landing-header__login--nav"
+              onClick={closeMenu}
+            >
+              Iniciar sesión
+            </Link>
+          </nav>
+
           <div className="landing-header__actions">
-            <Link to="/login" className="landing-btn landing-btn--primary landing-header__login">
+            <Link
+              to="/login"
+              className="landing-btn landing-btn--primary landing-header__login landing-header__login--bar"
+            >
               Iniciar sesión
             </Link>
             <button
@@ -324,18 +346,6 @@ function LandingPage() {
               <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
             </button>
           </div>
-
-          <nav
-            id="landing-nav"
-            className={`landing-nav${menuOpen ? ' is-open' : ''}`}
-            aria-label="Navegación principal"
-          >
-            {NAV_LINKS.map((link) => (
-              <a key={link.href} href={link.href} onClick={closeMenu}>
-                {link.label}
-              </a>
-            ))}
-          </nav>
         </div>
       </header>
 

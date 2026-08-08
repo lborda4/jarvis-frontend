@@ -6,14 +6,14 @@
   --jarvis-brand-soft: rgba(15, 118, 110, 0.08);
   --jarvis-brand-ring: rgba(15, 118, 110, 0.2);
   --jarvis-brand-shadow: rgba(15, 118, 110, 0.18);
-  --jarvis-navy: #0f172a;
-  --jarvis-navy-soft: #1a2b3c;
-  --jarvis-surface: #f4f6f8;
+  --jarvis-navy: #0b1f33;
+  --jarvis-navy-soft: #143049;
+  --jarvis-surface: #eef2f6;
 
   /* Acción principal corporativa */
-  --jarvis-primary: #0f766e;
-  --jarvis-primary-hover: #115e59;
-  --jarvis-primary-soft: #eef6f5;
+  --jarvis-primary: #0d9488;
+  --jarvis-primary-hover: #0f766e;
+  --jarvis-primary-soft: #e6f7f5;
 
   /* Texto y bordes */
   --jarvis-text: #1f2937;
@@ -23,9 +23,9 @@
 
   /* Radios: esquinas sobrias */
   --r-xs: 2px;
-  --r-sm: 3px;
-  --r-md: 4px;
-  --r-lg: 6px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
 
   /* Sombras discretas */
   --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.04);

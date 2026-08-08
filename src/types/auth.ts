@@ -1,10 +1,3 @@
-import type {
-  AdminCompanyResponsible,
-  CompanyPersonType,
-  IntegrationProvider,
-  JarvisCredentialsSeed,
-} from './admin'
-
 export interface AuthCompany {
   id: string
   name: string
@@ -39,14 +32,7 @@ export interface RegisterRequest {
   name: string
   email: string
   password: string
-  company: {
-    name: string
-    nit: string
-    personType: CompanyPersonType
-    provider: IntegrationProvider
-    responsible: AdminCompanyResponsible
-    jarvisCredentials?: JarvisCredentialsSeed
-  }
+  nit: string
 }
 
 export interface RefreshTokenRequest {

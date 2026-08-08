@@ -34,6 +34,7 @@ export interface JarvisCatalogsResponse {
   taxes: JarvisCatalogItem[]
   paymentMethods: JarvisCatalogItem[]
   paymentForms: JarvisCatalogItem[]
+  currencies: JarvisCatalogItem[]
 }
 
 export interface CreateJarvisSupportDocumentRequest {
@@ -54,6 +55,7 @@ export interface CreateManualJarvisSupportDocumentItem {
   unitValue: number
   discount?: number
   taxAmount?: number
+  code?: string
 }
 
 export interface CreateManualJarvisSupportDocumentRequest {
@@ -61,6 +63,7 @@ export interface CreateManualJarvisSupportDocumentRequest {
   supplierDocumentType: string
   supplierIdentification: string
   supplierName?: string
+  currency?: string
   documentPrefix: string
   documentNumber: string
   observations?: string

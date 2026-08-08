@@ -1,10 +1,11 @@
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
 import { useBackendWakeup } from '../hooks/useBackendWakeup'
 import { isAdminRole } from '../constants/userRole'
+import { resetBackendWake } from '../services/healthService'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import {
   resolveLoginError,
@@ -15,6 +16,8 @@ import './AuthPages.css'
 
 const DEFAULT_APP_PATH = '/documento-soporte'
 const ADMIN_APP_PATH = '/admin'
+/** Si el login se queda colgado por cold start, remonta y reintenta una vez. */
+const LOGIN_STUCK_RERENDER_MS = 15_000
 
 function resolvePostLoginPath(role?: string): string {
   return isAdminRole(role) ? ADMIN_APP_PATH : DEFAULT_APP_PATH
@@ -27,7 +30,9 @@ function LoginPage() {
     isSlow,
     isWaking,
     error: wakeError,
+    attempt: wakeAttempt,
     ensureReady,
+    retryWake,
     loadingMessage,
   } = useBackendWakeup()
   const [email, setEmail] = useState('')
@@ -36,50 +41,111 @@ function LoginPage() {
   const [errorKind, setErrorKind] = useState<LoginErrorKind | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitIsSlow, setSubmitIsSlow] = useState(false)
+  const [formKey, setFormKey] = useState(0)
+  const [autoRetryLogin, setAutoRetryLogin] = useState(false)
+  const loginRetryUsedRef = useRef(false)
+  const credentialsRef = useRef({ email: '', password: '' })
 
   const redirectPath = resolvePostLoginPath(user?.role)
+
+  useEffect(() => {
+    credentialsRef.current = { email, password }
+  }, [email, password])
+
+  const runLogin = useCallback(
+    async (credentials: { email: string; password: string }) => {
+      setErrorMessage(null)
+      setErrorKind(null)
+      setIsSubmitting(true)
+      setSubmitIsSlow(false)
+
+      const slowTimer = window.setTimeout(() => {
+        setSubmitIsSlow(true)
+      }, 2500)
+
+      try {
+        await ensureReady()
+        const loggedInUser = await login({
+          email: credentials.email.trim(),
+          password: credentials.password,
+        })
+        setAuthEntryMode('login')
+        loginRetryUsedRef.current = false
+        setAutoRetryLogin(false)
+        navigate(resolvePostLoginPath(loggedInUser.role), { replace: true })
+      } catch (error) {
+        const resolved = resolveLoginError(
+          error,
+          'No se pudo iniciar sesión. Intenta nuevamente.',
+        )
+        setErrorMessage(resolved.message)
+        setErrorKind(resolved.kind)
+        setAutoRetryLogin(false)
+      } finally {
+        window.clearTimeout(slowTimer)
+        setSubmitIsSlow(false)
+        setIsSubmitting(false)
+      }
+    },
+    [ensureReady, login, navigate],
+  )
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    loginRetryUsedRef.current = false
+    await runLogin({ email, password })
+  }
+
+  useEffect(() => {
+    if (!isSubmitting || loginRetryUsedRef.current) {
+      return
+    }
+
+    const stuckTimer = window.setTimeout(() => {
+      loginRetryUsedRef.current = true
+      setIsSubmitting(false)
+      setSubmitIsSlow(false)
+      setErrorMessage(null)
+      resetBackendWake()
+      retryWake()
+      setFormKey((current) => current + 1)
+      setAutoRetryLogin(true)
+    }, LOGIN_STUCK_RERENDER_MS)
+
+    return () => {
+      window.clearTimeout(stuckTimer)
+    }
+  }, [isSubmitting, retryWake, formKey])
+
+  useEffect(() => {
+    if (!autoRetryLogin || isWaking || isLoading) {
+      return
+    }
+
+    const { email: savedEmail, password: savedPassword } = credentialsRef.current
+    if (!savedEmail.trim() || !savedPassword) {
+      setAutoRetryLogin(false)
+      return
+    }
+
+    setAutoRetryLogin(false)
+    void runLogin({ email: savedEmail, password: savedPassword })
+  }, [autoRetryLogin, isWaking, isLoading, wakeAttempt, formKey, runLogin])
 
   if (!isLoading && isAuthenticated) {
     return <Navigate to={redirectPath} replace />
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setErrorMessage(null)
-    setErrorKind(null)
-    setIsSubmitting(true)
-    setSubmitIsSlow(false)
-
-    const slowTimer = window.setTimeout(() => {
-      setSubmitIsSlow(true)
-    }, 2500)
-
-    try {
-      await ensureReady()
-      const loggedInUser = await login({
-        email: email.trim(),
-        password,
-      })
-      setAuthEntryMode('login')
-      navigate(resolvePostLoginPath(loggedInUser.role), { replace: true })
-    } catch (error) {
-      const resolved = resolveLoginError(
-        error,
-        'No se pudo iniciar sesión. Intenta nuevamente.',
-      )
-      setErrorMessage(resolved.message)
-      setErrorKind(resolved.kind)
-    } finally {
-      window.clearTimeout(slowTimer)
-      setSubmitIsSlow(false)
-      setIsSubmitting(false)
-    }
-  }
-
   if (isLoading || isWaking) {
     return (
-      <div className="auth-loading-screen">
+      <div className="auth-loading-screen" key={`wake-${wakeAttempt}`}>
         <LoadingIndicator message={loadingMessage} />
+        {wakeAttempt > 0 && (
+          <p className="auth-loading-screen__hint">
+            El servicio gratis se apaga por inactividad; estamos reintentando la
+            conexión.
+          </p>
+        )}
       </div>
     )
   }
@@ -88,10 +154,15 @@ function LoginPage() {
     ? submitIsSlow || isSlow
       ? 'Estamos iniciando el servicio, espera un momento...'
       : 'Ingresando...'
-    : 'Continuar'
+    : autoRetryLogin
+      ? 'Reintentando ingreso...'
+      : 'Continuar'
 
   return (
-    <main className="auth-page auth-page--login">
+    <main
+      className="auth-page auth-page--login"
+      key={`login-${formKey}-${wakeAttempt}`}
+    >
       <div className="auth-login-backdrop" aria-hidden="true">
         <span className="auth-login-backdrop__vignette" />
         <span className="auth-login-backdrop__grid" />
@@ -122,7 +193,15 @@ function LoginPage() {
             <p>Usa tu correo corporativo para entrar al panel.</p>
           </div>
 
-          {wakeError && <ErrorMessage message={wakeError} />}
+          {(wakeError || formKey > 0) && (
+            <ErrorMessage
+              message={
+                formKey > 0
+                  ? 'La conexión tardó demasiado. Reintentamos automáticamente.'
+                  : wakeError!
+              }
+            />
+          )}
 
           <form className="auth-login-form" onSubmit={handleSubmit}>
             <div
@@ -174,7 +253,7 @@ function LoginPage() {
             <button
               type="submit"
               className="auth-login-form__submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || autoRetryLogin}
             >
               {submitLabel}
             </button>

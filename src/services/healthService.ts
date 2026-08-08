@@ -2,11 +2,13 @@ import axios from 'axios'
 import { API_BASE_URL } from '../constants/api'
 
 const HEALTH_ENDPOINT = '/health'
-const HEALTH_REQUEST_TIMEOUT_MS = 45_000
-const HEALTH_RETRY_DELAY_MS = 2_000
-const HEALTH_MAX_ATTEMPTS = 8
+/** Timeout por intento: Render free suele despertar en 15–50s; reintentos cortos detectan antes. */
+const HEALTH_REQUEST_TIMEOUT_MS = 20_000
+const HEALTH_RETRY_DELAY_MS = 1_500
+const HEALTH_MAX_ATTEMPTS = 12
 
 let wakePromise: Promise<void> | null = null
+let wakeGeneration = 0
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -14,12 +16,12 @@ function wait(ms: number): Promise<void> {
   })
 }
 
-async function pingHealthOnce(): Promise<void> {
+async function pingHealthOnce(signal?: AbortSignal): Promise<void> {
   const response = await axios.get<{ status?: string }>(
     `${API_BASE_URL}${HEALTH_ENDPOINT}`,
     {
       timeout: HEALTH_REQUEST_TIMEOUT_MS,
-      // Sin Authorization: el cold start no debe depender de sesión.
+      signal,
       validateStatus: (status) => status >= 200 && status < 300,
     },
   )
@@ -29,14 +31,29 @@ async function pingHealthOnce(): Promise<void> {
   }
 }
 
-async function pingHealthWithRetries(): Promise<void> {
+async function pingHealthWithRetries(signal?: AbortSignal): Promise<void> {
   let lastError: unknown
 
   for (let attempt = 1; attempt <= HEALTH_MAX_ATTEMPTS; attempt += 1) {
+    if (signal?.aborted) {
+      throw new DOMException('Wake cancelado', 'AbortError')
+    }
+
     try {
-      await pingHealthOnce()
+      await pingHealthOnce(signal)
       return
     } catch (error) {
+      if (
+        axios.isCancel(error) ||
+        (typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          (error as { code?: string }).code === 'ERR_CANCELED') ||
+        (error instanceof DOMException && error.name === 'AbortError')
+      ) {
+        throw error
+      }
+
       lastError = error
 
       if (attempt < HEALTH_MAX_ATTEMPTS) {
@@ -50,13 +67,37 @@ async function pingHealthWithRetries(): Promise<void> {
     : new Error('No se pudo iniciar el servicio')
 }
 
-/** Despierta el backend (cold start). Comparte una sola promesa entre callers. */
-export function wakeBackend(): Promise<void> {
+/** Descarta el wake en curso para forzar un nuevo ciclo de health. */
+export function resetBackendWake(): void {
+  wakeGeneration += 1
+  wakePromise = null
+}
+
+/**
+ * Despierta el backend (cold start). Comparte una sola promesa entre callers.
+ * Con `force: true` cancela el ciclo actual y empieza de nuevo.
+ */
+export function wakeBackend(options?: { force?: boolean }): Promise<void> {
+  if (options?.force) {
+    resetBackendWake()
+  }
+
   if (!wakePromise) {
-    wakePromise = pingHealthWithRetries().catch((error) => {
-      wakePromise = null
-      throw error
-    })
+    const generation = wakeGeneration
+    const controller = new AbortController()
+
+    wakePromise = pingHealthWithRetries(controller.signal)
+      .then(() => {
+        if (generation !== wakeGeneration) {
+          throw new DOMException('Wake reemplazado', 'AbortError')
+        }
+      })
+      .catch((error) => {
+        if (generation === wakeGeneration) {
+          wakePromise = null
+        }
+        throw error
+      })
   }
 
   return wakePromise
