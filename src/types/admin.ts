@@ -100,6 +100,8 @@ export interface JarvisCredentialsSeed {
   email?: string
   address?: string
   phone?: string
+  idSoftware?: string
+  tokenNextPyme?: string
 }
 
 export interface CreateAdminCompanyResponse {

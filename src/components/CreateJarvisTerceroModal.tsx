@@ -1,14 +1,18 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import Button from './Button'
 import ErrorMessage from './ErrorMessage'
+import Modal from './Modal'
 import { getApiErrorMessage } from '../services/apiClient'
 import { resumeElectronicDocument } from '../services/electronicDocumentService'
 import {
   createJarvisTercero,
   lookupJarvisTerceroByNit,
 } from '../services/jarvisService'
+import { createSiigoSupplier } from '../services/siigoService'
 import {
   JARVIS_DOCUMENT_TYPE,
   JARVIS_DOCUMENT_TYPE_OPTIONS,
+  JARVIS_ENTITY_TYPE,
   JARVIS_ENTITY_TYPE_OPTIONS,
   JARVIS_TAX_REGIME_OPTIONS,
   type CreateJarvisTerceroRequest,
@@ -17,6 +21,8 @@ import {
   type JarvisTaxRegime,
   type JarvisTercero,
 } from '../types/jarvis'
+import type { SiigoSupplierPersonType } from '../types/siigo'
+import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
 import '../pages/TercerosPage.css'
 import '../pages/InvoiceUpload.css'
 
@@ -30,6 +36,8 @@ const EMPTY_FORM: CreateJarvisTerceroRequest = {
   address: '',
 }
 
+export type CreateTerceroModalProvider = 'JARVIS' | 'SIIGO'
+
 export interface CreateJarvisTerceroModalProps {
   isOpen: boolean
   onClose: () => void
@@ -37,6 +45,8 @@ export interface CreateJarvisTerceroModalProps {
   initialDocumentNumber?: string | null
   /** Si se indica, reanuda la preparación del documento soporte tras crear el tercero. */
   resumeDocumentId?: string | null
+  /** JARVIS guarda en jarvis_terceros; SIIGO crea el cliente en SIIGO. */
+  provider?: CreateTerceroModalProvider
   onCreated?: (tercero: JarvisTercero) => void
 }
 
@@ -46,12 +56,28 @@ function resolveDocumentType(value?: string | null): JarvisDocumentType {
     : JARVIS_DOCUMENT_TYPE.NIT
 }
 
+function resolveSiigoPersonType(
+  entityType: JarvisEntityType | undefined,
+  documentNumber: string,
+): SiigoSupplierPersonType {
+  if (entityType === JARVIS_ENTITY_TYPE.NATURAL_PERSON) {
+    return 'person'
+  }
+
+  if (entityType === JARVIS_ENTITY_TYPE.LEGAL_ENTITY) {
+    return 'company'
+  }
+
+  return inferSiigoSupplierIdentity(documentNumber).personType
+}
+
 function CreateJarvisTerceroModal({
   isOpen,
   onClose,
   initialDocumentType,
   initialDocumentNumber,
   resumeDocumentId,
+  provider = 'JARVIS',
   onCreated,
 }: CreateJarvisTerceroModalProps) {
   const [form, setForm] = useState<CreateJarvisTerceroRequest>(EMPTY_FORM)
@@ -168,8 +194,64 @@ function CreateJarvisTerceroModal({
         ...(form.address?.trim() ? { address: form.address.trim() } : {}),
       }
 
-      const response = await createJarvisTercero(payload)
       const documentId = resumeDocumentId?.trim()
+
+      if (provider === 'SIIGO') {
+        if (!documentId) {
+          throw new Error(
+            'No se encontró el documento soporte para crear el tercero en SIIGO.',
+          )
+        }
+
+        if (!payload.name) {
+          throw new Error('El nombre / razón social es obligatorio.')
+        }
+
+        if (!payload.entity_type) {
+          throw new Error(
+            'Indica si es persona natural o jurídica para crear el tercero en SIIGO.',
+          )
+        }
+
+        await createSiigoSupplier({
+          documentId,
+          person_type: resolveSiigoPersonType(
+            payload.entity_type,
+            payload.document_number,
+          ),
+          name: payload.name,
+          document_type: payload.document_type,
+          document_number: payload.document_number,
+          ...(payload.check_digit
+            ? { check_digit: payload.check_digit }
+            : {}),
+          ...(payload.email ? { email: payload.email } : {}),
+          ...(payload.phone ? { phone: payload.phone } : {}),
+          ...(payload.address ? { address: payload.address } : {}),
+        })
+
+        await resumeElectronicDocument(documentId, 'SIIGO')
+
+        const now = new Date().toISOString()
+        onCreated?.({
+          id: documentId,
+          document_type: payload.document_type,
+          document_number: payload.document_number,
+          check_digit: payload.check_digit ?? null,
+          name: payload.name,
+          entity_type: payload.entity_type ?? null,
+          tax_regime: payload.tax_regime ?? null,
+          email: payload.email ?? null,
+          phone: payload.phone ?? null,
+          address: payload.address ?? null,
+          created_at: now,
+          updated_at: now,
+        })
+        onClose()
+        return
+      }
+
+      const response = await createJarvisTercero(payload)
       if (documentId) {
         await resumeElectronicDocument(documentId, 'JARVIS')
       }
@@ -183,24 +265,19 @@ function CreateJarvisTerceroModal({
     }
   }
 
-  if (!isOpen) {
-    return null
-  }
-
   return (
-    <div className="modal-overlay" role="presentation" onClick={handleClose}>
-      <div
-        className="modal-dialog terceros-page__dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="crear-tercero-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 id="crear-tercero-title" className="modal-dialog__title">
-          Crear tercero
-        </h2>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      busy={isSaving || isLookingUpNit}
+      labelledBy="crear-tercero-title"
+      className="terceros-page__dialog"
+    >
+      <h2 id="crear-tercero-title" className="modal-dialog__title">
+        {provider === 'SIIGO' ? 'Crear tercero en SIIGO' : 'Crear tercero'}
+      </h2>
 
-        {errorMessage && <ErrorMessage message={errorMessage} />}
+      {errorMessage && <ErrorMessage message={errorMessage} />}
 
         <form onSubmit={handleCreate}>
           <div className="terceros-page__form-grid">
@@ -250,8 +327,8 @@ function CreateJarvisTerceroModal({
                   disabled={isSaving || isLookingUpNit}
                   required
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
                   className="terceros-page__autocomplete-btn"
                   onClick={handleAutocompletar}
                   disabled={
@@ -261,7 +338,7 @@ function CreateJarvisTerceroModal({
                   }
                 >
                   {isLookingUpNit ? 'Consultando...' : 'Autocompletar'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -329,8 +406,13 @@ function CreateJarvisTerceroModal({
                   }))
                 }
                 disabled={isSaving || isLookingUpNit}
+                required={provider === 'SIIGO'}
               >
-                <option value="">Sin especificar</option>
+                <option value="">
+                  {provider === 'SIIGO'
+                    ? 'Seleccione una opción'
+                    : 'Sin especificar'}
+                </option>
                 {JARVIS_ENTITY_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -413,25 +495,19 @@ function CreateJarvisTerceroModal({
           </div>
 
           <div className="modal-dialog__actions">
-            <button
-              type="button"
-              className="modal-dialog__button modal-dialog__button--secondary"
+            <Button
+              variant="secondary"
               onClick={handleClose}
               disabled={isSaving || isLookingUpNit}
             >
               Cancelar
-            </button>
-            <button
-              type="submit"
-              className="modal-dialog__button modal-dialog__button--primary"
-              disabled={isSaving || isLookingUpNit}
-            >
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving || isLookingUpNit}>
               {isSaving ? 'Guardando...' : 'Crear'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

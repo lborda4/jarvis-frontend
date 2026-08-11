@@ -1,11 +1,17 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import Button from '../components/Button'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
+import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { getApiErrorMessage } from '../services/apiClient'
 import { fetchJarvisTerceros } from '../services/jarvisService'
+import {
+  companyQueryKey,
+  peekCachedQuery,
+} from '../services/queryCache'
 import {
   JARVIS_DOCUMENT_TYPE,
   JARVIS_DOCUMENT_TYPE_OPTIONS,
@@ -15,6 +21,7 @@ import {
   type JarvisEntityType,
   type JarvisTaxRegime,
   type JarvisTercero,
+  type JarvisTercerosListResponse,
 } from '../types/jarvis'
 import './TercerosPage.css'
 import './InvoiceUpload.css'
@@ -52,11 +59,26 @@ function TercerosPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const loadTerceros = useCallback(async (query?: string) => {
-    setIsLoading(true)
+    const trimmed = query?.trim()
     setErrorMessage(null)
 
+    if (!trimmed) {
+      const cached = peekCachedQuery<JarvisTercerosListResponse>(
+        companyQueryKey(['jarvis', 'terceros']),
+      )
+      if (cached) {
+        setItems(cached.items)
+        setTotal(cached.total)
+        setIsLoading(false)
+      } else {
+        setIsLoading(true)
+      }
+    } else {
+      setIsLoading(true)
+    }
+
     try {
-      const response = await fetchJarvisTerceros(query)
+      const response = await fetchJarvisTerceros(trimmed)
       setItems(response.items)
       setTotal(response.total)
     } catch (error) {
@@ -125,19 +147,15 @@ function TercerosPage() {
 
   return (
     <main className="terceros-page">
-      <header className="terceros-page__header">
-        <div>
-          <h1>Terceros</h1>
-          <p>Consulta y crea los terceros de tu empresa Jarvis.</p>
-        </div>
-        <button
-          type="button"
-          className="terceros-page__create-btn"
-          onClick={openCreate}
-        >
-          Crear
-        </button>
-      </header>
+      <PageHeader
+        title="Terceros"
+        description="Consulta y crea los terceros de tu empresa Jarvis."
+        actions={
+          <Button variant="primary" onClick={openCreate}>
+            Crear
+          </Button>
+        }
+      />
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
       {successMessage && <SuccessMessage message={successMessage} />}
@@ -152,9 +170,9 @@ function TercerosPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Nombre o documento"
           />
-          <button type="submit" disabled={isLoading}>
+          <Button type="submit" variant="primary" disabled={isLoading}>
             Buscar
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -171,9 +189,9 @@ function TercerosPage() {
         ) : items.length === 0 ? (
           <div className="terceros-page__empty">
             <p>Aún no hay terceros creados.</p>
-            <button type="button" onClick={openCreate}>
+            <Button variant="primary" onClick={openCreate}>
               Crear el primero
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="terceros-page__table-wrap">

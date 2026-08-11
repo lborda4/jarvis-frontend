@@ -10,6 +10,12 @@ import type {
   SaveJarvisCredentialsResponse,
 } from '../types/jarvis'
 import { apiClient } from './apiClient'
+import {
+  cachedQuery,
+  companyQueryKey,
+  invalidateQueryCache,
+  QUERY_STALE_MS,
+} from './queryCache'
 
 const JARVIS_CREDENTIALS_STATUS_ENDPOINT =
   '/integrations/jarvis/credentials/status'
@@ -92,11 +98,16 @@ export interface CreateManualJarvisSupportDocumentResponse {
 }
 
 export async function fetchJarvisCredentialsStatus(): Promise<JarvisCredentialsStatusResponse> {
-  const response = await apiClient.get<JarvisCredentialsStatusResponse>(
-    JARVIS_CREDENTIALS_STATUS_ENDPOINT,
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'credentials-status']),
+    QUERY_STALE_MS.credentials,
+    async () => {
+      const response = await apiClient.get<JarvisCredentialsStatusResponse>(
+        JARVIS_CREDENTIALS_STATUS_ENDPOINT,
+      )
+      return response.data
+    },
   )
-
-  return response.data
 }
 
 export async function fetchJarvisCredentialsConfigured(): Promise<boolean> {
@@ -111,6 +122,8 @@ export async function saveJarvisCredentials(
     JARVIS_CREDENTIALS_ENDPOINT,
     request,
   )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
 
   return response.data
 }
@@ -162,20 +175,37 @@ export async function saveJarvisResolution(
     request,
   )
 
+  invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
+
   return response.data
 }
 
 export async function fetchJarvisTerceros(
   search?: string,
 ): Promise<JarvisTercerosListResponse> {
-  const response = await apiClient.get<JarvisTercerosListResponse>(
-    JARVIS_TERCEROS_ENDPOINT,
-    {
-      params: search?.trim() ? { search: search.trim() } : undefined,
+  const trimmedSearch = search?.trim()
+
+  // Búsquedas tipadas no se cachean; la lista completa sí.
+  if (trimmedSearch) {
+    const response = await apiClient.get<JarvisTercerosListResponse>(
+      JARVIS_TERCEROS_ENDPOINT,
+      {
+        params: { search: trimmedSearch },
+      },
+    )
+    return response.data
+  }
+
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'terceros']),
+    QUERY_STALE_MS.terceros,
+    async () => {
+      const response = await apiClient.get<JarvisTercerosListResponse>(
+        JARVIS_TERCEROS_ENDPOINT,
+      )
+      return response.data
     },
   )
-
-  return response.data
 }
 
 export async function createJarvisTercero(
@@ -185,6 +215,8 @@ export async function createJarvisTercero(
     JARVIS_TERCEROS_ENDPOINT,
     request,
   )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
 
   return response.data
 }
@@ -205,11 +237,16 @@ export async function lookupJarvisTerceroByNit(
 }
 
 export async function fetchJarvisCatalogs(): Promise<JarvisCatalogsResponse> {
-  const response = await apiClient.get<JarvisCatalogsResponse>(
-    JARVIS_CATALOGS_ENDPOINT,
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'catalogs']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const response = await apiClient.get<JarvisCatalogsResponse>(
+        JARVIS_CATALOGS_ENDPOINT,
+      )
+      return response.data
+    },
   )
-
-  return response.data
 }
 
 export async function createJarvisSupportDocument(

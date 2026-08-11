@@ -3,6 +3,7 @@ import AdminRoute from './components/AdminRoute'
 import DefaultAppRedirect from './components/DefaultAppRedirect'
 import ProtectedRoute from './components/ProtectedRoute'
 import SupportDocumentRoute from './components/SupportDocumentRoute'
+import PurchaseInvoiceRoute from './components/PurchaseInvoiceRoute'
 import TercerosRoute from './components/TercerosRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
@@ -52,12 +53,13 @@ function App() {
                   element={<Navigate to="/documento-soporte" replace />}
                 />
 
-                <Route path="/terceros" element={<TercerosRoute />} />
-
+                <Route path="/factura-compra" element={<PurchaseInvoiceRoute />} />
                 <Route
-                  path="/factura-compra/*"
-                  element={<Navigate to="/documento-soporte" replace />}
+                  path="/factura-venta"
+                  element={<Navigate to="/factura-compra" replace />}
                 />
+
+                <Route path="/terceros" element={<TercerosRoute />} />
 
                 <Route
                   path="/configuracion/integracion-siigo"

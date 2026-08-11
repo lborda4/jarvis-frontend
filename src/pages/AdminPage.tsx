@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react
 import { Link } from 'react-router-dom'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
+import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import {
   createAdminCompany,
@@ -112,6 +113,8 @@ function AdminPage() {
   const [rutWarnings, setRutWarnings] = useState<string[]>([])
   const [jarvisCredentials, setJarvisCredentials] =
     useState<JarvisCredentialsSeed | undefined>()
+  const [idSoftware, setIdSoftware] = useState('')
+  const [tokenNextPyme, setTokenNextPyme] = useState('')
   const [siigoPlanId, setSiigoPlanId] = useState('')
   const [jarvisPlanId, setJarvisPlanId] = useState('')
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
@@ -251,6 +254,24 @@ function AdminPage() {
       const includesJarvis = selectedIntegrations.includes(
         INTEGRATION_PROVIDER.JARVIS,
       )
+      const trimmedIdSoftware = idSoftware.trim()
+      const trimmedTokenNextPyme = tokenNextPyme.trim()
+      const mergedJarvisCredentials: JarvisCredentialsSeed | undefined =
+        includesJarvis
+          ? {
+              ...(jarvisCredentials ?? {}),
+              ...(trimmedIdSoftware ? { idSoftware: trimmedIdSoftware } : {}),
+              ...(trimmedTokenNextPyme
+                ? { tokenNextPyme: trimmedTokenNextPyme }
+                : {}),
+            }
+          : undefined
+      const hasJarvisCredentials =
+        Boolean(mergedJarvisCredentials) &&
+        Object.values(mergedJarvisCredentials ?? {}).some(
+          (value) => typeof value === 'string' && value.trim().length > 0,
+        )
+
       const response = await createAdminCompany({
         nit: nit.trim(),
         name: name.trim(),
@@ -274,8 +295,8 @@ function AdminPage() {
         ...((includesSiigo || includesJarvis) && selectedDocumentTypes.length > 0
           ? { includedDocumentTypes: selectedDocumentTypes }
           : {}),
-        ...(includesJarvis && jarvisCredentials
-          ? { jarvisCredentials }
+        ...(hasJarvisCredentials
+          ? { jarvisCredentials: mergedJarvisCredentials }
           : {}),
       })
 
@@ -291,6 +312,8 @@ function AdminPage() {
       setRutAddress(null)
       setRutWarnings([])
       setJarvisCredentials(undefined)
+      setIdSoftware('')
+      setTokenNextPyme('')
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
       setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
       setSiigoPlanId(siigoPlans[0]?.id ?? '')
@@ -444,16 +467,16 @@ function AdminPage() {
 
   return (
     <main className="admin-page">
-      <header className="admin-page__header">
-        <div>
-          <p className="admin-page__eyebrow">Panel interno</p>
-          <h1>Administración de empresas</h1>
-          <p>Gestione empresas, integraciones, planes y suscripciones.</p>
-        </div>
-        <Link to="/inicio" className="admin-page__back-link">
-          Volver a la aplicación
-        </Link>
-      </header>
+      <PageHeader
+        eyebrow="Panel interno"
+        title="Administración de empresas"
+        description="Gestione empresas, integraciones, planes y suscripciones."
+        actions={
+          <Link to="/inicio" className="admin-page__back-link">
+            Volver a la aplicación
+          </Link>
+        }
+      />
 
       <section className="admin-card">
         <div className="admin-card__header">
@@ -558,6 +581,38 @@ function AdminPage() {
                   )}
                 </select>
               </div>
+            )}
+
+            {includesJarvis && (
+              <>
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-id-software">IDSoftware</label>
+                  <input
+                    id="admin-company-id-software"
+                    type="text"
+                    value={idSoftware}
+                    onChange={(event) => setIdSoftware(event.target.value)}
+                    placeholder="Identificador de software NextPyme/DIAN"
+                    disabled={isSubmitting}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-token-nextpyme">
+                    tokenNextPyme
+                  </label>
+                  <input
+                    id="admin-company-token-nextpyme"
+                    type="password"
+                    value={tokenNextPyme}
+                    onChange={(event) => setTokenNextPyme(event.target.value)}
+                    placeholder="Token de autenticación NextPyme"
+                    disabled={isSubmitting}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </>
             )}
           </div>
 

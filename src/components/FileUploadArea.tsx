@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { DocumentIcon } from './icons/SidebarIcons'
 import {
   ACCEPTED_FILE_EXTENSIONS,
   ACCEPTED_FILE_INPUT,
@@ -119,7 +120,7 @@ function FileUploadArea({
         aria-label={ariaLabel ?? config.defaultAriaLabel}
       >
         <span className="file-upload__icon" aria-hidden="true">
-          📄
+          <DocumentIcon />
         </span>
         <span className="file-upload__title">
           {title ?? config.defaultTitle}

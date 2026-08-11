@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import Button from '../components/Button'
 import { useAuth } from '../context/AuthContext'
 import './SupportDocumentStart.css'
 
@@ -53,13 +54,13 @@ function SupportDocumentStart() {
           <p className="ds-start__card-text">
             Crea un documento soporte ingresando la información paso a paso.
           </p>
-          <button
-            type="button"
+          <Button
+            variant="primary"
             className="ds-start__action"
             onClick={() => navigate('/documento-soporte/nuevo')}
           >
             Crear documento
-          </button>
+          </Button>
         </article>
 
         <article className="ds-start__card">
@@ -70,13 +71,13 @@ function SupportDocumentStart() {
           <p className="ds-start__card-text">
             Sube un archivo Excel y deja que JARVIS haga el resto.
           </p>
-          <button
-            type="button"
+          <Button
+            variant="primary"
             className="ds-start__action"
             onClick={() => navigate('/documento-soporte/masivo')}
           >
             Cargar archivo
-          </button>
+          </Button>
         </article>
       </div>
 

@@ -1,0 +1,46 @@
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.page-header__text {
+  min-width: 0;
+}
+
+.page-header__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--jarvis-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.page-header__text h1 {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-h1);
+  color: var(--jarvis-navy);
+}
+
+.page-header__description {
+  margin: 0;
+  max-width: 46rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-md);
+}
+
+.page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+  }
+}

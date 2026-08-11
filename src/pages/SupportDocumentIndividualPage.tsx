@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
 import SuccessMessage from '../components/SuccessMessage'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -164,6 +165,7 @@ function SupportDocumentIndividualPage() {
   const [allSuppliers, setAllSuppliers] = useState<JarvisTercero[]>([])
   const [isSupplierMenuOpen, setIsSupplierMenuOpen] = useState(false)
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false)
+  const [isCreateSupplierOpen, setIsCreateSupplierOpen] = useState(false)
   const [lines, setLines] = useState<LineItem[]>([createEmptyLine()])
   const [taxes, setTaxes] = useState<JarvisCatalogItem[]>([])
   const [paymentMethods, setPaymentMethods] = useState<JarvisCatalogItem[]>([])
@@ -721,7 +723,13 @@ function SupportDocumentIndividualPage() {
                 {!selectedSupplier && (
                   <p className="ds-individual__hint">
                     ¿No encuentras el proveedor?{' '}
-                    <Link to="/terceros">Créalo en Terceros</Link>.
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateSupplierOpen(true)}
+                    >
+                      Créalo aquí
+                    </button>
+                    , sin perder lo que ya llevas en este documento.
                   </p>
                 )}
               </div>
@@ -1061,6 +1069,7 @@ function SupportDocumentIndividualPage() {
               className="ds-individual__btn ds-individual__btn--ghost"
               disabled={isSubmitting}
               onClick={() => void handleSubmit('save')}
+              title="Guarda como borrador y te lleva al listado de Documento Soporte"
             >
               {isSubmitting && submitMode === 'save'
                 ? 'Guardando...'
@@ -1071,6 +1080,7 @@ function SupportDocumentIndividualPage() {
               className="ds-individual__btn ds-individual__btn--outline"
               disabled={isSubmitting}
               onClick={() => void handleSubmit('save-new')}
+              title="Guarda como borrador y limpia el formulario para crear otro"
             >
               {isSubmitting && submitMode === 'save-new'
                 ? 'Guardando...'
@@ -1088,6 +1098,17 @@ function SupportDocumentIndividualPage() {
           </footer>
         </form>
       </div>
+
+      <CreateJarvisTerceroModal
+        isOpen={isCreateSupplierOpen}
+        onClose={() => setIsCreateSupplierOpen(false)}
+        initialDocumentNumber={supplierQuery}
+        onCreated={(tercero) => {
+          setAllSuppliers((current) => [tercero, ...current])
+          selectSupplier(tercero)
+          setIsCreateSupplierOpen(false)
+        }}
+      />
     </section>
   )
 }

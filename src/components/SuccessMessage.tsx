@@ -1,13 +1,11 @@
+import Banner from './Banner'
+
 interface SuccessMessageProps {
   message: string
 }
 
 function SuccessMessage({ message }: SuccessMessageProps) {
-  return (
-    <div className="success-message" role="status">
-      {message}
-    </div>
-  )
+  return <Banner variant="success" message={message} />
 }
 
 export default SuccessMessage

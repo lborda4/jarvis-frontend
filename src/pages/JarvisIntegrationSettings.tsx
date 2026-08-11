@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
 import ErrorMessage from '../components/ErrorMessage'
+import { CheckIcon } from '../components/icons/SidebarIcons'
 import LoadingIndicator from '../components/LoadingIndicator'
+import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import {
   useJarvisIntegrationSettings,
@@ -371,7 +373,7 @@ function JarvisIntegrationSettings() {
         aria-controls={`jarvis-step-body-${stepId}`}
       >
         <span className="settings-accordion__badge" aria-hidden="true">
-          {complete ? '✓' : stepIndex + 1}
+          {complete ? <CheckIcon /> : stepIndex + 1}
         </span>
         <span className="settings-accordion__copy">
           <strong>{title}</strong>
@@ -401,14 +403,14 @@ function JarvisIntegrationSettings() {
 
   return (
     <main className="settings-page">
-      <header className="settings-page__header">
-        <h1>Configuración Jarvis</h1>
-        <p>
-          {allRequiredStepsComplete
+      <PageHeader
+        title="Configuración Jarvis"
+        description={
+          allRequiredStepsComplete
             ? 'Su configuración ya está completa. Abra una sección solo si necesita actualizarla.'
-            : 'Complete el paso a paso: primero la empresa y luego las resoluciones DIAN según su plan.'}
-        </p>
-      </header>
+            : 'Complete el paso a paso: primero la empresa y luego las resoluciones DIAN según su plan.'
+        }
+      />
 
       {showSetupRequiredNotice && (
         <div className="settings-page__setup-notice" role="status">
@@ -463,7 +465,7 @@ function JarvisIntegrationSettings() {
                     aria-current={active ? 'step' : undefined}
                   >
                     <span className="settings-stepper__badge" aria-hidden="true">
-                      {complete ? '✓' : index + 1}
+                      {complete ? <CheckIcon /> : index + 1}
                     </span>
                     <span className="settings-stepper__copy">
                       <strong>{step.label}</strong>

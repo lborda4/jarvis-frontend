@@ -21,6 +21,10 @@ import {
   hasStoredSession,
 } from '../services/authStorage'
 import { wakeBackend } from '../services/healthService'
+import {
+  invalidateQueryCache,
+  setActiveCompanyId,
+} from '../services/queryCache'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -47,6 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logoutRequest()
       setUser(null)
       setCompanies([])
+      setActiveCompanyId(null)
+      invalidateQueryCache()
     }
 
     window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired)
@@ -57,9 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Arranca el cold start lo antes posible (compartido con login/landing).
-    void wakeBackend().catch(() => undefined)
-  }, [])
+    setActiveCompanyId(user?.company?.id ?? null)
+  }, [user?.company?.id])
 
   useEffect(() => {
     let isMounted = true
@@ -77,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentSession = await fetchCurrentUser()
 
         if (isMounted) {
+          setActiveCompanyId(currentSession.user.company?.id ?? null)
           setUser(currentSession.user)
           setCompanies(currentSession.companies)
         }
@@ -84,6 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logoutRequest()
 
         if (isMounted) {
+          setActiveCompanyId(null)
+          invalidateQueryCache()
           setUser(null)
           setCompanies([])
         }
@@ -103,11 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (payload: LoginRequest) => {
     const session = await loginRequest(payload)
-    const currentSession =
-      session.user && session.companies.length > 0
-        ? { user: session.user, companies: session.companies }
-        : await fetchCurrentUser()
+    // Admin puede entrar sin empresas; no forzar /me solo por lista vacía.
+    const currentSession = session.user
+      ? { user: session.user, companies: session.companies }
+      : await fetchCurrentUser()
 
+    setActiveCompanyId(currentSession.user.company?.id ?? null)
     setUser(currentSession.user)
     setCompanies(currentSession.companies)
 
@@ -118,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const session = await registerRequest(payload)
     const currentUser = session.user ?? (await fetchCurrentUser()).user
 
+    setActiveCompanyId(currentUser.company?.id ?? null)
     setUser(currentUser)
     setCompanies(session.companies)
   }, [])
@@ -136,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? { user: session.user, companies: session.companies }
           : await fetchCurrentUser()
 
+      setActiveCompanyId(currentSession.user.company?.id ?? null)
       setUser(currentSession.user)
       setCompanies(currentSession.companies)
     } finally {
@@ -145,6 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     logoutRequest()
+    setActiveCompanyId(null)
+    invalidateQueryCache()
     setUser(null)
     setCompanies([])
   }, [])

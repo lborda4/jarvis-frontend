@@ -1,14 +1,13 @@
 import { useEffect, useId, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import LoadingIndicator from '../components/LoadingIndicator'
+import { CloseIcon, MenuIcon } from '../components/icons/SidebarIcons'
 import { useAuth } from '../context/AuthContext'
-import { useBackendWakeup } from '../hooks/useBackendWakeup'
+import { WHATSAPP_DEMO_HREF } from '../constants/contact'
 import './LandingPage.css'
 
 const APP_ENTRY_PATH = '/documento-soporte'
-const WHATSAPP_HREF =
-  'https://wa.me/573195355387?text=Hola%2C%20quiero%20solicitar%20una%20demo%20de%20JARVIS'
-const DEMO_HREF = WHATSAPP_HREF
+const DEMO_HREF = WHATSAPP_DEMO_HREF
 
 const NAV_LINKS = [
   { href: '#inicio', label: 'Inicio' },
@@ -263,7 +262,6 @@ function HeroVisual() {
 
 function LandingPage() {
   const { isAuthenticated, isLoading } = useAuth()
-  const { loadingMessage } = useBackendWakeup()
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
@@ -282,7 +280,7 @@ function LandingPage() {
   if (isLoading) {
     return (
       <div className="landing-loading">
-        <LoadingIndicator message={loadingMessage} />
+        <LoadingIndicator message="Cargando..." />
       </div>
     )
   }
@@ -343,7 +341,7 @@ function LandingPage() {
               onClick={() => setMenuOpen((v) => !v)}
             >
               <span className="sr-only">{menuOpen ? 'Cerrar menú' : 'Abrir menú'}</span>
-              <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
+              {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
           </div>
         </div>
@@ -518,7 +516,7 @@ function LandingPage() {
               <a href="mailto:jarviscol2025@gmail.com">jarviscol2025@gmail.com</a>
             </p>
             <p>
-              <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">
+              <a href={DEMO_HREF} target="_blank" rel="noopener noreferrer">
                 WhatsApp
               </a>
               {' · '}

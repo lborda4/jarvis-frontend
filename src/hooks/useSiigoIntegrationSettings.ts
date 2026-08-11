@@ -7,8 +7,14 @@ import {
   saveSiigoCredentials,
   syncSiigoSuppliers,
 } from '../services/siigoService'
-import type { SaveSiigoCredentialsResponse } from '../types/siigo'
-import { formatBalanceTrialSuccessMessage, BALANCE_TRIAL_IMPORT_ERROR_MESSAGE } from '../utils/formatBalanceTrialSuccess'
+import type {
+  SaveSiigoCredentialsResponse,
+  SiigoSubscriptionStatus,
+} from '../types/siigo'
+import {
+  formatBalanceTrialSuccessMessage,
+  BALANCE_TRIAL_IMPORT_ERROR_MESSAGE,
+} from '../utils/formatBalanceTrialSuccess'
 import { formatSiigoCredentialsSuccessMessage } from '../utils/formatSiigoCredentialsSuccess'
 
 export function useSiigoIntegrationSettings() {
@@ -20,6 +26,9 @@ export function useSiigoIntegrationSettings() {
     isSiigoConfigured,
     hasSiigoAccounts,
     isSupportDocumentEnabled,
+    isSubscriptionActive,
+    hasSupportDocumentAccess,
+    includedDocumentTypes,
   } = useIntegrationSetup()
   const showSetupRequiredNotice =
     !isCheckingSetup && (!isSiigoConfigured || !hasSiigoAccounts)
@@ -35,6 +44,8 @@ export function useSiigoIntegrationSettings() {
     string | null
   >(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [subscription, setSubscription] =
+    useState<SiigoSubscriptionStatus | null>(null)
 
   useEffect(() => {
     if (!user?.company?.id) {
@@ -44,6 +55,7 @@ export function useSiigoIntegrationSettings() {
     void (async () => {
       try {
         const status = await fetchSiigoCredentialsStatus()
+        setSubscription(status.subscription ?? null)
 
         if (status.configured) {
           markConfigured()
@@ -68,6 +80,24 @@ export function useSiigoIntegrationSettings() {
     setSuppliersSuccessMessage(null)
   }, [])
 
+  const saveCredentialsRequest = useCallback(async () => {
+    const response: SaveSiigoCredentialsResponse = await saveSiigoCredentials({
+      username: username.trim(),
+      access_key: accessKey.trim(),
+      partner_id: partnerId.trim(),
+    })
+    setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
+    markConfigured()
+    await refreshSetupStatus()
+    return response
+  }, [
+    accessKey,
+    markConfigured,
+    partnerId,
+    refreshSetupStatus,
+    username,
+  ])
+
   const handleSaveCredentials = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
@@ -87,16 +117,7 @@ export function useSiigoIntegrationSettings() {
       clearMessages()
 
       try {
-        const response: SaveSiigoCredentialsResponse = await saveSiigoCredentials(
-          {
-            username: username.trim(),
-            access_key: accessKey.trim(),
-            partner_id: partnerId.trim(),
-          },
-        )
-        setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
-        markConfigured()
-        await refreshSetupStatus()
+        await saveCredentialsRequest()
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
@@ -109,19 +130,15 @@ export function useSiigoIntegrationSettings() {
       }
     },
     [
-      accessKey,
       clearMessages,
       isSavingCredentials,
-      markConfigured,
-      partnerId,
-      refreshSetupStatus,
+      saveCredentialsRequest,
       user?.company,
-      username,
     ],
   )
 
   const handleSyncSuppliers = useCallback(async () => {
-    if (isSyncingSuppliers) {
+    if (isSyncingSuppliers || isSavingCredentials) {
       return
     }
 
@@ -132,6 +149,13 @@ export function useSiigoIntegrationSettings() {
       return
     }
 
+    if (!isSiigoConfigured) {
+      setErrorMessage(
+        'Primero guarde las credenciales de SIIGO para poder sincronizar las cuentas.',
+      )
+      return
+    }
+
     setIsSyncingSuppliers(true)
     clearMessages()
 
@@ -139,14 +163,50 @@ export function useSiigoIntegrationSettings() {
       const response = await syncSiigoSuppliers()
       setSuppliersSuccessMessage(formatBalanceTrialSuccessMessage(response))
       await refreshSetupStatus()
-    } catch {
-      setErrorMessage(BALANCE_TRIAL_IMPORT_ERROR_MESSAGE)
+
+      const status = await fetchSiigoCredentialsStatus({ force: true })
+      setSubscription(status.subscription ?? null)
+
+      const accountsSaved =
+        response.accountsCreated + response.accountsUpdated > 0 ||
+        status.hasAccounts
+
+      if (!accountsSaved) {
+        setErrorMessage(
+          'La sincronización terminó, pero no se encontraron cuentas contables transaccionales. Verifique el Balance de Prueba en SIIGO.',
+        )
+      }
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, BALANCE_TRIAL_IMPORT_ERROR_MESSAGE),
+      )
     } finally {
       setIsSyncingSuppliers(false)
+      setIsSavingCredentials(false)
     }
-  }, [clearMessages, isSyncingSuppliers, refreshSetupStatus, user?.company])
+  }, [
+    clearMessages,
+    isSavingCredentials,
+    isSiigoConfigured,
+    isSyncingSuppliers,
+    refreshSetupStatus,
+    user?.company,
+  ])
 
   const isBusy = isAuthLoading || isSavingCredentials || isSyncingSuppliers
+  const canSaveCredentials =
+    Boolean(user?.company) &&
+    username.trim().length > 0 &&
+    accessKey.trim().length > 0 &&
+    partnerId.trim().length > 0 &&
+    !isSavingCredentials &&
+    !isAuthLoading
+  const canSyncSuppliers =
+    Boolean(user?.company) &&
+    isSiigoConfigured &&
+    !isSyncingSuppliers &&
+    !isAuthLoading &&
+    !isSavingCredentials
 
   return {
     isAuthLoading,
@@ -163,6 +223,12 @@ export function useSiigoIntegrationSettings() {
     isSiigoConfigured,
     hasSiigoAccounts,
     isSupportDocumentEnabled,
+    isSubscriptionActive,
+    hasSupportDocumentAccess,
+    includedDocumentTypes,
+    subscription,
+    canSaveCredentials,
+    canSyncSuppliers,
     errorMessage,
     setUsername,
     setAccessKey,

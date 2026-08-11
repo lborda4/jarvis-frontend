@@ -6,7 +6,7 @@ import {
 
 const STATUS_LABELS: Record<string, string> = {
   [ELECTRONIC_DOCUMENT_STATUS.PENDING]: 'Pendiente',
-  [ELECTRONIC_DOCUMENT_STATUS.SUPPLIER_NOT_FOUND]: 'Proveedor no encontrado',
+  [ELECTRONIC_DOCUMENT_STATUS.SUPPLIER_NOT_FOUND]: 'Tercero no encontrado',
   [ELECTRONIC_DOCUMENT_STATUS.SUPPLIER_FOUND]: 'Proveedor encontrado',
   [ELECTRONIC_DOCUMENT_STATUS.THIRD_PARTY_REQUIRED]: 'Requiere proveedor',
   [ELECTRONIC_DOCUMENT_STATUS.ACCOUNT_REQUIRED]: 'Requiere cuenta',
@@ -73,7 +73,7 @@ export const DOCUMENT_STATUS_FILTER_OPTIONS = [
   { value: ELECTRONIC_DOCUMENT_STATUS.PENDING, label: 'Pendiente' },
   {
     value: ELECTRONIC_DOCUMENT_STATUS.SUPPLIER_NOT_FOUND,
-    label: 'Proveedor no encontrado',
+    label: 'Tercero no encontrado',
   },
   { value: ELECTRONIC_DOCUMENT_STATUS.ACCOUNT_REQUIRED, label: 'Requiere cuenta' },
   {

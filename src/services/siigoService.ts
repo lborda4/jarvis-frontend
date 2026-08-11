@@ -25,6 +25,12 @@ import type {
   SiigoTaxCatalogItem,
 } from '../types/siigo'
 import { API_BASE_URL, apiClient } from './apiClient'
+import {
+  cachedQuery,
+  companyQueryKey,
+  invalidateQueryCache,
+  QUERY_STALE_MS,
+} from './queryCache'
 
 const SIIGO_IMPORT_ENDPOINT = '/integrations/siigo/import'
 const SIIGO_SUPPLIERS_ENDPOINT = '/integrations/siigo/suppliers'
@@ -380,12 +386,26 @@ export async function createSiigoPurchaseSend(
   return response.data
 }
 
-export async function fetchSiigoCredentialsStatus(): Promise<SiigoCredentialsStatusResponse> {
-  const response = await apiClient.get<SiigoCredentialsStatusResponse>(
-    SIIGO_CREDENTIALS_STATUS_ENDPOINT,
-  )
+export async function fetchSiigoCredentialsStatus(options?: {
+  force?: boolean
+}): Promise<SiigoCredentialsStatusResponse> {
+  const key = companyQueryKey(['siigo', 'credentials-status'])
 
-  return response.data
+  if (options?.force) {
+    invalidateQueryCache(key)
+  }
+
+  return cachedQuery(
+    key,
+    QUERY_STALE_MS.credentials,
+    async () => {
+      const response = await apiClient.get<SiigoCredentialsStatusResponse>(
+        SIIGO_CREDENTIALS_STATUS_ENDPOINT,
+      )
+      return response.data
+    },
+    options,
+  )
 }
 
 export async function fetchSiigoCredentialsConfigured(): Promise<boolean> {
@@ -401,13 +421,24 @@ export async function saveSiigoCredentials(
     request,
   )
 
+  invalidateQueryCache(companyQueryKey(['siigo', 'credentials-status']))
+
   return response.data
 }
 
 export async function syncSiigoSuppliers(): Promise<ImportBalanceTrialResponse> {
   const response = await apiClient.post<ImportBalanceTrialResponse>(
     SIIGO_BALANCE_TRIAL_IMPORT_ENDPOINT,
+    undefined,
+    {
+      // La sincronización consulta el Balance de Prueba en SIIGO.
+      timeout: 10 * 60 * 1000,
+    },
   )
+
+  // Tras guardar cuentas, el status debe reconsultar hasAccounts.
+  invalidateQueryCache(companyQueryKey(['siigo', 'credentials-status']))
+  invalidateQueryCache(companyQueryKey(['siigo', 'catalog-bundle']))
 
   return response.data
 }

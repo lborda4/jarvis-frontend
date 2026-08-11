@@ -2,13 +2,16 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { type ChangeEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
+import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
+  AdminIcon,
   DocumentIcon,
   HelpIcon,
   PanelLeftIcon,
   SettingsIcon,
   SuppliersIcon,
 } from '../components/icons/SidebarIcons'
+import { isAdminRole } from '../constants/userRole'
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
 
@@ -39,7 +42,9 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     useAuth()
   const {
     isSupportDocumentEnabled,
+    isPurchaseInvoiceEnabled,
     hasSupportDocumentAccess,
+    hasPurchaseInvoiceAccess,
     requiresSetup,
     setupPath,
     isJarvisCompany,
@@ -63,7 +68,17 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             label: 'Documento soporte',
             to: '/documento-soporte',
             icon: DocumentIcon,
-            requiresSiigoSetup: true as const,
+            featureEnabled: isSupportDocumentEnabled,
+          },
+        ]
+      : []),
+    ...(hasPurchaseInvoiceAccess
+      ? [
+          {
+            label: 'Factura de compra',
+            to: '/factura-compra',
+            icon: DocumentIcon,
+            featureEnabled: isPurchaseInvoiceEnabled,
           },
         ]
       : []),
@@ -74,6 +89,15 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             to: '/terceros',
             icon: SuppliersIcon,
             requiresJarvisSetup: true as const,
+          },
+        ]
+      : []),
+    ...(isAdminRole(user?.role)
+      ? [
+          {
+            label: 'Administración',
+            to: '/admin',
+            icon: AdminIcon,
           },
         ]
       : []),
@@ -99,6 +123,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       return location.pathname.startsWith('/documento-soporte')
     }
 
+    if (to === '/factura-compra') {
+      return location.pathname.startsWith('/factura-compra')
+    }
+
     if (to === '/terceros') {
       return location.pathname.startsWith('/terceros')
     }
@@ -109,15 +137,13 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const renderNavItems = (iconOnly: boolean) =>
     navItems.map((item) => {
       const Icon = item.icon
-      const isDisabledBySiigo =
-        'requiresSiigoSetup' in item &&
-        item.requiresSiigoSetup &&
-        !isSupportDocumentEnabled
+      const isDisabledByFeature =
+        'featureEnabled' in item && item.featureEnabled === false
       const isDisabledByJarvis =
         'requiresJarvisSetup' in item &&
         item.requiresJarvisSetup &&
         !isConfigured
-      const isDisabled = isDisabledBySiigo || isDisabledByJarvis
+      const isDisabled = isDisabledByFeature || isDisabledByJarvis
       const active = !isDisabled && isActive(item.to)
       const linkClass = [
         'app-sidebar__link',
@@ -138,8 +164,8 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               isDisabledByJarvis
                 ? 'Complete todos los pasos de configuración Jarvis para continuar'
                 : isJarvisCompany
-                  ? 'Requiere plan activo con documento soporte y configuración completa de Jarvis'
-                  : 'Requiere plan activo (Documento soporte), credenciales SIIGO y cuentas sincronizadas'
+                  ? 'Requiere plan activo y configuración completa de Jarvis'
+                  : 'Requiere plan activo, credenciales SIIGO y cuentas sincronizadas'
             }
           >
             <Icon className="app-sidebar__link-icon" />
@@ -239,9 +265,14 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               <HelpIcon className="app-sidebar__help-icon" />
               <div>
                 <p className="app-sidebar__help-title">¿Necesitas ayuda?</p>
-                <button type="button" className="app-sidebar__help-link">
-                  Visita nuestra guía
-                </button>
+                <a
+                  href={WHATSAPP_SUPPORT_HREF}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="app-sidebar__help-link"
+                >
+                  Escríbenos por WhatsApp
+                </a>
               </div>
             </div>
 

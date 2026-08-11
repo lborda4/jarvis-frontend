@@ -77,8 +77,8 @@
 }
 
 .ds-start__icon--bulk {
-  background-color: #eaf6ed;
-  color: #16794c;
+  background-color: var(--jarvis-success-soft);
+  color: var(--jarvis-success);
 }
 
 .ds-start__card-title {
@@ -91,37 +91,14 @@
 .ds-start__card-text {
   margin: 0 0 0.9rem;
   color: var(--jarvis-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--text-md);
   line-height: 1.45;
 }
 
+/* Colors/padding now come from <Button variant="primary" /> — this rule only caps its width. */
 .ds-start__action {
   width: 100%;
   max-width: 220px;
-  padding: 0.72rem 1.15rem;
-  border: none;
-  border-radius: var(--r-sm);
-  background-color: var(--jarvis-primary);
-  color: #ffffff;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.ds-start__action:hover:not(:disabled) {
-  background-color: var(--jarvis-primary-hover);
-}
-
-.ds-start__action--secondary {
-  background-color: #ffffff;
-  border: 1px solid var(--jarvis-border);
-  color: var(--jarvis-text-muted);
-}
-
-.ds-start__action:disabled {
-  cursor: not-allowed;
-  opacity: 0.75;
 }
 
 .ds-start__tip {
@@ -131,7 +108,7 @@
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-md);
   color: var(--jarvis-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   text-align: center;
 }
 
@@ -145,6 +122,6 @@
   }
 
   .ds-start__title {
-    font-size: 1.55rem;
+    font-size: var(--text-h1);
   }
 }

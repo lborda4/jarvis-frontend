@@ -1,4 +1,6 @@
 import AccountAutocomplete from './AccountAutocomplete'
+import Banner from './Banner'
+import Button from './Button'
 import SupplierAutocomplete from './SupplierAutocomplete'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SupplierOption } from '../types/supplier'
@@ -65,14 +67,14 @@ function DocumentAccountToolbar({
           />
         </div>
 
-        <button
-          type="button"
+        <Button
+          variant="primary"
           className="document-account-toolbar__apply"
           onClick={onApply}
           disabled={controlsDisabled || !canApply}
         >
           {isApplying ? 'Aplicando...' : 'Aplicar cuenta'}
-        </button>
+        </Button>
       </div>
 
       <div className="document-account-toolbar__options">
@@ -92,11 +94,19 @@ function DocumentAccountToolbar({
       </p>
 
       {feedbackMessage && (
-        <p className="document-account-toolbar__feedback">{feedbackMessage}</p>
+        <Banner
+          variant="success"
+          message={feedbackMessage}
+          className="document-account-toolbar__banner"
+        />
       )}
 
       {errorMessage && (
-        <p className="document-account-toolbar__error">{errorMessage}</p>
+        <Banner
+          variant="error"
+          message={errorMessage}
+          className="document-account-toolbar__banner"
+        />
       )}
     </section>
   )

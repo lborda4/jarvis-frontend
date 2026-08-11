@@ -26,6 +26,13 @@ import {
   fetchSiigoTaxes,
   syncSiigoCatalogs,
 } from '../services/siigoService'
+import {
+  cachedQuery,
+  companyQueryKey,
+  peekCachedQuery,
+  QUERY_STALE_MS,
+  setCachedQuery,
+} from '../services/queryCache'
 import { mapCatalogToAccountOptions } from '../utils/siigoAccounts'
 import { mapCatalogToCostCenterOptions } from '../utils/siigoCostCenters'
 import { mapCatalogToPaymentMethodOptions } from '../utils/siigoPaymentMethods'
@@ -48,6 +55,28 @@ const ALL_RETENTION_TAX_TYPES = [
   ]),
 ]
 
+type SiigoCatalogBundle = {
+  accountOptions: SiigoAccountOption[]
+  paymentMethodOptionsByDocumentType: Record<string, SiigoPaymentMethodOption[]>
+  retentionOptionsByTaxType: Record<string, SiigoTaxOption[]>
+  costCenterOptions: SiigoCostCenterOption[]
+  accountsError: string | null
+  paymentMethodsError: string | null
+  costCentersError: string | null
+  retentionsError: string | null
+}
+
+const EMPTY_CATALOGS: SiigoCatalogBundle = {
+  accountOptions: [],
+  paymentMethodOptionsByDocumentType: {},
+  retentionOptionsByTaxType: {},
+  costCenterOptions: [],
+  accountsError: null,
+  paymentMethodsError: null,
+  costCentersError: null,
+  retentionsError: null,
+}
+
 interface SiigoCatalogContextValue {
   isLoadingCatalogs: boolean
   accountOptions: SiigoAccountOption[]
@@ -63,27 +92,84 @@ interface SiigoCatalogContextValue {
 
 const SiigoCatalogContext = createContext<SiigoCatalogContextValue | null>(null)
 
-async function loadCatalogsFromApi(): Promise<{
-  accountOptions: SiigoAccountOption[]
-  paymentMethodOptionsByDocumentType: Record<string, SiigoPaymentMethodOption[]>
-  retentionOptionsByTaxType: Record<string, SiigoTaxOption[]>
-  costCenterOptions: SiigoCostCenterOption[]
-  accountsError: string | null
-  paymentMethodsError: string | null
-  costCentersError: string | null
-  retentionsError: string | null
-}> {
-  let accountOptions: SiigoAccountOption[] = []
-  let accountsError: string | null = null
+function siigoCatalogCacheKey(): string {
+  return companyQueryKey(['siigo', 'catalog-bundle'])
+}
 
-  try {
-    accountOptions = mapCatalogToAccountOptions(await fetchSiigoAccounts())
-  } catch (error) {
-    accountsError = getApiErrorMessage(
-      error,
-      'No se pudo cargar el catálogo de cuentas contables.',
-    )
-  }
+async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
+  const [
+    accountsResult,
+    paymentResults,
+    retentionResults,
+    costCentersResult,
+  ] = await Promise.all([
+    fetchSiigoAccounts()
+      .then((items) => ({
+        accountOptions: mapCatalogToAccountOptions(items),
+        accountsError: null as string | null,
+      }))
+      .catch((error) => ({
+        accountOptions: [] as SiigoAccountOption[],
+        accountsError: getApiErrorMessage(
+          error,
+          'No se pudo cargar el catálogo de cuentas contables.',
+        ),
+      })),
+    Promise.all(
+      PAYMENT_DOCUMENT_TYPES.map(async (documentType) => {
+        try {
+          return {
+            documentType,
+            options: mapCatalogToPaymentMethodOptions(
+              await fetchSiigoPaymentMethods(documentType),
+            ),
+            error: null as string | null,
+          }
+        } catch (error) {
+          return {
+            documentType,
+            options: [] as SiigoPaymentMethodOption[],
+            error: getApiErrorMessage(
+              error,
+              `No se pudo cargar el catálogo de medios de pago (${documentType}).`,
+            ),
+          }
+        }
+      }),
+    ),
+    Promise.all(
+      ALL_RETENTION_TAX_TYPES.map(async (taxType) => {
+        try {
+          return {
+            taxType,
+            options: mapCatalogToTaxOptions(await fetchSiigoTaxes(taxType)),
+            error: null as string | null,
+          }
+        } catch (error) {
+          return {
+            taxType,
+            options: [] as SiigoTaxOption[],
+            error: getApiErrorMessage(
+              error,
+              `No se pudo cargar el catálogo de ${taxType}.`,
+            ),
+          }
+        }
+      }),
+    ),
+    fetchSiigoCostCenters()
+      .then((items) => ({
+        costCenterOptions: mapCatalogToCostCenterOptions(items),
+        costCentersError: null as string | null,
+      }))
+      .catch((error) => ({
+        costCenterOptions: [] as SiigoCostCenterOption[],
+        costCentersError: getApiErrorMessage(
+          error,
+          'No se pudo cargar el catálogo de centros de costo.',
+        ),
+      })),
+  ])
 
   const paymentMethodOptionsByDocumentType: Record<
     string,
@@ -91,67 +177,34 @@ async function loadCatalogsFromApi(): Promise<{
   > = {}
   const paymentMethodErrors: string[] = []
 
-  await Promise.all(
-    PAYMENT_DOCUMENT_TYPES.map(async (documentType) => {
-      try {
-        paymentMethodOptionsByDocumentType[documentType] =
-          mapCatalogToPaymentMethodOptions(
-            await fetchSiigoPaymentMethods(documentType),
-          )
-      } catch (error) {
-        paymentMethodErrors.push(
-          getApiErrorMessage(
-            error,
-            `No se pudo cargar el catálogo de medios de pago (${documentType}).`,
-          ),
-        )
-      }
-    }),
-  )
+  for (const item of paymentResults) {
+    paymentMethodOptionsByDocumentType[item.documentType] = item.options
+    if (item.error) {
+      paymentMethodErrors.push(item.error)
+    }
+  }
 
   const retentionOptionsByTaxType: Record<string, SiigoTaxOption[]> = {}
   const retentionErrors: string[] = []
 
-  await Promise.all(
-    ALL_RETENTION_TAX_TYPES.map(async (taxType) => {
-      try {
-        retentionOptionsByTaxType[taxType] = mapCatalogToTaxOptions(
-          await fetchSiigoTaxes(taxType),
-        )
-      } catch (error) {
-        retentionErrors.push(
-          getApiErrorMessage(
-            error,
-            `No se pudo cargar el catálogo de ${taxType}.`,
-          ),
-        )
-      }
-    }),
-  )
-
-  let costCenterOptions: SiigoCostCenterOption[] = []
-  let costCentersError: string | null = null
-
-  try {
-    costCenterOptions = mapCatalogToCostCenterOptions(await fetchSiigoCostCenters())
-  } catch (error) {
-    costCentersError = getApiErrorMessage(
-      error,
-      'No se pudo cargar el catálogo de centros de costo.',
-    )
+  for (const item of retentionResults) {
+    retentionOptionsByTaxType[item.taxType] = item.options
+    if (item.error) {
+      retentionErrors.push(item.error)
+    }
   }
 
   return {
-    accountOptions,
+    accountOptions: accountsResult.accountOptions,
     paymentMethodOptionsByDocumentType,
     retentionOptionsByTaxType,
-    costCenterOptions,
-    accountsError,
+    costCenterOptions: costCentersResult.costCenterOptions,
+    accountsError: accountsResult.accountsError,
     paymentMethodsError:
       paymentMethodErrors.length === PAYMENT_DOCUMENT_TYPES.length
         ? 'No se pudieron cargar los catálogos de medios de pago.'
         : paymentMethodErrors[0] ?? null,
-    costCentersError,
+    costCentersError: costCentersResult.costCentersError,
     retentionsError:
       retentionErrors.length === ALL_RETENTION_TAX_TYPES.length
         ? 'No se pudieron cargar los catálogos de retenciones.'
@@ -159,76 +212,97 @@ async function loadCatalogsFromApi(): Promise<{
   }
 }
 
+async function loadCatalogsCached(force = false): Promise<SiigoCatalogBundle> {
+  return cachedQuery(
+    siigoCatalogCacheKey(),
+    QUERY_STALE_MS.siigoCatalogBundle,
+    loadCatalogsFromApi,
+    { force },
+  )
+}
+
 export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { isSiigoConfigured } = useIntegrationSetup()
-  const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(false)
-  const [accountOptions, setAccountOptions] = useState<SiigoAccountOption[]>([])
+  const companyId = user?.company?.id
+  const cachedBundle = peekCachedQuery<SiigoCatalogBundle>(siigoCatalogCacheKey())
+  const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(
+    () => !cachedBundle,
+  )
+  const [accountOptions, setAccountOptions] = useState<SiigoAccountOption[]>(
+    () => cachedBundle?.accountOptions ?? [],
+  )
   const [paymentMethodOptionsByDocumentType, setPaymentMethodOptionsByDocumentType] =
-    useState<Record<string, SiigoPaymentMethodOption[]>>({})
+    useState<Record<string, SiigoPaymentMethodOption[]>>(
+      () => cachedBundle?.paymentMethodOptionsByDocumentType ?? {},
+    )
   const [retentionOptionsByTaxType, setRetentionOptionsByTaxType] = useState<
     Record<string, SiigoTaxOption[]>
-  >({})
+  >(() => cachedBundle?.retentionOptionsByTaxType ?? {})
   const [costCenterOptions, setCostCenterOptions] = useState<
     SiigoCostCenterOption[]
-  >([])
-  const [accountsError, setAccountsError] = useState<string | null>(null)
+  >(() => cachedBundle?.costCenterOptions ?? [])
+  const [accountsError, setAccountsError] = useState<string | null>(
+    () => cachedBundle?.accountsError ?? null,
+  )
   const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(
-    null,
+    () => cachedBundle?.paymentMethodsError ?? null,
   )
-  const [costCentersError, setCostCentersError] = useState<string | null>(null)
-  const [retentionsError, setRetentionsError] = useState<string | null>(null)
+  const [costCentersError, setCostCentersError] = useState<string | null>(
+    () => cachedBundle?.costCentersError ?? null,
+  )
+  const [retentionsError, setRetentionsError] = useState<string | null>(
+    () => cachedBundle?.retentionsError ?? null,
+  )
 
-  const applyCatalogState = useCallback(
-    (catalogs: Awaited<ReturnType<typeof loadCatalogsFromApi>>) => {
-      setAccountOptions(catalogs.accountOptions)
-      setPaymentMethodOptionsByDocumentType(
-        catalogs.paymentMethodOptionsByDocumentType,
-      )
-      setRetentionOptionsByTaxType(catalogs.retentionOptionsByTaxType)
-      setCostCenterOptions(catalogs.costCenterOptions)
-      setAccountsError(catalogs.accountsError)
-      setPaymentMethodsError(catalogs.paymentMethodsError)
-      setCostCentersError(catalogs.costCentersError)
-      setRetentionsError(catalogs.retentionsError)
-    },
-    [],
-  )
+  const applyCatalogState = useCallback((catalogs: SiigoCatalogBundle) => {
+    setAccountOptions(catalogs.accountOptions)
+    setPaymentMethodOptionsByDocumentType(
+      catalogs.paymentMethodOptionsByDocumentType,
+    )
+    setRetentionOptionsByTaxType(catalogs.retentionOptionsByTaxType)
+    setCostCenterOptions(catalogs.costCenterOptions)
+    setAccountsError(catalogs.accountsError)
+    setPaymentMethodsError(catalogs.paymentMethodsError)
+    setCostCentersError(catalogs.costCentersError)
+    setRetentionsError(catalogs.retentionsError)
+  }, [])
 
   const refreshCatalogs = useCallback(async () => {
     if (!isAuthenticated || !isSiigoConfigured) {
-      applyCatalogState({
-        accountOptions: [],
-        paymentMethodOptionsByDocumentType: {},
-        retentionOptionsByTaxType: {},
-        costCenterOptions: [],
-        accountsError: null,
-        paymentMethodsError: null,
-        costCentersError: null,
-        retentionsError: null,
-      })
+      applyCatalogState(EMPTY_CATALOGS)
+      setIsLoadingCatalogs(false)
       return
     }
 
-    setIsLoadingCatalogs(true)
+    const peeked = peekCachedQuery<SiigoCatalogBundle>(siigoCatalogCacheKey())
+    if (peeked) {
+      applyCatalogState(peeked)
+      setIsLoadingCatalogs(false)
+    } else {
+      setIsLoadingCatalogs(true)
+    }
 
     try {
-      const catalogs = await loadCatalogsFromApi()
+      const catalogs = await loadCatalogsCached()
       applyCatalogState(catalogs)
     } finally {
       setIsLoadingCatalogs(false)
     }
 
+    // Sync en background; solo reescribe UI si hay datos nuevos (sin spinner).
     void syncSiigoCatalogs()
       .then(async () => {
-        applyCatalogState(await loadCatalogsFromApi())
+        const catalogs = await loadCatalogsCached(true)
+        setCachedQuery(siigoCatalogCacheKey(), catalogs)
+        applyCatalogState(catalogs)
       })
-      .catch(() => {})
+      .catch(() => undefined)
   }, [applyCatalogState, isAuthenticated, isSiigoConfigured])
 
   useEffect(() => {
     void refreshCatalogs()
-  }, [refreshCatalogs])
+  }, [refreshCatalogs, companyId])
 
   const value = useMemo<SiigoCatalogContextValue>(
     () => ({
@@ -297,19 +371,16 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     let cancelled = false
 
     void (async () => {
-      setIsLoadingJarvisCatalogs(true)
-      setJarvisCatalogError(null)
+      const { fetchJarvisCatalogs } = await import('../services/jarvisService')
+      const { companyQueryKey, peekCachedQuery } = await import(
+        '../services/queryCache'
+      )
+      type JarvisCatalogsPeek = Awaited<ReturnType<typeof fetchJarvisCatalogs>>
+      const peeked = peekCachedQuery<JarvisCatalogsPeek>(
+        companyQueryKey(['jarvis', 'catalogs']),
+      )
 
-      try {
-        const { fetchJarvisCatalogs } = await import(
-          '../services/jarvisService'
-        )
-        const response = await fetchJarvisCatalogs()
-
-        if (cancelled) {
-          return
-        }
-
+      const applyCatalogs = (response: JarvisCatalogsPeek) => {
         setJarvisPaymentMethods(
           response.paymentMethods.map((item) => ({
             id: item.id,
@@ -334,6 +405,25 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
         }
 
         setJarvisRetentionsByType(byType)
+      }
+
+      if (peeked && !cancelled) {
+        applyCatalogs(peeked)
+        setIsLoadingJarvisCatalogs(false)
+      } else if (!cancelled) {
+        setIsLoadingJarvisCatalogs(true)
+      }
+
+      setJarvisCatalogError(null)
+
+      try {
+        const response = await fetchJarvisCatalogs()
+
+        if (cancelled) {
+          return
+        }
+
+        applyCatalogs(response)
       } catch (error) {
         if (!cancelled) {
           setJarvisCatalogError(

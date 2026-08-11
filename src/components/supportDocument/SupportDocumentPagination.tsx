@@ -2,6 +2,12 @@ import {
   ELECTRONIC_DOCUMENT_PAGE_SIZE_OPTIONS,
   type ElectronicDocumentPageSize,
 } from '../../constants/electronicDocuments'
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+} from '../icons/SidebarIcons'
 
 interface SupportDocumentPaginationProps {
   page: number
@@ -58,7 +64,7 @@ function SupportDocumentPagination({
           aria-label="Primera página"
           onClick={() => onPageChange(1)}
         >
-          «
+          <ChevronsLeftIcon />
         </button>
 
         <button
@@ -68,7 +74,7 @@ function SupportDocumentPagination({
           aria-label="Página anterior"
           onClick={() => onPageChange(page - 1)}
         >
-          ‹
+          <ChevronLeftIcon />
         </button>
 
         <span className="support-pagination__page-info">
@@ -82,7 +88,7 @@ function SupportDocumentPagination({
           aria-label="Página siguiente"
           onClick={() => onPageChange(page + 1)}
         >
-          ›
+          <ChevronRightIcon />
         </button>
 
         <button
@@ -92,7 +98,7 @@ function SupportDocumentPagination({
           aria-label="Última página"
           onClick={() => onPageChange(totalPages)}
         >
-          »
+          <ChevronsRightIcon />
         </button>
       </div>
     </nav>

@@ -1,0 +1,67 @@
+.error-message,
+.success-message,
+.warning-message,
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--r-sm);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.error-message {
+  background-color: var(--jarvis-danger-soft);
+  border: 1px solid var(--jarvis-danger-border);
+  color: var(--jarvis-danger);
+}
+
+.success-message {
+  background-color: var(--jarvis-success-soft);
+  border: 1px solid var(--jarvis-success-border);
+  color: var(--jarvis-success);
+}
+
+.warning-message {
+  background-color: var(--jarvis-warning-soft);
+  border: 1px solid var(--jarvis-warning-border);
+  color: var(--jarvis-warning-hover);
+}
+
+.loading-indicator {
+  background-color: var(--jarvis-primary-soft);
+  color: var(--jarvis-primary-hover);
+}
+
+.banner__icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+}
+
+.banner__message {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner__action {
+  flex-shrink: 0;
+}
+
+.loading-indicator__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  border: 2px solid var(--jarvis-primary-ring);
+  border-top-color: var(--jarvis-primary);
+  border-radius: 50%;
+  animation: banner-spin 0.8s linear infinite;
+}
+
+@keyframes banner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

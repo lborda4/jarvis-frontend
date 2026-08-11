@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import AccountAutocomplete from '../AccountAutocomplete'
+import Button from '../Button'
 import CostCenterAutocomplete from '../CostCenterAutocomplete'
+import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
@@ -108,7 +110,7 @@ function SupportDocumentConfigPanel({
                 : 'Revise medio de pago y retenciones (opcionales)'}
         </span>
         <span className="support-config-panel__chevron" aria-hidden="true">
-          {isExpanded ? '▾' : '▸'}
+          {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
         </span>
       </button>
 
@@ -177,13 +179,8 @@ function SupportDocumentConfigPanel({
           )}
 
           <div className="support-config-panel__actions support-config-panel__actions--end">
-            <button
-              type="button"
-              className={
-                isDeleteMode
-                  ? 'support-config-panel__send support-config-panel__send--danger'
-                  : 'support-config-panel__send'
-              }
+            <Button
+              variant={isDeleteMode ? 'danger' : 'primary'}
               onClick={isDeleteMode ? onDelete : onSend}
               disabled={
                 controlsDisabled || (isDeleteMode ? !canDelete : !canSend)
@@ -196,7 +193,7 @@ function SupportDocumentConfigPanel({
                 : isSending
                   ? progressLabel ?? 'Enviando...'
                   : 'Enviar'}
-            </button>
+            </Button>
           </div>
         </div>
       )}

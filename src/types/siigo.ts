@@ -39,6 +39,12 @@ export type SiigoSupplierIdType = '13' | '31'
 export interface CreateSiigoSupplierRequest extends DocumentIdRequest {
   person_type: SiigoSupplierPersonType
   name?: string
+  document_type?: string
+  document_number?: string
+  check_digit?: string
+  email?: string
+  phone?: string
+  address?: string
   identification?: string
   id_type?: SiigoSupplierIdType
 }

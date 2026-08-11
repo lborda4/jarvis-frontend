@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Button from '../Button'
+import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
 import SupportDocumentColumnHeader from './SupportDocumentColumnHeader'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
@@ -130,14 +132,15 @@ function ActionCell({
   if (action === 'supplier_missing') {
     if (onClick) {
       return (
-        <button
-          type="button"
-          className="support-table__action support-table__action--primary"
+        <Button
+          variant="outline"
+          size="sm"
+          className="support-table__action"
           disabled={disabled}
           onClick={onClick}
         >
           {supplierMissingLabel}
-        </button>
+        </Button>
       )
     }
 
@@ -170,26 +173,28 @@ function ActionCell({
 
   if (action === 'delete') {
     return (
-      <button
-        type="button"
-        className="support-table__action support-table__action--danger"
+      <Button
+        variant="outline-danger"
+        size="sm"
+        className="support-table__action"
         disabled={disabled}
         onClick={onClick}
       >
         Eliminar
-      </button>
+      </Button>
     )
   }
 
   return (
-    <button
-      type="button"
-      className="support-table__action support-table__action--primary"
+    <Button
+      variant="outline"
+      size="sm"
+      className="support-table__action"
       disabled={disabled}
       onClick={onClick}
     >
       Enviar
-    </button>
+    </Button>
   )
 }
 
@@ -426,7 +431,7 @@ function SupportDocumentTable({
                           : `Ver detalle de ${row.supplierName}`
                       }
                     >
-                      {isExpanded ? '▾' : '▸'}
+                      {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
                     </button>
                   </td>
                   <td className="support-table__checkbox-col">

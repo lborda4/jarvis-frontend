@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import '../pages/DocumentDashboard.css'
 
 interface AuthCompanyDisplayProps {
   label?: string

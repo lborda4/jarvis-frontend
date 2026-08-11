@@ -1,5 +1,6 @@
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
@@ -142,8 +143,7 @@ function LoginPage() {
         <LoadingIndicator message={loadingMessage} />
         {wakeAttempt > 0 && (
           <p className="auth-loading-screen__hint">
-            El servicio gratis se apaga por inactividad; estamos reintentando la
-            conexión.
+            Estamos verificando tu conexión, esto puede tardar unos segundos.
           </p>
         )}
       </div>
@@ -152,7 +152,7 @@ function LoginPage() {
 
   const submitLabel = isSubmitting
     ? submitIsSlow || isSlow
-      ? 'Estamos iniciando el servicio, espera un momento...'
+      ? 'Preparando tu sesión, espera un momento...'
       : 'Ingresando...'
     : autoRetryLogin
       ? 'Reintentando ingreso...'
@@ -163,30 +163,25 @@ function LoginPage() {
       className="auth-page auth-page--login"
       key={`login-${formKey}-${wakeAttempt}`}
     >
-      <div className="auth-login-backdrop" aria-hidden="true">
-        <span className="auth-login-backdrop__vignette" />
-        <span className="auth-login-backdrop__grid" />
-        <span className="auth-login-backdrop__scanlines" />
-        <span className="auth-login-backdrop__ring auth-login-backdrop__ring--outer" />
-        <span className="auth-login-backdrop__ring auth-login-backdrop__ring--inner" />
-        <span className="auth-login-backdrop__triangle" />
-        <span className="auth-login-backdrop__orb auth-login-backdrop__orb--one" />
-        <span className="auth-login-backdrop__orb auth-login-backdrop__orb--two" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--tl" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--tr" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--bl" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--br" />
-      </div>
+      <aside className="auth-login-brand">
+        <span className="auth-login-brand__glow" aria-hidden="true" />
+        <img
+          src="/jarvis-login-brand.png?v=1"
+          alt="Jarvis"
+          className="auth-login-brand__logo"
+        />
+        <div className="auth-login-brand__copy">
+          <h2 className="auth-login-brand__title">
+            Automatiza. Conecta. Simplifica.
+          </h2>
+          <p className="auth-login-brand__text">
+            Documentos soporte, terceros e integración SIIGO/DIAN desde un
+            solo panel de control.
+          </p>
+        </div>
+      </aside>
 
       <div className="auth-login-shell">
-        <header className="auth-login-top">
-          <img
-            src="/jarvis-login-brand.png?v=1"
-            alt="Jarvis — Automatiza. Conecta. Simplifica."
-            className="auth-login-top__logo"
-          />
-        </header>
-
         <section className="auth-login-card" aria-labelledby="login-title">
           <div className="auth-login-card__intro">
             <h1 id="login-title">Iniciar sesión</h1>
@@ -250,13 +245,14 @@ function LoginPage() {
 
             {errorMessage && <ErrorMessage message={errorMessage} />}
 
-            <button
+            <Button
               type="submit"
+              variant="primary"
               className="auth-login-form__submit"
               disabled={isSubmitting || autoRetryLogin}
             >
               {submitLabel}
-            </button>
+            </Button>
           </form>
         </section>
 

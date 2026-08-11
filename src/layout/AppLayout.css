@@ -58,7 +58,7 @@
   width: 2.65rem;
   height: 2.65rem;
   padding: 0;
-  border-radius: 8px;
+  border-radius: var(--r-md);
 }
 
 .app-sidebar__link--icon-only.app-sidebar__link--active::before {
@@ -215,7 +215,7 @@
 .app-sidebar__brand-icon {
   width: 2rem;
   height: 2rem;
-  color: var(--jarvis-brand);
+  color: var(--jarvis-accent);
 }
 
 .app-sidebar__brand-title {
@@ -274,9 +274,9 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.72rem 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   color: #c5d0dc;
-  font-size: 0.94rem;
+  font-size: var(--text-md);
   font-weight: 500;
   text-decoration: none;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -311,7 +311,7 @@
   background-color: rgba(251, 146, 60, 0.12);
   border: 1px solid rgba(251, 146, 60, 0.35);
   color: #fdba74;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -343,13 +343,13 @@
   width: 1.25rem;
   height: 1.25rem;
   flex-shrink: 0;
-  color: var(--jarvis-brand);
+  color: var(--jarvis-accent);
 }
 
 .app-sidebar__help-title {
   margin: 0 0 0.15rem;
   color: #ffffff;
-  font-size: 0.88rem;
+  font-size: var(--text-base);
   font-weight: 600;
 }
 
@@ -357,10 +357,15 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--jarvis-brand);
-  font-size: 0.82rem;
+  color: var(--jarvis-accent);
+  font-size: var(--text-sm);
   font-weight: 500;
+  text-decoration: none;
   cursor: pointer;
+}
+
+.app-sidebar__help-link:hover {
+  text-decoration: underline;
 }
 
 .app-sidebar__profile {
@@ -380,7 +385,7 @@
   border-radius: var(--r-sm);
   background-color: rgba(255, 255, 255, 0.04);
   color: #e8eef5;
-  font-size: 0.88rem;
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -420,13 +425,13 @@
 
 .app-sidebar__profile-name {
   color: #ffffff;
-  font-size: 0.92rem;
+  font-size: var(--text-md);
   font-weight: 600;
 }
 
 .app-sidebar__profile-role {
   color: #9aabbc;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -1,13 +1,11 @@
+import Banner from './Banner'
+
 interface ErrorMessageProps {
   message: string
 }
 
 function ErrorMessage({ message }: ErrorMessageProps) {
-  return (
-    <div className="error-message" role="alert">
-      {message}
-    </div>
-  )
+  return <Banner variant="error" message={message} />
 }
 
 export default ErrorMessage

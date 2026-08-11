@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { ChevronDownIcon } from '../icons/SidebarIcons'
 import SupplierMultiSelect from '../SupplierMultiSelect'
 import ColumnCheckboxFilter, {
   buildSupportDocumentFilterOptions,
@@ -95,7 +96,7 @@ function FilterDropdown({
       >
         <span className="support-filter-bar__trigger-text">{summary}</span>
         <span className="support-filter-bar__chevron" aria-hidden="true">
-          ▾
+          <ChevronDownIcon />
         </span>
       </button>
       {isOpen && (

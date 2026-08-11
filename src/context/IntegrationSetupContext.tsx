@@ -20,6 +20,11 @@ import {
   markIntegrationConfigured as persistIntegrationConfigured,
 } from '../utils/integrationSetupStorage'
 import { useAuth } from './AuthContext'
+import {
+  companyQueryKey,
+  isCachedQueryFresh,
+  QUERY_STALE_MS,
+} from '../services/queryCache'
 
 interface IntegrationSetupContextValue {
   isCheckingSetup: boolean
@@ -138,7 +143,22 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       return
     }
 
-    setIsCheckingSetup(true)
+    // Si ya hay datos frescos en caché, no bloquear la UI.
+    const hasFreshSetupCache =
+      isCachedQueryFresh(
+        companyQueryKey(['integrations', 'providers']),
+        QUERY_STALE_MS.providers,
+      ) &&
+      (isCachedQueryFresh(
+        companyQueryKey(['jarvis', 'credentials-status']),
+        QUERY_STALE_MS.credentials,
+      ) ||
+        isCachedQueryFresh(
+          companyQueryKey(['siigo', 'credentials-status']),
+          QUERY_STALE_MS.credentials,
+        ))
+
+    setIsCheckingSetup(!hasFreshSetupCache)
 
     try {
       const { providers } = await fetchIntegrationProviders()
@@ -273,10 +293,10 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     hasSupportDocumentAccess &&
     (isSiigoCompany || isJarvisCompany)
   const isPurchaseInvoiceEnabled =
-    isSiigoCompany &&
-    isSiigoFullyConfigured &&
+    isConfigured &&
     isSubscriptionActive &&
-    hasPurchaseInvoiceAccess
+    hasPurchaseInvoiceAccess &&
+    (isSiigoCompany || isJarvisCompany)
 
   const value = useMemo<IntegrationSetupContextValue>(
     () => ({

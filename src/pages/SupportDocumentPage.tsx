@@ -14,8 +14,11 @@ import {
   type DocumentWorkspaceConfig,
 } from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
+import Button from '../components/Button'
+import ConfirmDialog from '../components/ConfirmDialog'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
+import PageHeader from '../components/PageHeader'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
@@ -36,6 +39,7 @@ import {
 import {
   fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
+  peekElectronicDocuments,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteSiigoSupportDocument } from '../services/siigoService'
@@ -177,6 +181,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
   const [deleteQueueProgress, setDeleteQueueProgress] =
     useState<BatchQueueProgress | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: 'selected'; targets: string[] }
+    | { kind: 'single'; document: ElectronicDocumentListItem }
+    | null
+  >(null)
   const [importNotice, setImportNotice] =
     useState<SupportDocumentImportNotice | null>(null)
   const [showImportOnly, setShowImportOnly] = useState(false)
@@ -251,32 +260,27 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     let cancelled = false
 
     void (async () => {
-      setIsLoading(true)
-      setErrorMessage(null)
+      const requestFilters = {
+        electronicDocumentType: config.electronicDocumentType,
+        page,
+        limit: pageLimit,
+        supplierNits:
+          selectedSupplierNits.length > 0 ? selectedSupplierNits : undefined,
+        issueDates:
+          columnFilters.dates.length > 0 ? columnFilters.dates : undefined,
+        siigoDocumentNumbers:
+          columnFilters.siigoNumbers.length > 0
+            ? columnFilters.siigoNumbers
+            : undefined,
+        importStatuses:
+          columnFilters.statuses.length > 0
+            ? columnFilters.statuses
+            : undefined,
+      }
 
-      try {
-        const response = await fetchElectronicDocuments({
-          electronicDocumentType: config.electronicDocumentType,
-          page,
-          limit: pageLimit,
-          supplierNits:
-            selectedSupplierNits.length > 0 ? selectedSupplierNits : undefined,
-          issueDates:
-            columnFilters.dates.length > 0 ? columnFilters.dates : undefined,
-          siigoDocumentNumbers:
-            columnFilters.siigoNumbers.length > 0
-              ? columnFilters.siigoNumbers
-              : undefined,
-          importStatuses:
-            columnFilters.statuses.length > 0
-              ? columnFilters.statuses
-              : undefined,
-        })
-
-        if (cancelled) {
-          return
-        }
-
+      const applyResponse = (
+        response: Awaited<ReturnType<typeof fetchElectronicDocuments>>,
+      ) => {
         setDocuments(response.items)
         setTotalDocuments(response.total)
         setPage(response.page)
@@ -298,8 +302,28 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         setRowObservations((current) =>
           buildInitialRowObservations(response.items, current),
         )
+      }
+
+      const cached = peekElectronicDocuments(requestFilters)
+      if (cached) {
+        applyResponse(cached)
+        setIsLoading(false)
+        setErrorMessage(null)
+      } else {
+        setIsLoading(true)
+        setErrorMessage(null)
+      }
+
+      try {
+        const response = await fetchElectronicDocuments(requestFilters)
+
+        if (cancelled) {
+          return
+        }
+
+        applyResponse(response)
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !cached) {
           setErrorMessage(
             getApiErrorMessage(
               error,
@@ -762,7 +786,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     sendDocuments,
   ])
 
-  const handleDeleteSelected = useCallback(async () => {
+  const requestDeleteSelected = useCallback(() => {
     const targets = [...selectedDocumentIds].filter(
       (documentId) => importStatuses[documentId] === IMPORT_ROW_STATUS.LISTA,
     )
@@ -771,16 +795,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       return
     }
 
-    const confirmed = window.confirm(
-      targets.length === 1
-        ? '¿Eliminar este Documento Soporte en SIIGO? Podrás volver a enviarlo después.'
-        : `¿Eliminar ${targets.length} Documentos Soporte en SIIGO? Podrás volver a enviarlos después.`,
-    )
+    setPendingDelete({ kind: 'selected', targets })
+  }, [importStatuses, selectedDocumentIds])
 
-    if (!confirmed) {
-      return
-    }
-
+  const runDeleteSelected = useCallback(async (targets: string[]) => {
     setIsDeleting(true)
     setErrorMessage(null)
     setDeleteFeedbackMessage(null)
@@ -861,14 +879,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setDeletingDocumentId(null)
       setDeleteQueueProgress(null)
     }
-  }, [
-    importStatuses,
-    reloadDocuments,
-    selectedDocumentIds,
-    setDeleteFeedbackMessage,
-    setErrorMessage,
-    setImportStatus,
-  ])
+  }, [reloadDocuments, setDeleteFeedbackMessage, setErrorMessage, setImportStatus])
 
   const handleSendDocument = useCallback(
     (document: ElectronicDocumentListItem) => {
@@ -897,16 +908,15 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     ],
   )
 
-  const handleDeleteDocument = useCallback(
+  const requestDeleteDocument = useCallback(
+    (document: ElectronicDocumentListItem) => {
+      setPendingDelete({ kind: 'single', document })
+    },
+    [],
+  )
+
+  const runDeleteDocument = useCallback(
     async (document: ElectronicDocumentListItem) => {
-      const confirmed = window.confirm(
-        '¿Eliminar este Documento Soporte en SIIGO? Podrás volver a enviarlo después.',
-      )
-
-      if (!confirmed) {
-        return
-      }
-
       setIsDeleting(true)
       setDeletingDocumentId(document.id)
       setErrorMessage(null)
@@ -949,6 +959,21 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setImportStatus,
     ],
   )
+
+  const confirmPendingDelete = useCallback(() => {
+    if (!pendingDelete) {
+      return
+    }
+
+    const request = pendingDelete
+    setPendingDelete(null)
+
+    if (request.kind === 'selected') {
+      void runDeleteSelected(request.targets)
+    } else {
+      void runDeleteDocument(request.document)
+    }
+  }, [pendingDelete, runDeleteDocument, runDeleteSelected])
 
   const handleToggleRow = useCallback(
     (documentId: string) => {
@@ -1096,45 +1121,40 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   return (
     <main className="support-document-page">
-      <header className="support-document-page__header">
-        <div>
-          <h1>{config.pageTitle}</h1>
-          <p>{config.pageDescription}</p>
-        </div>
+      <PageHeader
+        title={config.pageTitle}
+        description={config.pageDescription}
+        actions={
+          <>
+            {config.showTemplateDownload && config.downloadTemplate && (
+              <Button
+                variant="secondary"
+                onClick={handleDownloadTemplate}
+                disabled={isDownloadingTemplate || isImporting}
+              >
+                {isDownloadingTemplate
+                  ? config.downloadingTemplateLabel
+                  : config.templateButtonLabel}
+              </Button>
+            )}
 
-        <div className="support-document-page__header-actions">
-          {config.showTemplateDownload && config.downloadTemplate && (
-            <button
-              type="button"
-              className="support-document-page__template-btn"
-              onClick={handleDownloadTemplate}
-              disabled={isDownloadingTemplate || isImporting}
-            >
-              {isDownloadingTemplate
-                ? config.downloadingTemplateLabel
-                : config.templateButtonLabel}
-            </button>
-          )}
+            <Button variant="primary" onClick={openFilePicker} disabled={isImporting}>
+              <span className="support-document-page__import-icon" aria-hidden="true">
+                +
+              </span>
+              {isImporting ? config.importingButtonLabel : config.importButtonLabel}
+            </Button>
+          </>
+        }
+      />
 
-          <button
-            type="button"
-            className="support-document-page__import-btn"
-            onClick={openFilePicker}
-            disabled={isImporting}
-          >
-            <span aria-hidden="true">+</span>
-            {isImporting ? config.importingButtonLabel : config.importButtonLabel}
-          </button>
-        </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={config.fileInputAccept}
-          hidden
-          onChange={handleFileChange}
-        />
-      </header>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={config.fileInputAccept}
+        hidden
+        onChange={handleFileChange}
+      />
 
       {importNotice && (
         <ImportSuccessBanner
@@ -1215,9 +1235,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           onCostCenterChange={handleConfigCostCenterChange}
           onRetentionTypeChange={handleRetentionTypeChange}
           onSend={handleSendSelected}
-          onDelete={() => {
-            void handleDeleteSelected()
-          }}
+          onDelete={requestDeleteSelected}
         />
       </div>
 
@@ -1276,12 +1294,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         onToggleRow={handleToggleRow}
         onSelectRows={handleSelectRows}
         onSendDocument={handleSendDocument}
-        onDeleteDocument={handleDeleteDocument}
-        onCreateSupplier={
-          config.provider === 'JARVIS'
-            ? handleCreateJarvisTercero
-            : undefined
-        }
+        onDeleteDocument={requestDeleteDocument}
+        onCreateSupplier={handleCreateJarvisTercero}
         onSortChange={handleSortChange}
       />
 
@@ -1307,7 +1321,23 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         initialDocumentType={terceroModalDocument?.supplierDocumentType}
         initialDocumentNumber={terceroModalDocument?.supplierNit}
         resumeDocumentId={terceroModalDocument?.id}
+        provider={config.provider === 'JARVIS' ? 'JARVIS' : 'SIIGO'}
         onCreated={handleTerceroCreated}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        title="Eliminar Documento Soporte"
+        message={
+          pendingDelete?.kind === 'selected' && pendingDelete.targets.length > 1
+            ? `¿Eliminar ${pendingDelete.targets.length} Documentos Soporte en SIIGO? Podrás volver a enviarlos después.`
+            : '¿Eliminar este Documento Soporte en SIIGO? Podrás volver a enviarlo después.'
+        }
+        confirmLabel="Eliminar"
+        variant="danger"
+        isBusy={isDeleting}
+        onConfirm={confirmPendingDelete}
+        onCancel={() => setPendingDelete(null)}
       />
 
       <SupportDocumentPagination

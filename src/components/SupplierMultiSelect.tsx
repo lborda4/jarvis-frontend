@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { ChevronDownIcon, SearchIcon } from './icons/SidebarIcons'
 import type { SupplierOption } from '../types/supplier'
 import { formatSupplierOptionLabel } from '../types/supplier'
 
@@ -111,7 +112,7 @@ function SupplierMultiSelect({
     >
       <div className="supplier-multi-select__search-wrap">
         <span className="supplier-multi-select__search-icon" aria-hidden="true">
-          ⌕
+          <SearchIcon />
         </span>
         <input
           type="search"
@@ -176,7 +177,7 @@ function SupplierMultiSelect({
       >
         <span className="supplier-multi-select__value">{displayValue}</span>
         <span className="supplier-multi-select__chevron" aria-hidden="true">
-          ▾
+          <ChevronDownIcon />
         </span>
       </button>
 

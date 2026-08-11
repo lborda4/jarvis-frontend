@@ -1,27 +1,32 @@
 import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
-import PurchaseInvoicePage from '../pages/PurchaseInvoicePage'
+import SupportDocumentPage from '../pages/SupportDocumentPage'
+import {
+  JARVIS_PURCHASE_INVOICE_WORKSPACE,
+  PURCHASE_INVOICE_WORKSPACE,
+} from '../constants/documentWorkspaceConfig'
+import { INTEGRATION_PROVIDER } from '../types/integration'
 import '../pages/AuthPages.css'
 
 function PurchaseInvoiceRoute() {
   const {
     isCheckingSetup,
     isPurchaseInvoiceEnabled,
-    isJarvisCompany,
+    integrationProviders,
+    integrationMode,
     setupPath,
   } = useIntegrationSetup()
+  const hasJarvisIntegration = integrationProviders.includes(
+    INTEGRATION_PROVIDER.JARVIS,
+  )
 
-  if (isCheckingSetup) {
+  if (isCheckingSetup || integrationMode === 'unknown') {
     return (
       <div className="auth-loading-screen">
         <LoadingIndicator message="Verificando configuración..." />
       </div>
     )
-  }
-
-  if (isJarvisCompany) {
-    return <Navigate to={setupPath} replace />
   }
 
   if (!isPurchaseInvoiceEnabled) {
@@ -34,7 +39,15 @@ function PurchaseInvoiceRoute() {
     )
   }
 
-  return <PurchaseInvoicePage />
+  return (
+    <SupportDocumentPage
+      config={
+        hasJarvisIntegration
+          ? JARVIS_PURCHASE_INVOICE_WORKSPACE
+          : PURCHASE_INVOICE_WORKSPACE
+      }
+    />
+  )
 }
 
 export default PurchaseInvoiceRoute

@@ -1,3 +1,5 @@
+import Banner from './Banner'
+
 interface LoadingIndicatorProps {
   message?: string
 }
@@ -5,12 +7,7 @@ interface LoadingIndicatorProps {
 function LoadingIndicator({
   message = 'Procesando archivo...',
 }: LoadingIndicatorProps) {
-  return (
-    <div className="loading-indicator" role="status" aria-live="polite">
-      <span className="loading-indicator__spinner" aria-hidden="true" />
-      <span>{message}</span>
-    </div>
-  )
+  return <Banner variant="loading" message={message} />
 }
 
 export default LoadingIndicator

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
+import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { useSiigoIntegrationSettings } from '../hooks/useSiigoIntegrationSettings'
 import '../pages/InvoiceUpload.css'
@@ -9,7 +10,6 @@ import './SiigoIntegrationSettings.css'
 
 function SiigoIntegrationSettings() {
   const {
-    isAuthLoading,
     hasCompany,
     username,
     accessKey,
@@ -23,6 +23,12 @@ function SiigoIntegrationSettings() {
     isSiigoConfigured,
     hasSiigoAccounts,
     isSupportDocumentEnabled,
+    isSubscriptionActive,
+    hasSupportDocumentAccess,
+    includedDocumentTypes,
+    subscription,
+    canSaveCredentials,
+    canSyncSuppliers,
     errorMessage,
     setUsername,
     setAccessKey,
@@ -31,35 +37,37 @@ function SiigoIntegrationSettings() {
     handleSyncSuppliers,
   } = useSiigoIntegrationSettings()
 
-  const canSaveCredentials =
-    hasCompany &&
-    username.trim().length > 0 &&
-    accessKey.trim().length > 0 &&
-    partnerId.trim().length > 0 &&
-    !isSavingCredentials &&
-    !isAuthLoading
-
-  const canSyncSuppliers =
-    hasCompany &&
-    isSiigoConfigured &&
-    !isSyncingSuppliers &&
-    !isAuthLoading
+  const planBlockedReason = !isSubscriptionActive
+    ? 'La suscripción SIIGO no está activa. Contacte al administrador para activar el plan.'
+    : !hasSupportDocumentAccess
+      ? `El plan actual no incluye Documento soporte${
+          includedDocumentTypes.length
+            ? ` (incluye: ${includedDocumentTypes.join(', ')})`
+            : ''
+        }. Contacte al administrador.`
+      : null
 
   return (
     <main className="settings-page">
-      <header className="settings-page__header">
-        <h1>Configuración de integración SIIGO</h1>
-        <p>
-          Configure las credenciales de SIIGO y sincronice el catálogo de cuentas
-          contables para su empresa.
-        </p>
-      </header>
+      <PageHeader
+        title="Configuración de integración SIIGO"
+        description="Complete dos pasos: 1) guardar credenciales y 2) sincronizar cuentas contables. Con ambos listos y un plan activo, se habilitan los documentos incluidos en su suscripción."
+      />
 
       {showSetupRequiredNotice && (
         <div className="settings-page__setup-notice" role="status">
           {!isSiigoConfigured
-            ? 'Para usar Documento soporte, primero configure las credenciales de SIIGO y luego actualice las cuentas contables.'
-            : 'Credenciales listas. Ahora actualice las cuentas contables desde SIIGO para habilitar Documento soporte.'}
+            ? 'Paso 1 pendiente: guarde las credenciales de SIIGO.'
+            : 'Paso 2 pendiente: sincronice las cuentas contables desde SIIGO para habilitar sus documentos.'}
+        </div>
+      )}
+
+      {planBlockedReason && (isSiigoConfigured || hasSiigoAccounts) && (
+        <div className="settings-page__setup-notice" role="status">
+          {planBlockedReason}
+          {subscription?.plan?.name
+            ? ` Plan actual: ${subscription.plan.name}.`
+            : ''}
         </div>
       )}
 
@@ -73,7 +81,7 @@ function SiigoIntegrationSettings() {
 
       <section className="settings-card">
         <div className="settings-card__header">
-          <h2 className="settings-card__title">Credenciales SIIGO</h2>
+          <h2 className="settings-card__title">1. Credenciales SIIGO</h2>
           <p className="settings-card__description">
             Ingrese las credenciales de acceso a la API de SIIGO. El backend
             autenticará y almacenará el token automáticamente.
@@ -152,12 +160,14 @@ function SiigoIntegrationSettings() {
               className="import-siigo-button"
               disabled={!canSaveCredentials}
             >
-              {isSavingCredentials ? 'Guardando credenciales...' : 'Guardar credenciales'}
+              {isSavingCredentials && !isSyncingSuppliers
+                ? 'Guardando credenciales...'
+                : 'Guardar credenciales'}
             </button>
           </div>
         </form>
 
-        {isSavingCredentials && (
+        {isSavingCredentials && !isSyncingSuppliers && (
           <LoadingIndicator message="Autenticando con SIIGO..." />
         )}
         {credentialsSuccessMessage && (
@@ -167,11 +177,11 @@ function SiigoIntegrationSettings() {
 
       <section className="settings-card settings-card--spaced">
         <div className="settings-card__header">
-          <h2 className="settings-card__title">Cuentas contables</h2>
+          <h2 className="settings-card__title">2. Cuentas contables</h2>
           <p className="settings-card__description">
             Sincronice las cuentas contables desde el Balance de Prueba general
-            de SIIGO (últimos 3 años). Este paso es obligatorio para habilitar
-            Documento soporte.
+            de SIIGO (últimos 2 años). Este paso es obligatorio para habilitar
+            los documentos de su plan. Puede tardar unos minutos.
           </p>
           {isSiigoConfigured && hasSiigoAccounts && (
             <p className="settings-card__hint">
@@ -188,19 +198,27 @@ function SiigoIntegrationSettings() {
             onClick={() => void handleSyncSuppliers()}
             disabled={!canSyncSuppliers}
             title={
-              !isSiigoConfigured
-                ? 'Primero guarde las credenciales de SIIGO'
+              !canSyncSuppliers
+                ? 'Guarde las credenciales arriba para habilitar la sincronización'
                 : undefined
             }
           >
             {isSyncingSuppliers
-              ? 'Actualizando cuentas...'
-              : 'Actualizar cuentas desde SIIGO'}
+              ? 'Sincronizando cuentas...'
+              : 'Sincronizar cuentas contables'}
           </button>
         </div>
 
+        {!canSyncSuppliers && hasCompany && (
+          <p className="settings-card__description">
+            {isSiigoConfigured
+              ? 'Espere a que termine la operación en curso.'
+              : 'Guarde primero las credenciales de SIIGO para habilitar este botón.'}
+          </p>
+        )}
+
         {isSyncingSuppliers && (
-          <LoadingIndicator message="Sincronizando cuentas contables desde SIIGO..." />
+          <LoadingIndicator message="Sincronizando cuentas contables desde SIIGO (últimos 2 años)..." />
         )}
         {suppliersSuccessMessage && (
           <SuccessMessage message={suppliersSuccessMessage} />

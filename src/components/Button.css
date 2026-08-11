@@ -1,0 +1,113 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn--md {
+  padding: 0.7rem 1.15rem;
+  font-size: var(--text-md);
+}
+
+.btn--sm {
+  padding: 0.5rem 0.85rem;
+  font-size: var(--text-sm);
+}
+
+.btn--primary {
+  border: none;
+  background-color: var(--jarvis-primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background-color: var(--jarvis-primary-hover);
+}
+
+.btn--secondary {
+  border: 1px solid var(--jarvis-border-strong);
+  background-color: #ffffff;
+  color: var(--jarvis-text);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background-color: var(--jarvis-surface);
+}
+
+.btn--ghost {
+  border: none;
+  background-color: transparent;
+  color: var(--jarvis-text-muted);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background-color: var(--jarvis-primary-soft);
+  color: var(--jarvis-text);
+}
+
+.btn--danger {
+  border: none;
+  background-color: var(--jarvis-danger);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background-color: var(--jarvis-danger-hover);
+}
+
+.btn--warning {
+  border: none;
+  background-color: var(--jarvis-warning);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn--warning:hover:not(:disabled) {
+  background-color: var(--jarvis-warning-hover);
+}
+
+/* Variantes "outline" — para acciones repetidas por fila en tablas densas,
+   donde un botón sólido en cada fila sería demasiado ruido visual. */
+.btn--outline {
+  border: 1px solid var(--jarvis-primary);
+  background-color: #ffffff;
+  color: var(--jarvis-primary);
+}
+
+.btn--outline:hover:not(:disabled) {
+  background-color: var(--jarvis-primary-soft);
+}
+
+.btn--outline-danger {
+  border: 1px solid var(--jarvis-danger);
+  background-color: #ffffff;
+  color: var(--jarvis-danger);
+}
+
+.btn--outline-danger:hover:not(:disabled) {
+  background-color: var(--jarvis-danger-soft);
+}
+
+.btn--outline-warning {
+  border: 1px solid var(--jarvis-warning);
+  background-color: #ffffff;
+  color: var(--jarvis-warning-hover);
+}
+
+.btn--outline-warning:hover:not(:disabled) {
+  background-color: var(--jarvis-warning-soft);
+}

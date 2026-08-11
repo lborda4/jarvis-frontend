@@ -74,7 +74,7 @@ export function useBackendWakeup(options?: {
           return
         }
         setError(
-          'El servicio está tardando en iniciar. Reintentando automáticamente...',
+          'Estamos preparando tu sesión. Reintentando automáticamente...',
         )
         setIsReady(false)
       })
@@ -112,7 +112,7 @@ export function useBackendWakeup(options?: {
     }
 
     setError(
-      'El servicio está tardando en iniciar. Puedes reintentar en un momento.',
+      'Esto está tomando más de lo esperado. Puedes reintentar en un momento.',
     )
     setIsReady(true)
   }, [enabled, isReady, attempt, error])
@@ -122,7 +122,7 @@ export function useBackendWakeup(options?: {
     attempt > 0
       ? `Reintentando conexión con el servicio (${attempt + 1})...`
       : isSlow
-        ? 'Estamos iniciando el servicio, espera un momento...'
+        ? 'Preparando tu sesión, espera un momento...'
         : 'Cargando...'
 
   return {

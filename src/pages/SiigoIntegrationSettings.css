@@ -6,30 +6,16 @@
   transition: max-width 0.2s ease;
 }
 
-.settings-page__header {
-  margin-bottom: 2rem;
-}
-
-.settings-page__header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.55rem;
-  color: var(--jarvis-navy);
-}
-
-.settings-page__header p {
-  margin: 0;
-  color: var(--jarvis-text-muted);
-  font-size: 0.94rem;
-}
+/* Header ahora es <PageHeader> (components/PageHeader.css) */
 
 .settings-page__setup-notice {
   margin-bottom: 1.25rem;
   padding: 0.9rem 1rem;
   border-radius: var(--r-sm);
-  border: 1px solid #fed7aa;
-  background-color: #fff7ed;
-  color: #9a3412;
-  font-size: 0.94rem;
+  border: 1px solid var(--jarvis-warning-border);
+  background-color: var(--jarvis-warning-soft);
+  color: var(--jarvis-warning-hover);
+  font-size: var(--text-md);
   line-height: 1.6;
 }
 
@@ -37,15 +23,15 @@
   margin-bottom: 1.25rem;
   padding: 0.9rem 1rem;
   border-radius: var(--r-sm);
-  border: 1px solid #bbf7d0;
-  background-color: #f0fdf4;
-  color: #166534;
-  font-size: 0.94rem;
+  border: 1px solid var(--jarvis-success-border);
+  background-color: var(--jarvis-success-soft);
+  color: var(--jarvis-success);
+  font-size: var(--text-md);
   line-height: 1.6;
 }
 
 .settings-page__ready-notice a {
-  color: #15803d;
+  color: var(--jarvis-success);
   font-weight: 600;
   text-decoration: none;
 }
@@ -61,7 +47,7 @@
 }
 
 .settings-accordion__panel {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--jarvis-gray-200);
   border-radius: 1rem;
   background-color: #ffffff;
   box-shadow: var(--shadow-sm);
@@ -72,13 +58,13 @@
 }
 
 .settings-accordion__panel--open {
-  border-color: #cbd5e1;
+  border-color: var(--jarvis-border-strong);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .settings-accordion__panel--complete:not(.settings-accordion__panel--open) {
-  border-color: #bbf7d0;
-  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 55%);
+  border-color: var(--jarvis-success-border);
+  background: linear-gradient(180deg, var(--jarvis-success-soft) 0%, #ffffff 55%);
 }
 
 .settings-accordion__panel--locked {
@@ -94,7 +80,7 @@
   padding: 1rem 1.15rem;
   border: none;
   background: transparent;
-  color: #334155;
+  color: var(--jarvis-gray-700);
   text-align: left;
   cursor: pointer;
 }
@@ -104,8 +90,8 @@
 }
 
 .settings-accordion__panel--open .settings-accordion__trigger {
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--jarvis-gray-200);
+  background: var(--jarvis-gray-50);
 }
 
 .settings-accordion__badge {
@@ -115,12 +101,17 @@
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 999px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--jarvis-gray-200);
   background: #ffffff;
-  color: #64748b;
-  font-size: 0.82rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.settings-accordion__badge svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .settings-accordion__panel--open .settings-accordion__badge {
@@ -131,8 +122,8 @@
 }
 
 .settings-accordion__panel--complete .settings-accordion__badge {
-  border-color: #16a34a;
-  background: #16a34a;
+  border-color: var(--jarvis-success);
+  background: var(--jarvis-success);
   color: #ffffff;
   box-shadow: none;
 }
@@ -152,19 +143,19 @@
 
 .settings-accordion__copy strong {
   font-size: 0.98rem;
-  color: #0f172a;
+  color: var(--jarvis-text);
 }
 
 .settings-accordion__copy small {
-  color: #64748b;
+  color: var(--jarvis-text-muted);
   font-size: 0.78rem;
 }
 
 .settings-accordion__chevron {
   width: 0.55rem;
   height: 0.55rem;
-  border-right: 2px solid #94a3b8;
-  border-bottom: 2px solid #94a3b8;
+  border-right: 2px solid var(--jarvis-gray-500);
+  border-bottom: 2px solid var(--jarvis-gray-500);
   transform: rotate(45deg);
   transition: transform 0.2s ease;
   flex-shrink: 0;
@@ -205,7 +196,7 @@
 
 .settings-card {
   padding: 1.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--jarvis-gray-200);
   border-radius: var(--r-md);
   background-color: #ffffff;
   box-shadow: var(--shadow-sm);
@@ -218,40 +209,40 @@
 .settings-card__title {
   margin: 0 0 0.5rem;
   font-size: 1.25rem;
-  color: #1e293b;
+  color: var(--jarvis-text);
 }
 
 .settings-card__description {
   margin: 0;
-  color: #64748b;
+  color: var(--jarvis-text-muted);
   line-height: 1.6;
 }
 
 .settings-card__hint {
   margin: 1rem 0 0;
   padding: 0.85rem 1rem;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--jarvis-info-soft);
   border-radius: var(--r-sm);
-  background-color: #eff6ff;
-  color: #334155;
-  font-size: 0.92rem;
+  background-color: var(--jarvis-info-soft);
+  color: var(--jarvis-gray-700);
+  font-size: var(--text-md);
   line-height: 1.6;
 }
 
 .settings-card__hint strong {
-  color: #1e40af;
+  color: var(--jarvis-info);
   font-weight: 600;
 }
 
 .settings-card__hint-link {
-  color: #1d4ed8;
+  color: var(--jarvis-info);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .settings-card__hint-link:hover {
-  color: #1e3a8a;
+  color: var(--jarvis-info);
 }
 
 .settings-card__actions {
@@ -264,24 +255,24 @@
   gap: 0.35rem;
   margin-bottom: 1.25rem;
   padding: 0.85rem 1rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--jarvis-gray-200);
   border-radius: var(--r-sm);
-  background-color: #f8fafc;
+  background-color: var(--jarvis-gray-50);
 }
 
 .settings-company-field__label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--jarvis-text-muted);
 }
 
 .settings-company-field__value {
-  font-size: 0.95rem;
-  color: #1e293b;
+  font-size: var(--text-md);
+  color: var(--jarvis-text);
 }
 
 .settings-company-field__value--muted {
-  color: #64748b;
+  color: var(--jarvis-text-muted);
 }
 
 .settings-card--spaced {
@@ -301,25 +292,24 @@
 }
 
 .settings-form__field label {
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: #374151;
+  color: var(--jarvis-gray-700);
 }
 
 .settings-form__field input,
 .settings-form__field select {
   width: 100%;
   padding: 0.72rem 0.85rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--jarvis-gray-300);
   border-radius: var(--r-sm);
   background-color: #ffffff;
-  color: #111827;
-  font-size: 0.94rem;
+  color: var(--jarvis-text);
+  font-size: var(--text-md);
 }
 
 .settings-form__field input:focus,
 .settings-form__field select:focus {
-  outline: 2px solid var(--jarvis-brand-ring);
   border-color: var(--jarvis-primary);
 }
 
@@ -350,10 +340,10 @@
 .settings-stepper {
   margin-bottom: 1.5rem;
   padding: 1.15rem 1rem 1rem;
-  border: 1px solid #e8eef5;
+  border: 1px solid var(--jarvis-gray-200);
   border-radius: 1.25rem;
   background:
-    linear-gradient(180deg, #f8fafc 0%, #ffffff 48%);
+    linear-gradient(180deg, var(--jarvis-gray-50) 0%, #ffffff 48%);
 }
 
 .settings-stepper__list {
@@ -379,12 +369,12 @@
   right: 50%;
   left: -50%;
   height: 2px;
-  background: #e2e8f0;
+  background: var(--jarvis-gray-200);
   z-index: 0;
 }
 
 .settings-stepper__item--connector-done:not(:first-child)::before {
-  background: linear-gradient(90deg, #22c55e, #86efac);
+  background: linear-gradient(90deg, var(--jarvis-success), var(--jarvis-success-border));
 }
 
 .settings-stepper__step {
@@ -400,7 +390,7 @@
   padding: 0.15rem 0.5rem 0;
   border: none;
   background: transparent;
-  color: #475569;
+  color: var(--jarvis-text-muted);
   text-align: center;
   cursor: pointer;
 }
@@ -415,11 +405,11 @@
 }
 
 .settings-stepper__step--complete {
-  color: #166534;
+  color: var(--jarvis-success);
 }
 
 .settings-stepper__step--locked {
-  color: #94a3b8;
+  color: var(--jarvis-gray-500);
   cursor: not-allowed;
 }
 
@@ -430,10 +420,10 @@
   width: 2.1rem;
   height: 2.1rem;
   border-radius: 999px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--jarvis-gray-200);
   background: #ffffff;
-  color: #64748b;
-  font-size: 0.86rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-base);
   font-weight: 700;
   flex-shrink: 0;
   transition:
@@ -444,6 +434,11 @@
     color 0.15s ease;
 }
 
+.settings-stepper__badge svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
 .settings-stepper__step--active .settings-stepper__badge {
   border-color: var(--jarvis-primary);
   background: var(--jarvis-primary);
@@ -452,15 +447,15 @@
 }
 
 .settings-stepper__step--complete .settings-stepper__badge {
-  border-color: #16a34a;
-  background: #16a34a;
+  border-color: var(--jarvis-success);
+  background: var(--jarvis-success);
   color: #ffffff;
 }
 
 .settings-stepper__step--locked .settings-stepper__badge {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #94a3b8;
+  background: var(--jarvis-gray-50);
+  border-color: var(--jarvis-gray-200);
+  color: var(--jarvis-gray-500);
 }
 
 .settings-stepper__copy {
@@ -475,7 +470,7 @@
 .settings-stepper__copy strong {
   display: block;
   width: 100%;
-  font-size: 0.88rem;
+  font-size: var(--text-base);
   line-height: 1.25;
   font-weight: 650;
   overflow: hidden;
@@ -486,7 +481,7 @@
 .settings-stepper__copy small {
   display: block;
   width: 100%;
-  color: #64748b;
+  color: var(--jarvis-text-muted);
   font-size: 0.72rem;
   line-height: 1.3;
   overflow: hidden;
@@ -495,13 +490,13 @@
 }
 
 .settings-stepper__step--locked .settings-stepper__copy small {
-  color: #94a3b8;
+  color: var(--jarvis-gray-500);
 }
 
 .settings-stepper__progress {
   margin: 0.95rem 0 0;
-  color: #64748b;
-  font-size: 0.82rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
   text-align: center;
 }
 

@@ -1,3 +1,4 @@
+import { CheckIcon, CloseIcon } from '../icons/SidebarIcons'
 import type { SupportDocumentImportNotice } from '../../types/supportDocumentPage'
 
 interface ImportSuccessBannerProps {
@@ -19,7 +20,7 @@ function ImportSuccessBanner({
     <div className="support-import-banner" role="status">
       <div className="support-import-banner__content">
         <span className="support-import-banner__icon" aria-hidden="true">
-          ✓
+          <CheckIcon />
         </span>
         <p className="support-import-banner__title">
           Se importaron {notice.documentCount} documentos correctamente
@@ -51,7 +52,7 @@ function ImportSuccessBanner({
           aria-label="Cerrar aviso"
           onClick={onDismiss}
         >
-          ×
+          <CloseIcon />
         </button>
       </div>
     </div>
