@@ -623,7 +623,7 @@ export function useJarvisIntegrationSettings() {
           setSupportConfigured(true)
           setSupportResolution(resolutionToDraft(response.resolution))
           setSuccessMessage(
-            'Resolución de Documento soporte enviada a NextPyme.',
+            'Resolución de Documento soporte enviada correctamente.',
           )
           await refreshSetupStatus()
           goToNextStep('support_document')
@@ -631,7 +631,7 @@ export function useJarvisIntegrationSettings() {
           setInvoiceConfigured(true)
           setInvoiceResolution(resolutionToDraft(response.resolution))
           setSuccessMessage(
-            'Resolución de Factura electrónica enviada a NextPyme.',
+            'Resolución de Factura electrónica enviada correctamente.',
           )
           await refreshSetupStatus()
           goToNextStep('electronic_invoice')
@@ -640,7 +640,7 @@ export function useJarvisIntegrationSettings() {
         setErrorMessage(
           getApiErrorMessage(
             error,
-            'No se pudo enviar la resolución a NextPyme.',
+            'No se pudo enviar la resolución. Intenta nuevamente.',
           ),
         )
       } finally {

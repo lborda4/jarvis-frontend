@@ -108,20 +108,33 @@ export function getApiErrorMessage(
   error: unknown,
   fallbackMessage: string,
 ): string {
+  const sanitize = (message: string) =>
+    message
+      .replace(/NEXTPYME_API_TOKEN/gi, 'el token de integración')
+      .replace(/\s*(?:en|a|de|hacia|vía|via)\s+Next\s*Pyme\b/gi, '')
+      .replace(/\bNext\s*Pyme\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s+([.,;:])/g, '$1')
+      .replace(/\.\s*\./g, '.')
+      .trim()
+
   if (axios.isAxiosError(error)) {
     const data = error.response?.data
 
     if (typeof data === 'object' && data !== null && 'message' in data) {
       const message = data.message
-      if (typeof message === 'string') return message
+      if (typeof message === 'string') return sanitize(message) || fallbackMessage
       if (Array.isArray(message)) {
-        return message
+        const joined = message
           .filter((item): item is string => typeof item === 'string')
           .join(', ')
+        return sanitize(joined) || fallbackMessage
       }
     }
 
-    if (typeof data === 'string' && data.length > 0) return data
+    if (typeof data === 'string' && data.length > 0) {
+      return sanitize(data) || fallbackMessage
+    }
 
     if (error.response?.status) {
       return `Error del servidor (${error.response.status}). Intenta nuevamente.`
@@ -131,10 +144,12 @@ export function getApiErrorMessage(
       return 'No se pudo conectar con el servidor. Verifica que el backend esté en ejecución.'
     }
 
-    return error.message
+    return sanitize(error.message) || fallbackMessage
   }
 
-  if (error instanceof Error) return error.message
+  if (error instanceof Error) {
+    return sanitize(error.message) || fallbackMessage
+  }
 
   return fallbackMessage
 }

@@ -1,6 +1,13 @@
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { SiigoPaymentMethodCatalogItem } from '../types/siigo'
 
+/** El medio de pago requiere fecha de vencimiento (crédito) según el catálogo SIIGO. */
+export function isCreditPaymentMethod(
+  paymentMethod: SiigoPaymentMethodOption | null | undefined,
+): boolean {
+  return paymentMethod?.dueDate === true
+}
+
 export function mapCatalogItemToPaymentMethodOption(
   item: SiigoPaymentMethodCatalogItem,
 ): SiigoPaymentMethodOption {

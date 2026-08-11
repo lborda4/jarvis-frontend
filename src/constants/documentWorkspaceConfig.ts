@@ -35,6 +35,10 @@ import {
 import { EXCEL_FILE_INPUT } from '../utils/fileType'
 import { validateSupportDocumentExcelDates } from '../utils/validateSupportDocumentExcel'
 import { getTodayLocalDate } from '../utils/supportDocumentDate'
+import { isCreditPaymentMethod } from '../utils/siigoPaymentMethods'
+
+const JARVIS_PAYMENT_FORM_CASH = 1
+const JARVIS_PAYMENT_FORM_CREDIT = 2
 
 export interface DocumentWorkspaceImportResult {
   documentIds: string[]
@@ -74,6 +78,7 @@ export interface DocumentWorkspaceConfig {
     retentions: SiigoTaxOption[],
     costCenter: SiigoCostCenterOption | null,
     selectedDate: string,
+    dueDate?: string,
     observations?: string,
     savePreferences?: boolean,
   ) =>
@@ -118,6 +123,7 @@ function buildJarvisSupportDocumentRequest(
   retentions: SiigoTaxOption[],
   _costCenter: SiigoCostCenterOption | null,
   selectedDate: string,
+  dueDate?: string,
   observations?: string,
 ): CreateJarvisSupportDocumentRequest {
   const documentDate =
@@ -126,6 +132,9 @@ function buildJarvisSupportDocumentRequest(
     getTodayLocalDate()
   const resolvedObservations =
     observations?.trim() || document.observations?.trim() || undefined
+  const isCredit = isCreditPaymentMethod(paymentMethod)
+  const resolvedDueDate =
+    isCredit && dueDate?.trim() ? dueDate.trim() : documentDate
 
   return {
     documentId: document.id,
@@ -144,8 +153,10 @@ function buildJarvisSupportDocumentRequest(
       ? {
           payment: {
             id: paymentMethod.id,
-            payment_form_id: 1,
-            due_date: documentDate,
+            payment_form_id: isCredit
+              ? JARVIS_PAYMENT_FORM_CREDIT
+              : JARVIS_PAYMENT_FORM_CASH,
+            due_date: resolvedDueDate,
           },
         }
       : {}),
@@ -163,7 +174,7 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   requiresPaymentMethod: true,
   pageTitle: 'Documento Soporte',
   pageDescription:
-    'Descarga la plantilla Excel (sin columna de nombre: el tercero se resuelve por NIT), completa tus datos e impórtalos aquí.',
+    '',
   loadDocumentsError: 'No se pudieron cargar los documentos soporte.',
   templateDownloadError:
     'No se pudo descargar la plantilla de Documento soporte.',
@@ -175,7 +186,7 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   downloadingTemplateLabel: 'Descargando...',
   fileInputAccept: EXCEL_FILE_INPUT,
   showTemplateDownload: true,
-  supplierMissingLabel: 'Tercero no encontrado — crear',
+  supplierMissingLabel: 'Crear tercero',
   downloadTemplate: () => downloadSupportDocumentTemplate('SIIGO'),
   importFile: importSupportDocumentExcel,
   buildSendRequest: (
@@ -185,6 +196,7 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
     retentions,
     costCenter,
     selectedDate,
+    dueDate,
     observations,
     savePreferences,
   ) =>
@@ -195,6 +207,7 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
       retentions,
       costCenter,
       selectedDate,
+      dueDate,
       observations,
       savePreferences,
     ),
@@ -217,7 +230,7 @@ export const JARVIS_SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   requiresPaymentMethod: false,
   pageTitle: 'Documento Soporte',
   pageDescription:
-    'Descarga la plantilla Excel, completa tus datos e impórtalos aquí. Luego envíalos a DIAN vía Jarvis.',
+    'Descarga la plantilla Excel, completa tus datos e impórtalos aquí. Usa fechas en formato día/mes/año (ej. 10/06/2026). Luego envíalos a DIAN vía Jarvis.',
   loadDocumentsError: 'No se pudieron cargar los documentos soporte.',
   templateDownloadError:
     'No se pudo descargar la plantilla de Documento soporte.',
@@ -281,7 +294,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   downloadingTemplateLabel: '',
   fileInputAccept: EXCEL_FILE_INPUT,
   showTemplateDownload: false,
-  supplierMissingLabel: 'Tercero no encontrado — crear',
+  supplierMissingLabel: 'Crear tercero',
   importFile: importPurchaseInvoiceExcel,
   buildSendRequest: (
     document,
@@ -290,6 +303,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
     retentions,
     costCenter,
     selectedDate,
+    dueDate,
     observations,
     savePreferences,
   ) =>
@@ -300,6 +314,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
       retentions,
       costCenter,
       selectedDate,
+      dueDate,
       observations,
       savePreferences,
     ),

@@ -159,3 +159,11 @@ export function patchElectronicDocumentsCache(
 ): void {
   setCachedQuery(documentsCacheKey(filters), response)
 }
+
+/** Elimina un documento local que aún no está en estado lista. */
+export async function deleteElectronicDocument(
+  documentId: string,
+): Promise<void> {
+  await apiClient.delete(`${ELECTRONIC_DOCUMENTS_ENDPOINT}/${documentId}`)
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+}

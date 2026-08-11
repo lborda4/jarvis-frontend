@@ -429,7 +429,7 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
           setJarvisCatalogError(
             getApiErrorMessage(
               error,
-              'No se pudieron cargar los catálogos de Jarvis/NextPyme.',
+              'No se pudieron cargar los catálogos de Jarvis.',
             ),
           )
         }

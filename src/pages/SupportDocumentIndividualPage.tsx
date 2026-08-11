@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
+import DatePicker from '../components/DatePicker'
 import ErrorMessage from '../components/ErrorMessage'
 import SuccessMessage from '../components/SuccessMessage'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -18,6 +19,10 @@ import {
   type JarvisCatalogItem,
 } from '../services/jarvisService'
 import type { JarvisTercero } from '../types/jarvis'
+import {
+  addDaysToLocalDate,
+  daysBetweenLocalDates,
+} from '../utils/supportDocumentDate'
 import './SupportDocumentIndividualPage.css'
 
 const DEFAULT_IVA_PERCENT = 19
@@ -140,14 +145,6 @@ function lineTotal(line: LineItem): number {
   return lineBaseTotal(line) + lineTaxAmount(line)
 }
 
-function daysBetween(fromDate: string, toDate: string): number {
-  const from = new Date(`${fromDate}T00:00:00`)
-  const to = new Date(`${toDate}T00:00:00`)
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0
-  const diff = Math.round((to.getTime() - from.getTime()) / 86_400_000)
-  return Math.max(0, diff)
-}
-
 type SubmitMode = 'save' | 'save-new' | 'send'
 
 function SupportDocumentIndividualPage() {
@@ -226,6 +223,7 @@ function SupportDocumentIndividualPage() {
   })()
 
   const isCreditPayment = paymentFormId === '2'
+  const plazoDays = Math.max(0, daysBetweenLocalDates(issueDate, dueDate))
   const documentSubtotal = lines.reduce((sum, line) => sum + lineBaseTotal(line), 0)
   const documentTax = lines.reduce((sum, line) => sum + lineTaxAmount(line), 0)
   const documentTotal = documentSubtotal + documentTax
@@ -819,22 +817,42 @@ function SupportDocumentIndividualPage() {
                 )}
               </label>
 
-              {isCreditPayment && (
-                <label className="ds-individual__field">
-                  <span>Fecha de vencimiento</span>
+              <div className="ds-individual__field">
+                <span>Plazo</span>
+                <div
+                  className={`ds-individual__term${
+                    isCreditPayment ? '' : ' ds-individual__term--disabled'
+                  }`}
+                >
                   <input
-                    type="date"
-                    value={dueDate}
-                    onChange={(event) => setDueDate(event.target.value)}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={isCreditPayment ? plazoDays : ''}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      const days = raw === '' ? 0 : Math.max(0, Number(raw))
+                      setDueDate(addDaysToLocalDate(issueDate, days))
+                    }}
+                    disabled={!isCreditPayment}
+                    placeholder="0"
                   />
-                  {fieldErrors.dueDate && (
-                    <em className="ds-individual__error">{fieldErrors.dueDate}</em>
-                  )}
-                  <span className="ds-individual__hint">
-                    Plazo: {daysBetween(issueDate, dueDate)} día(s)
-                  </span>
-                </label>
-              )}
+                  <span className="ds-individual__term-suffix">días</span>
+                </div>
+              </div>
+
+              <label className="ds-individual__field">
+                <span>Fecha de vencimiento</span>
+                <DatePicker
+                  value={dueDate}
+                  onChange={setDueDate}
+                  disabled={!isCreditPayment}
+                  minDate={issueDate}
+                />
+                {fieldErrors.dueDate && (
+                  <em className="ds-individual__error">{fieldErrors.dueDate}</em>
+                )}
+              </label>
 
               <label className="ds-individual__field ds-individual__field--wide">
                 <span>Observaciones (opcional)</span>

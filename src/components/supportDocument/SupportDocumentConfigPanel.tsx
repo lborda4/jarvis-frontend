@@ -2,7 +2,8 @@ import { useState } from 'react'
 import AccountAutocomplete from '../AccountAutocomplete'
 import Button from '../Button'
 import CostCenterAutocomplete from '../CostCenterAutocomplete'
-import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
+import DatePicker from '../DatePicker'
+import { ChevronDownIcon, ChevronRightIcon, InfoIcon } from '../icons/SidebarIcons'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
@@ -23,9 +24,15 @@ interface SupportDocumentConfigPanelProps {
   selectedAccount: SiigoAccountOption | null
   selectedPaymentMethod: SiigoPaymentMethodOption | null
   selectedCostCenter: SiigoCostCenterOption
+  isCreditSelected: boolean
+  selectedPlazoDays: number | null
+  selectedDueDate: string
   showAccountField?: boolean
   canSend: boolean
   canDelete: boolean
+  /** true si al menos un documento seleccionado todavía no queda en un
+   * estado terminal (LISTA/ERROR) y por lo tanto se puede configurar. */
+  hasConfigurableSelection: boolean
   isSending: boolean
   isDeleting: boolean
   progressLabel?: string | null
@@ -34,6 +41,8 @@ interface SupportDocumentConfigPanelProps {
   onPaymentMethodChange: (paymentMethod: SiigoPaymentMethodOption | null) => void
   onCostCenterChange: (costCenter: SiigoCostCenterOption) => void
   onRetentionTypeChange: (taxType: string, tax: SiigoTaxOption | null) => void
+  onPlazoChange: (days: number | null) => void
+  onDueDateChange: (date: string) => void
   onSend: () => void
   onDelete: () => void
 }
@@ -63,9 +72,13 @@ function SupportDocumentConfigPanel({
   selectedAccount,
   selectedPaymentMethod,
   selectedCostCenter,
+  isCreditSelected,
+  selectedPlazoDays,
+  selectedDueDate,
   showAccountField = true,
   canSend,
   canDelete,
+  hasConfigurableSelection,
   isSending,
   isDeleting,
   progressLabel = null,
@@ -74,13 +87,15 @@ function SupportDocumentConfigPanel({
   onPaymentMethodChange,
   onCostCenterChange,
   onRetentionTypeChange,
+  onPlazoChange,
+  onDueDateChange,
   onSend,
   onDelete,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const isBusy = isSending || isDeleting
   const controlsDisabled = disabled || isBusy
-  const isDeleteMode = canDelete && !canSend
+  const isDeleteMode = canDelete && !hasConfigurableSelection
 
   if (selectedCount === 0) {
     return null
@@ -101,13 +116,15 @@ function SupportDocumentConfigPanel({
           Documentos seleccionados: {selectedCount}
         </span>
         <span className="support-config-panel__meta">
-          {isDeleteMode
-            ? `${deletableCount} listo(s) para eliminar`
-            : sendableCount > 0
-              ? `${sendableCount} listo(s) para enviar`
-              : showAccountField
-                ? 'Complete cuenta contable y medio de pago'
-                : 'Revise medio de pago y retenciones (opcionales)'}
+          {canDelete && canSend
+            ? `${sendableCount} listo(s) para enviar · ${deletableCount} para eliminar`
+            : canDelete
+              ? `${deletableCount} listo(s) para eliminar`
+              : sendableCount > 0
+                ? `${sendableCount} listo(s) para enviar`
+                : showAccountField
+                  ? 'Complete cuenta contable y medio de pago'
+                  : 'Revise medio de pago y retenciones (opcionales)'}
         </span>
         <span className="support-config-panel__chevron" aria-hidden="true">
           {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
@@ -147,6 +164,56 @@ function SupportDocumentConfigPanel({
               </div>
 
               <div className="support-config-panel__field">
+                <label htmlFor="support-config-plazo">
+                  Plazo
+                  <span
+                    className="support-config-panel__info"
+                    title="Días de crédito para el pago. Al escribirlo se calcula la fecha de vencimiento."
+                  >
+                    <InfoIcon />
+                  </span>
+                </label>
+                <div
+                  className={`support-config-panel__term${
+                    isCreditSelected ? '' : ' support-config-panel__term--disabled'
+                  }`}
+                >
+                  <input
+                    id="support-config-plazo"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={selectedPlazoDays ?? ''}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      onPlazoChange(raw === '' ? null : Math.max(0, Number(raw)))
+                    }}
+                    disabled={controlsDisabled || !isCreditSelected}
+                    placeholder="0"
+                  />
+                  <span className="support-config-panel__term-suffix">días</span>
+                </div>
+              </div>
+
+              <div className="support-config-panel__field">
+                <label htmlFor="support-config-due-date">
+                  Fecha de vencimiento
+                  <span
+                    className="support-config-panel__info"
+                    title="Fecha en la que vence el pago. Al elegirla se calcula el plazo en días."
+                  >
+                    <InfoIcon />
+                  </span>
+                </label>
+                <DatePicker
+                  id="support-config-due-date"
+                  value={selectedDueDate}
+                  onChange={onDueDateChange}
+                  disabled={controlsDisabled || !isCreditSelected}
+                />
+              </div>
+
+              <div className="support-config-panel__field">
                 <label htmlFor="support-config-cost-center">
                   Centros de costo (opcional)
                 </label>
@@ -179,21 +246,28 @@ function SupportDocumentConfigPanel({
           )}
 
           <div className="support-config-panel__actions support-config-panel__actions--end">
-            <Button
-              variant={isDeleteMode ? 'danger' : 'primary'}
-              onClick={isDeleteMode ? onDelete : onSend}
-              disabled={
-                controlsDisabled || (isDeleteMode ? !canDelete : !canSend)
-              }
-            >
-              {isDeleteMode
-                ? isDeleting
+            {canDelete && (
+              <Button
+                variant="danger"
+                onClick={onDelete}
+                disabled={controlsDisabled || !canDelete}
+              >
+                {isDeleting
                   ? progressLabel ?? 'Eliminando...'
-                  : 'Eliminar'
-                : isSending
+                  : 'Eliminar'}
+              </Button>
+            )}
+            {canSend && (
+              <Button
+                variant="primary"
+                onClick={onSend}
+                disabled={controlsDisabled || !canSend}
+              >
+                {isSending
                   ? progressLabel ?? 'Enviando...'
                   : 'Enviar'}
-            </Button>
+              </Button>
+            )}
           </div>
         </div>
       )}

@@ -63,6 +63,7 @@ export function getSupportDocumentActionFromImportStatus(
     case IMPORT_ROW_STATUS.EN_PROCESO:
       return 'processing'
     case IMPORT_ROW_STATUS.LISTA:
+    case IMPORT_ROW_STATUS.ERROR:
       return 'delete'
     default:
       return 'send'

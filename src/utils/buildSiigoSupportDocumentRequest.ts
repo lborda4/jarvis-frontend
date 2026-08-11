@@ -44,6 +44,7 @@ import {
 } from './supportDocumentDate'
 import { isSupportDocumentRetentionTaxType } from '../constants/siigoTaxCatalog'
 import { calculateSiigoSupportDocumentPaymentValue } from './siigoSupportDocumentTotal'
+import { isCreditPaymentMethod } from './siigoPaymentMethods'
 
 export function buildSiigoSupportDocumentRequest(
   document: ElectronicDocumentListItem,
@@ -52,6 +53,7 @@ export function buildSiigoSupportDocumentRequest(
   retentions: SiigoTaxOption[],
   costCenter: SiigoCostCenterOption | null,
   selectedDate: string,
+  dueDate?: string,
   observations?: string,
   savePreferences = true,
 ): CreateSiigoSupportDocumentRequest {
@@ -95,6 +97,12 @@ export function buildSiigoSupportDocumentRequest(
     : getTodayLocalDate()
   const resolvedObservations =
     observations?.trim() || document.observations?.trim() || undefined
+  const resolvedDueDate =
+    isCreditPaymentMethod(paymentMethod) &&
+    dueDate &&
+    /^\d{4}-\d{2}-\d{2}$/.test(dueDate)
+      ? dueDate
+      : documentDate
 
   return {
     documentId: document.id,
@@ -119,7 +127,7 @@ export function buildSiigoSupportDocumentRequest(
       {
         id: paymentMethod.id,
         value: paymentValue,
-        due_date: documentDate,
+        due_date: resolvedDueDate,
       },
     ],
     ...(savePreferences

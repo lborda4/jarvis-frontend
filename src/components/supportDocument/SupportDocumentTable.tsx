@@ -28,46 +28,33 @@ import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
 import DocumentRowDetailPanel from './DocumentRowDetailPanel'
 
 const TABLE_COLUMN_COUNT = 10
-const SKELETON_ROW_COUNT = 5
+const SKELETON_LINE_COUNT = 8
 
-function TableSkeletonRows() {
-  return Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-    <tr key={`skeleton-${index}`} className="support-table__skeleton-row">
-      <td className="support-table__expand-col">
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--xs" />
-      </td>
-      <td className="support-table__checkbox-col">
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--square" />
-      </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--sm" />
-      </td>
-      <td>
-        <div className="support-table__skeleton-stack">
-          <span className="support-table__skeleton-bone support-table__skeleton-bone--md" />
-          <span className="support-table__skeleton-bone support-table__skeleton-bone--xs" />
+function TableLoadingPanel() {
+  return (
+    <tr>
+      <td colSpan={TABLE_COLUMN_COUNT} className="support-table__loading-cell">
+        <div
+          className="support-table__loading-panel"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          aria-label="Cargando documentos"
+        >
+          <div className="support-table__loading-lines" aria-hidden="true">
+            {Array.from({ length: SKELETON_LINE_COUNT }, (_, index) => (
+              <span
+                key={`skeleton-line-${index}`}
+                className="support-table__loading-line"
+                style={{ animationDelay: `${index * 60}ms` }}
+              />
+            ))}
+          </div>
+          <p className="support-table__loading-label">Cargando documentos…</p>
         </div>
       </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--sm" />
-      </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--md" />
-      </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--md" />
-      </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--sm" />
-      </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--pill" />
-      </td>
-      <td>
-        <span className="support-table__skeleton-bone support-table__skeleton-bone--btn" />
-      </td>
     </tr>
-  ))
+  )
 }
 
 interface SupportDocumentTableProps {
@@ -153,12 +140,13 @@ function ActionCell({
 
   if (action === 'processing') {
     return (
-      <span className="support-table__action support-table__action--hint">
+      <span className="support-table__action support-table__action--hint support-table__action--thinking">
+        <span className="support-table__action-spinner" aria-hidden="true" />
         {isDeletingDocument
-          ? 'Eliminando documento en SIIGO...'
+          ? 'Eliminando...'
           : isSendingDocument
             ? sendProcessingLabel
-            : 'Procesando documento...'}
+            : 'Revisando proveedor...'}
       </span>
     )
   }
@@ -267,8 +255,15 @@ function SupportDocumentTable({
   }
 
   return (
-    <div className="support-table">
-      <table aria-busy={isLoading}>
+    <div
+      className={[
+        'support-table',
+        isLoading || isResuming ? 'support-table--busy' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <table aria-busy={isLoading || isResuming}>
         <thead>
           <tr>
             <th className="support-table__expand-col" aria-label="Detalle" />
@@ -364,7 +359,7 @@ function SupportDocumentTable({
         </thead>
         <tbody>
           {isLoading ? (
-            <TableSkeletonRows />
+            <TableLoadingPanel />
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={TABLE_COLUMN_COUNT} className="support-table__empty-cell">

@@ -91,14 +91,49 @@ export function countSendableDocuments(
   return count
 }
 
+/** Registros aún no enviados (no LISTA / no EN PROCESO): se pueden borrar de la BD. */
+export function isDocumentRemovableFromDatabase(
+  importStatus: ImportRowStatus | undefined,
+): boolean {
+  if (!importStatus) {
+    return false
+  }
+
+  return (
+    importStatus !== IMPORT_ROW_STATUS.LISTA &&
+    importStatus !== IMPORT_ROW_STATUS.EN_PROCESO
+  )
+}
+
+/** LISTA en Siigo: se elimina en SIIGO y se revierte el estado local. */
+export function isDocumentDeletableFromSiigo(
+  importStatus: ImportRowStatus | undefined,
+  provider: 'SIIGO' | 'JARVIS',
+): boolean {
+  return (
+    provider === 'SIIGO' && importStatus === IMPORT_ROW_STATUS.LISTA
+  )
+}
+
+export function isDocumentDeletable(
+  importStatus: ImportRowStatus | undefined,
+  provider: 'SIIGO' | 'JARVIS',
+): boolean {
+  return (
+    isDocumentRemovableFromDatabase(importStatus) ||
+    isDocumentDeletableFromSiigo(importStatus, provider)
+  )
+}
+
 export function countDeletableDocuments(
   documentIds: Iterable<string>,
   importStatuses: Record<string, ImportRowStatus>,
+  provider: 'SIIGO' | 'JARVIS' = 'SIIGO',
 ): number {
   let count = 0
 
   for (const documentId of documentIds) {
-    if (importStatuses[documentId] === IMPORT_ROW_STATUS.LISTA) {
+    if (isDocumentDeletable(importStatuses[documentId], provider)) {
       count += 1
     }
   }

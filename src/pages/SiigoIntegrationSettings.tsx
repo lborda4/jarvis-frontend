@@ -16,49 +16,71 @@ function SiigoIntegrationSettings() {
     partnerId,
     isSavingCredentials,
     isSyncingSuppliers,
+    isSavingDocumentTypes,
+    isLoadingDocumentTypes,
     isBusy,
     credentialsSuccessMessage,
     suppliersSuccessMessage,
+    documentTypesSuccessMessage,
     showSetupRequiredNotice,
     isSiigoConfigured,
     hasSiigoAccounts,
+    hasSiigoDocumentTypesConfigured,
+    needsDocumentTypesStep,
     isSupportDocumentEnabled,
+    isPurchaseInvoiceEnabled,
     isSubscriptionActive,
     hasSupportDocumentAccess,
+    hasPurchaseInvoiceAccess,
     includedDocumentTypes,
     subscription,
+    supportDocumentTypes,
+    purchaseDocumentTypes,
+    selectedSupportDocumentTypeId,
+    selectedPurchaseDocumentTypeId,
     canSaveCredentials,
     canSyncSuppliers,
+    canSaveDocumentTypes,
     errorMessage,
+    formatDocumentTypeOptionLabel,
     setUsername,
     setAccessKey,
     setPartnerId,
+    setSelectedSupportDocumentTypeId,
+    setSelectedPurchaseDocumentTypeId,
     handleSaveCredentials,
     handleSyncSuppliers,
+    handleSaveDocumentTypes,
   } = useSiigoIntegrationSettings()
 
   const planBlockedReason = !isSubscriptionActive
     ? 'La suscripción SIIGO no está activa. Contacte al administrador para activar el plan.'
-    : !hasSupportDocumentAccess
-      ? `El plan actual no incluye Documento soporte${
+    : !hasSupportDocumentAccess && !hasPurchaseInvoiceAccess
+      ? `El plan actual no incluye documentos configurables${
           includedDocumentTypes.length
             ? ` (incluye: ${includedDocumentTypes.join(', ')})`
             : ''
         }. Contacte al administrador.`
       : null
 
+  const setupNoticeMessage = !isSiigoConfigured
+    ? 'Paso 1 pendiente: guarde las credenciales de SIIGO.'
+    : !hasSiigoAccounts
+      ? 'Paso 2 pendiente: sincronice las cuentas contables desde SIIGO.'
+      : needsDocumentTypesStep && !hasSiigoDocumentTypesConfigured
+        ? 'Paso 3 pendiente: seleccione y guarde los comprobantes de cargue.'
+        : null
+
   return (
     <main className="settings-page">
       <PageHeader
         title="Configuración de integración SIIGO"
-        description="Complete dos pasos: 1) guardar credenciales y 2) sincronizar cuentas contables. Con ambos listos y un plan activo, se habilitan los documentos incluidos en su suscripción."
+        description="Complete tres pasos: 1) guardar credenciales, 2) sincronizar cuentas contables y 3) elegir los comprobantes de cargue. Con todo listo y un plan activo, se habilitan los documentos incluidos en su suscripción."
       />
 
-      {showSetupRequiredNotice && (
+      {showSetupRequiredNotice && setupNoticeMessage && (
         <div className="settings-page__setup-notice" role="status">
-          {!isSiigoConfigured
-            ? 'Paso 1 pendiente: guarde las credenciales de SIIGO.'
-            : 'Paso 2 pendiente: sincronice las cuentas contables desde SIIGO para habilitar sus documentos.'}
+          {setupNoticeMessage}
         </div>
       )}
 
@@ -71,11 +93,17 @@ function SiigoIntegrationSettings() {
         </div>
       )}
 
-      {isSupportDocumentEnabled && (
+      {(isSupportDocumentEnabled || isPurchaseInvoiceEnabled) && (
         <div className="settings-page__ready-notice" role="status">
-          SIIGO ya está configurado y las cuentas contables están sincronizadas.
-          Puede continuar a{' '}
-          <Link to="/documento-soporte">Documento soporte</Link>.
+          SIIGO ya está configurado. Puede continuar a{' '}
+          {isSupportDocumentEnabled && (
+            <Link to="/documento-soporte">Documento soporte</Link>
+          )}
+          {isSupportDocumentEnabled && isPurchaseInvoiceEnabled && ' o '}
+          {isPurchaseInvoiceEnabled && (
+            <Link to="/factura-compra">Factura de compra</Link>
+          )}
+          .
         </div>
       )}
 
@@ -224,6 +252,134 @@ function SiigoIntegrationSettings() {
           <SuccessMessage message={suppliersSuccessMessage} />
         )}
       </section>
+
+      {needsDocumentTypesStep && (
+        <section className="settings-card settings-card--spaced">
+          <div className="settings-card__header">
+            <h2 className="settings-card__title">3. Comprobantes de cargue</h2>
+            <p className="settings-card__description">
+              Seleccione el comprobante de SIIGO que desea utilizar para cada
+              tipo de documento. Podrá cambiarlo posteriormente cuando lo
+              necesite.
+            </p>
+            {hasSiigoDocumentTypesConfigured && (
+              <p className="settings-card__hint">
+                Comprobantes ya configurados. Puede actualizarlos cuando lo
+                necesite.
+              </p>
+            )}
+          </div>
+
+          {!isSiigoConfigured || !hasSiigoAccounts ? (
+            <p className="settings-card__description">
+              Complete primero los pasos 1 y 2 para configurar los
+              comprobantes.
+            </p>
+          ) : (
+            <>
+              {isLoadingDocumentTypes && (
+                <LoadingIndicator message="Cargando comprobantes desde SIIGO..." />
+              )}
+
+              <div className="settings-document-types">
+                {hasSupportDocumentAccess && (
+                  <div className="settings-document-type-card">
+                    <div className="settings-document-type-card__icon settings-document-type-card__icon--support">
+                      DS
+                    </div>
+                    <div className="settings-document-type-card__body">
+                      <h3 className="settings-document-type-card__title">
+                        Documento soporte
+                      </h3>
+                      <p className="settings-document-type-card__description">
+                        Comprobante para documento soporte
+                      </p>
+                      <label
+                        className="settings-document-type-card__label"
+                        htmlFor="siigo-support-document-type"
+                      >
+                        Comprobante
+                      </label>
+                      <select
+                        id="siigo-support-document-type"
+                        value={selectedSupportDocumentTypeId}
+                        onChange={(event) =>
+                          setSelectedSupportDocumentTypeId(event.target.value)
+                        }
+                        disabled={isBusy || isLoadingDocumentTypes}
+                      >
+                        <option value="">Seleccione un comprobante</option>
+                        {supportDocumentTypes.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {formatDocumentTypeOptionLabel(item)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {hasPurchaseInvoiceAccess && (
+                  <div className="settings-document-type-card">
+                    <div className="settings-document-type-card__icon settings-document-type-card__icon--purchase">
+                      FC
+                    </div>
+                    <div className="settings-document-type-card__body">
+                      <h3 className="settings-document-type-card__title">
+                        Factura de compra
+                      </h3>
+                      <p className="settings-document-type-card__description">
+                        Comprobante para factura de compra
+                      </p>
+                      <label
+                        className="settings-document-type-card__label"
+                        htmlFor="siigo-purchase-document-type"
+                      >
+                        Comprobante
+                      </label>
+                      <select
+                        id="siigo-purchase-document-type"
+                        value={selectedPurchaseDocumentTypeId}
+                        onChange={(event) =>
+                          setSelectedPurchaseDocumentTypeId(event.target.value)
+                        }
+                        disabled={isBusy || isLoadingDocumentTypes}
+                      >
+                        <option value="">Seleccione un comprobante</option>
+                        {purchaseDocumentTypes.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {formatDocumentTypeOptionLabel(item)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="settings-card__actions">
+                <button
+                  type="button"
+                  className="import-siigo-button"
+                  onClick={() => void handleSaveDocumentTypes()}
+                  disabled={!canSaveDocumentTypes}
+                >
+                  {isSavingDocumentTypes
+                    ? 'Guardando comprobantes...'
+                    : 'Guardar comprobantes'}
+                </button>
+              </div>
+
+              {isSavingDocumentTypes && (
+                <LoadingIndicator message="Guardando comprobantes de cargue..." />
+              )}
+              {documentTypesSuccessMessage && (
+                <SuccessMessage message={documentTypesSuccessMessage} />
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
     </main>

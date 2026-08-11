@@ -18,7 +18,10 @@ import type {
   ImportBalanceTrialResponse,
   SaveSiigoCredentialsRequest,
   SaveSiigoCredentialsResponse,
+  SaveSiigoDocumentTypesRequest,
+  SaveSiigoDocumentTypesResponse,
   SiigoCredentialsStatusResponse,
+  SiigoDocumentTypeCatalogItem,
   SiigoAccountCatalogItem,
   SiigoCostCenterCatalogItem,
   SiigoPaymentMethodCatalogItem,
@@ -48,6 +51,9 @@ const SIIGO_BALANCE_TRIAL_IMPORT_ENDPOINT =
   '/integrations/siigo/balance-trial/import'
 const SIIGO_CREDENTIALS_STATUS_ENDPOINT = '/integrations/siigo/credentials/status'
 const SIIGO_CREDENTIALS_ENDPOINT = '/integrations/siigo/credentials'
+const SIIGO_DOCUMENT_TYPES_ENDPOINT = '/integrations/siigo/document-types'
+const SIIGO_DOCUMENT_TYPES_SELECTION_ENDPOINT =
+  '/integrations/siigo/document-types/selection'
 const SIIGO_CATALOG_SYNC_ENDPOINT = '/integrations/siigo/catalog/sync'
 
 export async function syncSiigoCatalogs(): Promise<void> {
@@ -410,7 +416,35 @@ export async function fetchSiigoCredentialsStatus(options?: {
 
 export async function fetchSiigoCredentialsConfigured(): Promise<boolean> {
   const status = await fetchSiigoCredentialsStatus()
-  return Boolean(status.configured && status.hasAccounts)
+  return Boolean(
+    status.configured &&
+      status.hasAccounts &&
+      status.documentTypesConfigured,
+  )
+}
+
+export async function fetchSiigoDocumentTypes(
+  type: 'DS' | 'FC',
+): Promise<SiigoDocumentTypeCatalogItem[]> {
+  const response = await apiClient.get<SiigoDocumentTypeCatalogItem[]>(
+    SIIGO_DOCUMENT_TYPES_ENDPOINT,
+    { params: { type } },
+  )
+
+  return response.data
+}
+
+export async function saveSiigoDocumentTypes(
+  request: SaveSiigoDocumentTypesRequest,
+): Promise<SaveSiigoDocumentTypesResponse> {
+  const response = await apiClient.put<SaveSiigoDocumentTypesResponse>(
+    SIIGO_DOCUMENT_TYPES_SELECTION_ENDPOINT,
+    request,
+  )
+
+  invalidateQueryCache(companyQueryKey(['siigo', 'credentials-status']))
+
+  return response.data
 }
 
 export async function saveSiigoCredentials(

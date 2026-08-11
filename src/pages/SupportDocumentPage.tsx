@@ -19,8 +19,10 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
 import PageHeader from '../components/PageHeader'
+import ImportLoadingOverlay from '../components/supportDocument/ImportLoadingOverlay'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
+import DocumentWorkspaceWorkingBanner from '../components/supportDocument/DocumentWorkspaceWorkingBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
 import SupportDocumentFilterBar from '../components/supportDocument/SupportDocumentFilterBar'
 import SupportDocumentPagination from '../components/supportDocument/SupportDocumentPagination'
@@ -37,6 +39,7 @@ import {
   useAutoDismissMessage,
 } from '../hooks/useAutoDismissMessage'
 import {
+  deleteElectronicDocument,
   fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
   peekElectronicDocuments,
@@ -62,7 +65,10 @@ import {
   buildInitialRowAccounts,
   mergeSuggestedAccountsIntoOptions,
 } from '../utils/siigoAccounts'
-import { mapSuggestedPaymentMethodToOption } from '../utils/siigoPaymentMethods'
+import {
+  isCreditPaymentMethod,
+  mapSuggestedPaymentMethodToOption,
+} from '../utils/siigoPaymentMethods'
 import {
   mapSuggestedCostCenterToOption,
 } from '../utils/siigoCostCenters'
@@ -70,13 +76,19 @@ import {
   mapSuggestedRetentionsToTaxOptions,
 } from '../utils/siigoTaxes'
 import {
+  addDaysToLocalDate,
   buildInitialRowDates,
   buildInitialRowObservations,
+  daysBetweenLocalDates,
+  getTodayLocalDate,
 } from '../utils/supportDocumentDate'
 import {
   canSendDocument,
   countDeletableDocuments,
   countSendableDocuments,
+  isDocumentDeletable,
+  isDocumentDeletableFromSiigo,
+  isDocumentRemovableFromDatabase,
 } from '../utils/supportDocumentSend'
 import {
   sortSupportDocumentRows,
@@ -229,6 +241,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     Record<string, SiigoTaxOption[]>
   >({})
   const [rowDates, setRowDates] = useState<Record<string, string>>({})
+  const [rowDueDates, setRowDueDates] = useState<Record<string, string | null>>({})
   const [rowObservations, setRowObservations] = useState<Record<string, string>>({})
   const [selectedAccount, setSelectedAccount] = useState<SiigoAccountOption | null>(
     null,
@@ -240,6 +253,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [selectedRetentionsByType, setSelectedRetentionsByType] = useState<
     Record<string, SiigoTaxOption | null>
   >(() => buildEmptyRetentionsByType(config.retentionCatalogTypes))
+  const [selectedDueDate, setSelectedDueDate] = useState<string>('')
 
   const reloadDocuments = useCallback((options?: { resetPage?: boolean }) => {
     if (options?.resetPage) {
@@ -431,6 +445,48 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     })
   }, [documents, accountOptions])
 
+  useEffect(() => {
+    const catalogById = new Map<number, SiigoTaxOption>()
+
+    for (const options of Object.values(retentionOptionsByType)) {
+      for (const tax of options) {
+        catalogById.set(tax.id, tax)
+      }
+    }
+
+    if (catalogById.size === 0) {
+      return
+    }
+
+    setRowRetentions((current) => {
+      let changed = false
+      const next: Record<string, SiigoTaxOption[]> = { ...current }
+
+      for (const [documentId, retentions] of Object.entries(current)) {
+        if (!retentions.length) {
+          continue
+        }
+
+        const reconciled = retentions
+          .map((retention) => catalogById.get(retention.id))
+          .filter((tax): tax is SiigoTaxOption => Boolean(tax))
+
+        if (
+          reconciled.length !== retentions.length ||
+          reconciled.some((tax, index) => tax.id !== retentions[index]?.id)
+        ) {
+          next[documentId] = normalizeRetentionsForTypes(
+            reconciled,
+            config.retentionCatalogTypes,
+          )
+          changed = true
+        }
+      }
+
+      return changed ? next : current
+    })
+  }, [retentionOptionsByType, config.retentionCatalogTypes])
+
   const importFilteredDocuments = useMemo(() => {
     if (!showImportOnly || !importNotice) {
       return documents
@@ -509,7 +565,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           importStatuses[document.id],
         )
 
-        if (config.provider === 'JARVIS' && row.action === 'delete') {
+        if (
+          config.provider === 'JARVIS' &&
+          row.action === 'delete' &&
+          importStatuses[document.id] === IMPORT_ROW_STATUS.LISTA
+        ) {
           return { ...row, action: 'none' as const }
         }
 
@@ -551,6 +611,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setSelectedRetentionsByType(
         buildEmptyRetentionsByType(config.retentionCatalogTypes),
       )
+      setSelectedDueDate('')
       return
     }
 
@@ -592,6 +653,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             config.retentionCatalogTypes,
           )
         : buildEmptyRetentionsByType(config.retentionCatalogTypes),
+    )
+
+    setSelectedDueDate(
+      resolveSharedSelectionValue(
+        selectedDocumentIds,
+        (documentId) => rowDueDates[documentId] ?? null,
+        (left, right) => left === right,
+      ) ?? '',
     )
   }, [config.retentionCatalogTypes, selectedDocumentIdsKey])
 
@@ -695,6 +764,50 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [applySelectionToCheckedRows],
   )
 
+  const isCreditSelected = isCreditPaymentMethod(selectedPaymentMethod)
+
+  /** Fecha base para calcular Plazo ↔ Fecha de vencimiento: la fecha compartida
+   * de los documentos seleccionados si es uniforme, si no la fecha de hoy. */
+  const dueDateReference = useMemo(
+    () =>
+      resolveSharedSelectionValue(
+        selectedDocumentIds,
+        (documentId) => rowDates[documentId] ?? null,
+        (left, right) => left === right,
+      ) ?? getTodayLocalDate(),
+    [selectedDocumentIds, rowDates],
+  )
+
+  const selectedPlazoDays = useMemo(
+    () =>
+      selectedDueDate
+        ? daysBetweenLocalDates(dueDateReference, selectedDueDate)
+        : null,
+    [dueDateReference, selectedDueDate],
+  )
+
+  const handleConfigPlazoChange = useCallback(
+    (days: number | null) => {
+      if (days === null) {
+        setSelectedDueDate('')
+        return
+      }
+
+      const nextDueDate = addDaysToLocalDate(dueDateReference, days)
+      setSelectedDueDate(nextDueDate)
+      applySelectionToCheckedRows(nextDueDate, setRowDueDates)
+    },
+    [applySelectionToCheckedRows, dueDateReference],
+  )
+
+  const handleConfigDueDateChange = useCallback(
+    (date: string) => {
+      setSelectedDueDate(date)
+      applySelectionToCheckedRows(date, setRowDueDates)
+    },
+    [applySelectionToCheckedRows],
+  )
+
   const sendableSelectedCount = useMemo(
     () =>
       countSendableDocuments(
@@ -721,15 +834,31 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const deletableSelectedCount = useMemo(
     () =>
-      config.provider === 'JARVIS'
-        ? 0
-        : countDeletableDocuments(selectedDocumentIds, importStatuses),
+      countDeletableDocuments(
+        selectedDocumentIds,
+        importStatuses,
+        config.provider,
+      ),
     [selectedDocumentIds, importStatuses, config.provider],
   )
 
   const canSendSelected = sendableSelectedCount > 0
-  const canDeleteSelected =
-    deletableSelectedCount > 0 && sendableSelectedCount === 0
+  const canDeleteSelected = deletableSelectedCount > 0
+
+  /** Documentos que aún no quedaron en un estado terminal (LISTA/ERROR) y por
+   * lo tanto todavía se pueden configurar (cuenta, medio de pago, etc.) antes
+   * de enviarlos — aunque ya sean "eliminables", no deben ocultar los campos. */
+  const hasConfigurableSelection = useMemo(() => {
+    for (const documentId of selectedDocumentIds) {
+      const status = importStatuses[documentId]
+
+      if (status !== IMPORT_ROW_STATUS.LISTA && status !== IMPORT_ROW_STATUS.ERROR) {
+        return true
+      }
+    }
+
+    return false
+  }, [selectedDocumentIds, importStatuses])
 
   const canSendRow = useCallback(
     (rowId: string) => {
@@ -771,6 +900,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowCostCenters,
       rowRetentions,
       rowDates,
+      rowDueDates,
       rowObservations,
     })
   }, [
@@ -779,6 +909,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     rowAccounts,
     rowCostCenters,
     rowDates,
+    rowDueDates,
     rowObservations,
     rowPaymentMethods,
     rowRetentions,
@@ -787,8 +918,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   ])
 
   const requestDeleteSelected = useCallback(() => {
-    const targets = [...selectedDocumentIds].filter(
-      (documentId) => importStatuses[documentId] === IMPORT_ROW_STATUS.LISTA,
+    const targets = [...selectedDocumentIds].filter((documentId) =>
+      isDocumentDeletable(importStatuses[documentId], config.provider),
     )
 
     if (targets.length === 0) {
@@ -796,7 +927,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     }
 
     setPendingDelete({ kind: 'selected', targets })
-  }, [importStatuses, selectedDocumentIds])
+  }, [config.provider, importStatuses, selectedDocumentIds])
 
   const runDeleteSelected = useCallback(async (targets: string[]) => {
     setIsDeleting(true)
@@ -806,7 +937,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       current: 0,
       total: targets.length,
       completed: 0,
-      label: 'Preparando eliminación en SIIGO...',
+      label: 'Preparando eliminación...',
     })
 
     let deletedCount = 0
@@ -814,6 +945,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     let lastError: string | null = null
     let completed = 0
     let started = 0
+    const removedIds: string[] = []
 
     const bumpProgress = (label: string) => {
       setDeleteQueueProgress({
@@ -835,17 +967,27 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
           started += 1
           setDeletingDocumentId(documentId)
-          bumpProgress(`Eliminando… ${completed} de ${targets.length} listos`)
+          bumpProgress(`Eliminando… ${completed} de ${targets.length}`)
 
           try {
-            await deleteSiigoSupportDocument(documentId)
-            setImportStatus(documentId, IMPORT_ROW_STATUS.PENDIENTE)
+            const importStatus = importStatuses[documentId]
+
+            if (isDocumentDeletableFromSiigo(importStatus, config.provider)) {
+              await deleteSiigoSupportDocument(documentId)
+              setImportStatus(documentId, IMPORT_ROW_STATUS.PENDIENTE)
+            } else if (isDocumentRemovableFromDatabase(importStatus)) {
+              await deleteElectronicDocument(documentId)
+              removedIds.push(documentId)
+            } else {
+              throw new Error('Este registro no se puede eliminar.')
+            }
+
             deletedCount += 1
           } catch (error) {
             failedCount += 1
             lastError = getApiErrorMessage(
               error,
-              'No se pudo eliminar el Documento Soporte en SIIGO.',
+              'No se pudo eliminar el registro seleccionado.',
             )
           }
 
@@ -853,18 +995,28 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           bumpProgress(
             completed === targets.length
               ? `Completado ${completed} de ${targets.length}`
-              : `Eliminando… ${completed} de ${targets.length} listos`,
+              : `Eliminando… ${completed} de ${targets.length}`,
           )
         }),
       )
+
+      if (removedIds.length > 0) {
+        setSelectedDocumentIds((current) => {
+          const next = new Set(current)
+          for (const id of removedIds) {
+            next.delete(id)
+          }
+          return next
+        })
+      }
 
       if (deletedCount > 0) {
         setDeleteFeedbackMessage(
           failedCount > 0
             ? `${deletedCount} eliminado(s), ${failedCount} con error.`
             : deletedCount === 1
-              ? 'Documento Soporte eliminado en SIIGO.'
-              : `${deletedCount} Documentos Soporte eliminados en SIIGO.`,
+              ? 'Registro eliminado correctamente.'
+              : `${deletedCount} registros eliminados correctamente.`,
         )
         reloadDocuments()
       }
@@ -879,7 +1031,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setDeletingDocumentId(null)
       setDeleteQueueProgress(null)
     }
-  }, [reloadDocuments, setDeleteFeedbackMessage, setErrorMessage, setImportStatus])
+  }, [
+    config.provider,
+    importStatuses,
+    reloadDocuments,
+    setDeleteFeedbackMessage,
+    setErrorMessage,
+    setImportStatus,
+  ])
 
   const handleSendDocument = useCallback(
     (document: ElectronicDocumentListItem) => {
@@ -892,6 +1051,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowCostCenters,
         rowRetentions,
         rowDates,
+        rowDueDates,
         rowObservations,
       })
     },
@@ -901,6 +1061,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowAccounts,
       rowCostCenters,
       rowDates,
+      rowDueDates,
       rowObservations,
       rowPaymentMethods,
       rowRetentions,
@@ -928,22 +1089,37 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         label: 'Eliminando 1 de 1...',
       })
 
+      const importStatus = importStatuses[document.id]
+
       try {
-        await deleteSiigoSupportDocument(document.id)
-        setImportStatus(document.id, IMPORT_ROW_STATUS.PENDIENTE)
+        if (isDocumentDeletableFromSiigo(importStatus, config.provider)) {
+          await deleteSiigoSupportDocument(document.id)
+          setImportStatus(document.id, IMPORT_ROW_STATUS.PENDIENTE)
+          setDeleteFeedbackMessage('Documento eliminado en SIIGO.')
+        } else if (isDocumentRemovableFromDatabase(importStatus)) {
+          await deleteElectronicDocument(document.id)
+          setSelectedDocumentIds((current) => {
+            const next = new Set(current)
+            next.delete(document.id)
+            return next
+          })
+          setDeleteFeedbackMessage('Registro eliminado de la base de datos.')
+        } else {
+          throw new Error('Este registro no se puede eliminar.')
+        }
+
         setDeleteQueueProgress({
           current: 1,
           total: 1,
           completed: 1,
           label: 'Completado 1 de 1',
         })
-        setDeleteFeedbackMessage('Documento Soporte eliminado en SIIGO.')
         reloadDocuments()
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
             error,
-            'No se pudo eliminar el Documento Soporte en SIIGO.',
+            'No se pudo eliminar el registro seleccionado.',
           ),
         )
       } finally {
@@ -953,6 +1129,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       }
     },
     [
+      config.provider,
+      importStatuses,
       reloadDocuments,
       setDeleteFeedbackMessage,
       setErrorMessage,
@@ -1169,7 +1347,15 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         />
       )}
 
+      {isImporting && <ImportLoadingOverlay provider={config.provider} />}
+
       <div className="support-document-page__alerts">
+        {isResuming && (
+          <DocumentWorkspaceWorkingBanner
+            mode="resuming"
+            provider={config.provider}
+          />
+        )}
         {queueProgress && (
           <BatchQueueProgressBanner
             progress={queueProgress}
@@ -1223,9 +1409,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           selectedAccount={selectedAccount}
           selectedPaymentMethod={selectedPaymentMethod}
           selectedCostCenter={selectedCostCenter}
+          isCreditSelected={isCreditSelected}
+          selectedPlazoDays={selectedPlazoDays}
+          selectedDueDate={selectedDueDate}
           showAccountField={config.requiresAccount}
           canSend={canSendSelected}
           canDelete={canDeleteSelected}
+          hasConfigurableSelection={hasConfigurableSelection}
           isSending={isSending}
           isDeleting={isDeleting}
           progressLabel={queueProgress?.label ?? null}
@@ -1234,6 +1424,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onCostCenterChange={handleConfigCostCenterChange}
           onRetentionTypeChange={handleRetentionTypeChange}
+          onPlazoChange={handleConfigPlazoChange}
+          onDueDateChange={handleConfigDueDateChange}
           onSend={handleSendSelected}
           onDelete={requestDeleteSelected}
         />
@@ -1327,12 +1519,37 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
       <ConfirmDialog
         isOpen={pendingDelete !== null}
-        title="Eliminar Documento Soporte"
-        message={
-          pendingDelete?.kind === 'selected' && pendingDelete.targets.length > 1
-            ? `¿Eliminar ${pendingDelete.targets.length} Documentos Soporte en SIIGO? Podrás volver a enviarlos después.`
-            : '¿Eliminar este Documento Soporte en SIIGO? Podrás volver a enviarlo después.'
-        }
+        title={`Eliminar ${config.pageTitle}`}
+        message={(() => {
+          const targets =
+            pendingDelete?.kind === 'selected'
+              ? pendingDelete.targets
+              : pendingDelete?.kind === 'single'
+                ? [pendingDelete.document.id]
+                : []
+          const removesFromDatabase = targets.some((id) =>
+            isDocumentRemovableFromDatabase(importStatuses[id]),
+          )
+          const deletesFromSiigo = targets.some((id) =>
+            isDocumentDeletableFromSiigo(importStatuses[id], config.provider),
+          )
+
+          if (removesFromDatabase && !deletesFromSiigo) {
+            return targets.length > 1
+              ? `¿Eliminar ${targets.length} registros de la base de datos? Esta acción no se puede deshacer.`
+              : '¿Eliminar este registro de la base de datos? Esta acción no se puede deshacer.'
+          }
+
+          if (deletesFromSiigo && !removesFromDatabase) {
+            return targets.length > 1
+              ? `¿Eliminar ${targets.length} registros en SIIGO? Podrás volver a enviarlos después.`
+              : '¿Eliminar este registro en SIIGO? Podrás volver a enviarlo después.'
+          }
+
+          return targets.length > 1
+            ? `¿Eliminar ${targets.length} registros seleccionados?`
+            : '¿Eliminar el registro seleccionado?'
+        })()}
         confirmLabel="Eliminar"
         variant="danger"
         isBusy={isDeleting}

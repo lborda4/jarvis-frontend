@@ -36,6 +36,7 @@ interface SendDocumentsParams {
   rowCostCenters: Record<string, SiigoCostCenterOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowDates: Record<string, string>
+  rowDueDates: Record<string, string | null>
   rowObservations: Record<string, string>
   savePreferences?: boolean
 }
@@ -94,6 +95,7 @@ export function useSupportDocumentSend({
         rowCostCenters,
         rowRetentions,
         rowDates,
+        rowDueDates,
         rowObservations,
         savePreferences = true,
       } = params
@@ -162,6 +164,7 @@ export function useSupportDocumentSend({
           rowRetentions[documentId] ?? [],
           rowCostCenters[documentId] ?? null,
           rowDates[documentId],
+          rowDueDates[documentId] ?? undefined,
           rowObservations[documentId],
           savePreferences,
         ) as SiigoDocumentSendRequest

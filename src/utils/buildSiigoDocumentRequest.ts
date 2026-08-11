@@ -13,6 +13,7 @@ import type {
 } from '../types/siigo'
 import { buildSiigoSupportDocumentRequest as buildSupportDocumentRequest } from './buildSiigoSupportDocumentRequest'
 import { calculateSiigoSupportDocumentPaymentValue } from './siigoSupportDocumentTotal'
+import { isCreditPaymentMethod } from './siigoPaymentMethods'
 import {
   getTodayLocalDate,
   isSupportDocumentDateInRange,
@@ -58,6 +59,7 @@ export function buildSiigoPurchaseSendRequest(
   retentions: SiigoTaxOption[],
   costCenter: SiigoCostCenterOption | null,
   selectedDate: string,
+  dueDate?: string,
   _observations?: string,
   savePreferences = true,
 ): CreateSiigoPurchaseSendRequest {
@@ -99,6 +101,12 @@ export function buildSiigoPurchaseSendRequest(
   const documentDate = isSupportDocumentDateInRange(selectedDate)
     ? selectedDate
     : getTodayLocalDate()
+  const resolvedDueDate =
+    isCreditPaymentMethod(paymentMethod) &&
+    dueDate &&
+    /^\d{4}-\d{2}-\d{2}$/.test(dueDate)
+      ? dueDate
+      : documentDate
   const cufe = document.cufe?.trim()
 
   return {
@@ -121,7 +129,7 @@ export function buildSiigoPurchaseSendRequest(
       {
         id: paymentMethod.id,
         value: paymentValue,
-        due_date: documentDate,
+        due_date: resolvedDueDate,
       },
     ],
     ...(savePreferences

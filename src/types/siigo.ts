@@ -323,9 +323,31 @@ export interface SiigoSubscriptionStatus {
 export interface SiigoCredentialsStatusResponse {
   configured: boolean
   hasAccounts: boolean
+  documentTypesConfigured: boolean
   subscription: SiigoSubscriptionStatus
   username?: string
   partner_id?: string
+  supportDocumentTypeId?: number | null
+  purchaseInvoiceTypeId?: number | null
+}
+
+export interface SiigoDocumentTypeCatalogItem {
+  id: number
+  code?: string
+  name?: string
+  type?: string
+  active?: boolean
+}
+
+export interface SaveSiigoDocumentTypesRequest {
+  supportDocumentTypeId?: number
+  purchaseInvoiceTypeId?: number
+}
+
+export interface SaveSiigoDocumentTypesResponse {
+  supportDocumentTypeId: number | null
+  purchaseInvoiceTypeId: number | null
+  documentTypesConfigured: boolean
 }
 
 export interface SiigoAccountCatalogItem {

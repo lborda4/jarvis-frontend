@@ -35,6 +35,7 @@ interface IntegrationSetupContextValue {
   isJarvisCompany: boolean
   isSiigoConfigured: boolean
   hasSiigoAccounts: boolean
+  hasSiigoDocumentTypesConfigured: boolean
   /** Credenciales/datos de empresa Jarvis guardados (paso 1). */
   isJarvisCompanyConfigured: boolean
   /**
@@ -102,6 +103,8 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     useState<IntegrationMode>('unknown')
   const [isSiigoConfigured, setIsSiigoConfigured] = useState(false)
   const [hasSiigoAccounts, setHasSiigoAccounts] = useState(false)
+  const [hasSiigoDocumentTypesConfigured, setHasSiigoDocumentTypesConfigured] =
+    useState(false)
   const [isJarvisCompanyConfigured, setIsJarvisCompanyConfigured] =
     useState(false)
   const [
@@ -135,6 +138,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
+      setHasSiigoDocumentTypesConfigured(false)
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
@@ -171,17 +175,19 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         const status = await fetchSiigoCredentialsStatus()
         const configured = Boolean(status.configured)
         const accountsReady = Boolean(status.hasAccounts)
+        const documentTypesReady = Boolean(status.documentTypesConfigured)
         const subscription = status.subscription
         const subscriptionActive = subscription?.status === 'ACTIVE'
         const documentTypes = subscription?.includedDocumentTypes ?? []
 
         setIsSiigoConfigured(configured)
         setHasSiigoAccounts(accountsReady)
+        setHasSiigoDocumentTypesConfigured(documentTypesReady)
         resetJarvisFlags()
         setIncludedDocumentTypes(documentTypes)
         setIsSubscriptionActive(subscriptionActive)
 
-        if (configured && accountsReady) {
+        if (configured && accountsReady && documentTypesReady) {
           persistIntegrationConfigured()
         } else {
           clearIntegrationConfigured()
@@ -214,6 +220,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         setIsElectronicInvoiceResolutionConfigured(invoiceResolutionConfigured)
         setIsSiigoConfigured(false)
         setHasSiigoAccounts(false)
+        setHasSiigoDocumentTypesConfigured(false)
         setIncludedDocumentTypes(documentTypes)
         setIsSubscriptionActive(subscriptionActive)
 
@@ -228,6 +235,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
+      setHasSiigoDocumentTypesConfigured(false)
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
@@ -237,6 +245,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
+      setHasSiigoDocumentTypesConfigured(false)
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
@@ -265,7 +274,8 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
   const isSiigoCompany = integrationMode === 'siigo'
   const isJarvisCompany = integrationMode === 'jarvis'
-  const isSiigoFullyConfigured = isSiigoConfigured && hasSiigoAccounts
+  const isSiigoFullyConfigured =
+    isSiigoConfigured && hasSiigoAccounts && hasSiigoDocumentTypesConfigured
   const isJarvisFullyConfigured = isJarvisSetupComplete({
     companyConfigured: isJarvisCompanyConfigured,
     documentTypes: includedDocumentTypes,
@@ -308,6 +318,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisCompany,
       isSiigoConfigured,
       hasSiigoAccounts,
+      hasSiigoDocumentTypesConfigured,
       isJarvisCompanyConfigured,
       isJarvisConfigured: isJarvisCompanyConfigured,
       includedDocumentTypes,
@@ -332,6 +343,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisCompany,
       isSiigoConfigured,
       hasSiigoAccounts,
+      hasSiigoDocumentTypesConfigured,
       isJarvisCompanyConfigured,
       includedDocumentTypes,
       isSubscriptionActive,

@@ -1,0 +1,120 @@
+.import-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgb(15 23 42 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.import-loading-overlay__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(100%, 22rem);
+  padding: 2.5rem 2rem 2rem;
+  border-radius: var(--r-lg);
+  background-color: #ffffff;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.import-loading-overlay__spinner {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.75rem;
+  border: 3px solid var(--jarvis-primary-ring);
+  border-top-color: var(--jarvis-primary);
+  border-radius: 50%;
+  animation: import-loading-spin 0.75s linear infinite;
+}
+
+.import-loading-overlay__title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--jarvis-navy);
+}
+
+.import-loading-overlay__tip {
+  min-height: 1.3em;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-md);
+  font-weight: 500;
+  animation: import-loading-tip-in 220ms ease-out both;
+}
+
+.import-loading-overlay__pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin-top: 0.5rem;
+}
+
+.import-loading-overlay__pulse span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--jarvis-primary);
+  opacity: 0.35;
+  animation: import-loading-dot 1.2s ease-in-out infinite;
+}
+
+.import-loading-overlay__pulse span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.import-loading-overlay__pulse span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.import-loading-overlay__hint {
+  margin: 1rem 0 0;
+  color: var(--jarvis-gray-500);
+  font-size: var(--text-xs);
+}
+
+@keyframes import-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes import-loading-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes import-loading-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-loading-overlay__spinner,
+  .import-loading-overlay__tip,
+  .import-loading-overlay__pulse span {
+    animation: none;
+  }
+
+  .import-loading-overlay__pulse span {
+    opacity: 0.7;
+  }
+}

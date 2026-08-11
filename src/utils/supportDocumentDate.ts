@@ -21,6 +21,31 @@ export function getMinSelectableSupportDocumentDate(
   return formatLocalDate(date)
 }
 
+/** Suma (o resta, si days es negativo) días a una fecha local YYYY-MM-DD. */
+export function addDaysToLocalDate(date: string, days: number): string {
+  const base = new Date(`${date}T00:00:00`)
+
+  if (Number.isNaN(base.getTime()) || !Number.isFinite(days)) {
+    return date
+  }
+
+  base.setDate(base.getDate() + Math.trunc(days))
+
+  return formatLocalDate(base)
+}
+
+/** Días completos entre dos fechas locales YYYY-MM-DD (0 si son inválidas). */
+export function daysBetweenLocalDates(fromDate: string, toDate: string): number {
+  const from = new Date(`${fromDate}T00:00:00`)
+  const to = new Date(`${toDate}T00:00:00`)
+
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    return 0
+  }
+
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000)
+}
+
 export function isSupportDocumentDateInRange(
   value: string,
   minDate = getMinSelectableSupportDocumentDate(),

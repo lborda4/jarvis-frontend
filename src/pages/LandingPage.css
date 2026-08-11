@@ -96,7 +96,10 @@
 }
 
 .landing-brand__mark {
+  width: 2.35rem;
+  height: 2.35rem;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .landing-brand__text {
@@ -177,8 +180,29 @@
 
 .landing-header__login {
   display: inline-flex;
-  padding: 0.55rem 0.9rem;
+  padding: 0.6rem 1.15rem;
   font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lp-text);
+  border-color: rgba(var(--jarvis-accent-rgb), 0.55);
+}
+
+.landing-page a.landing-header__login {
+  color: var(--lp-text);
+}
+
+.landing-header__login:hover,
+.landing-header__login:focus-visible {
+  background: var(--lp-accent-soft);
+  color: var(--lp-accent);
+  border-color: var(--lp-accent);
+}
+
+.landing-page a.landing-header__login:hover,
+.landing-page a.landing-header__login:focus-visible {
+  color: var(--lp-accent);
 }
 
 .landing-header__login--nav {

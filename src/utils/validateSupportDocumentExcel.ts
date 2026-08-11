@@ -43,10 +43,12 @@ function normalizeExcelDateCell(value: unknown): string | null {
     return trimmed
   }
 
-  const slashMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+  const dayMonthYearMatch = trimmed.match(
+    /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/,
+  )
 
-  if (slashMatch) {
-    const [, day, month, year] = slashMatch
+  if (dayMonthYearMatch) {
+    const [, day, month, year] = dayMonthYearMatch
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
   }
 

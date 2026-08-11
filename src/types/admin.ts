@@ -78,7 +78,7 @@ export interface CreateAdminCompanyRequest {
   nit: string
   name: string
   personType: CompanyPersonType
-  responsible: AdminCompanyResponsible
+  responsible?: AdminCompanyResponsible
   integrations: IntegrationProvider[]
   siigoPlanId?: string
   jarvisPlanId?: string

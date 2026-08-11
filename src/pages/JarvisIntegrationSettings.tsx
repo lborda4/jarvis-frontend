@@ -990,7 +990,7 @@ function JarvisIntegrationSettings() {
           message={
             isParsingResolution
               ? 'Leyendo resolución...'
-              : 'Enviando resolución a NextPyme...'
+              : 'Enviando resolución...'
           }
         />
       )}

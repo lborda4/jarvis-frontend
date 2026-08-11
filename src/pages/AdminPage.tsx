@@ -276,11 +276,17 @@ function AdminPage() {
         nit: nit.trim(),
         name: name.trim(),
         personType: personType as CompanyPersonType,
-        responsible: {
-          name: responsibleName.trim(),
-          phone: responsiblePhone.trim(),
-          email: responsibleEmail.trim(),
-        },
+        ...(responsibleName.trim() ||
+        responsiblePhone.trim() ||
+        responsibleEmail.trim()
+          ? {
+              responsible: {
+                name: responsibleName.trim(),
+                phone: responsiblePhone.trim(),
+                email: responsibleEmail.trim(),
+              },
+            }
+          : {}),
         integrations: selectedIntegrations,
         ...(includesSiigo
           ? {
@@ -637,7 +643,7 @@ function AdminPage() {
           )}
 
           <fieldset className="admin-form__responsible">
-            <legend>Persona a cargo</legend>
+            <legend>Persona a cargo (opcional)</legend>
             <div className="admin-form__grid">
               <div className="admin-form__field">
                 <label htmlFor="admin-responsible-name">Nombre</label>
@@ -646,7 +652,6 @@ function AdminPage() {
                   type="text"
                   value={responsibleName}
                   onChange={(event) => setResponsibleName(event.target.value)}
-                  required
                   disabled={isSubmitting}
                 />
               </div>
@@ -659,7 +664,6 @@ function AdminPage() {
                   inputMode="tel"
                   value={responsiblePhone}
                   onChange={(event) => setResponsiblePhone(event.target.value)}
-                  required
                   disabled={isSubmitting}
                 />
               </div>
@@ -672,7 +676,6 @@ function AdminPage() {
                   autoComplete="email"
                   value={responsibleEmail}
                   onChange={(event) => setResponsibleEmail(event.target.value)}
-                  required
                   disabled={isSubmitting}
                 />
               </div>
@@ -756,9 +759,6 @@ function AdminPage() {
               !nit.trim() ||
               !name.trim() ||
               !personType ||
-              !responsibleName.trim() ||
-              !responsiblePhone.trim() ||
-              !responsibleEmail.trim() ||
               isParsingRut ||
               (includesSiigo &&
                 (!siigoPlanId || selectedDocumentTypes.length === 0)) ||

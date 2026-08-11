@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { CloseIcon, MenuIcon } from '../components/icons/SidebarIcons'
@@ -197,43 +197,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function BrandMark() {
-  const id = useId()
-  return (
-    <svg
-      className="landing-brand__mark"
-      viewBox="0 0 40 40"
-      width="40"
-      height="40"
-      aria-hidden="true"
-    >
-      <circle
-        cx="20"
-        cy="20"
-        r="18.5"
-        fill="none"
-        stroke={`url(#${id}-g)`}
-        strokeWidth="1.5"
-      />
-      <text
-        x="20"
-        y="25.5"
-        textAnchor="middle"
-        fill="#fff"
-        fontSize="13"
-        fontWeight="800"
-        letterSpacing="0.5"
-        fontFamily="Segoe UI, system-ui, sans-serif"
-      >
-        JV
-      </text>
-      <defs>
-        <linearGradient id={`${id}-g`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#1ad3cc" />
-          <stop offset="100%" stopColor="#0ea5a0" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
+  return <img src="/logo5.png" alt="Jarvis" className="landing-brand__mark" />
 }
 
 function HeroVisual() {
@@ -319,7 +283,7 @@ function LandingPage() {
             ))}
             <Link
               to="/login"
-              className="landing-btn landing-btn--primary landing-header__login landing-header__login--nav"
+              className="landing-btn landing-header__login landing-header__login--nav"
               onClick={closeMenu}
             >
               Iniciar sesión
@@ -329,7 +293,7 @@ function LandingPage() {
           <div className="landing-header__actions">
             <Link
               to="/login"
-              className="landing-btn landing-btn--primary landing-header__login landing-header__login--bar"
+              className="landing-btn landing-header__login landing-header__login--bar"
             >
               Iniciar sesión
             </Link>
