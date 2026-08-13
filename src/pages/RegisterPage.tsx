@@ -16,6 +16,7 @@ function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nit, setNit] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitIsSlow, setSubmitIsSlow] = useState(false)
@@ -41,6 +42,7 @@ function RegisterPage() {
         email: email.trim(),
         password,
         nit: nit.trim(),
+        inviteCode: inviteCode.trim(),
       })
       setAuthEntryMode('register')
       navigate('/documento-soporte', { replace: true })
@@ -73,8 +75,9 @@ function RegisterPage() {
           <p className="auth-card__eyebrow">Nueva cuenta</p>
           <h1>Crear cuenta</h1>
           <p>
-            Registra tu usuario con el NIT de tu empresa. La empresa debe estar
-            creada previamente por un administrador.
+            Registra tu usuario con el NIT de tu empresa y el código de
+            invitación que te compartieron. La empresa debe estar creada
+            previamente por un administrador.
           </p>
         </header>
 
@@ -133,6 +136,21 @@ function RegisterPage() {
               required
               disabled={isSubmitting}
               placeholder="Solo números"
+            />
+          </div>
+
+          <div className="auth-form__field">
+            <label htmlFor="register-invite-code">Código de invitación</label>
+            <input
+              id="register-invite-code"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              value={inviteCode}
+              onChange={(event) => setInviteCode(event.target.value)}
+              required
+              disabled={isSubmitting}
+              placeholder="Te lo comparte quien administra tu cuenta"
             />
           </div>
 

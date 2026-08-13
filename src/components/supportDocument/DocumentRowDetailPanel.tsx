@@ -66,6 +66,7 @@ export default function DocumentRowDetailPanel({
                 <th>Cantidad</th>
                 <th>Valor unitario</th>
                 <th>Total</th>
+                <th>Impuesto</th>
               </tr>
             </thead>
             <tbody>
@@ -75,6 +76,11 @@ export default function DocumentRowDetailPanel({
                   <td>{item.quantity}</td>
                   <td>{formatCurrency(item.unitValue)}</td>
                   <td>{formatCurrency(item.total)}</td>
+                  <td>
+                    {item.suggestedTax
+                      ? `${item.suggestedTax.name} (${item.suggestedTax.percentage}%)`
+                      : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>

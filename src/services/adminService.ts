@@ -4,6 +4,7 @@ import type {
   ListAdminCompaniesResponse,
   ListAdminPlansResponse,
   ParseRutResponse,
+  RegenerateCompanyInviteCodeResponse,
   UpdateIntegrationSubscriptionRequest,
   UpdateIntegrationSubscriptionResponse,
 } from '../types/admin'
@@ -48,6 +49,16 @@ export async function parseAdminCompanyRut(file: File): Promise<ParseRutResponse
   const response = await apiClient.post<ParseRutResponse>(
     ADMIN_RUT_PARSE_ENDPOINT,
     formData,
+  )
+
+  return response.data
+}
+
+export async function regenerateCompanyInviteCode(
+  companyId: string,
+): Promise<RegenerateCompanyInviteCodeResponse> {
+  const response = await apiClient.post<RegenerateCompanyInviteCodeResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/invite-code/regenerate`,
   )
 
   return response.data

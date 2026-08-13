@@ -283,6 +283,37 @@
   cursor: not-allowed;
 }
 
+.admin-invite-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 12rem;
+}
+
+.admin-invite-code code {
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  background: var(--jarvis-gray-100);
+  border-radius: var(--r-sm);
+  padding: 0.2rem 0.45rem;
+}
+
+.admin-invite-code button {
+  border: 1px solid var(--jarvis-gray-300);
+  background: #fff;
+  color: var(--jarvis-text);
+  border-radius: var(--r-sm);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.admin-invite-code button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .admin-form__grid {
     grid-template-columns: 1fr;

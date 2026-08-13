@@ -9,6 +9,7 @@ import {
   fetchAdminCompanies,
   fetchAdminPlans,
   parseAdminCompanyRut,
+  regenerateCompanyInviteCode,
   updateIntegrationSubscription,
 } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -100,6 +101,10 @@ function AdminPage() {
   const [updatingIntegrationId, setUpdatingIntegrationId] = useState<
     string | null
   >(null)
+  const [regeneratingCompanyId, setRegeneratingCompanyId] = useState<
+    string | null
+  >(null)
+  const [copiedCompanyId, setCopiedCompanyId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nit, setNit] = useState('')
@@ -415,6 +420,53 @@ function AdminPage() {
       )
     } finally {
       setUpdatingIntegrationId(null)
+    }
+  }
+
+  const handleCopyInviteCode = async (company: AdminCompanyListItem) => {
+    try {
+      await navigator.clipboard.writeText(company.inviteCode)
+      setCopiedCompanyId(company.id)
+      window.setTimeout(() => {
+        setCopiedCompanyId((current) =>
+          current === company.id ? null : current,
+        )
+      }, 2000)
+    } catch {
+      setErrorMessage('No se pudo copiar el código. Cópialo manualmente.')
+    }
+  }
+
+  const handleRegenerateInviteCode = async (company: AdminCompanyListItem) => {
+    const confirmed = window.confirm(
+      `¿Regenerar el código de invitación de ${company.name}? El código actual dejará de funcionar.`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setRegeneratingCompanyId(company.id)
+
+    try {
+      const response = await regenerateCompanyInviteCode(company.id)
+
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === company.id
+            ? { ...item, inviteCode: response.company.inviteCode }
+            : item,
+        ),
+      )
+      setSuccessMessage(`Código de invitación regenerado para ${company.name}.`)
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo regenerar el código.'),
+      )
+    } finally {
+      setRegeneratingCompanyId(null)
     }
   }
 
@@ -797,6 +849,7 @@ function AdminPage() {
                   <th>Límite</th>
                   <th>Suscripción</th>
                   <th>Creada</th>
+                  <th>Código de invitación</th>
                 </tr>
               </thead>
               <tbody>
@@ -1006,6 +1059,30 @@ function AdminPage() {
                       </td>
                       <td>
                         {new Date(company.createdAt).toLocaleDateString('es-CO')}
+                      </td>
+                      <td>
+                        <div className="admin-invite-code">
+                          <code>{company.inviteCode}</code>
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyInviteCode(company)}
+                          >
+                            {copiedCompanyId === company.id
+                              ? 'Copiado'
+                              : 'Copiar'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={regeneratingCompanyId === company.id}
+                            onClick={() =>
+                              void handleRegenerateInviteCode(company)
+                            }
+                          >
+                            {regeneratingCompanyId === company.id
+                              ? 'Regenerando...'
+                              : 'Regenerar'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

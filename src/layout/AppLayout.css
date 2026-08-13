@@ -304,6 +304,73 @@
   cursor: not-allowed;
 }
 
+.app-sidebar__usage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.app-sidebar__usage-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.app-sidebar__usage-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  color: var(--jarvis-accent);
+}
+
+.app-sidebar__usage-label {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.app-sidebar__usage-bar {
+  width: 100%;
+  height: 0.35rem;
+  border-radius: var(--r-sm);
+  background-color: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.app-sidebar__usage-bar-fill {
+  height: 100%;
+  border-radius: var(--r-sm);
+  background-color: var(--jarvis-accent);
+  transition: width 0.3s ease;
+}
+
+.app-sidebar__usage--warning .app-sidebar__usage-icon,
+.app-sidebar__usage--warning .app-sidebar__usage-bar-fill {
+  color: #fbbf24;
+  background-color: #fbbf24;
+}
+
+.app-sidebar__usage--warning {
+  border-color: rgba(251, 191, 36, 0.35);
+  background-color: rgba(251, 191, 36, 0.1);
+}
+
+.app-sidebar__usage--danger .app-sidebar__usage-icon,
+.app-sidebar__usage--danger .app-sidebar__usage-bar-fill {
+  color: #f87171;
+  background-color: #f87171;
+}
+
+.app-sidebar__usage--danger {
+  border-color: rgba(248, 113, 113, 0.35);
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
 .app-sidebar__setup-hint {
   margin: 0.75rem 0 0;
   padding: 0.75rem 0.85rem;

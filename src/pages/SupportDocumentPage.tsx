@@ -29,6 +29,7 @@ import SupportDocumentPagination from '../components/supportDocument/SupportDocu
 import SupportDocumentTable from '../components/supportDocument/SupportDocumentTable'
 import { DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE, type ElectronicDocumentPageSize } from '../constants/electronicDocuments'
 import { useSiigoWorkspaceCatalog } from '../context/SiigoCatalogContext'
+import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import {
   useSupportDocumentSend,
   type BatchQueueProgress,
@@ -45,7 +46,6 @@ import {
   peekElectronicDocuments,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
-import { deleteSiigoSupportDocument } from '../services/siigoService'
 import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListItem,
@@ -98,22 +98,28 @@ import '../pages/InvoiceUpload.css'
 
 function buildInitialRowCostCenters(
   documents: ElectronicDocumentListItem[],
+  current: Record<string, SiigoCostCenterOption | null> = {},
 ): Record<string, SiigoCostCenterOption | null> {
   return Object.fromEntries(
     documents.map((document) => [
       document.id,
-      mapSuggestedCostCenterToOption(document.suggestedCostCenter),
+      current[document.id] !== undefined
+        ? current[document.id]
+        : mapSuggestedCostCenterToOption(document.suggestedCostCenter),
     ]),
   )
 }
 
 function buildInitialRowPaymentMethods(
   documents: ElectronicDocumentListItem[],
+  current: Record<string, SiigoPaymentMethodOption | null> = {},
 ): Record<string, SiigoPaymentMethodOption | null> {
   return Object.fromEntries(
     documents.map((document) => [
       document.id,
-      mapSuggestedPaymentMethodToOption(document.suggestedPaymentMethod),
+      current[document.id] !== undefined
+        ? current[document.id]
+        : mapSuggestedPaymentMethodToOption(document.suggestedPaymentMethod),
     ]),
   )
 }
@@ -121,14 +127,17 @@ function buildInitialRowPaymentMethods(
 function buildInitialRowRetentions(
   documents: ElectronicDocumentListItem[],
   retentionCatalogTypes: readonly string[],
+  current: Record<string, SiigoTaxOption[]> = {},
 ): Record<string, SiigoTaxOption[]> {
   return Object.fromEntries(
     documents.map((document) => [
       document.id,
-      normalizeRetentionsForTypes(
-        mapSuggestedRetentionsToTaxOptions(document.suggestedRetentions),
-        retentionCatalogTypes,
-      ),
+      current[document.id] !== undefined
+        ? current[document.id]
+        : normalizeRetentionsForTypes(
+            mapSuggestedRetentionsToTaxOptions(document.suggestedRetentions),
+            retentionCatalogTypes,
+          ),
     ]),
   )
 }
@@ -171,6 +180,7 @@ function resolveSharedSelectionValue<T>(
 
 
 export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
+  const { refreshSetupStatus } = useIntegrationSetup()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const controlsAnchorRef = useRef<HTMLDivElement>(null)
   const [isControlsAnchored, setIsControlsAnchored] = useState(false)
@@ -299,13 +309,20 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         setTotalDocuments(response.total)
         setPage(response.page)
         setPageLimit(response.limit as ElectronicDocumentPageSize)
-        setRowAccounts(buildInitialRowAccounts(response.items))
-        setRowPaymentMethods(buildInitialRowPaymentMethods(response.items))
-        setRowCostCenters(buildInitialRowCostCenters(response.items))
-        setRowRetentions(
+        setRowAccounts((current) =>
+          buildInitialRowAccounts(response.items, [], current),
+        )
+        setRowPaymentMethods((current) =>
+          buildInitialRowPaymentMethods(response.items, current),
+        )
+        setRowCostCenters((current) =>
+          buildInitialRowCostCenters(response.items, current),
+        )
+        setRowRetentions((current) =>
           buildInitialRowRetentions(
             response.items,
             config.retentionCatalogTypes,
+            current,
           ),
         )
         setRowDates((current) =>
@@ -694,7 +711,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     sendDocuments,
   } = useSupportDocumentSend({
     workspace: config,
-    onCompleted: () => reloadDocuments({ resetPage: true }),
+    onCompleted: () => {
+      reloadDocuments()
+      void refreshSetupStatus()
+    },
     onDocumentStatusChange: setImportStatus,
   })
 
@@ -845,14 +865,15 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const canSendSelected = sendableSelectedCount > 0
   const canDeleteSelected = deletableSelectedCount > 0
 
-  /** Documentos que aún no quedaron en un estado terminal (LISTA/ERROR) y por
-   * lo tanto todavía se pueden configurar (cuenta, medio de pago, etc.) antes
-   * de enviarlos — aunque ya sean "eliminables", no deben ocultar los campos. */
+  /** Documentos que aún no quedaron en LISTA (ya enviados/validados) y por lo
+   * tanto todavía se pueden configurar (cuenta, medio de pago, etc.) antes de
+   * enviarlos — esto incluye ERROR: un documento fallido puede necesitar otra
+   * cuenta/medio de pago para reintentar, así que no debe ocultar los campos. */
   const hasConfigurableSelection = useMemo(() => {
     for (const documentId of selectedDocumentIds) {
       const status = importStatuses[documentId]
 
-      if (status !== IMPORT_ROW_STATUS.LISTA && status !== IMPORT_ROW_STATUS.ERROR) {
+      if (status !== IMPORT_ROW_STATUS.LISTA) {
         return true
       }
     }
@@ -973,7 +994,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             const importStatus = importStatuses[documentId]
 
             if (isDocumentDeletableFromSiigo(importStatus, config.provider)) {
-              await deleteSiigoSupportDocument(documentId)
+              await config.deleteSiigoDocument(documentId)
               setImportStatus(documentId, IMPORT_ROW_STATUS.PENDIENTE)
             } else if (isDocumentRemovableFromDatabase(importStatus)) {
               await deleteElectronicDocument(documentId)
@@ -1033,6 +1054,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     }
   }, [
     config.provider,
+    config.deleteSiigoDocument,
     importStatuses,
     reloadDocuments,
     setDeleteFeedbackMessage,
@@ -1093,7 +1115,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
       try {
         if (isDocumentDeletableFromSiigo(importStatus, config.provider)) {
-          await deleteSiigoSupportDocument(document.id)
+          await config.deleteSiigoDocument(document.id)
           setImportStatus(document.id, IMPORT_ROW_STATUS.PENDIENTE)
           setDeleteFeedbackMessage('Documento eliminado en SIIGO.')
         } else if (isDocumentRemovableFromDatabase(importStatus)) {
@@ -1130,6 +1152,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     },
     [
       config.provider,
+      config.deleteSiigoDocument,
       importStatuses,
       reloadDocuments,
       setDeleteFeedbackMessage,

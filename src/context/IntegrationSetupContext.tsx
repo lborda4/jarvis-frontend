@@ -45,6 +45,9 @@ interface IntegrationSetupContextValue {
   isJarvisConfigured: boolean
   includedDocumentTypes: string[]
   isSubscriptionActive: boolean
+  documentLimit: number | null
+  documentsUsed: number
+  documentsRemaining: number | null
   hasSupportDocumentAccess: boolean
   hasPurchaseInvoiceAccess: boolean
   isSupportDocumentResolutionConfigured: boolean
@@ -119,6 +122,11 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     [],
   )
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false)
+  const [documentLimit, setDocumentLimit] = useState<number | null>(null)
+  const [documentsUsed, setDocumentsUsed] = useState(0)
+  const [documentsRemaining, setDocumentsRemaining] = useState<number | null>(
+    null,
+  )
 
   const resetJarvisFlags = useCallback(() => {
     setIsJarvisCompanyConfigured(false)
@@ -142,6 +150,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
+      setDocumentLimit(null)
+      setDocumentsUsed(0)
+      setDocumentsRemaining(null)
       clearIntegrationConfigured()
       setIsCheckingSetup(false)
       return
@@ -186,6 +197,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         resetJarvisFlags()
         setIncludedDocumentTypes(documentTypes)
         setIsSubscriptionActive(subscriptionActive)
+        setDocumentLimit(subscription?.documentLimit ?? null)
+        setDocumentsUsed(subscription?.documentsUsed ?? 0)
+        setDocumentsRemaining(subscription?.remaining ?? null)
 
         if (configured && accountsReady && documentTypesReady) {
           persistIntegrationConfigured()
@@ -223,6 +237,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         setHasSiigoDocumentTypesConfigured(false)
         setIncludedDocumentTypes(documentTypes)
         setIsSubscriptionActive(subscriptionActive)
+        setDocumentLimit(subscription?.documentLimit ?? null)
+        setDocumentsUsed(subscription?.documentsUsed ?? 0)
+        setDocumentsRemaining(subscription?.remaining ?? null)
 
         if (fullyConfigured) {
           persistIntegrationConfigured()
@@ -239,6 +256,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
+      setDocumentLimit(null)
+      setDocumentsUsed(0)
+      setDocumentsRemaining(null)
       clearIntegrationConfigured()
     } catch {
       setIntegrationProviders([])
@@ -249,6 +269,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
+      setDocumentLimit(null)
+      setDocumentsUsed(0)
+      setDocumentsRemaining(null)
       clearIntegrationConfigured()
     } finally {
       setIsCheckingSetup(false)
@@ -323,6 +346,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisConfigured: isJarvisCompanyConfigured,
       includedDocumentTypes,
       isSubscriptionActive,
+      documentLimit,
+      documentsUsed,
+      documentsRemaining,
       hasSupportDocumentAccess,
       hasPurchaseInvoiceAccess,
       isSupportDocumentResolutionConfigured,
@@ -347,6 +373,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisCompanyConfigured,
       includedDocumentTypes,
       isSubscriptionActive,
+      documentLimit,
+      documentsUsed,
+      documentsRemaining,
       hasSupportDocumentAccess,
       hasPurchaseInvoiceAccess,
       isSupportDocumentResolutionConfigured,

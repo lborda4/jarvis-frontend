@@ -63,6 +63,7 @@ export interface AdminCompanyListItem {
   personType: CompanyPersonType | null
   responsible: AdminCompanyResponsible | null
   createdAt: string
+  inviteCode: string
   integrations: AdminIntegrationItem[]
 }
 
@@ -105,6 +106,10 @@ export interface JarvisCredentialsSeed {
 }
 
 export interface CreateAdminCompanyResponse {
+  company: AdminCompanyListItem
+}
+
+export interface RegenerateCompanyInviteCodeResponse {
   company: AdminCompanyListItem
 }
 

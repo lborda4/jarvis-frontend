@@ -120,11 +120,14 @@ export function mapSuggestedAccountToOption(
 export function buildInitialRowAccounts(
   documents: ElectronicDocumentListItem[],
   catalog: SiigoAccountOption[] = [],
+  current: Record<string, SiigoAccountOption | null> = {},
 ): Record<string, SiigoAccountOption | null> {
   return Object.fromEntries(
     documents.map((document) => [
       document.id,
-      resolveSuggestedAccountOption(document.suggestedAccount, catalog),
+      current[document.id] !== undefined
+        ? current[document.id]
+        : resolveSuggestedAccountOption(document.suggestedAccount, catalog),
     ]),
   )
 }

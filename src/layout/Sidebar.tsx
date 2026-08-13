@@ -49,12 +49,30 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     setupPath,
     isJarvisCompany,
     isConfigured,
+    isSubscriptionActive,
+    documentLimit,
+    documentsUsed,
+    documentsRemaining,
   } = useIntegrationSetup()
   const companyName = user?.company?.name ?? 'Mi Empresa'
   const activeCompanyId = user?.company?.id ?? ''
   const userName = user?.name?.trim() || 'Usuario'
   const userEmail = user?.email?.trim() || ''
   const settingsLabel = isJarvisCompany ? 'Configuración' : 'Configuración SIIGO'
+  const showUsageIndicator = isConfigured && isSubscriptionActive
+  const isUnlimited = documentLimit == null
+  const limit = documentLimit ?? 0
+  const remaining = documentsRemaining ?? (isUnlimited ? null : Math.max(0, limit - documentsUsed))
+  const usagePercent = isUnlimited || limit <= 0
+    ? 0
+    : Math.min(100, Math.round((documentsUsed / limit) * 100))
+  const usageTone: 'normal' | 'warning' | 'danger' = isUnlimited
+    ? 'normal'
+    : remaining === 0
+      ? 'danger'
+      : remaining !== null && limit > 0 && (remaining <= 5 || remaining / limit <= 0.1)
+        ? 'warning'
+        : 'normal'
 
   const navItems = [
     {
@@ -252,6 +270,34 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
       {isOpen ? (
         <>
+          {showUsageIndicator && (
+            <div className={`app-sidebar__usage app-sidebar__usage--${usageTone}`}>
+              <div className="app-sidebar__usage-header">
+                <DocumentIcon className="app-sidebar__usage-icon" />
+                <span className="app-sidebar__usage-label">
+                  {isUnlimited
+                    ? 'Documentos ilimitados'
+                    : `${remaining} de ${limit} documentos restantes`}
+                </span>
+              </div>
+              {!isUnlimited && (
+                <div
+                  className="app-sidebar__usage-bar"
+                  role="progressbar"
+                  aria-valuenow={usagePercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Documentos usados del plan"
+                >
+                  <div
+                    className="app-sidebar__usage-bar-fill"
+                    style={{ width: `${usagePercent}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {requiresSetup && (
             <p className="app-sidebar__setup-hint">
               {isJarvisCompany

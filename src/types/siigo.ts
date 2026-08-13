@@ -261,6 +261,12 @@ export interface DeleteSiigoSupportDocumentResponse {
   document?: Record<string, unknown>
 }
 
+export interface DeleteSiigoPurchaseResponse {
+  success: boolean
+  siigoPurchaseId: string
+  document?: Record<string, unknown>
+}
+
 export function isSupplierNotFoundStatus(
   status: SiigoImportValidationStatus,
 ): boolean {
@@ -316,6 +322,7 @@ export interface SiigoSubscriptionStatus {
   startedAt: string | null
   documentLimit: number | null
   documentsUsed: number
+  remaining: number | null
   includedDocumentTypes: string[]
   plan: SiigoSubscriptionPlan | null
 }

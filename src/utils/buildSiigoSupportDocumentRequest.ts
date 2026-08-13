@@ -83,11 +83,23 @@ export function buildSiigoSupportDocumentRequest(
     description: item.description,
     quantity: item.quantity > 0 ? item.quantity : 1,
     price: item.unitValue > 0 ? item.unitValue : item.total,
+    ...(item.suggestedTax ? { taxes: [{ id: item.suggestedTax.id }] } : {}),
   }))
+  // Ídem que en factura de compra: sin esto, el IVA sugerido quedaría en
+  // items[].taxes pero el total a pagar calculado acá no lo incluiría.
+  const itemTaxesCatalog: SiigoTaxOption[] = sourceItems
+    .map((item) => item.suggestedTax)
+    .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
+    .map((tax) => ({
+      id: tax.id,
+      name: tax.name,
+      type: 'IVA',
+      percentage: tax.percentage,
+    }))
 
   const paymentValue = calculateSiigoSupportDocumentPaymentValue(
     items,
-    [],
+    itemTaxesCatalog,
     documentRetentions
       .map((retention) => retentions.find((tax) => tax.id === retention.id))
       .filter((retention): retention is SiigoTaxOption => Boolean(retention)),

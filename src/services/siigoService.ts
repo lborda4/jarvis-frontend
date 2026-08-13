@@ -6,6 +6,7 @@ import type {
   CreateSiigoPurchaseSendResponse,
   CreateSiigoSupportDocumentRequest,
   CreateSiigoSupportDocumentResponse,
+  DeleteSiigoPurchaseResponse,
   DeleteSiigoSupportDocumentResponse,
   CreateSiigoSupplierRequest,
   CreateSiigoSupplierResponse,
@@ -376,6 +377,16 @@ export async function deleteSiigoSupportDocument(
 ): Promise<DeleteSiigoSupportDocumentResponse> {
   const response = await apiClient.delete<DeleteSiigoSupportDocumentResponse>(
     `${SIIGO_SUPPORT_DOCUMENTS_ENDPOINT}/${encodeURIComponent(documentId)}`,
+  )
+
+  return response.data
+}
+
+export async function deleteSiigoPurchase(
+  documentId: string,
+): Promise<DeleteSiigoPurchaseResponse> {
+  const response = await apiClient.delete<DeleteSiigoPurchaseResponse>(
+    `${SIIGO_PURCHASES_ENDPOINT}/${encodeURIComponent(documentId)}`,
   )
 
   return response.data

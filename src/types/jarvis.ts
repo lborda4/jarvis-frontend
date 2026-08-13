@@ -79,6 +79,7 @@ export interface JarvisSubscriptionStatus {
   startedAt: string | null
   documentLimit: number | null
   documentsUsed: number
+  remaining: number | null
   includedDocumentTypes: string[]
   plan: JarvisSubscriptionPlan | null
 }

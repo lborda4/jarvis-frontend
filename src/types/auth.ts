@@ -33,6 +33,7 @@ export interface RegisterRequest {
   email: string
   password: string
   nit: string
+  inviteCode: string
 }
 
 export interface RefreshTokenRequest {

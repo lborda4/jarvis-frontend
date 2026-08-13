@@ -8,6 +8,8 @@ import { downloadSupportDocumentTemplate } from '../services/supportDocumentServ
 import {
   createSiigoPurchaseSend,
   createSiigoSupportDocument,
+  deleteSiigoPurchase,
+  deleteSiigoSupportDocument,
 } from '../services/siigoService'
 import {
   createJarvisSupportDocument,
@@ -92,6 +94,8 @@ export interface DocumentWorkspaceConfig {
       | CreateJarvisSupportDocumentRequest,
   ) => Promise<unknown>
   sendSuccessFeedback: (sentCount: number, failedCount: number) => string
+  /** Elimina el documento ya creado en SIIGO (estado LISTA). No aplica a JARVIS. */
+  deleteSiigoDocument: (documentId: string) => Promise<unknown>
 }
 
 async function importSupportDocumentExcel(
@@ -217,6 +221,7 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
     failedCount > 0
       ? `${sentCount} documento(s) enviados. ${failedCount} fallaron.`
       : `${sentCount} documento(s) enviados correctamente a SIIGO.`,
+  deleteSiigoDocument: (documentId) => deleteSiigoSupportDocument(documentId),
 }
 
 export const JARVIS_SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
@@ -253,6 +258,9 @@ export const JARVIS_SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
     failedCount > 0
       ? `${sentCount} documento(s) enviados. ${failedCount} fallaron.`
       : `${sentCount} documento(s) enviados correctamente a DIAN.`,
+  deleteSiigoDocument: () => {
+    throw new Error('Esta empresa no envía documentos a SIIGO.')
+  },
 }
 
 async function importPurchaseInvoiceExcel(
@@ -324,6 +332,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
     failedCount > 0
       ? `${sentCount} factura(s) enviadas. ${failedCount} fallaron.`
       : `${sentCount} factura(s) enviadas correctamente a SIIGO.`,
+  deleteSiigoDocument: (documentId) => deleteSiigoPurchase(documentId),
 }
 
 export const JARVIS_PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
@@ -360,5 +369,8 @@ export const JARVIS_PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
     failedCount > 0
       ? `${sentCount} factura(s) procesadas. ${failedCount} fallaron.`
       : `${sentCount} factura(s) procesadas correctamente.`,
+  deleteSiigoDocument: () => {
+    throw new Error('Esta empresa no envía documentos a SIIGO.')
+  },
 }
 

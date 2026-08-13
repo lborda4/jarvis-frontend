@@ -62,11 +62,18 @@ export interface SuggestedCostCenter {
   name: string
 }
 
+export interface SuggestedItemTax {
+  id: number
+  name: string
+  percentage: number
+}
+
 export interface ElectronicDocumentListItemItem {
   description: string
   quantity: number
   unitValue: number
   total: number
+  suggestedTax?: SuggestedItemTax | null
 }
 
 export interface ElectronicDocumentListItem {

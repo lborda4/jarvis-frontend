@@ -30,8 +30,9 @@ interface SupportDocumentConfigPanelProps {
   showAccountField?: boolean
   canSend: boolean
   canDelete: boolean
-  /** true si al menos un documento seleccionado todavía no queda en un
-   * estado terminal (LISTA/ERROR) y por lo tanto se puede configurar. */
+  /** true si al menos un documento seleccionado todavía no queda en LISTA
+   * (incluye ERROR: un fallo puede necesitar reconfigurarse) y por lo tanto
+   * se puede configurar. */
   hasConfigurableSelection: boolean
   isSending: boolean
   isDeleting: boolean
