@@ -12,6 +12,7 @@ import {
 import {
   SUPPORT_DOCUMENT_WORKSPACE,
   type DocumentWorkspaceConfig,
+  type DocumentWorkspaceProvider,
 } from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
 import Button from '../components/Button'
@@ -22,12 +23,15 @@ import PageHeader from '../components/PageHeader'
 import ImportLoadingOverlay from '../components/supportDocument/ImportLoadingOverlay'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
-import DocumentWorkspaceWorkingBanner from '../components/supportDocument/DocumentWorkspaceWorkingBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
 import SupportDocumentFilterBar from '../components/supportDocument/SupportDocumentFilterBar'
 import SupportDocumentPagination from '../components/supportDocument/SupportDocumentPagination'
 import SupportDocumentTable from '../components/supportDocument/SupportDocumentTable'
-import { DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE, type ElectronicDocumentPageSize } from '../constants/electronicDocuments'
+import {
+  getStoredElectronicDocumentPageLimit,
+  setStoredElectronicDocumentPageLimit,
+  type ElectronicDocumentPageSize,
+} from '../constants/electronicDocuments'
 import { useSiigoWorkspaceCatalog } from '../context/SiigoCatalogContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import {
@@ -95,6 +99,39 @@ import {
 } from '../utils/filterSupportDocumentRows'
 import './SupportDocumentPage.css'
 import '../pages/InvoiceUpload.css'
+
+/** Copy de las etapas largas (importar, revisar proveedores/terceros, enviar)
+ * para el loader de pantalla completa. Listas fijas a nivel de módulo — así
+ * la referencia no cambia entre renders y la rotación de mensajes no se
+ * reinicia sola. */
+const IMPORT_STAGE_TIPS = [
+  'Leyendo el archivo Excel...',
+  'Creando los documentos...',
+  'Preparando la validación...',
+]
+
+const RESUMING_STAGE_TIPS: Record<DocumentWorkspaceProvider, string[]> = {
+  SIIGO: [
+    'Consultando si el proveedor ya existe en SIIGO...',
+    'Validando cada documento importado...',
+    'Actualizando el estado de la tabla...',
+    'Esto puede tomar unos segundos...',
+  ],
+  JARVIS: [
+    'Consultando si el tercero ya existe en Jarvis...',
+    'Validando cada documento importado...',
+    'Actualizando el estado de la tabla...',
+    'Esto puede tomar unos segundos...',
+  ],
+}
+
+function buildResumingStageTitle(provider: DocumentWorkspaceProvider): string {
+  return provider === 'JARVIS' ? 'Revisando terceros' : 'Revisando proveedores'
+}
+
+function buildSendingStageTitle(provider: DocumentWorkspaceProvider): string {
+  return provider === 'JARVIS' ? 'Enviando a Jarvis' : 'Enviando a SIIGO'
+}
 
 function buildInitialRowCostCenters(
   documents: ElectronicDocumentListItem[],
@@ -187,7 +224,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [documents, setDocuments] = useState<ElectronicDocumentListItem[]>([])
   const [page, setPage] = useState(1)
   const [pageLimit, setPageLimit] = useState<ElectronicDocumentPageSize>(
-    DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE,
+    getStoredElectronicDocumentPageLimit,
   )
   const [totalDocuments, setTotalDocuments] = useState(0)
   const [refreshToken, setRefreshToken] = useState(0)
@@ -719,11 +756,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   })
 
   const queueProgress = sendQueueProgress ?? deleteQueueProgress
-  const queueProgressTone = sendQueueProgress
-    ? 'send'
-    : deleteQueueProgress
-      ? 'delete'
-      : 'send'
 
   const applySelectionToCheckedRows = useCallback(
     <T,>(
@@ -1245,6 +1277,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     setSelectedDocumentIds(new Set())
     setPage(1)
     setPageLimit(nextLimit)
+    setStoredElectronicDocumentPageLimit(nextLimit)
   }, [])
 
   const openFilePicker = () => {
@@ -1370,19 +1403,31 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         />
       )}
 
-      {isImporting && <ImportLoadingOverlay provider={config.provider} />}
+      {isResuming ? (
+        <ImportLoadingOverlay
+          key="resuming"
+          title={buildResumingStageTitle(config.provider)}
+          tips={RESUMING_STAGE_TIPS[config.provider]}
+        />
+      ) : isImporting ? (
+        <ImportLoadingOverlay
+          key="importing"
+          title="Importando Excel"
+          tips={IMPORT_STAGE_TIPS}
+        />
+      ) : isSending && sendQueueProgress ? (
+        <ImportLoadingOverlay
+          key="sending"
+          title={buildSendingStageTitle(config.provider)}
+          tips={[sendQueueProgress.label]}
+        />
+      ) : null}
 
       <div className="support-document-page__alerts">
-        {isResuming && (
-          <DocumentWorkspaceWorkingBanner
-            mode="resuming"
-            provider={config.provider}
-          />
-        )}
-        {queueProgress && (
+        {deleteQueueProgress && (
           <BatchQueueProgressBanner
-            progress={queueProgress}
-            tone={queueProgressTone}
+            progress={deleteQueueProgress}
+            tone="delete"
           />
         )}
         {feedbackMessage && (

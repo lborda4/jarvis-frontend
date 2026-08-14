@@ -1,9 +1,11 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
+import { useAuth } from '../context/AuthContext'
 import {
   createAdminCompany,
   fetchAdminCompanies,
@@ -93,6 +95,8 @@ function formatResponsible(
 }
 
 function AdminPage() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([])
   const [plans, setPlans] = useState<AdminPlan[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -523,6 +527,11 @@ function AdminPage() {
     INTEGRATION_PROVIDER.JARVIS,
   )
 
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <main className="admin-page">
       <PageHeader
@@ -530,9 +539,14 @@ function AdminPage() {
         title="Administración de empresas"
         description="Gestione empresas, integraciones, planes y suscripciones."
         actions={
-          <Link to="/inicio" className="admin-page__back-link">
-            Volver a la aplicación
-          </Link>
+          <div className="admin-page__header-actions">
+            <Link to="/inicio" className="admin-page__back-link">
+              Volver a la aplicación
+            </Link>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              Cerrar sesión
+            </Button>
+          </div>
         }
       />
 

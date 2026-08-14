@@ -27,7 +27,7 @@ import { normalizeStatusClass } from '../../utils/formatters'
 import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
 import DocumentRowDetailPanel from './DocumentRowDetailPanel'
 
-const TABLE_COLUMN_COUNT = 10
+const TABLE_COLUMN_COUNT = 9
 const SKELETON_LINE_COUNT = 8
 
 function TableLoadingPanel() {
@@ -306,16 +306,6 @@ function SupportDocumentTable({
             />
 
             <SupportDocumentColumnHeader
-              label="Consecutivo SIIGO"
-              stackLabel
-              sortColumn="siigoNumber"
-              activeSortColumn={sortColumn}
-              sortDirection={sortDirection}
-              disabled={sortDisabled || isLoading}
-              onSort={onSortChange}
-            />
-
-            <SupportDocumentColumnHeader
               label="Cuenta contable"
               sortColumn="account"
               activeSortColumn={sortColumn}
@@ -453,11 +443,6 @@ function SupportDocumentTable({
                       </span>
                     </div>
                   </td>
-                  <td className="support-table__cell-siigo-number">
-                    {formatSupportDocumentTableSiigoNumber(
-                      row.siigoDocumentNumber,
-                    )}
-                  </td>
                   <td className="support-table__cell-config">
                     {formatSupportDocumentTableAccount(rowAccounts[row.id])}
                   </td>
@@ -472,7 +457,17 @@ function SupportDocumentTable({
                     )}
                   </td>
                   <td>
-                    <ImportStatusBadge status={row.importStatus} />
+                    <div className="support-table__status-cell">
+                      <ImportStatusBadge status={row.importStatus} />
+                      {row.siigoDocumentNumber && (
+                        <span className="support-table__status-consecutivo">
+                          Consecutivo:{' '}
+                          {formatSupportDocumentTableSiigoNumber(
+                            row.siigoDocumentNumber,
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <ActionCell

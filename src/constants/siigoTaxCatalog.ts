@@ -5,6 +5,19 @@ export interface SiigoTaxOption {
   percentage: number
 }
 
+export const NONE_TAX_OPTION: SiigoTaxOption = {
+  id: -1,
+  name: 'Ninguno',
+  type: '',
+  percentage: 0,
+}
+
+export function isNoneTaxOption(
+  option: SiigoTaxOption | null | undefined,
+): boolean {
+  return !option || option.id === NONE_TAX_OPTION.id
+}
+
 export function formatTaxOptionLabel(option: SiigoTaxOption): string {
   const percentageLabel =
     Number.isFinite(option.percentage) && option.percentage > 0

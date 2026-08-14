@@ -75,10 +75,14 @@ export async function validateSupportDocumentExcelDates(
   }
 
   const sheet = workbook.Sheets[sheetName]
+  // raw:true es necesario para que sheet_to_json devuelva el Date real
+  // (cell.v, gracias a cellDates:true) en vez del texto ya formateado por
+  // SheetJS (cell.w) usando el formato numérico embebido en el archivo —
+  // casi siempre m/d/aaaa (EE. UU.) aunque Excel lo muestre como d/m/aaaa.
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
     defval: '',
-    raw: false,
+    raw: true,
   })
 
   const minDate = getMinSelectableSupportDocumentDate()

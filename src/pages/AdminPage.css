@@ -6,6 +6,12 @@
 
 /* Header ahora es <PageHeader eyebrow="Panel interno" ... /> */
 
+.admin-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .admin-page__back-link {
   color: var(--jarvis-primary);
   font-weight: 600;

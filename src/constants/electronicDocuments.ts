@@ -24,6 +24,31 @@ export function normalizeElectronicDocumentPageLimit(
   return DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE
 }
 
+const PAGE_LIMIT_STORAGE_KEY = 'jarvis_electronic_document_page_limit'
+
+/** Recuerda la preferencia de "Filas por página" entre recargas/sesiones —
+ * antes se perdía (volvía al valor por defecto) cada vez que se recargaba
+ * la página o el navegador. */
+export function getStoredElectronicDocumentPageLimit(): ElectronicDocumentPageSize {
+  try {
+    return normalizeElectronicDocumentPageLimit(
+      window.localStorage.getItem(PAGE_LIMIT_STORAGE_KEY),
+    )
+  } catch {
+    return DEFAULT_ELECTRONIC_DOCUMENT_PAGE_SIZE
+  }
+}
+
+export function setStoredElectronicDocumentPageLimit(
+  limit: ElectronicDocumentPageSize,
+): void {
+  try {
+    window.localStorage.setItem(PAGE_LIMIT_STORAGE_KEY, String(limit))
+  } catch {
+    // localStorage puede no estar disponible (modo privado, etc.) — no es crítico.
+  }
+}
+
 export function pickSmallestPageSizeCovering(
   count: number,
 ): ElectronicDocumentPageSize {
