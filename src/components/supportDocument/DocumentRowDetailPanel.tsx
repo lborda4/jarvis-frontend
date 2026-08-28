@@ -1,10 +1,38 @@
+import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
+import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
+import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import { ELECTRONIC_DOCUMENT_TYPE } from '../../types/electronicDocument'
+import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
 import { formatCurrency } from '../../utils/formatters'
+import PurchaseInvoiceDetailEditor, {
+  type PurchaseInvoiceDetailEditorSave,
+} from './PurchaseInvoiceDetailEditor'
+
+export interface DocumentRowDetailEditableProps {
+  items: PurchaseInvoiceItemDraft[]
+  paymentMethod: SiigoPaymentMethodOption | null
+  paymentMethodOptions: SiigoPaymentMethodOption[]
+  accountOptions: SiigoAccountOption[]
+  dueDate: string | null
+  issueDate: string
+  ivaOptions: SiigoTaxOption[]
+  retentions: SiigoTaxOption[]
+  retentionCatalogTypes: readonly string[]
+  retentionOptionsByType: Record<string, SiigoTaxOption[]>
+  documentDiscount: number
+  disabled?: boolean
+  onSave: (edits: PurchaseInvoiceDetailEditorSave) => void
+  onCancel: () => void
+  onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
+}
 
 interface DocumentRowDetailPanelProps {
   document: ElectronicDocumentListItem
   observations?: string
+  /** Solo Factura de compra: convierte el panel en un editor completo
+   * (ítems, forma de pago, plazo, retenciones/IVA, observaciones). */
+  editable?: DocumentRowDetailEditableProps
 }
 
 function formatDocumentReference(document: ElectronicDocumentListItem): string {
@@ -18,10 +46,47 @@ function formatDocumentReference(document: ElectronicDocumentListItem): string {
 export default function DocumentRowDetailPanel({
   document,
   observations,
+  editable,
 }: DocumentRowDetailPanelProps) {
+  const cufe = document.cufe?.trim()
+  const dianNotes = document.observations?.trim() || ''
+  // Factura de compra: si el usuario todavía no guardó observaciones para
+  // este documento, se sugiere "CUFE: ... - <notas de la factura>" en vez de
+  // dejarlo vacío — así el CUFE y las notas de la DIAN quedan a la vista.
+  const defaultPurchaseObservations = cufe
+    ? `CUFE: ${cufe}${dianNotes ? ` - ${dianNotes}` : ''}`
+    : dianNotes
+  const resolvedObservations = editable
+    ? observations?.trim() || defaultPurchaseObservations
+    : observations?.trim() || dianNotes
+
+  if (editable) {
+    return (
+      <div className="support-table__detail-panel">
+        <PurchaseInvoiceDetailEditor
+          document={document}
+          items={editable.items}
+          paymentMethod={editable.paymentMethod}
+          paymentMethodOptions={editable.paymentMethodOptions}
+          accountOptions={editable.accountOptions}
+          dueDate={editable.dueDate}
+          issueDate={editable.issueDate}
+          observations={resolvedObservations}
+          ivaOptions={editable.ivaOptions}
+          retentions={editable.retentions}
+          retentionCatalogTypes={editable.retentionCatalogTypes}
+          retentionOptionsByType={editable.retentionOptionsByType}
+          documentDiscount={editable.documentDiscount}
+          disabled={editable.disabled}
+          onSave={editable.onSave}
+          onCancel={editable.onCancel}
+          onChange={editable.onChange}
+        />
+      </div>
+    )
+  }
+
   const items = document.items ?? []
-  const resolvedObservations =
-    observations?.trim() || document.observations?.trim() || ''
 
   return (
     <div className="support-table__detail-panel">

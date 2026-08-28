@@ -11,6 +11,7 @@ import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import {
+  PURCHASE_INVOICE_IVA_TAX_TYPE,
   PURCHASE_INVOICE_PAYMENT_DOCUMENT_TYPE,
   PURCHASE_INVOICE_RETENTION_CATALOG_TYPES,
   SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE,
@@ -53,6 +54,14 @@ const ALL_RETENTION_TAX_TYPES = [
     ...SUPPORT_DOCUMENT_RETENTION_CATALOG_TYPES,
     ...PURCHASE_INVOICE_RETENTION_CATALOG_TYPES,
   ]),
+]
+
+// Se reutiliza el mismo mapa "por tipo" que las retenciones para cargar el
+// catálogo de IVA (columna manual de Factura de compra SIIGO) — no es una
+// retención, pero comparte exactamente el mismo mecanismo de fetch/caché.
+const ALL_FETCHED_TAX_TYPES = [
+  ...ALL_RETENTION_TAX_TYPES,
+  PURCHASE_INVOICE_IVA_TAX_TYPE,
 ]
 
 type SiigoCatalogBundle = {
@@ -138,7 +147,7 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
       }),
     ),
     Promise.all(
-      ALL_RETENTION_TAX_TYPES.map(async (taxType) => {
+      ALL_FETCHED_TAX_TYPES.map(async (taxType) => {
         try {
           return {
             taxType,
@@ -206,7 +215,7 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
         : paymentMethodErrors[0] ?? null,
     costCentersError: costCentersResult.costCentersError,
     retentionsError:
-      retentionErrors.length === ALL_RETENTION_TAX_TYPES.length
+      retentionErrors.length === ALL_FETCHED_TAX_TYPES.length
         ? 'No se pudieron cargar los catálogos de retenciones.'
         : retentionErrors[0] ?? null,
   }
@@ -490,6 +499,13 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     [config.retentionCatalogTypes, retentionOptionsByType],
   )
 
+  // Solo aplica a Factura de compra SIIGO (config.showIvaField) — Jarvis no
+  // tiene catálogo de IVA propio todavía.
+  const ivaOptions =
+    config.provider === 'JARVIS'
+      ? []
+      : (catalog.retentionOptionsByTaxType[PURCHASE_INVOICE_IVA_TAX_TYPE] ?? [])
+
   return {
     isLoadingCatalogs:
       config.provider === 'JARVIS'
@@ -499,6 +515,7 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     paymentMethodOptions,
     retentionCatalogOptions,
     retentionOptionsByType,
+    ivaOptions,
     costCenterOptions:
       config.provider === 'JARVIS' ? [] : catalog.costCenterOptions,
     accountsError: config.provider === 'JARVIS' ? null : catalog.accountsError,

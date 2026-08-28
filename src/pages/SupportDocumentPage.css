@@ -35,6 +35,22 @@
   font-weight: 500;
 }
 
+.support-document-page__link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.support-document-page__link-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .batch-queue-progress {
   margin: 0;
   padding: 0.95rem 1.1rem;
@@ -536,6 +552,22 @@
   color: var(--jarvis-text);
   font-size: var(--text-sm);
   font-weight: 600;
+}
+
+.support-config-panel__account-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.support-config-panel__account-row > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.support-config-panel__account-row button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .support-config-panel__info {
@@ -1233,6 +1265,24 @@
   max-width: 18rem;
 }
 
+.support-table__retention-breakdown {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.support-table__retention-breakdown li {
+  white-space: nowrap;
+}
+
+.support-table__retention-breakdown li::before {
+  content: '• ';
+  color: var(--jarvis-gray-400);
+}
+
 .support-table__observations-input {
   width: 100%;
   min-width: 12rem;
@@ -1382,6 +1432,328 @@
 .support-table__detail-items th:nth-child(3),
 .support-table__detail-items th:nth-child(4) {
   white-space: nowrap;
+}
+
+/* Editor de detalle de Factura de compra (ítems, forma de pago, plazo,
+   retenciones, observaciones) */
+
+.purchase-invoice-editor {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.purchase-item-editor {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.purchase-item-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.purchase-item-editor__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--jarvis-gray-200);
+  border-radius: var(--r-sm);
+  background: #fff;
+}
+
+.purchase-item-editor__table {
+  width: 100%;
+  min-width: 51rem;
+  border-collapse: collapse;
+}
+
+.purchase-item-editor__table th,
+.purchase-item-editor__table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--jarvis-gray-100);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.purchase-item-editor__table th {
+  background: var(--jarvis-gray-100);
+  color: var(--jarvis-gray-700);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.purchase-item-editor__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.purchase-item-editor__input,
+.purchase-item-editor__select {
+  width: 100%;
+  min-width: 5.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--jarvis-text);
+  background: #fff;
+}
+
+.purchase-item-editor__input--wide {
+  min-width: 10rem;
+}
+
+.purchase-item-editor__select--tipo {
+  min-width: 5.5rem;
+}
+
+.purchase-item-editor__input--qty {
+  min-width: 2.5rem;
+}
+
+.purchase-item-editor__input--unit-value {
+  min-width: 4.2rem;
+}
+
+.purchase-item-editor__input--discount {
+  min-width: 2.5rem;
+}
+
+.purchase-item-editor__input:focus-visible,
+.purchase-item-editor__select:focus-visible {
+  outline: none;
+  border-color: var(--jarvis-primary);
+}
+
+.purchase-item-editor__input:disabled,
+.purchase-item-editor__select:disabled {
+  background: var(--jarvis-gray-50);
+  color: var(--jarvis-text-muted);
+}
+
+.purchase-item-editor__tax-cell {
+  min-width: 7rem;
+}
+
+/* Cuenta contable (código + nombre) es más larga que un impuesto — necesita
+ * más ancho para no cortarse dentro del buscador. */
+.purchase-item-editor__account-cell {
+  min-width: 14rem;
+}
+
+.purchase-item-editor__readonly-cell {
+  white-space: nowrap;
+  color: var(--jarvis-gray-700);
+  font-size: var(--text-sm);
+}
+
+.purchase-item-editor__readonly-cell--total {
+  font-weight: 700;
+  color: var(--jarvis-text);
+}
+
+.purchase-item-editor__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--jarvis-danger);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.purchase-item-editor__remove:hover:not(:disabled) {
+  background: var(--jarvis-danger-soft);
+}
+
+.purchase-item-editor__remove:disabled {
+  color: var(--jarvis-gray-300);
+  cursor: not-allowed;
+}
+
+.purchase-invoice-editor__lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.purchase-invoice-editor__fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.purchase-invoice-editor__field-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.purchase-invoice-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.purchase-invoice-editor__field label {
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.purchase-invoice-editor__field--plazo {
+  min-width: 8rem;
+}
+
+.purchase-invoice-editor__plazo {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  background: #fff;
+  overflow: hidden;
+}
+
+.purchase-invoice-editor__plazo input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  color: var(--jarvis-text);
+  background: transparent;
+}
+
+.purchase-invoice-editor__plazo input:focus-visible {
+  outline: none;
+}
+
+.purchase-invoice-editor__plazo:focus-within {
+  border-color: var(--jarvis-primary);
+}
+
+.purchase-invoice-editor__plazo-suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  border-left: 1px solid var(--jarvis-border);
+  background: var(--jarvis-gray-50);
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.purchase-invoice-editor__textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--jarvis-text);
+  background: #fff;
+  resize: vertical;
+}
+
+.purchase-invoice-editor__textarea:focus-visible {
+  outline: none;
+  border-color: var(--jarvis-primary);
+}
+
+.purchase-invoice-editor__char-count {
+  align-self: flex-end;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-xs);
+}
+
+.purchase-invoice-editor__summary {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--jarvis-gray-200);
+  border-radius: var(--r-md);
+  background: #fff;
+  align-content: start;
+}
+
+.purchase-invoice-editor__summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: var(--text-base);
+  color: var(--jarvis-text);
+}
+
+.purchase-invoice-editor__summary-row--select {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.purchase-invoice-editor__summary-row--select > span:first-child {
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.purchase-invoice-editor__amount {
+  white-space: nowrap;
+  color: var(--jarvis-gray-400);
+}
+
+.purchase-invoice-editor__discount-input {
+  width: 9rem;
+  text-align: right;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  font: inherit;
+  color: var(--jarvis-text);
+  background: #fff;
+}
+
+.purchase-invoice-editor__discount-input:focus-visible {
+  outline: none;
+  border-color: var(--jarvis-primary);
+}
+
+.purchase-invoice-editor__amount--negative {
+  color: var(--jarvis-danger);
+  font-weight: 600;
+}
+
+.purchase-invoice-editor__summary-row--total {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--jarvis-gray-100);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--jarvis-primary);
+}
+
+.purchase-invoice-editor__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--jarvis-gray-100);
+}
+
+@media (max-width: 900px) {
+  .purchase-invoice-editor__lower {
+    grid-template-columns: 1fr;
+  }
 }
 
 .support-table__supplier {

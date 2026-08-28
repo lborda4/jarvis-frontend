@@ -10,6 +10,7 @@ import type { SupportDocumentRow } from '../types/supportDocumentPage'
 import {
   formatSupportDocumentTableAccount,
   formatSupportDocumentTableDate,
+  formatSupportDocumentTableIva,
   formatSupportDocumentTablePaymentMethod,
   formatSupportDocumentTableRetentions,
   formatSupportDocumentTableSiigoNumber,
@@ -64,6 +65,7 @@ export function sortSupportDocumentRows(
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
   rowRetentions: Record<string, SiigoTaxOption[]>,
+  rowIva: Record<string, SiigoTaxOption | null> = {},
 ): SupportDocumentRow[] {
   const effectiveSortColumn = sortColumn ?? 'createdAt'
   const effectiveSortDirection = sortColumn == null ? 'desc' : sortDirection
@@ -77,9 +79,9 @@ export function sortSupportDocumentRows(
         comparison = compareCreatedAt(left.createdAt, right.createdAt)
         break
       case 'date':
-        comparison = compareStrings(
-          formatSupportDocumentTableDate(rowDates[left.id]),
-          formatSupportDocumentTableDate(rowDates[right.id]),
+        comparison = compareCreatedAt(
+          rowDates[left.id] ?? '',
+          rowDates[right.id] ?? '',
         )
         break
       case 'supplier':
@@ -107,6 +109,12 @@ export function sortSupportDocumentRows(
         comparison = compareStrings(
           formatSupportDocumentTableRetentions(rowRetentions[left.id]),
           formatSupportDocumentTableRetentions(rowRetentions[right.id]),
+        )
+        break
+      case 'iva':
+        comparison = compareStrings(
+          formatSupportDocumentTableIva(rowIva[left.id]),
+          formatSupportDocumentTableIva(rowIva[right.id]),
         )
         break
       case 'status':

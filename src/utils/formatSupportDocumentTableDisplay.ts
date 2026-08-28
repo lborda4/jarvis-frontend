@@ -53,6 +53,16 @@ export function formatSupportDocumentTableRetentions(
   return retentions.map((tax) => formatTaxOptionLabel(tax)).join(', ')
 }
 
+export function formatSupportDocumentTableIva(
+  tax: SiigoTaxOption | null | undefined,
+): string {
+  if (!tax) {
+    return '—'
+  }
+
+  return formatTaxOptionLabel(tax)
+}
+
 export function formatSupportDocumentTableSupplierDocument(
   documentNumber: string | undefined,
 ): string {

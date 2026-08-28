@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import PurchaseInvoiceImportBadge from '../components/supportDocument/PurchaseInvoiceImportBadge'
+import { hydrateFromStorage } from '../services/realtime/purchaseInvoiceImportJobsStore'
 import './AppLayout.css'
 
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
+  useEffect(() => {
+    void hydrateFromStorage()
+  }, [])
 
   return (
     <div
@@ -19,6 +25,8 @@ function AppLayout() {
       <div className="app-layout__content">
         <Outlet />
       </div>
+
+      <PurchaseInvoiceImportBadge />
     </div>
   )
 }

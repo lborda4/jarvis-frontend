@@ -85,11 +85,12 @@ function RegisterPage() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-form__field">
-            <label htmlFor="register-name">Nombre</label>
+            <label htmlFor="register-name">Nombre del responsable</label>
             <input
               id="register-name"
               type="text"
               autoComplete="name"
+              placeholder="Juan Pérez"
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
@@ -103,6 +104,7 @@ function RegisterPage() {
               id="register-email"
               type="email"
               autoComplete="email"
+              placeholder="juan.perez@empresa.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required

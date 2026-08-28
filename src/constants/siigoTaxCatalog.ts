@@ -32,6 +32,8 @@ export const SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE = 'DS'
 export const SUPPORT_DOCUMENT_RETE_ICA_TAX_TYPE = 'ReteICA'
 export const PURCHASE_INVOICE_RETE_IVA_TAX_TYPE = 'ReteIVA'
 export const SUPPORT_DOCUMENT_RETEFUENTE_TAX_TYPE = 'Retefuente'
+/** IVA propiamente dicho (no ReteIVA) — solo aplica a Factura de compra SIIGO. */
+export const PURCHASE_INVOICE_IVA_TAX_TYPE = 'IVA'
 
 export const SUPPORT_DOCUMENT_RETENTION_CATALOG_TYPES = [
   SUPPORT_DOCUMENT_RETE_ICA_TAX_TYPE,
@@ -121,4 +123,15 @@ export function isSupportDocumentRetentionTaxType(type: string): boolean {
 
 export function isPurchaseInvoiceRetentionTaxType(type: string): boolean {
   return isAllowedRetentionTaxType(type, PURCHASE_INVOICE_RETENTION_CATALOG_TYPES)
+}
+
+const RETENTION_TYPE_DISPLAY_LABELS: Record<string, string> = {
+  Retefuente: 'Retefuente',
+  ReteICA: 'Rete ICA',
+  ReteIVA: 'Rete IVA',
+  ReteRenta: 'Rete Renta',
+}
+
+export function formatRetentionTypeDisplayLabel(type: string): string {
+  return RETENTION_TYPE_DISPLAY_LABELS[type] ?? type
 }

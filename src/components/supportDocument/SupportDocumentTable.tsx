@@ -15,25 +15,30 @@ import type {
   SupportDocumentRow,
 } from '../../types/supportDocumentPage'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
+import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
+import { buildPurchaseInvoiceItemDrafts } from '../../types/purchaseInvoiceItemDraft'
+import type { PurchaseInvoiceDetailEditorSave } from './PurchaseInvoiceDetailEditor'
 import {
   formatSupportDocumentTableAccount,
   formatSupportDocumentTableDate,
+  formatSupportDocumentTableIva,
   formatSupportDocumentTablePaymentMethod,
   formatSupportDocumentTableRetentions,
   formatSupportDocumentTableSiigoNumber,
   formatSupportDocumentTableSupplierDocument,
 } from '../../utils/formatSupportDocumentTableDisplay'
-import { normalizeStatusClass } from '../../utils/formatters'
+import { formatCurrency, normalizeStatusClass } from '../../utils/formatters'
 import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
+import { calculatePurchaseInvoiceRowSummary } from '../../utils/purchaseInvoiceRowSummary'
 import DocumentRowDetailPanel from './DocumentRowDetailPanel'
 
 const TABLE_COLUMN_COUNT = 9
 const SKELETON_LINE_COUNT = 8
 
-function TableLoadingPanel() {
+function TableLoadingPanel({ columnCount }: { columnCount: number }) {
   return (
     <tr>
-      <td colSpan={TABLE_COLUMN_COUNT} className="support-table__loading-cell">
+      <td colSpan={columnCount} className="support-table__loading-cell">
         <div
           className="support-table__loading-panel"
           role="status"
@@ -62,8 +67,27 @@ interface SupportDocumentTableProps {
   selectedIds: Set<string>
   rowDates: Record<string, string>
   rowAccounts: Record<string, SiigoAccountOption | null>
+  /** Catálogo de cuentas para el buscador de cuenta contable por ítem
+   * (Factura de compra, cuando el tipo del ítem es "Cuenta"). */
+  accountOptions?: SiigoAccountOption[]
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
+  rowIva: Record<string, SiigoTaxOption | null>
+  /** Solo aplica a Factura de compra SIIGO. */
+  showIvaColumn?: boolean
+  /** Factura de compra: cambia Cuenta contable/Medio de pago por
+   * Subtotal/IVA($)/Retenciones($)/Total calculados, y habilita el editor
+   * completo (ítems, forma de pago, plazo, retenciones) al expandir la fila. */
+  showSummaryColumns?: boolean
+  rowDueDates?: Record<string, string | null>
+  rowObservations?: Record<string, string>
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>
+  rowDocumentDiscounts?: Record<string, number>
+  paymentMethodOptions?: SiigoPaymentMethodOption[]
+  ivaOptions?: SiigoTaxOption[]
+  retentionCatalogTypes?: readonly string[]
+  retentionOptionsByType?: Record<string, SiigoTaxOption[]>
+  onSaveRowEdits?: (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => void
   sortColumn: SupportDocumentSortColumn | null
   sortDirection: SupportDocumentSortDirection
   isLoading?: boolean
@@ -191,8 +215,21 @@ function SupportDocumentTable({
   selectedIds,
   rowDates,
   rowAccounts,
+  accountOptions = [],
   rowPaymentMethods,
   rowRetentions,
+  rowIva,
+  showIvaColumn = false,
+  showSummaryColumns = false,
+  rowDueDates = {},
+  rowObservations = {},
+  rowItems = {},
+  rowDocumentDiscounts = {},
+  paymentMethodOptions = [],
+  ivaOptions = [],
+  retentionCatalogTypes = [],
+  retentionOptionsByType = {},
+  onSaveRowEdits,
   sortColumn,
   sortDirection,
   isLoading = false,
@@ -214,6 +251,22 @@ function SupportDocumentTable({
   documentsById,
 }: SupportDocumentTableProps) {
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set())
+  // Borrador en vivo del panel de detalle de Factura de compra (ítems,
+  // retenciones, etc.) para la fila expandida — se actualiza en cada cambio,
+  // no solo al guardar, así el Total de la fila colapsada (arriba) siempre
+  // coincide con el "Total neto" del panel mientras se edita. Se descarta al
+  // colapsar la fila por cualquier vía (Cancelar, Guardar o el chevron), ver
+  // toggleRowExpanded — editar sin guardar nunca deja un rastro.
+  const [liveRowEdits, setLiveRowEdits] = useState<
+    Record<string, PurchaseInvoiceDetailEditorSave>
+  >({})
+  // Ancla para selección con Shift+click (como al seleccionar varios
+  // archivos en el explorador): guarda el último checkbox clickeado para
+  // poder seleccionar todo el rango entre ese y el siguiente clic.
+  const [lastSelectedRowId, setLastSelectedRowId] = useState<string | null>(
+    null,
+  )
+  const columnCount = showIvaColumn ? TABLE_COLUMN_COUNT + 1 : TABLE_COLUMN_COUNT
 
   const selectableVisibleIds = rows
     .filter((row) => isSupportDocumentRowSelectable(row.importStatus))
@@ -240,12 +293,56 @@ function SupportDocumentTable({
     onSelectRows([...new Set([...selectedIds, ...selectableVisibleIds])])
   }
 
+  const handleRowCheckboxClick = (
+    rowId: string,
+    event: React.MouseEvent<HTMLInputElement>,
+  ) => {
+    // El toggle nativo del checkbox se bloquea siempre (ver onClick más
+    // abajo) — este handler es la única fuente de verdad para el cambio de
+    // selección, tanto en click normal como con Shift. Antes se dejaba que
+    // el navegador hiciera su propio toggle además de esto, y en el caso de
+    // Shift+click a veces alcanzaba a disparar su propio onChange sobre la
+    // fila recién agregada por el rango, quitándola de nuevo (por eso
+    // desaparecía justo la última fila del rango).
+    if (event.shiftKey && lastSelectedRowId && lastSelectedRowId !== rowId) {
+      const lastIndex = selectableVisibleIds.indexOf(lastSelectedRowId)
+      const currentIndex = selectableVisibleIds.indexOf(rowId)
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const [start, end] =
+          lastIndex < currentIndex
+            ? [lastIndex, currentIndex]
+            : [currentIndex, lastIndex]
+        const rangeIds = selectableVisibleIds.slice(start, end + 1)
+
+        onSelectRows([...new Set([...selectedIds, ...rangeIds])])
+        setLastSelectedRowId(rowId)
+        return
+      }
+    }
+
+    onToggleRow(rowId)
+    setLastSelectedRowId(rowId)
+  }
+
   const toggleRowExpanded = (rowId: string) => {
     setExpandedRowIds((current) => {
       const next = new Set(current)
 
       if (next.has(rowId)) {
         next.delete(rowId)
+        // Se colapsa la fila (Cancelar, Guardar o el chevron) — el borrador
+        // en vivo deja de aplicar. Si se guardó, rowItems/rowRetentions ya
+        // quedaron actualizados aparte; si no, el borrador simplemente se
+        // descarta.
+        setLiveRowEdits((currentEdits) => {
+          if (!(rowId in currentEdits)) {
+            return currentEdits
+          }
+
+          const { [rowId]: _removed, ...rest } = currentEdits
+          return rest
+        })
       } else {
         next.add(rowId)
       }
@@ -305,24 +402,45 @@ function SupportDocumentTable({
               onSort={onSortChange}
             />
 
-            <SupportDocumentColumnHeader
-              label="Cuenta contable"
-              sortColumn="account"
-              activeSortColumn={sortColumn}
-              sortDirection={sortDirection}
-              disabled={sortDisabled || isLoading}
-              onSort={onSortChange}
-            />
+            {!showSummaryColumns && (
+              <SupportDocumentColumnHeader
+                label="Cuenta contable"
+                sortColumn="account"
+                activeSortColumn={sortColumn}
+                sortDirection={sortDirection}
+                disabled={sortDisabled || isLoading}
+                onSort={onSortChange}
+              />
+            )}
 
-            <SupportDocumentColumnHeader
-              label="Medio de pago"
-              stackLabel
-              sortColumn="paymentMethod"
-              activeSortColumn={sortColumn}
-              sortDirection={sortDirection}
-              disabled={sortDisabled || isLoading}
-              onSort={onSortChange}
-            />
+            {!showSummaryColumns && (
+              <SupportDocumentColumnHeader
+                label="Medio de pago"
+                stackLabel
+                sortColumn="paymentMethod"
+                activeSortColumn={sortColumn}
+                sortDirection={sortDirection}
+                disabled={sortDisabled || isLoading}
+                onSort={onSortChange}
+              />
+            )}
+
+            {showSummaryColumns && (
+              <th className="support-table__column-header support-table__column-header--plain">
+                <span className="support-table__column-label-text">Subtotal</span>
+              </th>
+            )}
+
+            {showIvaColumn && (
+              <SupportDocumentColumnHeader
+                label="IVA"
+                sortColumn="iva"
+                activeSortColumn={sortColumn}
+                sortDirection={sortDirection}
+                disabled={sortDisabled || isLoading}
+                onSort={onSortChange}
+              />
+            )}
 
             <SupportDocumentColumnHeader
               label="Retenciones"
@@ -332,6 +450,12 @@ function SupportDocumentTable({
               disabled={sortDisabled || isLoading}
               onSort={onSortChange}
             />
+
+            {showSummaryColumns && (
+              <th className="support-table__column-header support-table__column-header--plain">
+                <span className="support-table__column-label-text">Total</span>
+              </th>
+            )}
 
             <SupportDocumentColumnHeader
               label="Estado"
@@ -349,16 +473,46 @@ function SupportDocumentTable({
         </thead>
         <tbody>
           {isLoading ? (
-            <TableLoadingPanel />
+            <TableLoadingPanel columnCount={columnCount} />
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={TABLE_COLUMN_COUNT} className="support-table__empty-cell">
+              <td colSpan={columnCount} className="support-table__empty-cell">
                 No se encontraron documentos con los filtros actuales.
               </td>
             </tr>
           ) : (
             rows.flatMap((row) => {
               const document = documentsById[row.id]
+              const liveEdits = liveRowEdits[row.id]
+              // Misma expresión que se usa para armar el panel de detalle
+              // más abajo (nunca `rowItems[row.id]` solo, sin este mismo
+              // fallback) — así el resumen de la fila (listado) y el panel
+              // de detalle de ese mismo documento SIEMPRE parten de los
+              // mismos ítems y no pueden mostrar un Total distinto entre sí.
+              // Mientras la fila está expandida y editándose, el borrador en
+              // vivo (liveEdits) tiene prioridad, así el Total de arriba
+              // sigue el "Total neto" del panel sin esperar a "Guardar".
+              const effectivePurchaseInvoiceItems = document
+                ? (liveEdits?.items ??
+                  rowItems[row.id] ??
+                  buildPurchaseInvoiceItemDrafts(document))
+                : undefined
+              const effectiveRetentions =
+                liveEdits?.retentions ?? rowRetentions[row.id] ?? []
+              const effectiveDocumentDiscount =
+                liveEdits?.documentDiscount ??
+                rowDocumentDiscounts[row.id] ??
+                document?.documentDiscount ??
+                0
+              const rowSummary =
+                showSummaryColumns && document
+                  ? calculatePurchaseInvoiceRowSummary(
+                      document,
+                      effectiveRetentions,
+                      effectivePurchaseInvoiceItems,
+                      effectiveDocumentDiscount,
+                    )
+                  : null
               const isExpanded = expandedRowIds.has(row.id)
               const isProcessing =
                 row.importStatus === IMPORT_ROW_STATUS.EN_PROCESO
@@ -423,7 +577,11 @@ function SupportDocumentTable({
                     <input
                       type="checkbox"
                       checked={selectedIds.has(row.id)}
-                      onChange={() => onToggleRow(row.id)}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        handleRowCheckboxClick(row.id, event)
+                      }}
+                      onChange={() => {}}
                       disabled={selectionDisabled || !isRowSelectable}
                       aria-label={`Seleccionar documento de ${row.supplierName}`}
                     />
@@ -443,19 +601,54 @@ function SupportDocumentTable({
                       </span>
                     </div>
                   </td>
+                  {!showSummaryColumns && (
+                    <td className="support-table__cell-config">
+                      {formatSupportDocumentTableAccount(rowAccounts[row.id])}
+                    </td>
+                  )}
+                  {!showSummaryColumns && (
+                    <td className="support-table__cell-config">
+                      {formatSupportDocumentTablePaymentMethod(
+                        rowPaymentMethods[row.id],
+                      )}
+                    </td>
+                  )}
+                  {showSummaryColumns && (
+                    <td className="support-table__cell-config">
+                      {rowSummary ? formatCurrency(rowSummary.subtotal) : '—'}
+                    </td>
+                  )}
+                  {showIvaColumn && (
+                    <td className="support-table__cell-config">
+                      {showSummaryColumns
+                        ? rowSummary
+                          ? formatCurrency(rowSummary.ivaAmount)
+                          : '—'
+                        : formatSupportDocumentTableIva(rowIva[row.id])}
+                    </td>
+                  )}
                   <td className="support-table__cell-config">
-                    {formatSupportDocumentTableAccount(rowAccounts[row.id])}
-                  </td>
-                  <td className="support-table__cell-config">
-                    {formatSupportDocumentTablePaymentMethod(
-                      rowPaymentMethods[row.id],
+                    {showSummaryColumns ? (
+                      rowSummary && rowSummary.retentionLines.length > 0 ? (
+                        <ul className="support-table__retention-breakdown">
+                          {rowSummary.retentionLines.map((line) => (
+                            <li key={line.label}>
+                              {line.label}: {formatCurrency(line.amount)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        '—'
+                      )
+                    ) : (
+                      formatSupportDocumentTableRetentions(rowRetentions[row.id])
                     )}
                   </td>
-                  <td className="support-table__cell-config">
-                    {formatSupportDocumentTableRetentions(
-                      rowRetentions[row.id],
-                    )}
-                  </td>
+                  {showSummaryColumns && (
+                    <td className="support-table__cell-config">
+                      {rowSummary ? formatCurrency(rowSummary.total) : '—'}
+                    </td>
+                  )}
                   <td>
                     <div className="support-table__status-cell">
                       <ImportStatusBadge status={row.importStatus} />
@@ -490,8 +683,44 @@ function SupportDocumentTable({
                     key={`${row.id}-detail`}
                     className="support-table__detail-row"
                   >
-                    <td colSpan={TABLE_COLUMN_COUNT}>
-                      <DocumentRowDetailPanel document={document} />
+                    <td colSpan={columnCount}>
+                      <DocumentRowDetailPanel
+                        document={document}
+                        observations={rowObservations[row.id]}
+                        editable={
+                          showSummaryColumns
+                            ? {
+                                items:
+                                  effectivePurchaseInvoiceItems ??
+                                  buildPurchaseInvoiceItemDrafts(document),
+                                paymentMethod: rowPaymentMethods[row.id] ?? null,
+                                paymentMethodOptions,
+                                accountOptions,
+                                dueDate: rowDueDates[row.id] ?? null,
+                                issueDate: rowDates[row.id] ?? '',
+                                ivaOptions,
+                                retentions: rowRetentions[row.id] ?? [],
+                                retentionCatalogTypes,
+                                retentionOptionsByType,
+                                documentDiscount:
+                                  rowDocumentDiscounts[row.id] ??
+                                  document.documentDiscount ??
+                                  0,
+                                disabled: isSending || isDeleting,
+                                onSave: (edits) => {
+                                  onSaveRowEdits?.(row.id, edits)
+                                  toggleRowExpanded(row.id)
+                                },
+                                onCancel: () => toggleRowExpanded(row.id),
+                                onChange: (edits) =>
+                                  setLiveRowEdits((current) => ({
+                                    ...current,
+                                    [row.id]: edits,
+                                  })),
+                              }
+                            : undefined
+                        }
+                      />
                     </td>
                   </tr>
                 ) : null,

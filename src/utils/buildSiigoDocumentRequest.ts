@@ -7,6 +7,7 @@ import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCa
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import { isPurchaseInvoiceRetentionTaxType } from '../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
+import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import type {
   CreateSiigoPurchaseSendRequest,
   CreateSiigoSupportDocumentRequest,
@@ -14,10 +15,7 @@ import type {
 import { buildSiigoSupportDocumentRequest as buildSupportDocumentRequest } from './buildSiigoSupportDocumentRequest'
 import { calculateSiigoSupportDocumentPaymentValue } from './siigoSupportDocumentTotal'
 import { isCreditPaymentMethod } from './siigoPaymentMethods'
-import {
-  getTodayLocalDate,
-  isSupportDocumentDateInRange,
-} from './supportDocumentDate'
+import { getTodayLocalDate, isValidLocalDateFormat } from './supportDocumentDate'
 
 export { buildSupportDocumentRequest as buildSiigoSupportDocumentRequest }
 
@@ -52,6 +50,11 @@ function parseProviderInvoiceNumber(numeroFactura: string | null | undefined): {
   }
 }
 
+function dedupeTaxOptionsById(taxes: SiigoTaxOption[]): SiigoTaxOption[] {
+  const byId = new Map(taxes.map((tax) => [tax.id, tax]))
+  return [...byId.values()]
+}
+
 export function buildSiigoPurchaseSendRequest(
   document: ElectronicDocumentListItem,
   account: SiigoAccountOption,
@@ -60,17 +63,15 @@ export function buildSiigoPurchaseSendRequest(
   costCenter: SiigoCostCenterOption | null,
   selectedDate: string,
   dueDate?: string,
-  _observations?: string,
+  observations?: string,
   savePreferences = true,
+  ivaTax?: SiigoTaxOption | null,
+  editedItems?: PurchaseInvoiceItemDraft[] | null,
 ): CreateSiigoPurchaseSendRequest {
   const supplierIdentification = normalizeSupplierIdentification(
     document.supplierNit?.trim() || '',
   )
   const providerInvoice = parseProviderInvoiceNumber(document.invoiceNumber)
-  const documentRetentions = retentions
-    .filter((tax) => Number.isFinite(tax.id) && tax.id > 0)
-    .filter((tax) => isPurchaseInvoiceRetentionTaxType(tax.type))
-    .map((tax) => ({ id: tax.id, type: tax.type }))
   const sourceItems =
     document.items && document.items.length > 0
       ? document.items
@@ -82,38 +83,109 @@ export function buildSiigoPurchaseSendRequest(
             total: document.total,
           },
         ]
+  const hasEditedItems = Boolean(editedItems && editedItems.length > 0)
 
-  const items = sourceItems.map((item) => ({
-    type: 'Account',
-    code: account.code,
-    description: item.description,
-    quantity: item.quantity > 0 ? item.quantity : 1,
-    price: item.unitValue > 0 ? item.unitValue : item.total,
-    ...(item.suggestedTax ? { taxes: [{ id: item.suggestedTax.id }] } : {}),
-  }))
-  // El impuesto sugerido no viene del catálogo de retenciones ya cargado,
-  // así que se arma un catálogo mínimo con lo que ya trae cada ítem para
-  // que el cálculo del total a pagar sí lo tenga en cuenta (si no, el
+  // La Retefuente se elige por ítem en el editor de detalle (no a nivel de
+  // documento como ReteIVA/ReteICA), pero SIIGO la espera igual que las
+  // demás retenciones en el campo `retentions` de nivel documento — se
+  // agregan las distintas tarifas usadas en los ítems editados.
+  const editedRetefuenteTaxes = hasEditedItems
+    ? dedupeTaxOptionsById(
+        editedItems!
+          .map((item) => item.retefuenteTax)
+          .filter((tax): tax is SiigoTaxOption => Boolean(tax)),
+      )
+    : []
+  const retentionOptionsPool = dedupeTaxOptionsById([
+    ...retentions,
+    ...editedRetefuenteTaxes,
+  ])
+  const documentRetentions = retentionOptionsPool
+    .filter((tax) => Number.isFinite(tax.id) && tax.id > 0)
+    .filter((tax) => isPurchaseInvoiceRetentionTaxType(tax.type))
+    .map((tax) => ({ id: tax.id, type: tax.type }))
+
+  // El IVA elegido manualmente en la columna de IVA tiene prioridad sobre el
+  // sugerido por ítem (IA) — es una elección explícita del usuario para todo
+  // el documento, igual que las retenciones. No aplica si el documento tiene
+  // ítems editados a mano desde el panel de detalle: ahí cada línea ya trae
+  // su propio IVA elegido.
+  const resolvedIvaTax =
+    !hasEditedItems && ivaTax && Number.isFinite(ivaTax.id) && ivaTax.id > 0
+      ? ivaTax
+      : null
+
+  const items = hasEditedItems
+    ? editedItems!.map((item) => {
+        // SIIGO exige type: 'Product' | 'FixedAsset' | 'Account'. Para
+        // Product/FixedAsset el code es el código propio del ítem (y sí va
+        // description). Para Account, el campo "Producto" también es
+        // editable: si el usuario lo llenó/corrigió a mano (o vino
+        // precargado de la config del proveedor), se usa ese código; si lo
+        // deja vacío, cae a la cuenta contable elegida arriba (sin
+        // description, igual que en el body de ejemplo de SIIGO para ese
+        // tipo).
+        const isAccountItem = item.tipo === 'Account'
+        const editedCode = item.producto.trim()
+
+        return {
+          type: item.tipo,
+          code: isAccountItem ? editedCode || account.code : editedCode,
+          ...(isAccountItem ? {} : { description: item.description }),
+          quantity: item.quantity > 0 ? item.quantity : 1,
+          price: item.unitValue,
+          ...(item.discount > 0 ? { discount: item.discount } : {}),
+          ...(item.ivaTax && item.ivaTax.id > 0
+            ? { taxes: [{ id: item.ivaTax.id }] }
+            : {}),
+        }
+      })
+    : sourceItems.map((item) => {
+        const itemTax = resolvedIvaTax ?? item.suggestedTax
+
+        return {
+          type: 'Account',
+          code: account.code,
+          description: item.description,
+          quantity: item.quantity > 0 ? item.quantity : 1,
+          price: item.unitValue > 0 ? item.unitValue : item.total,
+          ...(itemTax ? { taxes: [{ id: itemTax.id }] } : {}),
+        }
+      })
+  // El impuesto (elegido o sugerido) no viene del catálogo de retenciones ya
+  // cargado, así que se arma un catálogo mínimo con lo que ya trae cada ítem
+  // para que el cálculo del total a pagar sí lo tenga en cuenta (si no, el
   // payments[].value quedaría sin el IVA y no cuadraría con lo que SIIGO
   // calcula del lado suyo al ver items[].taxes).
-  const itemTaxesCatalog: SiigoTaxOption[] = sourceItems
-    .map((item) => item.suggestedTax)
-    .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
-    .map((tax) => ({
-      id: tax.id,
-      name: tax.name,
-      type: 'IVA',
-      percentage: tax.percentage,
-    }))
+  const itemTaxesCatalog: SiigoTaxOption[] = hasEditedItems
+    ? dedupeTaxOptionsById(
+        editedItems!
+          .map((item) => item.ivaTax)
+          .filter((tax): tax is SiigoTaxOption => Boolean(tax)),
+      )
+    : resolvedIvaTax
+      ? [resolvedIvaTax]
+      : sourceItems
+          .map((item) => item.suggestedTax)
+          .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
+          .map((tax) => ({
+            id: tax.id,
+            name: tax.name,
+            type: 'IVA',
+            percentage: tax.percentage,
+          }))
 
   const paymentValue = calculateSiigoSupportDocumentPaymentValue(
     items,
     itemTaxesCatalog,
     documentRetentions
-      .map((retention) => retentions.find((tax) => tax.id === retention.id))
+      .map((retention) => retentionOptionsPool.find((tax) => tax.id === retention.id))
       .filter((retention): retention is SiigoTaxOption => Boolean(retention)),
   )
-  const documentDate = isSupportDocumentDateInRange(selectedDate)
+  // La fecha de Factura de compra es la de una factura de tercero ya
+  // emitida (puede ser de hace meses) — solo se valida el formato, no una
+  // ventana de días como en Documento Soporte.
+  const documentDate = isValidLocalDateFormat(selectedDate)
     ? selectedDate
     : getTodayLocalDate()
   const resolvedDueDate =
@@ -123,6 +195,12 @@ export function buildSiigoPurchaseSendRequest(
       ? dueDate
       : documentDate
   const cufe = document.cufe?.trim()
+  // Si el usuario ya tiene observaciones en pantalla (por defecto arrancan
+  // con "CUFE: ..." — ver buildInitialPurchaseInvoiceRowObservations en
+  // SupportDocumentPage.tsx) se envían tal cual, para no perder ni el CUFE
+  // ni las notas que haya agregado/editado. Solo si viene vacío se arma un
+  // valor mínimo con el CUFE.
+  const resolvedObservations = observations?.trim() || (cufe ? `CUFE: ${cufe}` : undefined)
 
   return {
     documentId: document.id,
@@ -135,7 +213,7 @@ export function buildSiigoPurchaseSendRequest(
       ? { cost_center: costCenter.id }
       : {}),
     provider_invoice: providerInvoice,
-    observations: cufe ? `CUFE: ${cufe}` : undefined,
+    observations: resolvedObservations,
     ...(documentRetentions.length > 0
       ? { retentions: documentRetentions }
       : {}),
@@ -169,7 +247,7 @@ export function buildSiigoPurchaseSendRequest(
                 }
               : {}),
             retentions: documentRetentions.map((retention) => {
-              const source = retentions.find((tax) => tax.id === retention.id)
+              const source = retentionOptionsPool.find((tax) => tax.id === retention.id)
 
               return {
                 id: retention.id,

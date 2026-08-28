@@ -180,11 +180,13 @@ function LoginPage() {
 
       <div className="auth-login-shell">
         <header className="auth-login-top">
-          <img
-            src="/jarvis-login-brand.png?v=1"
-            alt="Jarvis — Automatiza. Conecta. Simplifica."
-            className="auth-login-top__logo"
-          />
+          <Link to="/" className="auth-login-top__logo-link" aria-label="Ir al inicio">
+            <img
+              src="/jarvis-login-brand.png?v=2"
+              alt="Jarvis — Automatiza. Conecta. Simplifica."
+              className="auth-login-top__logo"
+            />
+          </Link>
         </header>
 
         <section className="auth-login-card" aria-labelledby="login-title">

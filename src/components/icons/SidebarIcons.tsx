@@ -276,3 +276,37 @@ export function CompanyLogoIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function PulseIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 10.5h3l1.7-4.5 3 8 2-6.5 1.3 3h3.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+export function CloudUploadIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M6 15.5h8a3 3 0 0 0 .5-5.96 4 4 0 0 0-7.6-1.9A3.5 3.5 0 0 0 6 15.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 13V8.2M10 8.2 7.8 10.4M10 8.2l2.2 2.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}

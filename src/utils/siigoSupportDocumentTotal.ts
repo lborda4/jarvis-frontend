@@ -10,7 +10,7 @@ function normalizeTaxType(value?: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-function roundMoney(value: number): number {
+export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
@@ -58,7 +58,7 @@ function calculateLineBreakdown(
   }
 }
 
-function resolveRetentionBase(
+export function resolveRetentionBase(
   retentionType: string | undefined,
   subtotal: number,
   taxTotal: number,
@@ -72,7 +72,7 @@ function resolveRetentionBase(
   return subtotal
 }
 
-function calculateRetentionAmount(
+export function calculateRetentionAmount(
   retentionType: string | undefined,
   percentage: number,
   base: number,

@@ -1,10 +1,16 @@
 import type {
   CreateAdminCompanyRequest,
   CreateAdminCompanyResponse,
+  ListAdminCitiesResponse,
   ListAdminCompaniesResponse,
   ListAdminPlansResponse,
+  LookupAdminCompanyNameResponse,
   ParseRutResponse,
   RegenerateCompanyInviteCodeResponse,
+  UpdateCompanyCityRequest,
+  UpdateCompanyCityResponse,
+  UpdateCompanyNextPymeTokenRequest,
+  UpdateCompanyNextPymeTokenResponse,
   UpdateIntegrationSubscriptionRequest,
   UpdateIntegrationSubscriptionResponse,
 } from '../types/admin'
@@ -13,6 +19,7 @@ import { apiClient } from './apiClient'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
 const ADMIN_PLANS_ENDPOINT = '/admin/plans'
+const ADMIN_CITIES_ENDPOINT = '/admin/cities'
 const ADMIN_RUT_PARSE_ENDPOINT = '/admin/companies/rut/parse'
 
 export async function fetchAdminPlans(): Promise<ListAdminPlansResponse> {
@@ -59,6 +66,49 @@ export async function regenerateCompanyInviteCode(
 ): Promise<RegenerateCompanyInviteCodeResponse> {
   const response = await apiClient.post<RegenerateCompanyInviteCodeResponse>(
     `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/invite-code/regenerate`,
+  )
+
+  return response.data
+}
+
+export async function updateCompanyNextPymeToken(
+  companyId: string,
+  request: UpdateCompanyNextPymeTokenRequest,
+): Promise<UpdateCompanyNextPymeTokenResponse> {
+  const response = await apiClient.patch<UpdateCompanyNextPymeTokenResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/nextpyme-token`,
+    request,
+  )
+
+  return response.data
+}
+
+export async function lookupAdminCompanyName(
+  nit: string,
+): Promise<LookupAdminCompanyNameResponse> {
+  const response = await apiClient.get<LookupAdminCompanyNameResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/lookup-name`,
+    { params: { nit } },
+  )
+
+  return response.data
+}
+
+export async function fetchAdminCities(): Promise<ListAdminCitiesResponse> {
+  const response = await apiClient.get<ListAdminCitiesResponse>(
+    ADMIN_CITIES_ENDPOINT,
+  )
+
+  return response.data
+}
+
+export async function updateCompanyCity(
+  companyId: string,
+  request: UpdateCompanyCityRequest,
+): Promise<UpdateCompanyCityResponse> {
+  const response = await apiClient.patch<UpdateCompanyCityResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/city`,
+    request,
   )
 
   return response.data

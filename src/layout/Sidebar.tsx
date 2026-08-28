@@ -1,17 +1,25 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { type ChangeEvent } from 'react'
+import { type ChangeEvent, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
   AdminIcon,
+  ChevronDownIcon,
   DocumentIcon,
   HelpIcon,
   PanelLeftIcon,
+  PulseIcon,
   SettingsIcon,
   SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
+
+const BANK_STATEMENTS_ROOT = '/extractos-bancarios'
+const BANK_STATEMENT_CHILDREN = [
+  { label: 'Cargar extracto', to: '/extractos-bancarios/cargar' },
+  { label: 'Historial de cierres', to: '/extractos-bancarios/historial' },
+]
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
 
@@ -38,6 +46,7 @@ function getUserInitials(name: string): string {
 function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const { user, companies, isLoading, isSwitchingCompany, logout, switchCompany } =
     useAuth()
   const {
@@ -100,6 +109,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
+    {
+      label: 'Extractos bancarios',
+      to: BANK_STATEMENTS_ROOT,
+      icon: PulseIcon,
+      children: BANK_STATEMENT_CHILDREN,
+    },
     ...(isJarvisCompany
       ? [
           {
@@ -152,9 +167,99 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     return location.pathname === to
   }
 
+  const toggleGroup = (to: string) => {
+    setExpandedGroups((current) => {
+      const next = new Set(current)
+
+      if (next.has(to)) {
+        next.delete(to)
+      } else {
+        next.add(to)
+      }
+
+      return next
+    })
+  }
+
   const renderNavItems = (iconOnly: boolean) =>
     navItems.map((item) => {
       const Icon = item.icon
+
+      if ('children' in item && item.children) {
+        const groupActive = location.pathname.startsWith(item.to)
+        const isExpanded = expandedGroups.has(item.to) || groupActive
+
+        if (iconOnly) {
+          return (
+            <NavLink
+              key={item.to}
+              to={item.children[0].to}
+              className={[
+                'app-sidebar__link',
+                'app-sidebar__link--icon-only',
+                groupActive ? 'app-sidebar__link--active' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              title={item.label}
+              aria-label={item.label}
+            >
+              <Icon className="app-sidebar__link-icon" />
+            </NavLink>
+          )
+        }
+
+        return (
+          <div key={item.to} className="app-sidebar__group">
+            <button
+              type="button"
+              className={[
+                'app-sidebar__link',
+                'app-sidebar__group-toggle',
+                groupActive ? 'app-sidebar__link--active' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => toggleGroup(item.to)}
+              aria-expanded={isExpanded}
+            >
+              <Icon className="app-sidebar__link-icon" />
+              <span>{item.label}</span>
+              <ChevronDownIcon
+                className={[
+                  'app-sidebar__group-chevron',
+                  isExpanded ? 'app-sidebar__group-chevron--open' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              />
+            </button>
+
+            {isExpanded && (
+              <div className="app-sidebar__group-children">
+                {item.children.map((child) => (
+                  <NavLink
+                    key={child.to}
+                    to={child.to}
+                    className={({ isActive: childActive }) =>
+                      [
+                        'app-sidebar__child-link',
+                        childActive ? 'app-sidebar__child-link--active' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')
+                    }
+                  >
+                    <span className="app-sidebar__child-dot" aria-hidden="true" />
+                    {child.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+
       const isDisabledByFeature =
         'featureEnabled' in item && item.featureEnabled === false
       const isDisabledByJarvis =

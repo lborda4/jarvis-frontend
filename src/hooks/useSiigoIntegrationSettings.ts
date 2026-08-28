@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
   fetchSiigoCredentialsStatus,
   fetchSiigoDocumentTypes,
+  runSiigoPurchaseHistorySyncToCompletion,
   saveSiigoCredentials,
   saveSiigoDocumentTypes,
   syncSiigoSuppliers,
@@ -19,6 +20,14 @@ import {
   BALANCE_TRIAL_IMPORT_ERROR_MESSAGE,
 } from '../utils/formatBalanceTrialSuccess'
 import { formatSiigoCredentialsSuccessMessage } from '../utils/formatSiigoCredentialsSuccess'
+
+export type SiigoSetupStepId = 'credentials' | 'accounts' | 'document_types'
+
+export interface SiigoSetupStep {
+  id: SiigoSetupStepId
+  label: string
+  description: string
+}
 
 function formatDocumentTypeOptionLabel(
   item: SiigoDocumentTypeCatalogItem,
@@ -88,6 +97,63 @@ export function useSiigoIntegrationSettings() {
     useState('')
   const [selectedPurchaseDocumentTypeId, setSelectedPurchaseDocumentTypeId] =
     useState('')
+  const [statusLoaded, setStatusLoaded] = useState(false)
+  const [activeStepId, setActiveStepId] = useState<SiigoSetupStepId | null>(
+    'credentials',
+  )
+
+  const steps = useMemo<SiigoSetupStep[]>(() => {
+    const nextSteps: SiigoSetupStep[] = [
+      {
+        id: 'credentials',
+        label: 'Credenciales',
+        description: 'Acceso a la API de SIIGO',
+      },
+      {
+        id: 'accounts',
+        label: 'Cuentas contables',
+        description: 'Sincronizar desde el Balance de Prueba',
+      },
+    ]
+
+    if (needsDocumentTypesStep) {
+      nextSteps.push({
+        id: 'document_types',
+        label: 'Comprobantes de cargue',
+        description: 'Elegir comprobante por tipo de documento',
+      })
+    }
+
+    return nextSteps
+  }, [needsDocumentTypesStep])
+
+  const isStepComplete = useCallback(
+    (stepId: SiigoSetupStepId) => {
+      if (stepId === 'credentials') return isSiigoConfigured
+      if (stepId === 'accounts') return hasSiigoAccounts
+      return hasSiigoDocumentTypesConfigured
+    },
+    [hasSiigoAccounts, hasSiigoDocumentTypesConfigured, isSiigoConfigured],
+  )
+
+  const isStepUnlocked = useCallback(
+    (stepId: SiigoSetupStepId) => {
+      const index = steps.findIndex((step) => step.id === stepId)
+      if (index <= 0) return true
+
+      return steps.slice(0, index).every((step) => isStepComplete(step.id))
+    },
+    [isStepComplete, steps],
+  )
+
+  const goToNextStep = useCallback(
+    (fromStepId: SiigoSetupStepId) => {
+      const currentIndex = steps.findIndex((step) => step.id === fromStepId)
+      const nextStep = steps[currentIndex + 1]
+      setActiveStepId(nextStep?.id ?? null)
+    },
+    [steps],
+  )
 
   useEffect(() => {
     if (!user?.company?.id) {
@@ -122,9 +188,33 @@ export function useSiigoIntegrationSettings() {
         }
       } catch {
         // El estado global de SIIGO lo resuelve IntegrationSetupContext.
+      } finally {
+        setStatusLoaded(true)
       }
     })()
   }, [markConfigured, user?.company?.id])
+
+  useEffect(() => {
+    if (!statusLoaded || steps.length === 0) {
+      return
+    }
+
+    const allComplete = steps.every((step) => isStepComplete(step.id))
+    if (allComplete) {
+      setActiveStepId(null)
+      return
+    }
+
+    const firstIncomplete = steps.find(
+      (step) => !isStepComplete(step.id) && isStepUnlocked(step.id),
+    )
+
+    if (firstIncomplete) {
+      setActiveStepId(firstIncomplete.id)
+    }
+    // Solo al cargar estado / cambiar el plan visible.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-shot after status/plan
+  }, [statusLoaded, steps])
 
   useEffect(() => {
     if (!user?.company?.id || !isSiigoConfigured || !needsDocumentTypesStep) {
@@ -224,6 +314,7 @@ export function useSiigoIntegrationSettings() {
 
       try {
         await saveCredentialsRequest()
+        goToNextStep('credentials')
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
@@ -237,6 +328,7 @@ export function useSiigoIntegrationSettings() {
     },
     [
       clearMessages,
+      goToNextStep,
       isSavingCredentials,
       saveCredentialsRequest,
       user?.company,
@@ -266,7 +358,26 @@ export function useSiigoIntegrationSettings() {
     clearMessages()
 
     try {
-      const response = await syncSiigoSuppliers()
+      // Cuentas contables (Balance de Prueba) e historial de Factura de
+      // compra arrancan juntos y corren de forma independiente — si uno
+      // falla, el otro sigue su curso igual — para que el cliente no tenga
+      // que esperar dos sincronizaciones separadas (una ahora y otra más
+      // adelante al entrar a Factura de compra). Este paso no se da por
+      // terminado hasta que ambos terminan. Solo se corre el de facturas si
+      // el plan incluye Factura de compra; si ese falla, no bloquea ni
+      // ensucia el mensaje de éxito de este paso.
+      const [accountsResult] = await Promise.allSettled([
+        syncSiigoSuppliers(),
+        hasPurchaseInvoiceAccess
+          ? runSiigoPurchaseHistorySyncToCompletion()
+          : Promise.resolve(null),
+      ])
+
+      if (accountsResult.status === 'rejected') {
+        throw accountsResult.reason
+      }
+
+      const response = accountsResult.value
       setSuppliersSuccessMessage(formatBalanceTrialSuccessMessage(response))
       await refreshSetupStatus()
 
@@ -281,6 +392,8 @@ export function useSiigoIntegrationSettings() {
         setErrorMessage(
           'La sincronización terminó, pero no se encontraron cuentas contables transaccionales. Verifique el Balance de Prueba en SIIGO.',
         )
+      } else {
+        goToNextStep('accounts')
       }
     } catch (error) {
       setErrorMessage(
@@ -292,6 +405,8 @@ export function useSiigoIntegrationSettings() {
     }
   }, [
     clearMessages,
+    goToNextStep,
+    hasPurchaseInvoiceAccess,
     isSavingCredentials,
     isSiigoConfigured,
     isSyncingSuppliers,
@@ -356,6 +471,7 @@ export function useSiigoIntegrationSettings() {
 
       const status = await fetchSiigoCredentialsStatus({ force: true })
       setSubscription(status.subscription ?? null)
+      goToNextStep('document_types')
     } catch (error) {
       setErrorMessage(
         getApiErrorMessage(
@@ -368,6 +484,7 @@ export function useSiigoIntegrationSettings() {
     }
   }, [
     clearMessages,
+    goToNextStep,
     hasPurchaseInvoiceAccess,
     hasSupportDocumentAccess,
     isSavingDocumentTypes,
@@ -411,6 +528,10 @@ export function useSiigoIntegrationSettings() {
     (!hasPurchaseInvoiceAccess ||
       selectedPurchaseDocumentTypeId.trim().length > 0)
 
+  const allRequiredStepsComplete = steps.every((step) =>
+    isStepComplete(step.id),
+  )
+
   return {
     isAuthLoading,
     hasCompany: Boolean(user?.company),
@@ -446,6 +567,12 @@ export function useSiigoIntegrationSettings() {
     canSaveDocumentTypes,
     errorMessage,
     formatDocumentTypeOptionLabel,
+    steps,
+    activeStepId,
+    setActiveStepId,
+    isStepComplete,
+    isStepUnlocked,
+    allRequiredStepsComplete,
     setUsername,
     setAccessKey,
     setPartnerId,

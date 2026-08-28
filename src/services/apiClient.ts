@@ -15,8 +15,11 @@ import { isAuthRequestUrl } from '../constants/authEndpoints'
 
 export { API_BASE_URL }
 
+const API_REQUEST_TIMEOUT_MS = 30_000
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: API_REQUEST_TIMEOUT_MS,
 })
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
@@ -35,7 +38,11 @@ async function refreshAccessToken(): Promise<string | null> {
 
   if (!refreshPromise) {
     refreshPromise = axios
-      .post(`${API_BASE_URL}/auth/refresh`, { refreshToken })
+      .post(
+        `${API_BASE_URL}/auth/refresh`,
+        { refreshToken },
+        { timeout: API_REQUEST_TIMEOUT_MS },
+      )
       .then((response) => {
         const tokens = extractAuthTokens(response.data)
 

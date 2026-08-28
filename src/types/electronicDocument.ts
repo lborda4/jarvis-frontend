@@ -68,11 +68,35 @@ export interface SuggestedItemTax {
   percentage: number
 }
 
+/** Config de ítem aprendida del historial de compras de este proveedor —
+ * CADA campo se autocompleta de forma independiente según su propia
+ * variabilidad (un proveedor puede tener cuenta contable fija y medio de
+ * pago variable, o al revés): un campo en `null` significa que ESE campo
+ * puntual no tiene un valor confiable, no que el proveedor entero sea
+ * nuevo o desconocido — los demás campos pueden seguir viniendo
+ * completos. El objeto entero es `null` solo si el proveedor nunca se
+ * sincronizó. */
+export interface SuggestedPurchaseItemConfig {
+  itemType: 'Account' | 'Product' | null
+  accountCode: string | null
+  accountName: string | null
+  ivaTax: SuggestedItemTax | null
+  retefuenteTax: SuggestedItemTax | null
+  /** Medio de pago dominante del historial — si es de crédito (dueDate:
+   * true), al autocompletarlo el editor muestra Plazo/Fecha de vencimiento
+   * igual que si el usuario lo hubiera elegido a mano. */
+  paymentMethod: SuggestedPaymentMethod | null
+}
+
 export interface ElectronicDocumentListItemItem {
   description: string
   quantity: number
   unitValue: number
   total: number
+  /** Código del producto/ítem tal como viene en la factura original (DIAN/NextPyme). */
+  code?: string
+  /** Descuento propio de la línea, si la factura original trae uno. */
+  discount?: number
   suggestedTax?: SuggestedItemTax | null
 }
 
@@ -83,9 +107,17 @@ export interface ElectronicDocumentListItem {
   cufe: string | null
   invoiceNumber: string | null
   issueDate: string | null
+  dueDate: string | null
+  /** Días de plazo explícitos del emisor (payment_form.duration_measure) — más confiable que dueDate - issueDate cuando está presente. */
+  paymentDurationMeasure?: number | null
+  documentDiscount?: number | null
   supplierName: string | null
   supplierNit: string | null
   supplierDocumentType?: string | null
+  /** Subtotal certificado por la DIAN (tax_exclusive_amount) — no recalcular desde items. */
+  documentSubtotal: number
+  /** IVA certificado por la DIAN (suma de tax_totals de factura) — no recalcular desde items. */
+  documentIva: number
   total: number
   status: ElectronicDocumentStatus
   electronicDocumentType?: string | null
@@ -95,6 +127,7 @@ export interface ElectronicDocumentListItem {
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
   suggestedRetentions?: SuggestedRetention[]
   suggestedCostCenter?: SuggestedCostCenter | null
+  suggestedItemConfig?: SuggestedPurchaseItemConfig | null
   processingStatus?: ElectronicDocumentProcessingStatus
   observations?: string | null
   items?: ElectronicDocumentListItemItem[]

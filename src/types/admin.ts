@@ -64,7 +64,23 @@ export interface AdminCompanyListItem {
   responsible: AdminCompanyResponsible | null
   createdAt: string
   inviteCode: string
+  nextPymeToken: string | null
+  cityCode: string | null
+  cityName: string | null
   integrations: AdminIntegrationItem[]
+}
+
+export interface AdminCityOption {
+  code: string
+  name: string
+}
+
+export interface ListAdminCitiesResponse {
+  items: AdminCityOption[]
+}
+
+export interface LookupAdminCompanyNameResponse {
+  name: string | null
 }
 
 export interface ListAdminCompaniesResponse {
@@ -85,6 +101,12 @@ export interface CreateAdminCompanyRequest {
   jarvisPlanId?: string
   includedDocumentTypes?: ElectronicDocumentType[]
   jarvisCredentials?: JarvisCredentialsSeed
+  cityCode?: string
+  cityName?: string
+  /** Token Bearer propio de la empresa para NextPyme (independiente de
+   * jarvisCredentials.tokenNextPyme) — si se omite, la consulta de factura
+   * de compra por CUFE usa el token global. */
+  nextPymeToken?: string
 }
 
 export interface JarvisCredentialsSeed {
@@ -122,6 +144,23 @@ export interface UpdateIntegrationSubscriptionRequest {
 
 export interface UpdateIntegrationSubscriptionResponse {
   integration: AdminIntegrationItem
+}
+
+export interface UpdateCompanyNextPymeTokenRequest {
+  nextPymeToken: string | null
+}
+
+export interface UpdateCompanyNextPymeTokenResponse {
+  company: AdminCompanyListItem
+}
+
+export interface UpdateCompanyCityRequest {
+  cityCode: string | null
+  cityName: string | null
+}
+
+export interface UpdateCompanyCityResponse {
+  company: AdminCompanyListItem
 }
 
 export interface ParsedRutJarvisCredentials {

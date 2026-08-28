@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(npx vitest *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\borda\\OneDrive\\Documentos\\Jarvis\\jarvis-backend\\src\\electronic-document",
+      "c:\\Users\\borda\\OneDrive\\Documentos\\Jarvis\\jarvis-backend\\src\\integration\\helpers"
+    ]
+  }
+}

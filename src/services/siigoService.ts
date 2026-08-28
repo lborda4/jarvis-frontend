@@ -10,8 +10,11 @@ import type {
   DeleteSiigoSupportDocumentResponse,
   CreateSiigoSupplierRequest,
   CreateSiigoSupplierResponse,
+  ListAccountMappingRulesResponse,
   SaveAccountMappingRequest,
   SaveAccountMappingResponse,
+  UpdateAccountMappingRuleRequest,
+  UpdateAccountMappingRuleResponse,
   ValidateAccountMappingRequest,
   ValidateAccountMappingResponse,
   ValidateSiigoImportRequest,
@@ -41,6 +44,10 @@ const SIIGO_SUPPLIERS_ENDPOINT = '/integrations/siigo/suppliers'
 const SIIGO_ACCOUNT_MAPPINGS_VALIDATE_ENDPOINT =
   '/integrations/siigo/account-mappings/validate'
 const SIIGO_ACCOUNT_MAPPINGS_ENDPOINT = '/integrations/siigo/account-mappings'
+const SIIGO_ACCOUNT_MAPPING_RULES_ENDPOINT =
+  '/integrations/siigo/account-mappings/rules'
+const SIIGO_ACCOUNT_MAPPING_RULE_ITEM_ENDPOINT =
+  '/integrations/siigo/account-mappings/rules/item'
 const SIIGO_PURCHASES_ENDPOINT = '/integrations/siigo/purchases'
 const SIIGO_PURCHASES_SEND_ENDPOINT = '/integrations/siigo/purchases/send'
 const SIIGO_SUPPORT_DOCUMENTS_ENDPOINT = '/integrations/siigo/support-documents'
@@ -56,9 +63,83 @@ const SIIGO_DOCUMENT_TYPES_ENDPOINT = '/integrations/siigo/document-types'
 const SIIGO_DOCUMENT_TYPES_SELECTION_ENDPOINT =
   '/integrations/siigo/document-types/selection'
 const SIIGO_CATALOG_SYNC_ENDPOINT = '/integrations/siigo/catalog/sync'
+const SIIGO_PURCHASE_HISTORY_SYNC_ENDPOINT =
+  '/integrations/siigo/purchases-history/sync'
+const SIIGO_PURCHASE_HISTORY_SYNC_STATUS_ENDPOINT =
+  '/integrations/siigo/purchases-history/sync-status'
 
 export async function syncSiigoCatalogs(): Promise<void> {
   await apiClient.post(SIIGO_CATALOG_SYNC_ENDPOINT)
+}
+
+export interface StartPurchaseHistorySyncResponse {
+  jobId: string
+}
+
+export interface PurchaseHistorySyncStatusResponse {
+  status: 'running' | 'completed' | 'error' | null
+  syncedCount: number
+  totalCount: number | null
+  errorMessage: string | null
+  startedAt: string | null
+  completedAt: string | null
+}
+
+export async function startSiigoPurchaseHistorySync(): Promise<StartPurchaseHistorySyncResponse> {
+  const response = await apiClient.post<StartPurchaseHistorySyncResponse>(
+    SIIGO_PURCHASE_HISTORY_SYNC_ENDPOINT,
+  )
+  return response.data
+}
+
+export async function fetchSiigoPurchaseHistorySyncStatus(): Promise<PurchaseHistorySyncStatusResponse> {
+  const response = await apiClient.get<PurchaseHistorySyncStatusResponse>(
+    SIIGO_PURCHASE_HISTORY_SYNC_STATUS_ENDPOINT,
+  )
+  return response.data
+}
+
+const PURCHASE_HISTORY_SYNC_POLL_INTERVAL_MS = 2000
+const PURCHASE_HISTORY_SYNC_POLL_MAX_ATTEMPTS = 900 // ~30 min tope de seguridad
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Arranca (si hace falta) y espera a que termine la sincronización del
+ * historial de facturas de compra — pensada para correr en paralelo con
+ * syncSiigoSuppliers (Balance de Prueba) durante el paso "Cuentas contables"
+ * de la configuración, en vez de dejarla para cuando el usuario entre a
+ * Factura de compra por primera vez. Nunca lanza por un status 'error' del
+ * job en sí (se resuelve igual, con ese status) — solo lanza si se agota el
+ * tope de reintentos de polling. */
+export async function runSiigoPurchaseHistorySyncToCompletion(): Promise<PurchaseHistorySyncStatusResponse> {
+  const initial = await fetchSiigoPurchaseHistorySyncStatus()
+
+  if (initial.status === 'completed' || initial.status === 'error') {
+    return initial
+  }
+
+  if (initial.status !== 'running') {
+    await startSiigoPurchaseHistorySync()
+  }
+
+  for (
+    let attempt = 0;
+    attempt < PURCHASE_HISTORY_SYNC_POLL_MAX_ATTEMPTS;
+    attempt += 1
+  ) {
+    await sleep(PURCHASE_HISTORY_SYNC_POLL_INTERVAL_MS)
+    const next = await fetchSiigoPurchaseHistorySyncStatus()
+
+    if (next.status === 'completed' || next.status === 'error') {
+      return next
+    }
+  }
+
+  throw new Error(
+    'Tiempo de espera agotado sincronizando el historial de facturas de compra.',
+  )
 }
 
 export async function fetchSiigoAccounts(): Promise<SiigoAccountCatalogItem[]> {
@@ -279,6 +360,25 @@ export async function saveAccountMapping(
 
     throw error
   }
+}
+
+export async function listAccountMappingRules(): Promise<ListAccountMappingRulesResponse> {
+  const response = await apiClient.get<ListAccountMappingRulesResponse>(
+    SIIGO_ACCOUNT_MAPPING_RULES_ENDPOINT,
+  )
+
+  return response.data
+}
+
+export async function updateAccountMappingRule(
+  request: UpdateAccountMappingRuleRequest,
+): Promise<UpdateAccountMappingRuleResponse> {
+  const response = await apiClient.patch<UpdateAccountMappingRuleResponse>(
+    SIIGO_ACCOUNT_MAPPING_RULE_ITEM_ENDPOINT,
+    request,
+  )
+
+  return response.data
 }
 
 export async function createSiigoPurchase(

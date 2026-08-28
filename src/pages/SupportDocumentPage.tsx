@@ -21,6 +21,7 @@ import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
 import PageHeader from '../components/PageHeader'
 import ImportLoadingOverlay from '../components/supportDocument/ImportLoadingOverlay'
+import PurchaseInvoiceImportProgress from '../components/supportDocument/PurchaseInvoiceImportProgress'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
@@ -39,10 +40,13 @@ import {
   type BatchQueueProgress,
 } from '../hooks/useSupportDocumentSend'
 import { useSupportDocumentResume } from '../hooks/useSupportDocumentResume'
+import { useLatestPurchaseInvoiceImportJob } from '../hooks/usePurchaseInvoiceImportJobs'
 import {
   AUTO_DISMISS_ERROR_MS,
   useAutoDismissMessage,
 } from '../hooks/useAutoDismissMessage'
+import { retryFailedPurchaseInvoiceImportRows } from '../services/documentSources/purchaseInvoiceExcelSource'
+import { waitForTerminalStatus } from '../services/realtime/purchaseInvoiceImportJobsStore'
 import {
   deleteElectronicDocument,
   fetchElectronicDocumentFilterOptions,
@@ -50,11 +54,14 @@ import {
   peekElectronicDocuments,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
+import { requestAiPurchaseSuggestion } from '../services/aiSuggestionService'
 import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListItem,
 } from '../types/electronicDocument'
 import type { SupportDocumentImportNotice } from '../types/supportDocumentPage'
+import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
+import type { PurchaseInvoiceDetailEditorSave } from '../components/supportDocument/PurchaseInvoiceDetailEditor'
 import {
   EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS,
   type SupportDocumentColumnFilters,
@@ -82,6 +89,7 @@ import {
 import {
   addDaysToLocalDate,
   buildInitialRowDates,
+  buildInitialRowDueDates,
   buildInitialRowObservations,
   daysBetweenLocalDates,
   getTodayLocalDate,
@@ -187,6 +195,186 @@ function buildEmptyRetentionsByType(
   )
 }
 
+/** IVA sugerido a nivel documento: solo si todos los ítems coinciden en el
+ * mismo impuesto sugerido (si no, se deja en blanco para que el usuario
+ * elija). Punto de partida editable, igual que las retenciones. */
+function resolveDocumentSuggestedIva(
+  document: ElectronicDocumentListItem,
+): SiigoTaxOption | null {
+  const items = document.items ?? []
+  const first = items[0]?.suggestedTax
+
+  if (!first || !items.every((item) => item.suggestedTax?.id === first.id)) {
+    return null
+  }
+
+  return {
+    id: first.id,
+    name: first.name,
+    type: 'IVA',
+    percentage: first.percentage,
+  }
+}
+
+function buildInitialRowIva(
+  documents: ElectronicDocumentListItem[],
+  current: Record<string, SiigoTaxOption | null> = {},
+): Record<string, SiigoTaxOption | null> {
+  return Object.fromEntries(
+    documents.map((document) => [
+      document.id,
+      current[document.id] !== undefined
+        ? current[document.id]
+        : resolveDocumentSuggestedIva(document),
+    ]),
+  )
+}
+
+/** Descuento general de Factura de compra: arranca en el valor certificado
+ * por la DIAN (`document.documentDiscount`) mientras el contador no lo haya
+ * editado a mano en el panel de detalle. */
+function buildInitialRowDocumentDiscounts(
+  documents: ElectronicDocumentListItem[],
+  current: Record<string, number> = {},
+): Record<string, number> {
+  return Object.fromEntries(
+    documents.map((document) => [
+      document.id,
+      current[document.id] !== undefined
+        ? current[document.id]
+        : (document.documentDiscount ?? 0),
+    ]),
+  )
+}
+
+/** Factura de compra (temporal): todavía no se autorrellena centro de costo
+ * desde la preferencia histórica del proveedor — solo lo que viene
+ * directamente del response de la factura. Se deja en blanco si el usuario
+ * no lo ha elegido/guardado ya. (Cuenta contable y medio de pago sí se
+ * autorrellenan — ver buildInitialPurchaseInvoiceRowAccounts y
+ * buildInitialPurchaseInvoiceRowPaymentMethods — cada uno según la
+ * variabilidad de SU PROPIO campo en el historial del proveedor.) */
+function buildBlankRow<T>(
+  documents: ElectronicDocumentListItem[],
+  blankValue: T,
+  current: Record<string, T> = {},
+): Record<string, T> {
+  return Object.fromEntries(
+    documents.map((document) => [
+      document.id,
+      current[document.id] !== undefined ? current[document.id] : blankValue,
+    ]),
+  )
+}
+
+/** Factura de compra: si el proveedor (por NIT) tiene la cuenta contable fija
+ * en su historial de compras, la "Cuenta contable" del documento arranca
+ * precargada con esa cuenta — es la que usan los ítems con tipo 'Account' al
+ * enviar (ver buildSiigoPurchaseSendRequest). `suggestedItemConfig.accountCode`
+ * se evalúa de forma independiente del resto de campos (medio de pago, IVA,
+ * etc.): un proveedor puede tener la cuenta fija aunque su medio de pago
+ * varíe, y viceversa. Si no hay cuenta confiable en el historial, cae a la
+ * sugerida por IA (document.suggestedAccount — ver
+ * SiigoPurchaseAiClassificationService en el backend) antes de dejarla
+ * vacía: sin este fallback, el ítem mostraba la cuenta de la IA (ver
+ * buildPurchaseInvoiceItemDrafts) pero el botón "Enviar" seguía deshabilitado
+ * porque ESTE estado nunca se enteraba de esa sugerencia (bug real
+ * reportado: cuenta visible en el ítem, pero "Enviar" nunca se habilitaba). */
+function buildInitialPurchaseInvoiceRowAccounts(
+  documents: ElectronicDocumentListItem[],
+  current: Record<string, SiigoAccountOption | null> = {},
+): Record<string, SiigoAccountOption | null> {
+  return Object.fromEntries(
+    documents.map((document) => {
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
+      }
+
+      const accountCode =
+        document.suggestedItemConfig?.accountCode || document.suggestedAccount?.code
+      const accountName =
+        document.suggestedItemConfig?.accountCode
+          ? (document.suggestedItemConfig.accountName ?? accountCode)
+          : (document.suggestedAccount?.name ?? accountCode)
+
+      return [
+        document.id,
+        accountCode
+          ? {
+              code: accountCode,
+              description: accountName ?? accountCode,
+            }
+          : null,
+      ]
+    }),
+  )
+}
+
+/** Factura de compra: si el medio de pago del proveedor es fijo en su
+ * historial, arranca precargado con el que usa casi siempre — si es de
+ * crédito, esto hace que el editor muestre Plazo/Fecha de vencimiento sin
+ * que el usuario tenga que elegirlo a mano primero. Se evalúa de forma
+ * independiente de la cuenta contable y demás campos (ver
+ * buildInitialPurchaseInvoiceRowAccounts): el medio de pago puede ser
+ * variable aunque la cuenta sea fija. Si el medio de pago en sí es
+ * variable o el proveedor es nuevo, arranca vacío como antes. */
+function buildInitialPurchaseInvoiceRowPaymentMethods(
+  documents: ElectronicDocumentListItem[],
+  current: Record<string, SiigoPaymentMethodOption | null> = {},
+): Record<string, SiigoPaymentMethodOption | null> {
+  return Object.fromEntries(
+    documents.map((document) => {
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
+      }
+
+      const paymentMethod = document.suggestedItemConfig?.paymentMethod
+
+      return [
+        document.id,
+        paymentMethod
+          ? {
+              id: paymentMethod.id,
+              name: paymentMethod.name,
+              type: paymentMethod.type,
+              dueDate: paymentMethod.dueDate,
+            }
+          : null,
+      ]
+    }),
+  )
+}
+
+/** Factura de compra: las observaciones siempre arrancan con el CUFE (y las
+ * notas de la factura si trae), no solo cuando el campo está vacío. Si ya
+ * hay un valor guardado (edición previa del usuario o de una carga
+ * anterior) pero no incluye el CUFE, se lo antepone igual — el CUFE nunca
+ * debe desaparecer en un recargo, ni siquiera si algo dejó guardado solo
+ * las notas en algún momento anterior. */
+function buildInitialPurchaseInvoiceRowObservations(
+  documents: ElectronicDocumentListItem[],
+  current: Record<string, string> = {},
+): Record<string, string> {
+  return Object.fromEntries(
+    documents.map((document) => {
+      const cufe = document.cufe?.trim()
+      const notes = document.observations?.trim() || ''
+      const withCufe = cufe ? `CUFE: ${cufe}${notes ? ` - ${notes}` : ''}` : notes
+
+      const existing = current[document.id]
+      if (existing === undefined) {
+        return [document.id, withCufe]
+      }
+
+      if (cufe && !existing.includes(cufe)) {
+        return [document.id, `CUFE: ${cufe}${existing ? ` - ${existing}` : ''}`]
+      }
+
+      return [document.id, existing]
+    }),
+  )
+}
+
 function resolveSharedSelectionValue<T>(
   selectedIds: Set<string>,
   getValue: (documentId: string) => T | null | undefined,
@@ -234,6 +422,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
   const [deleteFeedbackMessage, setDeleteFeedbackMessage] =
     useAutoDismissMessage()
+  const [isSuggestingAi, setIsSuggestingAi] = useState(false)
+  const [aiSuggestionMessage, setAiSuggestionMessage] = useAutoDismissMessage()
+  const [aiSuggestionError, setAiSuggestionError] = useAutoDismissMessage(
+    AUTO_DISMISS_ERROR_MS,
+  )
   const [isDeleting, setIsDeleting] = useState(false)
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
     null,
@@ -249,6 +442,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     useState<SupportDocumentImportNotice | null>(null)
   const [showImportOnly, setShowImportOnly] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [purchaseInvoiceRetryInfo, setPurchaseInvoiceRetryInfo] = useState<{
+    jobId: string
+    errorCount: number
+  } | null>(null)
+  const [isRetryingFailedImportRows, setIsRetryingFailedImportRows] =
+    useState(false)
+  const latestPurchaseInvoiceImportJob = useLatestPurchaseInvoiceImportJob()
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
   const [terceroModalDocument, setTerceroModalDocument] =
     useState<ElectronicDocumentListItem | null>(null)
@@ -258,7 +458,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [filterOptions, setFilterOptions] =
     useState<ElectronicDocumentFilterOptions | null>(null)
   const [sortColumn, setSortColumn] = useState<SupportDocumentSortColumn | null>(
-    'createdAt',
+    config.key === 'purchaseInvoice' ? 'date' : 'createdAt',
   )
   const [sortDirection, setSortDirection] =
     useState<SupportDocumentSortDirection>('desc')
@@ -269,6 +469,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     accountOptions,
     paymentMethodOptions,
     retentionOptionsByType,
+    ivaOptions,
     costCenterOptions,
     accountsError,
     paymentMethodsError,
@@ -287,6 +488,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [rowRetentions, setRowRetentions] = useState<
     Record<string, SiigoTaxOption[]>
   >({})
+  const [rowIva, setRowIva] = useState<Record<string, SiigoTaxOption | null>>({})
+  const [rowDocumentDiscounts, setRowDocumentDiscounts] = useState<
+    Record<string, number>
+  >({})
+  const [rowItems, setRowItems] = useState<
+    Record<string, PurchaseInvoiceItemDraft[]>
+  >({})
   const [rowDates, setRowDates] = useState<Record<string, string>>({})
   const [rowDueDates, setRowDueDates] = useState<Record<string, string | null>>({})
   const [rowObservations, setRowObservations] = useState<Record<string, string>>({})
@@ -300,6 +508,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [selectedRetentionsByType, setSelectedRetentionsByType] = useState<
     Record<string, SiigoTaxOption | null>
   >(() => buildEmptyRetentionsByType(config.retentionCatalogTypes))
+  const [selectedIva, setSelectedIva] = useState<SiigoTaxOption | null>(null)
   const [selectedDueDate, setSelectedDueDate] = useState<string>('')
 
   const reloadDocuments = useCallback((options?: { resetPage?: boolean }) => {
@@ -346,29 +555,56 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         setTotalDocuments(response.total)
         setPage(response.page)
         setPageLimit(response.limit as ElectronicDocumentPageSize)
+        const isPurchaseInvoiceWorkspace = config.key === 'purchaseInvoice'
+
         setRowAccounts((current) =>
-          buildInitialRowAccounts(response.items, [], current),
+          isPurchaseInvoiceWorkspace
+            ? buildInitialPurchaseInvoiceRowAccounts(response.items, current)
+            : buildInitialRowAccounts(response.items, [], current),
         )
         setRowPaymentMethods((current) =>
-          buildInitialRowPaymentMethods(response.items, current),
+          isPurchaseInvoiceWorkspace
+            ? buildInitialPurchaseInvoiceRowPaymentMethods(
+                response.items,
+                current,
+              )
+            : buildInitialRowPaymentMethods(response.items, current),
         )
         setRowCostCenters((current) =>
-          buildInitialRowCostCenters(response.items, current),
+          isPurchaseInvoiceWorkspace
+            ? buildBlankRow(response.items, null, current)
+            : buildInitialRowCostCenters(response.items, current),
         )
         setRowRetentions((current) =>
-          buildInitialRowRetentions(
-            response.items,
-            config.retentionCatalogTypes,
-            current,
-          ),
+          isPurchaseInvoiceWorkspace
+            ? buildBlankRow<SiigoTaxOption[]>(response.items, [], current)
+            : buildInitialRowRetentions(
+                response.items,
+                config.retentionCatalogTypes,
+                current,
+              ),
+        )
+        setRowIva((current) => buildInitialRowIva(response.items, current))
+        setRowDocumentDiscounts((current) =>
+          buildInitialRowDocumentDiscounts(response.items, current),
         )
         setRowDates((current) =>
           buildInitialRowDates(response.items, current, {
-            allowAnyDate: config.provider === 'JARVIS',
+            // La ventana de 5 días hacia atrás es una restricción de SIIGO
+            // para CREAR un Documento Soporte nuevo — no aplica a Factura de
+            // compra, donde la fecha es la de una factura de tercero ya
+            // emitida (puede ser de hace meses).
+            allowAnyDate:
+              config.provider === 'JARVIS' || config.key === 'purchaseInvoice',
           }),
         )
         setRowObservations((current) =>
-          buildInitialRowObservations(response.items, current),
+          isPurchaseInvoiceWorkspace
+            ? buildInitialPurchaseInvoiceRowObservations(response.items, current)
+            : buildInitialRowObservations(response.items, current),
+        )
+        setRowDueDates((current) =>
+          buildInitialRowDueDates(response.items, current),
         )
       }
 
@@ -477,7 +713,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   }, [selectedDocumentIds.size])
 
   useEffect(() => {
-    if (documents.length === 0) {
+    if (documents.length === 0 || config.key === 'purchaseInvoice') {
       return
     }
 
@@ -497,7 +733,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
       return changed ? next : current
     })
-  }, [documents, accountOptions])
+  }, [documents, accountOptions, config.key])
 
   useEffect(() => {
     const catalogById = new Map<number, SiigoTaxOption>()
@@ -641,11 +877,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowAccounts,
       rowPaymentMethods,
       rowRetentions,
+      rowIva,
     )
   }, [
     pageTableRows,
     rowAccounts,
     rowDates,
+    rowIva,
     rowPaymentMethods,
     rowRetentions,
     sortColumn,
@@ -665,6 +903,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setSelectedRetentionsByType(
         buildEmptyRetentionsByType(config.retentionCatalogTypes),
       )
+      setSelectedIva(null)
       setSelectedDueDate('')
       return
     }
@@ -707,6 +946,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             config.retentionCatalogTypes,
           )
         : buildEmptyRetentionsByType(config.retentionCatalogTypes),
+    )
+
+    setSelectedIva(
+      resolveSharedSelectionValue(
+        selectedDocumentIds,
+        (documentId) => rowIva[documentId] ?? null,
+        (left, right) => left.id === right.id,
+      ),
     )
 
     setSelectedDueDate(
@@ -800,6 +1047,58 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [selectedDocumentIds],
   )
 
+  const canSuggestAi = selectedDocumentIds.size === 1
+
+  const handleSuggestAccountWithAi = useCallback(async () => {
+    if (selectedDocumentIds.size !== 1) {
+      return
+    }
+
+    const [documentId] = selectedDocumentIds
+
+    setIsSuggestingAi(true)
+    setAiSuggestionError(null)
+    setAiSuggestionMessage(null)
+
+    try {
+      const suggestion = await requestAiPurchaseSuggestion(documentId)
+
+      if (suggestion.accountCode) {
+        handleConfigAccountChange({
+          code: suggestion.accountCode,
+          description: suggestion.accountName ?? suggestion.accountCode,
+        })
+      }
+
+      const messageParts: string[] = [
+        suggestion.accountCode
+          ? `Cuenta sugerida aplicada: ${suggestion.accountCode} — ${
+              suggestion.accountName ?? ''
+            }`.trim()
+          : 'La IA no encontró una cuenta contable segura para este documento.',
+      ]
+
+      if (suggestion.taxId && suggestion.taxName) {
+        messageParts.push(
+          `IVA sugerido (revisar y aplicar manualmente si corresponde): ${suggestion.taxName} (${suggestion.taxPercentage}%).`,
+        )
+      }
+
+      setAiSuggestionMessage(messageParts.join(' '))
+    } catch (error) {
+      setAiSuggestionError(
+        getApiErrorMessage(error, 'No se pudo obtener la sugerencia de IA.'),
+      )
+    } finally {
+      setIsSuggestingAi(false)
+    }
+  }, [
+    selectedDocumentIds,
+    handleConfigAccountChange,
+    setAiSuggestionError,
+    setAiSuggestionMessage,
+  ])
+
   const handleConfigPaymentMethodChange = useCallback(
     (paymentMethod: SiigoPaymentMethodOption | null) => {
       setSelectedPaymentMethod(paymentMethod)
@@ -814,6 +1113,27 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       applySelectionToCheckedRows(costCenter, setRowCostCenters)
     },
     [applySelectionToCheckedRows],
+  )
+
+  const handleConfigIvaChange = useCallback(
+    (tax: SiigoTaxOption | null) => {
+      setSelectedIva(tax)
+
+      if (selectedDocumentIds.size === 0) {
+        return
+      }
+
+      setRowIva((current) => {
+        const next = { ...current }
+
+        for (const documentId of selectedDocumentIds) {
+          next[documentId] = tax
+        }
+
+        return next
+      })
+    },
+    [selectedDocumentIds],
   )
 
   const isCreditSelected = isCreditPaymentMethod(selectedPaymentMethod)
@@ -868,6 +1188,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         importStatuses,
         rowAccounts,
         rowPaymentMethods,
+        rowDueDates,
+        rowItems,
         {
           requiresAccount: config.requiresAccount,
           requiresPaymentMethod: config.requiresPaymentMethod,
@@ -879,6 +1201,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       importStatuses,
       rowAccounts,
       rowPaymentMethods,
+      rowDueDates,
+      rowItems,
       config.requiresAccount,
       config.requiresPaymentMethod,
     ],
@@ -896,6 +1220,56 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const canSendSelected = sendableSelectedCount > 0
   const canDeleteSelected = deletableSelectedCount > 0
+
+  const isRetrySelected = useMemo(() => {
+    if (sendableSelectedCount === 0) {
+      return false
+    }
+
+    let hasSendable = false
+
+    for (const documentId of selectedDocumentIds) {
+      const document = documentsById[documentId]
+
+      if (
+        !document ||
+        !canSendDocument(
+          document,
+          documentId,
+          importStatuses[documentId],
+          rowAccounts,
+          rowPaymentMethods,
+          rowDueDates,
+          rowItems,
+          {
+            requiresAccount: config.requiresAccount,
+            requiresPaymentMethod: config.requiresPaymentMethod,
+          },
+        )
+      ) {
+        continue
+      }
+
+      hasSendable = true
+
+      if (importStatuses[documentId] !== IMPORT_ROW_STATUS.ERROR) {
+        return false
+      }
+    }
+
+    return hasSendable
+  }, [
+    sendableSelectedCount,
+    selectedDocumentIds,
+    documentsById,
+    importStatuses,
+    rowAccounts,
+    rowPaymentMethods,
+    rowDueDates,
+    rowItems,
+    config.requiresAccount,
+    config.requiresPaymentMethod,
+  ])
 
   /** Documentos que aún no quedaron en LISTA (ya enviados/validados) y por lo
    * tanto todavía se pueden configurar (cuenta, medio de pago, etc.) antes de
@@ -927,6 +1301,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         importStatuses[rowId],
         rowAccounts,
         rowPaymentMethods,
+        rowDueDates,
+        rowItems,
         {
           requiresAccount: config.requiresAccount,
           requiresPaymentMethod: config.requiresPaymentMethod,
@@ -938,6 +1314,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       importStatuses,
       rowAccounts,
       rowPaymentMethods,
+      rowDueDates,
+      rowItems,
       config.requiresAccount,
       config.requiresPaymentMethod,
     ],
@@ -952,6 +1330,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowPaymentMethods,
       rowCostCenters,
       rowRetentions,
+      rowIva,
+      rowItems,
       rowDates,
       rowDueDates,
       rowObservations,
@@ -963,6 +1343,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     rowCostCenters,
     rowDates,
     rowDueDates,
+    rowIva,
+    rowItems,
     rowObservations,
     rowPaymentMethods,
     rowRetentions,
@@ -1009,49 +1391,72 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       })
     }
 
+    const deleteOne = async (documentId: string) => {
+      started += 1
+      setDeletingDocumentId(documentId)
+      bumpProgress(`Eliminando… ${completed} de ${targets.length}`)
+
+      try {
+        const importStatus = importStatuses[documentId]
+
+        if (isDocumentDeletableFromSiigo(importStatus, config.provider)) {
+          await config.deleteSiigoDocument(documentId)
+          setImportStatus(documentId, IMPORT_ROW_STATUS.PENDIENTE)
+        } else if (isDocumentRemovableFromDatabase(importStatus)) {
+          await deleteElectronicDocument(documentId)
+          removedIds.push(documentId)
+        } else {
+          throw new Error('Este registro no se puede eliminar.')
+        }
+
+        deletedCount += 1
+      } catch (error) {
+        failedCount += 1
+        lastError = getApiErrorMessage(
+          error,
+          'No se pudo eliminar el registro seleccionado.',
+        )
+      }
+
+      completed += 1
+      bumpProgress(
+        completed === targets.length
+          ? `Completado ${completed} de ${targets.length}`
+          : `Eliminando… ${completed} de ${targets.length}`,
+      )
+    }
+
     try {
-      await Promise.all(
-        targets.map(async (documentId, index) => {
-          if (index > 0) {
-            await new Promise((resolve) => {
-              window.setTimeout(resolve, index * 1000)
-            })
-          }
+      // Borrar solo de la base de datos local es una operación propia (no
+      // depende de una API externa), así que esos van todos en paralelo de
+      // una vez. Los que hay que eliminar primero en SIIGO sí se escalonan
+      // (1s entre cada uno) para no saturar su API — igual que antes.
+      const siigoTargetIds = new Set(
+        targets.filter((documentId) =>
+          isDocumentDeletableFromSiigo(importStatuses[documentId], config.provider),
+        ),
+      )
+      const dbOnlyTargets = targets.filter(
+        (documentId) => !siigoTargetIds.has(documentId),
+      )
+      const siigoTargets = targets.filter((documentId) =>
+        siigoTargetIds.has(documentId),
+      )
 
-          started += 1
-          setDeletingDocumentId(documentId)
-          bumpProgress(`Eliminando… ${completed} de ${targets.length}`)
-
-          try {
-            const importStatus = importStatuses[documentId]
-
-            if (isDocumentDeletableFromSiigo(importStatus, config.provider)) {
-              await config.deleteSiigoDocument(documentId)
-              setImportStatus(documentId, IMPORT_ROW_STATUS.PENDIENTE)
-            } else if (isDocumentRemovableFromDatabase(importStatus)) {
-              await deleteElectronicDocument(documentId)
-              removedIds.push(documentId)
-            } else {
-              throw new Error('Este registro no se puede eliminar.')
+      await Promise.all([
+        Promise.all(dbOnlyTargets.map((documentId) => deleteOne(documentId))),
+        Promise.all(
+          siigoTargets.map(async (documentId, index) => {
+            if (index > 0) {
+              await new Promise((resolve) => {
+                window.setTimeout(resolve, index * 1000)
+              })
             }
 
-            deletedCount += 1
-          } catch (error) {
-            failedCount += 1
-            lastError = getApiErrorMessage(
-              error,
-              'No se pudo eliminar el registro seleccionado.',
-            )
-          }
-
-          completed += 1
-          bumpProgress(
-            completed === targets.length
-              ? `Completado ${completed} de ${targets.length}`
-              : `Eliminando… ${completed} de ${targets.length}`,
-          )
-        }),
-      )
+            await deleteOne(documentId)
+          }),
+        ),
+      ])
 
       if (removedIds.length > 0) {
         setSelectedDocumentIds((current) => {
@@ -1104,6 +1509,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowPaymentMethods,
         rowCostCenters,
         rowRetentions,
+        rowIva,
+        rowItems,
         rowDates,
         rowDueDates,
         rowObservations,
@@ -1116,6 +1523,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowCostCenters,
       rowDates,
       rowDueDates,
+      rowIva,
+      rowItems,
       rowObservations,
       rowPaymentMethods,
       rowRetentions,
@@ -1319,12 +1728,31 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     void (async () => {
       setIsImporting(true)
       setErrorMessage(null)
+      setPurchaseInvoiceRetryInfo(null)
 
       try {
-        const { documentIds, documentCount } = await config.importFile(file)
+        const { documentIds, documentCount, failedRows, jobId, errorCount } =
+          await config.importFile(file)
+
+        if (config.key === 'purchaseInvoice' && jobId && errorCount) {
+          setPurchaseInvoiceRetryInfo({ jobId, errorCount })
+        }
 
         for (const documentId of documentIds) {
           setImportStatus(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+        }
+
+        if (failedRows && failedRows.length > 0) {
+          const preview = failedRows
+            .slice(0, 3)
+            .map((row) => row.issuerName?.trim() || row.cufe || 'factura')
+            .join(', ')
+          const suffix =
+            failedRows.length > 3 ? `, +${failedRows.length - 3} más` : ''
+
+          setErrorMessage(
+            `${failedRows.length} factura(s) no se importaron (no se encontró la factura al consultarla): ${preview}${suffix}.`,
+          )
         }
 
         setImportNotice({ documentCount, documentIds })
@@ -1341,6 +1769,31 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     })()
   }
 
+  /** Confirma los cambios hechos en el editor de detalle de Factura de
+   * compra (ítems, forma de pago, plazo, retenciones, observaciones) al
+   * estado por fila — igual que hoy funcionan cuenta/medio de pago/
+   * retenciones: solo queda en pantalla, listo para "Enviar". */
+  const handleSaveRowEdits = useCallback(
+    (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => {
+      setRowItems((current) => ({ ...current, [documentId]: edits.items }))
+      setRowPaymentMethods((current) => ({
+        ...current,
+        [documentId]: edits.paymentMethod,
+      }))
+      setRowDueDates((current) => ({ ...current, [documentId]: edits.dueDate }))
+      setRowObservations((current) => ({
+        ...current,
+        [documentId]: edits.observations,
+      }))
+      setRowRetentions((current) => ({ ...current, [documentId]: edits.retentions }))
+      setRowDocumentDiscounts((current) => ({
+        ...current,
+        [documentId]: edits.documentDiscount,
+      }))
+    },
+    [],
+  )
+
   const handleCreateJarvisTercero = useCallback(
     (document: ElectronicDocumentListItem) => {
       setTerceroModalDocument(document)
@@ -1352,6 +1805,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     setTerceroModalDocument(null)
     reloadDocuments({ resetPage: false })
   }, [reloadDocuments])
+
+  // Al cambiar un filtro conservamos las filas actuales hasta que llegue la
+  // respuesta. Evita reemplazar toda la tabla por el loader en cada cambio;
+  // el contenido solo se sustituye cuando están disponibles los nuevos datos.
+  const isInitialDocumentsLoad = isLoading && documents.length === 0
 
   return (
     <main className="support-document-page">
@@ -1409,6 +1867,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           title={buildResumingStageTitle(config.provider)}
           tips={RESUMING_STAGE_TIPS[config.provider]}
         />
+      ) : isImporting && config.key === 'purchaseInvoice' ? (
+        <PurchaseInvoiceImportProgress
+          key="importing-purchase-invoice"
+          jobId={latestPurchaseInvoiceImportJob?.jobId ?? null}
+        />
       ) : isImporting ? (
         <ImportLoadingOverlay
           key="importing"
@@ -1441,6 +1904,51 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           </p>
         )}
 
+        {purchaseInvoiceRetryInfo && (
+          <p className="support-document-page__feedback" role="status">
+            {purchaseInvoiceRetryInfo.errorCount} factura(s) fallaron en la
+            importación.{' '}
+            <button
+              type="button"
+              className="support-document-page__link-button"
+              disabled={isRetryingFailedImportRows}
+              onClick={() => {
+                void (async () => {
+                  const jobId = purchaseInvoiceRetryInfo.jobId
+                  setIsRetryingFailedImportRows(true)
+                  try {
+                    await retryFailedPurchaseInvoiceImportRows(jobId)
+                    setPurchaseInvoiceRetryInfo(null)
+                    setIsImporting(true)
+                    const finalJob = await waitForTerminalStatus(jobId)
+                    if (finalJob.errorCount > 0) {
+                      setPurchaseInvoiceRetryInfo({
+                        jobId,
+                        errorCount: finalJob.errorCount,
+                      })
+                    }
+                    reloadDocuments({ resetPage: false })
+                  } catch (error) {
+                    setErrorMessage(
+                      getApiErrorMessage(
+                        error,
+                        'No se pudieron reintentar las filas fallidas.',
+                      ),
+                    )
+                  } finally {
+                    setIsRetryingFailedImportRows(false)
+                    setIsImporting(false)
+                  }
+                })()
+              }}
+            >
+              {isRetryingFailedImportRows
+                ? 'Reintentando...'
+                : 'Reintentar fallidas'}
+            </button>
+          </p>
+        )}
+
         {errorMessage && <ErrorMessage message={errorMessage} />}
         {resumeErrorMessage && <ErrorMessage message={resumeErrorMessage} />}
         {sendErrorMessage && <ErrorMessage message={sendErrorMessage} />}
@@ -1448,6 +1956,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         {paymentMethodsError && <ErrorMessage message={paymentMethodsError} />}
         {costCentersError && <ErrorMessage message={costCentersError} />}
         {retentionsError && <ErrorMessage message={retentionsError} />}
+        {aiSuggestionMessage && (
+          <p className="support-document-page__feedback" role="status">
+            {aiSuggestionMessage}
+          </p>
+        )}
+        {aiSuggestionError && <ErrorMessage message={aiSuggestionError} />}
       </div>
 
       <div
@@ -1474,6 +1988,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           retentionCatalogTypes={config.retentionCatalogTypes}
           retentionOptionsByType={retentionOptionsByType}
           selectedRetentionsByType={selectedRetentionsByType}
+          showIvaField={config.showIvaField}
+          actionsOnly={config.key === 'purchaseInvoice'}
+          ivaOptions={ivaOptions}
+          selectedIva={selectedIva}
+          onIvaChange={handleConfigIvaChange}
           selectedAccount={selectedAccount}
           selectedPaymentMethod={selectedPaymentMethod}
           selectedCostCenter={selectedCostCenter}
@@ -1484,10 +2003,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           canSend={canSendSelected}
           canDelete={canDeleteSelected}
           hasConfigurableSelection={hasConfigurableSelection}
+          isRetry={isRetrySelected}
+          canSuggestAi={canSuggestAi}
+          isSuggestingAi={isSuggestingAi}
+          onSuggestAi={handleSuggestAccountWithAi}
           isSending={isSending}
           isDeleting={isDeleting}
           progressLabel={queueProgress?.label ?? null}
-          disabled={isLoading || isImporting || isResuming || isModalOpen}
+          disabled={isInitialDocumentsLoad || isImporting || isResuming || isModalOpen}
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onCostCenterChange={handleConfigCostCenterChange}
@@ -1504,7 +2027,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         columnFilters={columnFilters}
         selectedSupplierNits={selectedSupplierNits}
         disabled={
-          isLoading ||
+          isInitialDocumentsLoad ||
           isImporting ||
           isResuming ||
           isModalOpen ||
@@ -1520,17 +2043,30 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         selectedIds={selectedDocumentIds}
         rowDates={rowDates}
         rowAccounts={rowAccounts}
+        accountOptions={tableAccountOptions}
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
+        rowIva={rowIva}
+        rowDocumentDiscounts={rowDocumentDiscounts}
+        showIvaColumn={config.showIvaField || config.key === 'purchaseInvoice'}
+        showSummaryColumns={config.key === 'purchaseInvoice'}
+        rowDueDates={rowDueDates}
+        rowObservations={rowObservations}
+        rowItems={rowItems}
+        paymentMethodOptions={paymentMethodOptions}
+        ivaOptions={ivaOptions}
+        retentionCatalogTypes={config.retentionCatalogTypes}
+        retentionOptionsByType={retentionOptionsByType}
+        onSaveRowEdits={handleSaveRowEdits}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
-        isLoading={isLoading}
+        isLoading={isInitialDocumentsLoad}
         isResuming={isResuming}
         isSending={isSending}
         isDeleting={isDeleting}
         deletingDocumentId={deletingDocumentId}
         selectionDisabled={
-          isLoading ||
+          isInitialDocumentsLoad ||
           isImporting ||
           isResuming ||
           isModalOpen ||
@@ -1538,7 +2074,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           isDeleting
         }
         sortDisabled={
-          isLoading ||
+          isInitialDocumentsLoad ||
           isImporting ||
           isResuming ||
           isModalOpen ||
@@ -1629,12 +2165,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         page={page}
         limit={pageLimit}
         total={totalDocuments}
-        disabled={isLoading || isImporting || isResuming || isSending}
+        disabled={isInitialDocumentsLoad || isImporting || isResuming || isSending}
         onPageChange={handlePageChange}
         onLimitChange={handleLimitChange}
       />
 
-      {!isLoading && totalDocuments > 0 && selectedDocumentIds.size > 0 && (
+      {!isInitialDocumentsLoad && totalDocuments > 0 && selectedDocumentIds.size > 0 && (
         <p className="support-document-page__count">
           {selectedDocumentIds.size} documento(s) seleccionado(s) en esta página
         </p>

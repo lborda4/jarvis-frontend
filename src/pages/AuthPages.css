@@ -35,8 +35,8 @@
 
 /* Login centrado con decoraciones */
 .auth-page--login {
-  --login-accent: #00ffff;
-  --login-accent-rgb: 0, 255, 255;
+  --login-accent: var(--jarvis-accent);
+  --login-accent-rgb: var(--jarvis-accent-rgb);
 
   position: relative;
   align-items: center;
@@ -48,7 +48,7 @@
   min-height: 100dvh;
   padding: clamp(1rem, 2.5vh, 1.75rem) 1.25rem;
   overflow: hidden;
-  background: #000000;
+  background: linear-gradient(180deg, #0f2a44 0%, var(--jarvis-navy) 48%, #081726 100%);
 }
 
 .auth-login-backdrop {
@@ -231,9 +231,20 @@
   pointer-events: none;
 }
 
-.auth-login-top__logo {
+.auth-login-top__logo-link {
   position: relative;
   z-index: 1;
+  display: block;
+  border-radius: var(--r-lg);
+  transition: opacity 0.15s ease;
+}
+
+.auth-login-top__logo-link:hover,
+.auth-login-top__logo-link:focus-visible {
+  opacity: 0.85;
+}
+
+.auth-login-top__logo {
   display: block;
   width: min(100%, 20rem);
   max-height: clamp(7.5rem, 22vh, 11rem);

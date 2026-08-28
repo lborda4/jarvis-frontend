@@ -1,0 +1,46 @@
+.bank-history-page {
+  width: 100%;
+  max-width: var(--app-content-max-width, 1280px);
+  margin: 0 auto;
+  padding: 2rem 2rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bank-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 3.5rem 1.5rem;
+  border: 1px dashed var(--jarvis-border);
+  border-radius: var(--r-lg);
+  background: #fff;
+  color: var(--jarvis-text-muted);
+}
+
+.bank-history-empty__icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--jarvis-primary);
+  margin-bottom: 0.5rem;
+}
+
+.bank-history-empty strong {
+  color: var(--jarvis-text);
+  font-size: var(--text-lg);
+}
+
+.bank-history-empty p {
+  margin: 0;
+  max-width: 26rem;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 640px) {
+  .bank-history-page {
+    padding: 1.25rem 1rem 2rem;
+  }
+}

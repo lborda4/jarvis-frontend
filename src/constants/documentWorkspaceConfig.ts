@@ -20,6 +20,7 @@ import {
   type ElectronicDocumentType,
 } from '../types/electronicDocument'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
+import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import type {
   CreateSiigoPurchaseSendRequest,
   CreateSiigoSupportDocumentRequest,
@@ -42,9 +43,22 @@ import { isCreditPaymentMethod } from '../utils/siigoPaymentMethods'
 const JARVIS_PAYMENT_FORM_CASH = 1
 const JARVIS_PAYMENT_FORM_CREDIT = 2
 
+export interface DocumentWorkspaceImportFailedRow {
+  cufe: string
+  issuerNit: string
+  issuerName: string
+  error: string
+}
+
 export interface DocumentWorkspaceImportResult {
   documentIds: string[]
   documentCount: number
+  failedRows?: DocumentWorkspaceImportFailedRow[]
+  /** Solo presentes para Factura de compra (importación en background con
+   * progreso en vivo) — permiten ofrecer "reintentar fallidas" sin volver a
+   * consultar el estado del job desde cero. */
+  jobId?: string
+  errorCount?: number
 }
 
 export type DocumentWorkspaceProvider = 'SIIGO' | 'JARVIS'
@@ -56,6 +70,8 @@ export interface DocumentWorkspaceConfig {
   electronicDocumentType: ElectronicDocumentType
   paymentDocumentType: string
   retentionCatalogTypes: readonly string[]
+  /** Columna/campo manual de IVA — solo Factura de compra SIIGO por ahora. */
+  showIvaField?: boolean
   requiresAccount: boolean
   requiresPaymentMethod: boolean
   pageTitle: string
@@ -83,6 +99,8 @@ export interface DocumentWorkspaceConfig {
     dueDate?: string,
     observations?: string,
     savePreferences?: boolean,
+    ivaTax?: SiigoTaxOption | null,
+    editedItems?: PurchaseInvoiceItemDraft[] | null,
   ) =>
     | CreateSiigoSupportDocumentRequest
     | CreateSiigoPurchaseSendRequest
@@ -272,12 +290,21 @@ async function importPurchaseInvoiceExcel(
   const response = rawResponse as {
     documentsCreated?: number
     documentIds?: string[]
+    failedRows?: DocumentWorkspaceImportFailedRow[]
+    jobId?: string
+    errorCount?: number
   }
 
   const documentIds = response.documentIds ?? []
   const documentCount = response.documentsCreated ?? documentIds.length
 
-  return { documentIds, documentCount }
+  return {
+    documentIds,
+    documentCount,
+    failedRows: response.failedRows,
+    jobId: response.jobId,
+    errorCount: response.errorCount,
+  }
 }
 
 export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
@@ -287,6 +314,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.PURCHASE_INVOICE,
   paymentDocumentType: PURCHASE_INVOICE_PAYMENT_DOCUMENT_TYPE,
   retentionCatalogTypes: PURCHASE_INVOICE_RETENTION_CATALOG_TYPES,
+  showIvaField: true,
   requiresAccount: true,
   requiresPaymentMethod: true,
   pageTitle: 'Factura de compra',
@@ -314,6 +342,8 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
     dueDate,
     observations,
     savePreferences,
+    ivaTax,
+    editedItems,
   ) =>
     buildSiigoPurchaseSendRequest(
       document,
@@ -325,6 +355,8 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
       dueDate,
       observations,
       savePreferences,
+      ivaTax,
+      editedItems,
     ),
   sendDocument: (request) =>
     createSiigoPurchaseSend(request as CreateSiigoPurchaseSendRequest),

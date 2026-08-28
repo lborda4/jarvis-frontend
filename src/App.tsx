@@ -4,6 +4,8 @@ import DefaultAppRedirect from './components/DefaultAppRedirect'
 import ProtectedRoute from './components/ProtectedRoute'
 import SupportDocumentRoute from './components/SupportDocumentRoute'
 import PurchaseInvoiceRoute from './components/PurchaseInvoiceRoute'
+import BankStatementClosingPage from './pages/BankStatementClosingPage'
+import BankStatementHistoryPage from './pages/BankStatementHistoryPage'
 import TercerosRoute from './components/TercerosRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
@@ -62,6 +64,19 @@ function App() {
                 <Route path="/terceros" element={<TercerosRoute />} />
 
                 <Route
+                  path="/extractos-bancarios"
+                  element={<Navigate to="/extractos-bancarios/cargar" replace />}
+                />
+                <Route
+                  path="/extractos-bancarios/cargar"
+                  element={<BankStatementClosingPage />}
+                />
+                <Route
+                  path="/extractos-bancarios/historial"
+                  element={<BankStatementHistoryPage />}
+                />
+
+                <Route
                   path="/configuracion/integracion-siigo"
                   element={<SiigoIntegrationRoute />}
                 />
@@ -69,7 +84,6 @@ function App() {
                   path="/configuracion/integracion-jarvis"
                   element={<JarvisIntegrationRoute />}
                 />
-
                 <Route
                   path="/facturas/*"
                   element={<Navigate to="/documento-soporte" replace />}

@@ -9,16 +9,17 @@ import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCa
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import { getApiErrorMessage } from '../services/apiClient'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
+import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
 import type { DocumentWorkspaceConfig } from '../constants/documentWorkspaceConfig'
 import type { SiigoDocumentSendRequest } from '../utils/buildSiigoDocumentRequest'
-import { canSendDocument } from '../utils/supportDocumentSend'
-import { isSiigoDuplicatedDocumentError } from '../utils/siigoSendErrors'
+import { buildNotSendableReason } from '../utils/supportDocumentSend'
 
 /** Espacio entre inicios de envío (requests pueden solaparse). */
-const SEND_STAGGER_MS = 1000
-const DUPLICATE_RETRY_PAUSE_MS = 5000
-const MAX_DUPLICATE_RETRY_ROUNDS = 2
+const SEND_STAGGER_MS = 2000
+/** Registros que quedaron en error esperan al final y se reintentan con más pausa. */
+const RETRY_PAUSE_MS = 5000
+const MAX_RETRY_ROUNDS = 3
 
 export interface BatchQueueProgress {
   current: number
@@ -35,6 +36,8 @@ interface SendDocumentsParams {
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowCostCenters: Record<string, SiigoCostCenterOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
+  rowIva: Record<string, SiigoTaxOption | null>
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>
   rowDates: Record<string, string>
   rowDueDates: Record<string, string | null>
   rowObservations: Record<string, string>
@@ -61,7 +64,10 @@ interface SendAttemptResult {
   documentId: string
   success: boolean
   error?: string
-  isDuplicated: boolean
+  /** false = se descartó ANTES de llamar a SIIGO (ej. sin cuenta asignada
+   * todavía) — reintentarlo no serviría de nada, a diferencia de un error
+   * real de la llamada (true). */
+  attempted: boolean
 }
 
 function wait(ms: number): Promise<void> {
@@ -94,32 +100,45 @@ export function useSupportDocumentSend({
         rowPaymentMethods,
         rowCostCenters,
         rowRetentions,
+        rowIva,
+        rowItems,
         rowDates,
         rowDueDates,
         rowObservations,
         savePreferences = true,
       } = params
 
-      const targets = documentIds.filter((documentId) => {
+      // Se procesan TODOS los seleccionados (no se filtran en silencio antes
+      // de intentar) — los que no están listos para enviar (sin cuenta, sin
+      // medio de pago, etc.) quedan como un resultado fallido CON razón
+      // explícita más abajo, así el conteo final ("N enviados, M fallaron")
+      // siempre refleja la selección completa del usuario en vez de hacer
+      // desaparecer del conteo a los que se excluyeron antes de intentar
+      // (bug real: seleccionar 5 y ver "0 de 3" sin ninguna explicación).
+      const targets = documentIds
+
+      const readyTargets = targets.filter((documentId) => {
         const document = documentsById[documentId]
 
         return (
           document &&
-          canSendDocument(
+          buildNotSendableReason(
             document,
             documentId,
             importStatuses[documentId],
             rowAccounts,
             rowPaymentMethods,
+            rowDueDates,
+            rowItems,
             {
               requiresAccount: workspace.requiresAccount,
               requiresPaymentMethod: workspace.requiresPaymentMethod,
             },
-          )
+          ) === null
         )
       })
 
-      if (targets.length === 0) {
+      if (readyTargets.length === 0) {
         setErrorMessage(
           workspace.requiresAccount
             ? 'Seleccione documentos con cuenta contable y medio de pago configurados.'
@@ -167,20 +186,48 @@ export function useSupportDocumentSend({
           rowDueDates[documentId] ?? undefined,
           rowObservations[documentId],
           savePreferences,
+          rowIva[documentId] ?? null,
+          rowItems?.[documentId] ?? null,
         ) as SiigoDocumentSendRequest
       }
 
       const attemptSend = async (
         documentId: string,
       ): Promise<SendAttemptResult> => {
+        const document = documentsById[documentId]
+        const notSendableReason =
+          document &&
+          buildNotSendableReason(
+            document,
+            documentId,
+            importStatuses[documentId],
+            rowAccounts,
+            rowPaymentMethods,
+            rowDueDates,
+            rowItems,
+            {
+              requiresAccount: workspace.requiresAccount,
+              requiresPaymentMethod: workspace.requiresPaymentMethod,
+            },
+          )
+
+        if (!document || notSendableReason) {
+          return {
+            documentId,
+            success: false,
+            attempted: false,
+            error: notSendableReason ?? 'Documento no encontrado.',
+          }
+        }
+
         const request = buildRequest(documentId)
 
         if (!request) {
           return {
             documentId,
             success: false,
+            attempted: false,
             error: 'Faltan datos para enviar el documento.',
-            isDuplicated: false,
           }
         }
 
@@ -190,20 +237,23 @@ export function useSupportDocumentSend({
           return {
             documentId,
             success: true,
-            isDuplicated: false,
+            attempted: true,
           }
         } catch (error) {
           return {
             documentId,
             success: false,
+            attempted: true,
             error: getApiErrorMessage(
               error,
               'No se pudo enviar el documento.',
             ),
-            isDuplicated: isSiigoDuplicatedDocumentError(error),
           }
         }
       }
+
+      const readyTargetSet = new Set(readyTargets)
+      const notReadyIds = targets.filter((id) => !readyTargetSet.has(id))
 
       let completed = 0
       let started = 0
@@ -217,8 +267,23 @@ export function useSupportDocumentSend({
         })
       }
 
+      // Los no listos (sin cuenta/medio de pago, proveedor pendiente, etc.)
+      // se resuelven de inmediato como fallidos CON razón — no ocupan un
+      // turno del stagger de envíos reales ni pasan por "En proceso" (nunca
+      // se intentó nada con ellos).
+      const notReadyResults: SendAttemptResult[] = []
+
+      for (const documentId of notReadyIds) {
+        const result = await attemptSend(documentId)
+        notReadyResults.push(result)
+        completed += 1
+        onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+      }
+
+      bumpProgress(`Enviando… ${completed} de ${targets.length} listos`)
+
       const initialResults = await Promise.all(
-        targets.map(async (documentId, index) => {
+        readyTargets.map(async (documentId, index) => {
           if (index > 0) {
             await wait(index * SEND_STAGGER_MS)
           }
@@ -232,11 +297,10 @@ export function useSupportDocumentSend({
           const result = await attemptSend(documentId)
           completed += 1
 
-          if (result.success) {
-            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.LISTA)
-          } else if (!result.isDuplicated) {
-            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
-          }
+          onDocumentStatusChange?.(
+            documentId,
+            result.success ? IMPORT_ROW_STATUS.LISTA : IMPORT_ROW_STATUS.ERROR,
+          )
 
           bumpProgress(
             completed === targets.length
@@ -249,35 +313,37 @@ export function useSupportDocumentSend({
       )
 
       const finalResults = new Map<string, SendAttemptResult>(
-        initialResults.map((result) => [result.documentId, result]),
+        [...notReadyResults, ...initialResults].map((result) => [
+          result.documentId,
+          result,
+        ]),
       )
 
-      let duplicatedDocumentIds = initialResults
-        .filter((result) => !result.success && result.isDuplicated)
+      // Los que quedaron en error esperan al final: se reintentan hasta
+      // MAX_RETRY_ROUNDS veces, con RETRY_PAUSE_MS entre cada envío. Solo se
+      // reintentan los que SÍ se llegaron a intentar (attempted=true) — los
+      // descartados antes de intentar (sin cuenta, etc.) no cambian solos
+      // con un reintento.
+      let pendingRetryIds = initialResults
+        .filter((result) => !result.success && result.attempted)
         .map((result) => result.documentId)
 
       for (
         let retryRound = 0;
-        retryRound < MAX_DUPLICATE_RETRY_ROUNDS &&
-        duplicatedDocumentIds.length > 0;
+        retryRound < MAX_RETRY_ROUNDS && pendingRetryIds.length > 0;
         retryRound += 1
       ) {
-        bumpProgress(
-          `Reintentando ${duplicatedDocumentIds.length} documento(s)…`,
-        )
-        await wait(DUPLICATE_RETRY_PAUSE_MS)
+        const nextRoundIds: string[] = []
 
-        const pendingAfterRound: string[] = []
+        for (let index = 0; index < pendingRetryIds.length; index += 1) {
+          await wait(RETRY_PAUSE_MS)
 
-        for (let index = 0; index < duplicatedDocumentIds.length; index += 1) {
-          if (index > 0) {
-            await wait(DUPLICATE_RETRY_PAUSE_MS)
-          }
-
-          const documentId = duplicatedDocumentIds[index]
+          const documentId = pendingRetryIds[index]
           onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
           bumpProgress(
-            `Reintento ${index + 1} de ${duplicatedDocumentIds.length}…`,
+            `Reintento ${retryRound + 1} de ${MAX_RETRY_ROUNDS} — documento ${
+              index + 1
+            } de ${pendingRetryIds.length}…`,
           )
 
           const result = await attemptSend(documentId)
@@ -288,19 +354,11 @@ export function useSupportDocumentSend({
             continue
           }
 
-          if (result.isDuplicated) {
-            pendingAfterRound.push(documentId)
-            continue
-          }
-
           onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+          nextRoundIds.push(documentId)
         }
 
-        duplicatedDocumentIds = pendingAfterRound
-      }
-
-      for (const documentId of duplicatedDocumentIds) {
-        onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+        pendingRetryIds = nextRoundIds
       }
 
       const results = targets.map(
@@ -308,8 +366,8 @@ export function useSupportDocumentSend({
           finalResults.get(documentId) ?? {
             documentId,
             success: false,
+            attempted: false,
             error: 'No se pudo enviar el documento a SIIGO.',
-            isDuplicated: false,
           },
       )
 

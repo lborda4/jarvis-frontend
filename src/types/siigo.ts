@@ -104,6 +104,42 @@ export interface SaveAccountMappingResponse {
   document?: Record<string, unknown>
 }
 
+export interface AccountMappingRuleItem {
+  descripcion: string
+  accountCode: string
+  accountName: string | null
+  /** Cuántas veces se aplicó esta regla — uso automático incluido, no solo
+   * confirmación manual. */
+  confirmationsCount: number
+  lastConfirmedAt: string | null
+}
+
+export interface AccountMappingRuleSupplier {
+  supplierDocument: string
+  supplierName: string | null
+  /** true si todas las descripciones del proveedor apuntan a la misma
+   * cuenta — mostrar una sola línea resumida en vez del detalle. */
+  isSingleAccount: boolean
+  singleAccount?: { code: string; name: string | null }
+  items: AccountMappingRuleItem[]
+}
+
+export interface ListAccountMappingRulesResponse {
+  suppliers: AccountMappingRuleSupplier[]
+}
+
+export interface UpdateAccountMappingRuleRequest {
+  supplierDocument: string
+  descripcion: string
+  accountCode: string
+  accountName?: string
+}
+
+export interface UpdateAccountMappingRuleResponse {
+  success: boolean
+  rule: AccountMappingRuleItem
+}
+
 export interface CreateSiigoPurchaseRequest extends DocumentIdRequest {}
 
 export interface CreateSiigoPurchaseSendProviderInvoice {

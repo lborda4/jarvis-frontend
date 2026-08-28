@@ -320,6 +320,54 @@
   cursor: not-allowed;
 }
 
+.admin-nextpyme-token {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 11rem;
+}
+
+.admin-nextpyme-token__value {
+  font-size: 0.85rem;
+  color: var(--jarvis-text-muted);
+  letter-spacing: 0.03em;
+}
+
+.admin-nextpyme-token button {
+  border: 1px solid var(--jarvis-gray-300);
+  background: #fff;
+  color: var(--jarvis-text);
+  border-radius: var(--r-sm);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.admin-nextpyme-token button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-nextpyme-token--editing {
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 13rem;
+}
+
+.admin-nextpyme-token--editing input {
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.admin-nextpyme-token__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
 @media (max-width: 900px) {
   .admin-form__grid {
     grid-template-columns: 1fr;

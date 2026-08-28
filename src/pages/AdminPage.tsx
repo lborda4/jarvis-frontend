@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Autocomplete from '../components/Autocomplete'
 import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -8,10 +9,14 @@ import SuccessMessage from '../components/SuccessMessage'
 import { useAuth } from '../context/AuthContext'
 import {
   createAdminCompany,
+  fetchAdminCities,
   fetchAdminCompanies,
   fetchAdminPlans,
+  lookupAdminCompanyName,
   parseAdminCompanyRut,
   regenerateCompanyInviteCode,
+  updateCompanyCity,
+  updateCompanyNextPymeToken,
   updateIntegrationSubscription,
 } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -20,6 +25,7 @@ import {
   ELECTRONIC_DOCUMENT_TYPE,
   INTEGRATION_PROVIDER,
   SUBSCRIPTION_STATUS,
+  type AdminCityOption,
   type AdminCompanyListItem,
   type AdminIntegrationItem,
   type AdminPlan,
@@ -99,6 +105,7 @@ function AdminPage() {
   const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([])
   const [plans, setPlans] = useState<AdminPlan[]>([])
+  const [cities, setCities] = useState<AdminCityOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isParsingRut, setIsParsingRut] = useState(false)
@@ -109,10 +116,25 @@ function AdminPage() {
     string | null
   >(null)
   const [copiedCompanyId, setCopiedCompanyId] = useState<string | null>(null)
+  const [editingTokenCompanyId, setEditingTokenCompanyId] = useState<
+    string | null
+  >(null)
+  const [tokenDraft, setTokenDraft] = useState('')
+  const [savingTokenCompanyId, setSavingTokenCompanyId] = useState<
+    string | null
+  >(null)
+  const [editingCityCompanyId, setEditingCityCompanyId] = useState<
+    string | null
+  >(null)
+  const [cityDraft, setCityDraft] = useState<AdminCityOption | null>(null)
+  const [savingCityCompanyId, setSavingCityCompanyId] = useState<
+    string | null
+  >(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nit, setNit] = useState('')
   const [name, setName] = useState('')
+  const [isLookingUpName, setIsLookingUpName] = useState(false)
   const [personType, setPersonType] = useState<CompanyPersonType | ''>('')
   const [responsibleName, setResponsibleName] = useState('')
   const [responsiblePhone, setResponsiblePhone] = useState('')
@@ -124,6 +146,14 @@ function AdminPage() {
     useState<JarvisCredentialsSeed | undefined>()
   const [idSoftware, setIdSoftware] = useState('')
   const [tokenNextPyme, setTokenNextPyme] = useState('')
+  const [selectedCity, setSelectedCity] = useState<AdminCityOption | null>(
+    null,
+  )
+  // Token NextPyme de la empresa (independiente de jarvisCredentials.tokenNextPyme
+  // de arriba) — el que usa la consulta de Factura de compra por CUFE, para
+  // cualquier proveedor (SIIGO o Jarvis). Antes solo se podía configurar
+  // después de crear la empresa, desde la columna de la tabla.
+  const [companyNextPymeToken, setCompanyNextPymeToken] = useState('')
   const [siigoPlanId, setSiigoPlanId] = useState('')
   const [jarvisPlanId, setJarvisPlanId] = useState('')
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
@@ -147,13 +177,16 @@ function AdminPage() {
     setErrorMessage(null)
 
     try {
-      const [companiesResponse, plansResponse] = await Promise.all([
-        fetchAdminCompanies(),
-        fetchAdminPlans(),
-      ])
+      const [companiesResponse, plansResponse, citiesResponse] =
+        await Promise.all([
+          fetchAdminCompanies(),
+          fetchAdminPlans(),
+          fetchAdminCities(),
+        ])
 
       setCompanies(companiesResponse.items)
       setPlans(plansResponse.items)
+      setCities(citiesResponse.items)
 
       const firstSiigoPlan = plansResponse.items.find(
         (plan) => plan.provider === INTEGRATION_PROVIDER.SIIGO,
@@ -199,6 +232,32 @@ function AdminPage() {
 
       return [...current, documentType]
     })
+  }
+
+  /** Al salir del campo NIT, busca la razón social en el RUT/RUES de la DIAN
+   * y precarga "Nombre" — solo si el admin todavía no escribió nada ahí a
+   * mano (no le pisa una edición manual) y no encontró nada, se queda en
+   * blanco para llenarlo como siempre. */
+  const handleNitBlur = async () => {
+    const trimmedNit = nit.trim()
+
+    if (!trimmedNit || name.trim()) {
+      return
+    }
+
+    setIsLookingUpName(true)
+
+    try {
+      const response = await lookupAdminCompanyName(trimmedNit)
+
+      if (response.name && !name.trim()) {
+        setName(response.name)
+      }
+    } catch {
+      // Silencioso: el admin puede llenar el nombre a mano igual que hoy.
+    } finally {
+      setIsLookingUpName(false)
+    }
   }
 
   const handleRutUpload = async (file?: File) => {
@@ -313,6 +372,12 @@ function AdminPage() {
         ...(hasJarvisCredentials
           ? { jarvisCredentials: mergedJarvisCredentials }
           : {}),
+        ...(selectedCity
+          ? { cityCode: selectedCity.code, cityName: selectedCity.name }
+          : {}),
+        ...(companyNextPymeToken.trim()
+          ? { nextPymeToken: companyNextPymeToken.trim() }
+          : {}),
       })
 
       setCompanies((current) => [response.company, ...current])
@@ -329,6 +394,8 @@ function AdminPage() {
       setJarvisCredentials(undefined)
       setIdSoftware('')
       setTokenNextPyme('')
+      setCompanyNextPymeToken('')
+      setSelectedCity(null)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
       setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
       setSiigoPlanId(siigoPlans[0]?.id ?? '')
@@ -474,6 +541,97 @@ function AdminPage() {
     }
   }
 
+  const handleStartEditToken = (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setEditingTokenCompanyId(company.id)
+    setTokenDraft(company.nextPymeToken ?? '')
+  }
+
+  const handleCancelEditToken = () => {
+    setEditingTokenCompanyId(null)
+    setTokenDraft('')
+  }
+
+  const handleSaveToken = async (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setSavingTokenCompanyId(company.id)
+
+    try {
+      const response = await updateCompanyNextPymeToken(company.id, {
+        nextPymeToken: tokenDraft.trim() || null,
+      })
+
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === company.id
+            ? { ...item, nextPymeToken: response.company.nextPymeToken }
+            : item,
+        ),
+      )
+      setSuccessMessage(`Token de NextPyme actualizado para ${company.name}.`)
+      setEditingTokenCompanyId(null)
+      setTokenDraft('')
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo actualizar el token de NextPyme.'),
+      )
+    } finally {
+      setSavingTokenCompanyId(null)
+    }
+  }
+
+  const handleStartEditCity = (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setEditingCityCompanyId(company.id)
+    setCityDraft(
+      company.cityCode
+        ? { code: company.cityCode, name: company.cityName ?? company.cityCode }
+        : null,
+    )
+  }
+
+  const handleCancelEditCity = () => {
+    setEditingCityCompanyId(null)
+    setCityDraft(null)
+  }
+
+  const handleSaveCity = async (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setSavingCityCompanyId(company.id)
+
+    try {
+      const response = await updateCompanyCity(company.id, {
+        cityCode: cityDraft?.code ?? null,
+        cityName: cityDraft?.name ?? null,
+      })
+
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === company.id
+            ? {
+                ...item,
+                cityCode: response.company.cityCode,
+                cityName: response.company.cityName,
+              }
+            : item,
+        ),
+      )
+      setSuccessMessage(`Ciudad actualizada para ${company.name}.`)
+      setEditingCityCompanyId(null)
+      setCityDraft(null)
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo actualizar la ciudad.'),
+      )
+    } finally {
+      setSavingCityCompanyId(null)
+    }
+  }
+
   const handleDocumentTypesChange = async (
     company: AdminCompanyListItem,
     integration: AdminIntegrationItem,
@@ -569,13 +727,14 @@ function AdminPage() {
                 inputMode="numeric"
                 value={nit}
                 onChange={(event) => setNit(event.target.value)}
+                onBlur={() => void handleNitBlur()}
                 required
                 disabled={isSubmitting}
               />
             </div>
 
             <div className="admin-form__field">
-              <label htmlFor="admin-company-name">Nombre</label>
+              <label htmlFor="admin-company-name">Nombre de la empresa</label>
               <input
                 id="admin-company-name"
                 type="text"
@@ -583,6 +742,9 @@ function AdminPage() {
                 onChange={(event) => setName(event.target.value)}
                 required
                 disabled={isSubmitting}
+                placeholder={
+                  isLookingUpName ? 'Buscando en el RUT/RUES...' : undefined
+                }
               />
             </div>
 
@@ -607,6 +769,38 @@ function AdminPage() {
                   Persona jurídica
                 </option>
               </select>
+            </div>
+
+            <div className="admin-form__field">
+              <label htmlFor="admin-company-city">Ciudad</label>
+              <Autocomplete<AdminCityOption>
+                id="admin-company-city"
+                value={selectedCity}
+                onChange={setSelectedCity}
+                options={cities}
+                disabled={isSubmitting}
+                placeholder="Buscar ciudad..."
+                emptyMessage="No se encontraron ciudades"
+                getOptionKey={(city) => city.code}
+                getOptionLabel={(city) => `${city.name} (${city.code})`}
+              />
+            </div>
+
+            <div className="admin-form__field">
+              <label htmlFor="admin-company-nextpyme-token">
+                Token NextPyme (opcional)
+              </label>
+              <input
+                id="admin-company-nextpyme-token"
+                type="password"
+                value={companyNextPymeToken}
+                onChange={(event) =>
+                  setCompanyNextPymeToken(event.target.value)
+                }
+                placeholder="Deja en blanco para usar el token global"
+                disabled={isSubmitting}
+                autoComplete="new-password"
+              />
             </div>
 
             {includesSiigo && (
@@ -864,6 +1058,8 @@ function AdminPage() {
                   <th>Suscripción</th>
                   <th>Creada</th>
                   <th>Código de invitación</th>
+                  <th>Token NextPyme</th>
+                  <th>Ciudad</th>
                 </tr>
               </thead>
               <tbody>
@@ -1097,6 +1293,102 @@ function AdminPage() {
                               : 'Regenerar'}
                           </button>
                         </div>
+                      </td>
+                      <td>
+                        {editingTokenCompanyId === company.id ? (
+                          <div className="admin-nextpyme-token admin-nextpyme-token--editing">
+                            <input
+                              type="text"
+                              value={tokenDraft}
+                              onChange={(event) =>
+                                setTokenDraft(event.target.value)
+                              }
+                              placeholder="Token Bearer de NextPyme"
+                              disabled={savingTokenCompanyId === company.id}
+                              autoFocus
+                            />
+                            <div className="admin-nextpyme-token__actions">
+                              <button
+                                type="button"
+                                disabled={savingTokenCompanyId === company.id}
+                                onClick={() => void handleSaveToken(company)}
+                              >
+                                {savingTokenCompanyId === company.id
+                                  ? 'Guardando...'
+                                  : 'Guardar'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={savingTokenCompanyId === company.id}
+                                onClick={handleCancelEditToken}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="admin-nextpyme-token">
+                            <span className="admin-nextpyme-token__value">
+                              {company.nextPymeToken
+                                ? `•••• ${company.nextPymeToken.slice(-4)}`
+                                : 'Usa el token global'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditToken(company)}
+                            >
+                              {company.nextPymeToken ? 'Editar' : 'Configurar'}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {editingCityCompanyId === company.id ? (
+                          <div className="admin-nextpyme-token admin-nextpyme-token--editing">
+                            <Autocomplete<AdminCityOption>
+                              value={cityDraft}
+                              onChange={setCityDraft}
+                              options={cities}
+                              disabled={savingCityCompanyId === company.id}
+                              placeholder="Buscar ciudad..."
+                              emptyMessage="No se encontraron ciudades"
+                              getOptionKey={(city) => city.code}
+                              getOptionLabel={(city) =>
+                                `${city.name} (${city.code})`
+                              }
+                            />
+                            <div className="admin-nextpyme-token__actions">
+                              <button
+                                type="button"
+                                disabled={savingCityCompanyId === company.id}
+                                onClick={() => void handleSaveCity(company)}
+                              >
+                                {savingCityCompanyId === company.id
+                                  ? 'Guardando...'
+                                  : 'Guardar'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={savingCityCompanyId === company.id}
+                                onClick={handleCancelEditCity}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="admin-nextpyme-token">
+                            <span className="admin-nextpyme-token__value">
+                              {company.cityName ?? 'Sin ciudad (usa Bogotá)'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditCity(company)}
+                            >
+                              {company.cityCode ? 'Editar' : 'Configurar'}
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )

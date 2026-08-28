@@ -21,6 +21,10 @@ interface SupportDocumentConfigPanelProps {
   retentionCatalogTypes: readonly string[]
   retentionOptionsByType: Record<string, SiigoTaxOption[]>
   selectedRetentionsByType: Record<string, SiigoTaxOption | null>
+  /** Solo aplica a Factura de compra SIIGO. */
+  showIvaField?: boolean
+  ivaOptions: SiigoTaxOption[]
+  selectedIva: SiigoTaxOption | null
   selectedAccount: SiigoAccountOption | null
   selectedPaymentMethod: SiigoPaymentMethodOption | null
   selectedCostCenter: SiigoCostCenterOption
@@ -28,12 +32,22 @@ interface SupportDocumentConfigPanelProps {
   selectedPlazoDays: number | null
   selectedDueDate: string
   showAccountField?: boolean
+  /** Cuando es true, solo muestra el encabezado y los botones Enviar/
+   * Eliminar, sin los campos de configuración — la configuración se hace
+   * por documento (Factura de compra ya tiene su propio editor por fila). */
+  actionsOnly?: boolean
   canSend: boolean
   canDelete: boolean
   /** true si al menos un documento seleccionado todavía no queda en LISTA
    * (incluye ERROR: un fallo puede necesitar reconfigurarse) y por lo tanto
    * se puede configurar. */
   hasConfigurableSelection: boolean
+  /** true si todos los documentos que se van a enviar quedaron en ERROR. */
+  isRetry?: boolean
+  /** true si hay exactamente un documento seleccionado (la IA sugiere por documento). */
+  canSuggestAi?: boolean
+  isSuggestingAi?: boolean
+  onSuggestAi?: () => void
   isSending: boolean
   isDeleting: boolean
   progressLabel?: string | null
@@ -42,6 +56,7 @@ interface SupportDocumentConfigPanelProps {
   onPaymentMethodChange: (paymentMethod: SiigoPaymentMethodOption | null) => void
   onCostCenterChange: (costCenter: SiigoCostCenterOption) => void
   onRetentionTypeChange: (taxType: string, tax: SiigoTaxOption | null) => void
+  onIvaChange: (tax: SiigoTaxOption | null) => void
   onPlazoChange: (days: number | null) => void
   onDueDateChange: (date: string) => void
   onSend: () => void
@@ -70,6 +85,9 @@ function SupportDocumentConfigPanel({
   retentionCatalogTypes,
   retentionOptionsByType,
   selectedRetentionsByType,
+  showIvaField = false,
+  ivaOptions,
+  selectedIva,
   selectedAccount,
   selectedPaymentMethod,
   selectedCostCenter,
@@ -77,9 +95,14 @@ function SupportDocumentConfigPanel({
   selectedPlazoDays,
   selectedDueDate,
   showAccountField = true,
+  actionsOnly = false,
   canSend,
   canDelete,
   hasConfigurableSelection,
+  isRetry = false,
+  canSuggestAi = false,
+  isSuggestingAi = false,
+  onSuggestAi,
   isSending,
   isDeleting,
   progressLabel = null,
@@ -88,6 +111,7 @@ function SupportDocumentConfigPanel({
   onPaymentMethodChange,
   onCostCenterChange,
   onRetentionTypeChange,
+  onIvaChange,
   onPlazoChange,
   onDueDateChange,
   onSend,
@@ -123,9 +147,11 @@ function SupportDocumentConfigPanel({
               ? `${deletableCount} listo(s) para eliminar`
               : sendableCount > 0
                 ? `${sendableCount} listo(s) para enviar`
-                : showAccountField
-                  ? 'Complete cuenta contable y medio de pago'
-                  : 'Revise medio de pago y retenciones (opcionales)'}
+                : actionsOnly
+                  ? 'Configura cuenta contable y medio de pago desde cada documento'
+                  : showAccountField
+                    ? 'Complete cuenta contable y medio de pago'
+                    : 'Revise medio de pago y retenciones (opcionales)'}
         </span>
         <span className="support-config-panel__chevron" aria-hidden="true">
           {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
@@ -134,19 +160,36 @@ function SupportDocumentConfigPanel({
 
       {isExpanded && (
         <div className="support-config-panel__body">
-          {!isDeleteMode && (
+          {!isDeleteMode && !actionsOnly && (
             <div className="support-config-panel__fields">
               {showAccountField && (
                 <div className="support-config-panel__field">
                   <label htmlFor="support-config-account">Cuenta contable</label>
-                  <AccountAutocomplete
-                    id="support-config-account"
-                    value={selectedAccount}
-                    onChange={onAccountChange}
-                    options={accountOptions}
-                    disabled={controlsDisabled}
-                    placeholder="Buscar cuenta (código o nombre)..."
-                  />
+                  <div className="support-config-panel__account-row">
+                    <AccountAutocomplete
+                      id="support-config-account"
+                      value={selectedAccount}
+                      onChange={onAccountChange}
+                      options={accountOptions}
+                      disabled={controlsDisabled}
+                      placeholder="Buscar cuenta (código o nombre)..."
+                    />
+                    {onSuggestAi && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={onSuggestAi}
+                        disabled={controlsDisabled || !canSuggestAi || isSuggestingAi}
+                        title={
+                          canSuggestAi
+                            ? 'Sugerir cuenta contable e IVA con IA para el documento seleccionado'
+                            : 'Selecciona exactamente un documento para pedir una sugerencia de IA'
+                        }
+                      >
+                        {isSuggestingAi ? 'Sugiriendo...' : 'Sugerir con IA'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -228,6 +271,20 @@ function SupportDocumentConfigPanel({
                 />
               </div>
 
+              {showIvaField && (
+                <div className="support-config-panel__field">
+                  <label htmlFor="support-config-iva">IVA (opcional)</label>
+                  <TaxAutocomplete
+                    id="support-config-iva"
+                    options={ivaOptions}
+                    value={selectedIva}
+                    onChange={onIvaChange}
+                    disabled={controlsDisabled}
+                    placeholder="Buscar IVA..."
+                  />
+                </div>
+              )}
+
               {retentionCatalogTypes.map((taxType) => (
                 <div key={taxType} className="support-config-panel__field">
                   <label htmlFor={`support-config-retention-${taxType}`}>
@@ -265,8 +322,10 @@ function SupportDocumentConfigPanel({
                 disabled={controlsDisabled || !canSend}
               >
                 {isSending
-                  ? progressLabel ?? 'Enviando...'
-                  : 'Enviar'}
+                  ? progressLabel ?? (isRetry ? 'Reintentando...' : 'Enviando...')
+                  : isRetry
+                    ? 'Reintentar'
+                    : 'Enviar'}
               </Button>
             )}
           </div>

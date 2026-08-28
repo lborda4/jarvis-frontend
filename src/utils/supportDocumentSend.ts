@@ -1,13 +1,40 @@
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
+import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
+import { isCreditPaymentMethod } from './siigoPaymentMethods'
 import { isSupplierCheckPending, isSupplierMissingInSiigo } from './supplierSiigoStatus'
+
+/** Un ítem tipo 'Account' con su propio código (`producto`) ya llenado trae
+ * la cuenta que necesita — en el editor de Factura de compra por ítem, la
+ * cuenta a nivel de documento (rowAccounts) es solo un FALLBACK para ítems
+ * que se dejan en blanco (ver buildSiigoPurchaseSendRequest en
+ * buildSiigoDocumentRequest.ts: `code: isAccountItem ? editedCode ||
+ * account.code : editedCode`). Si TODOS los ítems editados ya tienen su
+ * propio código, el documento está listo para enviar aunque
+ * rowAccounts[documentId] nunca se haya llenado — bug real reportado:
+ * cuenta asignada a mano en cada ítem ("gastos de representación"), pero
+ * "Enviar" seguía deshabilitado porque el chequeo solo miraba el estado a
+ * nivel de documento, no lo que el usuario ya había resuelto por ítem. */
+function itemsSatisfyAccountRequirement(
+  items: PurchaseInvoiceItemDraft[] | undefined,
+): boolean {
+  if (!items || items.length === 0) {
+    return false
+  }
+
+  return items.every((item) =>
+    item.tipo === 'Account' ? item.producto.trim().length > 0 : true,
+  )
+}
 
 export function isDocumentReadyToSend(
   documentId: string,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
+  rowDueDates: Record<string, string | null>,
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>,
   options?: {
     requiresAccount?: boolean
     requiresPaymentMethod?: boolean
@@ -15,16 +42,84 @@ export function isDocumentReadyToSend(
 ): boolean {
   const requiresAccount = options?.requiresAccount ?? true
   const requiresPaymentMethod = options?.requiresPaymentMethod ?? true
+  const paymentMethod = rowPaymentMethods[documentId]
 
-  if (requiresAccount && !rowAccounts[documentId]) {
+  if (
+    requiresAccount &&
+    !rowAccounts[documentId] &&
+    !itemsSatisfyAccountRequirement(rowItems?.[documentId])
+  ) {
     return false
   }
 
-  if (requiresPaymentMethod && !rowPaymentMethods[documentId]) {
+  if (requiresPaymentMethod && !paymentMethod) {
+    return false
+  }
+
+  // Crédito exige plazo o fecha de vencimiento antes de poder enviar.
+  if (isCreditPaymentMethod(paymentMethod) && !rowDueDates[documentId]?.trim()) {
     return false
   }
 
   return true
+}
+
+/** Explica por qué canSendDocument rechazaría este documento — misma lógica
+ * y mismo orden de chequeo, para que un envío masivo pueda decirle al
+ * usuario POR QUÉ se omitió un documento en vez de simplemente desaparecerlo
+ * del conteo (bug real: seleccionar 5 y ver "0 de 3" sin ninguna indicación
+ * de qué pasó con los otros 2). Devuelve null si el documento SÍ se puede
+ * enviar. */
+export function buildNotSendableReason(
+  document: ElectronicDocumentListItem,
+  documentId: string,
+  importStatus: ImportRowStatus | undefined,
+  rowAccounts: Record<string, SiigoAccountOption | null>,
+  rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
+  rowDueDates: Record<string, string | null>,
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>,
+  options?: {
+    requiresAccount?: boolean
+    requiresPaymentMethod?: boolean
+  },
+): string | null {
+  if (isSupplierMissingInSiigo(document)) {
+    return 'El proveedor no existe en SIIGO todavía.'
+  }
+
+  if (isSupplierCheckPending(document)) {
+    return 'Todavía se está validando el proveedor en SIIGO.'
+  }
+
+  if (importStatus === IMPORT_ROW_STATUS.LISTA) {
+    return 'El documento ya fue enviado.'
+  }
+
+  if (importStatus === IMPORT_ROW_STATUS.EN_PROCESO) {
+    return 'El documento ya se está enviando.'
+  }
+
+  const requiresAccount = options?.requiresAccount ?? true
+  const requiresPaymentMethod = options?.requiresPaymentMethod ?? true
+  const paymentMethod = rowPaymentMethods[documentId]
+
+  if (
+    requiresAccount &&
+    !rowAccounts[documentId] &&
+    !itemsSatisfyAccountRequirement(rowItems?.[documentId])
+  ) {
+    return 'Falta asignar la cuenta contable.'
+  }
+
+  if (requiresPaymentMethod && !paymentMethod) {
+    return 'Falta asignar el medio de pago.'
+  }
+
+  if (isCreditPaymentMethod(paymentMethod) && !rowDueDates[documentId]?.trim()) {
+    return 'El medio de pago es a crédito y falta la fecha de vencimiento.'
+  }
+
+  return null
 }
 
 export function canSendDocument(
@@ -33,6 +128,8 @@ export function canSendDocument(
   importStatus: ImportRowStatus | undefined,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
+  rowDueDates: Record<string, string | null>,
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>,
   options?: {
     requiresAccount?: boolean
     requiresPaymentMethod?: boolean
@@ -53,6 +150,8 @@ export function canSendDocument(
     documentId,
     rowAccounts,
     rowPaymentMethods,
+    rowDueDates,
+    rowItems,
     options,
   )
 }
@@ -63,6 +162,8 @@ export function countSendableDocuments(
   importStatuses: Record<string, ImportRowStatus>,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
+  rowDueDates: Record<string, string | null>,
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>,
   options?: {
     requiresAccount?: boolean
     requiresPaymentMethod?: boolean
@@ -81,6 +182,8 @@ export function countSendableDocuments(
         importStatuses[documentId],
         rowAccounts,
         rowPaymentMethods,
+        rowDueDates,
+        rowItems,
         options,
       )
     ) {

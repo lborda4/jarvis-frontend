@@ -46,6 +46,70 @@ export function daysBetweenLocalDates(fromDate: string, toDate: string): number 
   return Math.round((to.getTime() - from.getTime()) / 86_400_000)
 }
 
+function parseUtcDate(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day] = match
+
+  return Date.UTC(Number(year), Number(month) - 1, Number(day))
+}
+
+/** Días completos entre dos fechas YYYY-MM-DD, parseadas en UTC explícito
+ * (a diferencia de `daysBetweenLocalDates`, que parsea en horario local) —
+ * evita que el resultado se corra un día por el huso horario del navegador
+ * o un cambio de horario de verano entre las dos fechas. Null si alguna
+ * fecha es inválida. */
+function daysBetweenUtcDates(fromDate: string, toDate: string): number | null {
+  const from = parseUtcDate(fromDate)
+  const to = parseUtcDate(toDate)
+
+  if (from === null || to === null) {
+    return null
+  }
+
+  return Math.round((to - from) / 86_400_000)
+}
+
+/** Plazo (días de crédito) de una factura: un dato FIJO del documento, NUNCA
+ * se deriva de la fecha actual del sistema (Date.now()/new Date()) — el
+ * mismo documento debe mostrar siempre el mismo Plazo sin importar qué día
+ * se abra el formulario.
+ * 1. Si el emisor mandó `duration_measure > 0` en payment_form, es la
+ *    fuente más confiable — se usa directo.
+ * 2. Si no, se deriva de payment_due_date - issueDate (ambas fechas fijas
+ *    del documento, parseadas en UTC).
+ * 3. Si falta algún dato para calcularlo, null — nunca un número inventado. */
+export function resolvePlazoDays(
+  issueDate: string | null | undefined,
+  paymentDueDate: string | null | undefined,
+  durationMeasure: number | null | undefined,
+): number | null {
+  if (
+    typeof durationMeasure === 'number' &&
+    Number.isFinite(durationMeasure) &&
+    durationMeasure > 0
+  ) {
+    return Math.trunc(durationMeasure)
+  }
+
+  if (!issueDate || !paymentDueDate) {
+    return null
+  }
+
+  return daysBetweenUtcDates(issueDate, paymentDueDate)
+}
+
+/** Solo valida el formato, sin restringir el rango — para Factura de compra,
+ * donde la fecha es la de una factura de tercero ya emitida (puede ser de
+ * hace meses, no aplica la ventana de 5 días de Documento Soporte). */
+export function isValidLocalDateFormat(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
 export function isSupportDocumentDateInRange(
   value: string,
   minDate = getMinSelectableSupportDocumentDate(),
@@ -83,6 +147,31 @@ export function buildInitialRowDates(
       }
 
       return [document.id, today]
+    }),
+  )
+}
+
+/** Vencimiento importado (ej. de NextPyme/DIAN) — a diferencia de la fecha
+ * del documento, puede ser una fecha futura, así que no se valida contra el
+ * rango de fechas seleccionables, solo el formato. */
+export function buildInitialRowDueDates(
+  documents: Array<{ id: string; dueDate?: string | null }>,
+  current: Record<string, string | null> = {},
+): Record<string, string | null> {
+  return Object.fromEntries(
+    documents.map((document) => {
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
+      }
+
+      const importedDueDate = document.dueDate?.trim()
+
+      return [
+        document.id,
+        importedDueDate && /^\d{4}-\d{2}-\d{2}$/.test(importedDueDate)
+          ? importedDueDate
+          : null,
+      ]
     }),
   )
 }

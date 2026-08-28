@@ -8,6 +8,7 @@ export type SupportDocumentSortColumn =
   | 'account'
   | 'paymentMethod'
   | 'retentions'
+  | 'iva'
   | 'status'
 
 export type SupportDocumentSortDirection = 'asc' | 'desc'
