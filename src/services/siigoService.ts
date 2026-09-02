@@ -28,6 +28,7 @@ import type {
   SiigoDocumentTypeCatalogItem,
   SiigoAccountCatalogItem,
   SiigoCostCenterCatalogItem,
+  SiigoProductCatalogItem,
   SiigoPaymentMethodCatalogItem,
   SiigoTaxCatalogItem,
 } from '../types/siigo'
@@ -55,6 +56,7 @@ const SIIGO_ACCOUNTS_ENDPOINT = '/integrations/siigo/accounts'
 const SIIGO_PAYMENT_TYPES_ENDPOINT = '/integrations/siigo/payment-types'
 const SIIGO_TAXES_ENDPOINT = '/integrations/siigo/taxes'
 const SIIGO_COST_CENTERS_ENDPOINT = '/integrations/siigo/cost-centers'
+const SIIGO_PRODUCTS_ENDPOINT = '/integrations/siigo/products'
 const SIIGO_BALANCE_TRIAL_IMPORT_ENDPOINT =
   '/integrations/siigo/balance-trial/import'
 const SIIGO_CREDENTIALS_STATUS_ENDPOINT = '/integrations/siigo/credentials/status'
@@ -180,6 +182,14 @@ export async function fetchSiigoTaxes(
 export async function fetchSiigoCostCenters(): Promise<SiigoCostCenterCatalogItem[]> {
   const response = await apiClient.get<SiigoCostCenterCatalogItem[]>(
     SIIGO_COST_CENTERS_ENDPOINT,
+  )
+
+  return response.data
+}
+
+export async function fetchSiigoProducts(): Promise<SiigoProductCatalogItem[]> {
+  const response = await apiClient.get<SiigoProductCatalogItem[]>(
+    SIIGO_PRODUCTS_ENDPOINT,
   )
 
   return response.data

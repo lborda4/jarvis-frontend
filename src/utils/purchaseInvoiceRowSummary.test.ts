@@ -210,6 +210,8 @@ describe('calculatePurchaseInvoiceRowSummary — Total neto = payable_amount, nu
         itemType: 'Account',
         accountCode: '71201002',
         accountName: '71201002',
+        productCode: null,
+        productName: null,
         ivaTax: { id: 1, name: 'IVA Servicios 19%', percentage: 19 },
         retefuenteTax: { id: 9, name: 'Servicios 3.5%', percentage: 3.5 },
         paymentMethod: null,

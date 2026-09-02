@@ -157,7 +157,6 @@ export interface CreateSiigoPurchaseSendRequest {
   items: CreateSiigoSupportDocumentItem[]
   payments: CreateSiigoSupportDocumentPayment[]
   cost_center?: number
-  savePreferences?: boolean
   supplierPreferences?: {
     accountCode?: string
     accountDescription?: string
@@ -251,7 +250,6 @@ export interface CreateSiigoSupportDocumentRequest {
   items: CreateSiigoSupportDocumentItem[]
   payments: CreateSiigoSupportDocumentPayment[]
   cost_center?: number
-  savePreferences?: boolean
   supplierPreferences?: {
     accountCode?: string
     accountDescription?: string
@@ -394,6 +392,11 @@ export interface SaveSiigoDocumentTypesResponse {
 }
 
 export interface SiigoAccountCatalogItem {
+  code: string
+  name: string
+}
+
+export interface SiigoProductCatalogItem {
   code: string
   name: string
 }

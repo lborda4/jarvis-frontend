@@ -4,6 +4,7 @@ import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
 import SupportDocumentColumnHeader from './SupportDocumentColumnHeader'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
+import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import { IMPORT_ROW_STATUS } from '../../types/import'
 import type {
@@ -70,6 +71,9 @@ interface SupportDocumentTableProps {
   /** Catálogo de cuentas para el buscador de cuenta contable por ítem
    * (Factura de compra, cuando el tipo del ítem es "Cuenta"). */
   accountOptions?: SiigoAccountOption[]
+  /** Catálogo de productos SIIGO para el buscador de producto por ítem
+   * (Factura de compra, cuando el tipo del ítem es "Producto"). */
+  productOptions?: SiigoProductOption[]
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowIva: Record<string, SiigoTaxOption | null>
@@ -216,6 +220,7 @@ function SupportDocumentTable({
   rowDates,
   rowAccounts,
   accountOptions = [],
+  productOptions = [],
   rowPaymentMethods,
   rowRetentions,
   rowIva,
@@ -251,15 +256,6 @@ function SupportDocumentTable({
   documentsById,
 }: SupportDocumentTableProps) {
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set())
-  // Borrador en vivo del panel de detalle de Factura de compra (ítems,
-  // retenciones, etc.) para la fila expandida — se actualiza en cada cambio,
-  // no solo al guardar, así el Total de la fila colapsada (arriba) siempre
-  // coincide con el "Total neto" del panel mientras se edita. Se descarta al
-  // colapsar la fila por cualquier vía (Cancelar, Guardar o el chevron), ver
-  // toggleRowExpanded — editar sin guardar nunca deja un rastro.
-  const [liveRowEdits, setLiveRowEdits] = useState<
-    Record<string, PurchaseInvoiceDetailEditorSave>
-  >({})
   // Ancla para selección con Shift+click (como al seleccionar varios
   // archivos en el explorador): guarda el último checkbox clickeado para
   // poder seleccionar todo el rango entre ese y el siguiente clic.
@@ -331,18 +327,6 @@ function SupportDocumentTable({
 
       if (next.has(rowId)) {
         next.delete(rowId)
-        // Se colapsa la fila (Cancelar, Guardar o el chevron) — el borrador
-        // en vivo deja de aplicar. Si se guardó, rowItems/rowRetentions ya
-        // quedaron actualizados aparte; si no, el borrador simplemente se
-        // descarta.
-        setLiveRowEdits((currentEdits) => {
-          if (!(rowId in currentEdits)) {
-            return currentEdits
-          }
-
-          const { [rowId]: _removed, ...rest } = currentEdits
-          return rest
-        })
       } else {
         next.add(rowId)
       }
@@ -483,27 +467,24 @@ function SupportDocumentTable({
           ) : (
             rows.flatMap((row) => {
               const document = documentsById[row.id]
-              const liveEdits = liveRowEdits[row.id]
               // Misma expresión que se usa para armar el panel de detalle
-              // más abajo (nunca `rowItems[row.id]` solo, sin este mismo
-              // fallback) — así el resumen de la fila (listado) y el panel
+              // más abajo — así el resumen de la fila (listado) y el panel
               // de detalle de ese mismo documento SIEMPRE parten de los
               // mismos ítems y no pueden mostrar un Total distinto entre sí.
-              // Mientras la fila está expandida y editándose, el borrador en
-              // vivo (liveEdits) tiene prioridad, así el Total de arriba
-              // sigue el "Total neto" del panel sin esperar a "Guardar".
+              // `rowItems`/`rowRetentions`/etc. ya reflejan cada cambio en
+              // vivo (ver onChange más abajo, no hay un paso de "guardar"
+              // aparte), así que no hace falta un borrador paralelo acá.
               const effectivePurchaseInvoiceItems = document
-                ? (liveEdits?.items ??
-                  rowItems[row.id] ??
-                  buildPurchaseInvoiceItemDrafts(document))
+                ? (rowItems[row.id] ??
+                  buildPurchaseInvoiceItemDrafts(
+                    document,
+                    accountOptions,
+                    productOptions,
+                  ))
                 : undefined
-              const effectiveRetentions =
-                liveEdits?.retentions ?? rowRetentions[row.id] ?? []
+              const effectiveRetentions = rowRetentions[row.id] ?? []
               const effectiveDocumentDiscount =
-                liveEdits?.documentDiscount ??
-                rowDocumentDiscounts[row.id] ??
-                document?.documentDiscount ??
-                0
+                rowDocumentDiscounts[row.id] ?? document?.documentDiscount ?? 0
               const rowSummary =
                 showSummaryColumns && document
                   ? calculatePurchaseInvoiceRowSummary(
@@ -692,10 +673,15 @@ function SupportDocumentTable({
                             ? {
                                 items:
                                   effectivePurchaseInvoiceItems ??
-                                  buildPurchaseInvoiceItemDrafts(document),
+                                  buildPurchaseInvoiceItemDrafts(
+                                    document,
+                                    accountOptions,
+                                    productOptions,
+                                  ),
                                 paymentMethod: rowPaymentMethods[row.id] ?? null,
                                 paymentMethodOptions,
                                 accountOptions,
+                                productOptions,
                                 dueDate: rowDueDates[row.id] ?? null,
                                 issueDate: rowDates[row.id] ?? '',
                                 ivaOptions,
@@ -707,16 +693,16 @@ function SupportDocumentTable({
                                   document.documentDiscount ??
                                   0,
                                 disabled: isSending || isDeleting,
-                                onSave: (edits) => {
-                                  onSaveRowEdits?.(row.id, edits)
-                                  toggleRowExpanded(row.id)
-                                },
                                 onCancel: () => toggleRowExpanded(row.id),
+                                // No hay un paso de "guardar" aparte: cada
+                                // cambio actualiza directo rowItems/
+                                // rowPaymentMethods/etc. (el mismo estado que
+                                // ya usa "Enviar") — lo único que persiste de
+                                // verdad todo esto es el envío a SIIGO, así
+                                // que en cuanto los campos requeridos quedan
+                                // completos, "Enviar" se habilita solo.
                                 onChange: (edits) =>
-                                  setLiveRowEdits((current) => ({
-                                    ...current,
-                                    [row.id]: edits,
-                                  })),
+                                  onSaveRowEdits?.(row.id, edits),
                               }
                             : undefined
                         }

@@ -1,20 +1,41 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
+import { createPortal } from 'react-dom'
+import DateRangePicker, { type DateRangePickerValue } from '../DateRangePicker'
 import { ChevronDownIcon } from '../icons/SidebarIcons'
 import SupplierMultiSelect from '../SupplierMultiSelect'
 import ColumnCheckboxFilter, {
   buildSupportDocumentFilterOptions,
 } from './SupportDocumentTableFilters'
+import { formatSupportDocumentTableDate } from '../../utils/formatSupportDocumentTableDisplay'
 import type { ElectronicDocumentFilterOptions } from '../../types/electronicDocument'
 import type { ImportRowStatus } from '../../types/import'
 import type { SupplierOption } from '../../types/supplier'
 import type { SupportDocumentColumnFilters } from '../../types/supportDocumentTableFilters'
 import { EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS } from '../../types/supportDocumentTableFilters'
 
+const PANEL_GAP = 6
+
 interface SupportDocumentFilterBarProps {
   filterOptions: ElectronicDocumentFilterOptions | null
   columnFilters: SupportDocumentColumnFilters
   selectedSupplierNits: string[]
   disabled?: boolean
+  /** Factura de compra: el filtro de Fecha se ve como un calendario
+   * "desde"/"hasta" en vez de la lista de fechas exactas que usa Documento
+   * Soporte — con Documento Soporte el volumen de fechas distintas suele ser
+   * chico (varias facturas comparten fecha de cargue), pero en Factura de
+   * compra cada factura trae su propia fecha de emisión, así que un rango es
+   * mucho más usable que tildar fecha por fecha. */
+  dateRangeFilter?: boolean
   onSupplierNitsChange: (nits: string[]) => void
   onColumnFiltersChange: (
     updater: (current: SupportDocumentColumnFilters) => SupportDocumentColumnFilters,
@@ -29,6 +50,12 @@ function FilterDropdown({
   isActive,
   isOpen,
   disabled,
+  /** Cuando es true, el contenido se porta a document.body y se posiciona
+   * con position:fixed calculado desde el trigger, en vez de usar el
+   * popover angosto de ancho/alto fijo — para contenido que no entra ahí
+   * (el calendario de rango de Factura de compra, mucho más ancho/alto que
+   * la lista de checkboxes que usan los demás filtros). */
+  portal = false,
   onToggle,
   onClose,
   children,
@@ -38,12 +65,44 @@ function FilterDropdown({
   isActive: boolean
   isOpen: boolean
   disabled?: boolean
+  portal?: boolean
   onToggle: () => void
   onClose: () => void
   children: React.ReactNode
 }) {
   const popoverId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelStyle, setPanelStyle] = useState<CSSProperties>({})
+
+  const updatePanelPosition = useCallback(() => {
+    const trigger = containerRef.current
+    if (!trigger) return
+
+    const rect = trigger.getBoundingClientRect()
+    setPanelStyle({
+      position: 'fixed',
+      left: rect.left,
+      top: rect.bottom + PANEL_GAP,
+      zIndex: 1000,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen || !portal) {
+      return
+    }
+
+    updatePanelPosition()
+    const handle = () => updatePanelPosition()
+    window.addEventListener('resize', handle)
+    window.addEventListener('scroll', handle, true)
+
+    return () => {
+      window.removeEventListener('resize', handle)
+      window.removeEventListener('scroll', handle, true)
+    }
+  }, [isOpen, portal, updatePanelPosition])
 
   useEffect(() => {
     if (!isOpen) {
@@ -51,12 +110,21 @@ function FilterDropdown({
     }
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        onClose()
+      const target = event.target as Node
+
+      if (containerRef.current?.contains(target)) {
+        return
       }
+
+      // En modo portal el panel deja de ser descendiente de containerRef en
+      // el DOM (ver render más abajo) — sin este chequeo, cualquier clic
+      // adentro (elegir un día, cambiar de mes) se veía como "afuera" y
+      // cerraba el filtro antes de que el clic surtiera efecto.
+      if (panelRef.current?.contains(target)) {
+        return
+      }
+
+      onClose()
     }
 
     const handleEscape = (event: KeyboardEvent) => {
@@ -73,6 +141,23 @@ function FilterDropdown({
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isOpen, onClose])
+
+  const panel = isOpen && (
+    <div
+      ref={panelRef}
+      id={popoverId}
+      className={
+        portal
+          ? 'support-filter-bar__popover support-filter-bar__popover--portal'
+          : 'support-filter-bar__popover'
+      }
+      role="dialog"
+      aria-label={`Filtro de ${label}`}
+      style={portal ? panelStyle : undefined}
+    >
+      {children}
+    </div>
+  )
 
   return (
     <div
@@ -99,16 +184,7 @@ function FilterDropdown({
           <ChevronDownIcon />
         </span>
       </button>
-      {isOpen && (
-        <div
-          id={popoverId}
-          className="support-filter-bar__popover"
-          role="dialog"
-          aria-label={`Filtro de ${label}`}
-        >
-          {children}
-        </div>
-      )}
+      {panel && (portal ? createPortal(panel, document.body) : panel)}
     </div>
   )
 }
@@ -131,6 +207,7 @@ function SupportDocumentFilterBar({
   columnFilters,
   selectedSupplierNits,
   disabled = false,
+  dateRangeFilter = false,
   onSupplierNitsChange,
   onColumnFiltersChange,
 }: SupportDocumentFilterBarProps) {
@@ -147,11 +224,20 @@ function SupportDocumentFilterBar({
 
   const hasActiveFilters =
     columnFilters.dates.length > 0 ||
+    Boolean(columnFilters.dateFrom) ||
+    Boolean(columnFilters.dateTo) ||
     columnFilters.statuses.length > 0 ||
     selectedSupplierNits.length > 0
 
-  const dateSummary =
-    columnFilters.dates.length === 0
+  const dateSummary = dateRangeFilter
+    ? !columnFilters.dateFrom && !columnFilters.dateTo
+      ? 'Todas'
+      : columnFilters.dateFrom && columnFilters.dateTo
+        ? `${formatSupportDocumentTableDate(columnFilters.dateFrom)} – ${formatSupportDocumentTableDate(columnFilters.dateTo)}`
+        : columnFilters.dateFrom
+          ? `Desde ${formatSupportDocumentTableDate(columnFilters.dateFrom)}`
+          : `Hasta ${formatSupportDocumentTableDate(columnFilters.dateTo!)}`
+    : columnFilters.dates.length === 0
       ? 'Todas'
       : columnFilters.dates.length === 1
         ? columnFilterOptions.dates.find(
@@ -179,6 +265,15 @@ function SupportDocumentFilterBar({
     })
   }
 
+  const handleDateRangeApply = (range: DateRangePickerValue) => {
+    onColumnFiltersChange((current) => ({
+      ...current,
+      dateFrom: range.dateFrom,
+      dateTo: range.dateTo,
+    }))
+    setOpenFilter(null)
+  }
+
   const toggleStatus = (status: ImportRowStatus) => {
     onColumnFiltersChange((current) => {
       const nextStatuses = current.statuses.includes(status)
@@ -204,20 +299,33 @@ function SupportDocumentFilterBar({
         <FilterDropdown
           label="Fecha"
           summary={dateSummary}
-          isActive={columnFilters.dates.length > 0}
+          isActive={
+            columnFilters.dates.length > 0 ||
+            Boolean(columnFilters.dateFrom) ||
+            Boolean(columnFilters.dateTo)
+          }
           isOpen={openFilter === 'date'}
           disabled={disabled}
+          portal={dateRangeFilter}
           onToggle={() =>
             setOpenFilter((current) => (current === 'date' ? null : 'date'))
           }
           onClose={() => setOpenFilter(null)}
         >
-          <ColumnCheckboxFilter
-            options={columnFilterOptions.dates}
-            selectedValues={columnFilters.dates}
-            disabled={disabled}
-            onToggle={toggleDate}
-          />
+          {dateRangeFilter ? (
+            <DateRangePicker
+              dateFrom={columnFilters.dateFrom}
+              dateTo={columnFilters.dateTo}
+              onApply={handleDateRangeApply}
+            />
+          ) : (
+            <ColumnCheckboxFilter
+              options={columnFilterOptions.dates}
+              selectedValues={columnFilters.dates}
+              disabled={disabled}
+              onToggle={toggleDate}
+            />
+          )}
         </FilterDropdown>
 
         <div

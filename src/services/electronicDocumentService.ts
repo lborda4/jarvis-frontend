@@ -36,6 +36,8 @@ function documentsCacheKey(
     filters.search ?? '',
     (filters.supplierNits ?? []).join(','),
     (filters.issueDates ?? []).join(','),
+    filters.issueDateFrom ?? '',
+    filters.issueDateTo ?? '',
     (filters.siigoDocumentNumbers ?? []).join(','),
     (filters.importStatuses ?? []).join(','),
   ])
@@ -66,6 +68,8 @@ export async function fetchElectronicDocuments(
             filters.issueDates && filters.issueDates.length > 0
               ? filters.issueDates.join(',')
               : undefined,
+          issueDateFrom: filters.issueDateFrom || undefined,
+          issueDateTo: filters.issueDateTo || undefined,
           siigoDocumentNumbers:
             filters.siigoDocumentNumbers &&
             filters.siigoDocumentNumbers.length > 0

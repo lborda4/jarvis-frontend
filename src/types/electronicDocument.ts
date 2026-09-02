@@ -24,22 +24,19 @@ export const ELECTRONIC_DOCUMENT_STATUS = {
 export type ElectronicDocumentStatus =
   (typeof ELECTRONIC_DOCUMENT_STATUS)[keyof typeof ELECTRONIC_DOCUMENT_STATUS]
 
-export const ELECTRONIC_DOCUMENT_PROCESSING_STATUS = {
-  PENDING: 'PENDING',
-  PROCESSING: 'PROCESSING',
-  SUPPLIER_REQUIRED: 'SUPPLIER_REQUIRED',
-  ACCOUNT_REQUIRED: 'ACCOUNT_REQUIRED',
-  ACCOUNT_MAPPED: 'ACCOUNT_MAPPED',
-  FAILED: 'FAILED',
-} as const
-
-export type ElectronicDocumentProcessingStatus =
-  (typeof ELECTRONIC_DOCUMENT_PROCESSING_STATUS)[keyof typeof ELECTRONIC_DOCUMENT_PROCESSING_STATUS]
-
 export interface SuggestedAccount {
   code: string
   name: string
   uses: number
+}
+
+/** Sugerencia de producto (solo cuando la clasificación con IA determinó
+ * itemType='Product') — a diferencia de `SuggestedAccount`, no trae `uses`
+ * porque no hay un fallback de historial a nivel documento; el fallback por
+ * proveedor se resuelve por ítem vía `SuggestedPurchaseItemConfig.productCode`. */
+export interface SuggestedProduct {
+  code: string
+  name: string
 }
 
 export interface SuggestedPaymentMethod {
@@ -80,12 +77,33 @@ export interface SuggestedPurchaseItemConfig {
   itemType: 'Account' | 'Product' | null
   accountCode: string | null
   accountName: string | null
+  /** Código de producto dominante del historial de este proveedor — solo
+   * viene poblado cuando `itemType` es 'Product'. Se valida contra el
+   * catálogo real de productos igual que `accountCode` se valida contra el
+   * catálogo de cuentas (ver resolveValidatedProductCode). */
+  productCode: string | null
+  productName: string | null
   ivaTax: SuggestedItemTax | null
   retefuenteTax: SuggestedItemTax | null
   /** Medio de pago dominante del historial — si es de crédito (dueDate:
    * true), al autocompletarlo el editor muestra Plazo/Fecha de vencimiento
    * igual que si el usuario lo hubiera elegido a mano. */
   paymentMethod: SuggestedPaymentMethod | null
+}
+
+/** Cuenta PUC sugerida para ESTE ítem puntual, resuelta por proveedor +
+ * descripción normalizada (ver SupplierItemAccountMapping en el backend).
+ * `source: 'exact'` = regla confirmada para esta descripción — más
+ * confiable que el tipo/cuenta dominante de todo el proveedor
+ * (`suggestedItemConfig`), porque un proveedor puede facturar la mayoría de
+ * sus conceptos como Producto pero tener UN concepto puntual que siempre va
+ * a una cuenta de gasto específica. `source: 'fallback'` = el proveedor
+ * tiene una única cuenta en su historial pero esta descripción es nueva —
+ * sugerida, no confirmada. */
+export interface SuggestedItemAccount {
+  code: string
+  name: string
+  source: 'exact' | 'fallback'
 }
 
 export interface ElectronicDocumentListItemItem {
@@ -98,6 +116,7 @@ export interface ElectronicDocumentListItemItem {
   /** Descuento propio de la línea, si la factura original trae uno. */
   discount?: number
   suggestedTax?: SuggestedItemTax | null
+  suggestedAccount?: SuggestedItemAccount | null
 }
 
 export interface ElectronicDocumentListItem {
@@ -124,11 +143,11 @@ export interface ElectronicDocumentListItem {
   siigoDocumentNumber?: string | number | null
   supplierExistsInSiigo?: boolean | null
   suggestedAccount?: SuggestedAccount | null
+  suggestedProduct?: SuggestedProduct | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
   suggestedRetentions?: SuggestedRetention[]
   suggestedCostCenter?: SuggestedCostCenter | null
   suggestedItemConfig?: SuggestedPurchaseItemConfig | null
-  processingStatus?: ElectronicDocumentProcessingStatus
   observations?: string | null
   items?: ElectronicDocumentListItemItem[]
   createdAt: string
@@ -158,6 +177,8 @@ export interface ElectronicDocumentListFilters {
   limit?: number
   supplierNits?: string[]
   issueDates?: string[]
+  issueDateFrom?: string
+  issueDateTo?: string
   siigoDocumentNumbers?: string[]
   importStatuses?: string[]
 }

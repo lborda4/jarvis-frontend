@@ -13,10 +13,7 @@ const ACCOUNT_PENDING_STATUSES = new Set<string>([
 ])
 
 function isAccountPending(document: ElectronicDocumentListItem): boolean {
-  return (
-    ACCOUNT_PENDING_STATUSES.has(document.status) ||
-    document.processingStatus === 'ACCOUNT_REQUIRED'
-  )
+  return ACCOUNT_PENDING_STATUSES.has(document.status)
 }
 
 export function useBulkAccountApply(onCompleted: () => void) {

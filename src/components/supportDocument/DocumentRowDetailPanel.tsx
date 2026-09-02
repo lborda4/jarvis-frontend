@@ -1,5 +1,6 @@
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
+import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import { ELECTRONIC_DOCUMENT_TYPE } from '../../types/electronicDocument'
@@ -14,6 +15,7 @@ export interface DocumentRowDetailEditableProps {
   paymentMethod: SiigoPaymentMethodOption | null
   paymentMethodOptions: SiigoPaymentMethodOption[]
   accountOptions: SiigoAccountOption[]
+  productOptions: SiigoProductOption[]
   dueDate: string | null
   issueDate: string
   ivaOptions: SiigoTaxOption[]
@@ -22,7 +24,6 @@ export interface DocumentRowDetailEditableProps {
   retentionOptionsByType: Record<string, SiigoTaxOption[]>
   documentDiscount: number
   disabled?: boolean
-  onSave: (edits: PurchaseInvoiceDetailEditorSave) => void
   onCancel: () => void
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
 }
@@ -69,6 +70,7 @@ export default function DocumentRowDetailPanel({
           paymentMethod={editable.paymentMethod}
           paymentMethodOptions={editable.paymentMethodOptions}
           accountOptions={editable.accountOptions}
+          productOptions={editable.productOptions}
           dueDate={editable.dueDate}
           issueDate={editable.issueDate}
           observations={resolvedObservations}
@@ -78,7 +80,6 @@ export default function DocumentRowDetailPanel({
           retentionOptionsByType={editable.retentionOptionsByType}
           documentDiscount={editable.documentDiscount}
           disabled={editable.disabled}
-          onSave={editable.onSave}
           onCancel={editable.onCancel}
           onChange={editable.onChange}
         />

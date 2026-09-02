@@ -1,3 +1,5 @@
+import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
+import type { SiigoProductOption } from '../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import { roundMoney } from '../utils/siigoSupportDocumentTotal'
@@ -24,15 +26,48 @@ export interface PurchaseInvoiceItemDraft {
   retefuenteTax: SiigoTaxOption | null
 }
 
-/** Un código de 1-2 caracteres que trae la factura DIAN original casi
- * siempre es un placeholder genérico del vendedor (sin SKU/cuenta real,
- * común en recargas/retail chico) — no una cuenta contable ni un código de
- * producto real. Se descarta como fallback en vez de autocompletar un valor
- * sin sentido (bug real: código "1" autocompletaba "1 - 1" en el editor de
- * ítems). Ningún código PUC ni SKU real es tan corto, así que este umbral no
- * afecta códigos legítimos. */
-function looksLikeMeaningfulItemCode(code: string): boolean {
-  return code.length >= 3
+/** Devuelve el primer candidato que exista LITERALMENTE en el catálogo real
+ * de cuentas transaccionales — nunca un código que "parezca" válido. El
+ * código que trae la factura DIAN original (item.code) es SIEMPRE un
+ * identificador del VENDEDOR (su propio SKU o código de barras), no la
+ * cuenta contable del comprador, así que solo vale como fallback cuando
+ * COINCIDE con una cuenta real; de lo contrario no significa nada como
+ * cuenta (casos reales vistos: "1" de un placeholder genérico de DIAN,
+ * "7702004025784" un código de barras EAN-13 de D1) y se descarta, dejando
+ * paso al siguiente candidato (típicamente la sugerencia de IA). */
+function resolveValidatedAccountCode(
+  candidates: Array<string | null | undefined>,
+  accountOptions: SiigoAccountOption[],
+): string | null {
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim()
+
+    if (trimmed && accountOptions.some((account) => account.code === trimmed)) {
+      return trimmed
+    }
+  }
+
+  return null
+}
+
+/** Mismo criterio que resolveValidatedAccountCode, pero contra el catálogo
+ * de productos SIIGO — un código de producto que no existe LITERALMENTE en
+ * el catálogo (ej. el código de barras/SKU del vendedor, que no tiene nada
+ * que ver con el código de producto del comprador en SIIGO) se descarta en
+ * vez de mostrarse como si fuera válido. */
+function resolveValidatedProductCode(
+  candidates: Array<string | null | undefined>,
+  productOptions: SiigoProductOption[],
+): string | null {
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim()
+
+    if (trimmed && productOptions.some((product) => product.code === trimmed)) {
+      return trimmed
+    }
+  }
+
+  return null
 }
 
 let localIdSequence = 0
@@ -84,9 +119,12 @@ export function createEmptyPurchaseInvoiceItemDraft(): PurchaseInvoiceItemDraft 
  * mano cada vez, con el riesgo de que se le olvide al contador). */
 export function buildPurchaseInvoiceItemDrafts(
   document: ElectronicDocumentListItem,
+  accountOptions: SiigoAccountOption[] = [],
+  productOptions: SiigoProductOption[] = [],
 ): PurchaseInvoiceItemDraft[] {
   const items = document.items ?? []
   const supplierConfig = document.suggestedItemConfig ?? null
+  const effectiveTipo = supplierConfig?.itemType ?? 'Account'
   // Cuenta sugerida por IA (SiigoPurchaseAiClassificationService, ver
   // document.payload.aiSuggestion en el backend) — solo se calcula/guarda
   // justo cuando supplierConfig.accountCode NO es confiable (proveedor sin
@@ -95,6 +133,11 @@ export function buildPurchaseInvoiceItemDrafts(
   // factura importada, nunca pisa a ninguno de los dos, solo llena el hueco
   // que dejan cuando ninguno resolvió nada.
   const aiSuggestedAccountCode = document.suggestedAccount?.code?.trim() || null
+  // Mismo mecanismo que aiSuggestedAccountCode, pero para itemType='Product'
+  // — la IA solo sugiere producto cuando clasificó el ítem como Producto
+  // (ver ItemTypeAndAccountClassification en el backend), nunca ambos a la
+  // vez.
+  const aiSuggestedProductCode = document.suggestedProduct?.code?.trim() || null
 
   const ivaTaxFromSupplierConfig = supplierConfig?.ivaTax
     ? {
@@ -115,13 +158,26 @@ export function buildPurchaseInvoiceItemDrafts(
     : null
 
   if (items.length === 0) {
+    const producto =
+      effectiveTipo === 'Account'
+        ? (resolveValidatedAccountCode(
+            [supplierConfig?.accountCode, aiSuggestedAccountCode],
+            accountOptions,
+          ) ?? '')
+        : effectiveTipo === 'Product'
+          ? (resolveValidatedProductCode(
+              [supplierConfig?.productCode, aiSuggestedProductCode],
+              productOptions,
+            ) ?? '')
+          : (supplierConfig?.accountCode ?? aiSuggestedAccountCode ?? '')
+
     return [
       {
         ...createEmptyPurchaseInvoiceItemDraft(),
         description: 'Factura de compra importada',
         unitValue: document.total,
-        tipo: supplierConfig?.itemType ?? 'Account',
-        producto: supplierConfig?.accountCode ?? aiSuggestedAccountCode ?? '',
+        tipo: effectiveTipo,
+        producto,
         ivaTax: ivaTaxFromSupplierConfig,
         retefuenteTax: retefuenteTaxFromSupplierConfig,
       },
@@ -129,23 +185,49 @@ export function buildPurchaseInvoiceItemDrafts(
   }
 
   return items.map((item) => {
-    // El código de la factura importada (item.code) puede ser un placeholder
-    // genérico sin sentido de la factura DIAN original (ver
-    // looksLikeMeaningfulItemCode) — en ese caso se descarta como fallback en
-    // vez de autocompletar un valor sin sentido, dejando paso a la cuenta
-    // sugerida por IA si la hay.
     const rawItemCode = item.code?.trim() || null
-    const meaningfulItemCode =
-      rawItemCode && looksLikeMeaningfulItemCode(rawItemCode) ? rawItemCode : null
+    // Regla exacta de ESTE ítem puntual (proveedor + esta descripción,
+    // SupplierItemAccountMapping en el backend) — tiene prioridad sobre el
+    // tipo dominante de TODO el proveedor (effectiveTipo/supplierConfig):
+    // un proveedor puede facturar la mayoría de sus conceptos como
+    // Producto pero tener uno puntual que siempre se contabiliza a una
+    // cuenta de gasto específica (caso real: concepto "BAHHIA" con cuenta
+    // fija mientras el resto de la factura es Producto). Solo se aplica con
+    // source: 'exact' — 'fallback' es apenas una sugerencia de proveedor sin
+    // confirmar para esta descripción y no alcanza para cambiar el tipo.
+    const hasExactItemAccountRule = item.suggestedAccount?.source === 'exact'
+    const itemTipo: PurchaseInvoiceItemType = hasExactItemAccountRule
+      ? 'Account'
+      : effectiveTipo
+    // El código de la factura importada (item.code) es SIEMPRE del VENDEDOR
+    // (su SKU o código de barras), no un código del comprador — cuando el
+    // tipo es 'Account' o 'Product', solo se usa si coincide LITERALMENTE
+    // con el catálogo correspondiente (ver resolveValidatedAccountCode /
+    // resolveValidatedProductCode); si no, se descarta y cae a la
+    // sugerencia de IA. Solo 'FixedAsset' queda como código libre — SIIGO no
+    // expone un catálogo de activos fijos por esta vía.
+    const producto =
+      itemTipo === 'Account'
+        ? (resolveValidatedAccountCode(
+            [
+              item.suggestedAccount?.code,
+              supplierConfig?.accountCode,
+              rawItemCode,
+              aiSuggestedAccountCode,
+            ],
+            accountOptions,
+          ) ?? '')
+        : itemTipo === 'Product'
+          ? (resolveValidatedProductCode(
+              [supplierConfig?.productCode, rawItemCode, aiSuggestedProductCode],
+              productOptions,
+            ) ?? '')
+          : (supplierConfig?.accountCode ?? rawItemCode ?? '')
 
     return {
       localId: createLocalId(),
-      tipo: supplierConfig?.itemType ?? 'Account',
-      producto:
-        supplierConfig?.accountCode ??
-        meaningfulItemCode ??
-        aiSuggestedAccountCode ??
-        '',
+      tipo: itemTipo,
+      producto,
       description: item.description,
       quantity: item.quantity > 0 ? item.quantity : 1,
       unitValue: item.unitValue > 0 ? item.unitValue : item.total,
@@ -166,6 +248,27 @@ export function buildPurchaseInvoiceItemDrafts(
       retefuenteTax: retefuenteTaxFromSupplierConfig,
     }
   })
+}
+
+/** true si algún ítem de tipo 'Product' quedó sin código resuelto — ni la
+ * regla exacta del proveedor, ni el historial, ni la IA encontraron uno que
+ * exista en el catálogo real de productos (caso real: primera compra de un
+ * producto nuevo, ej. "cremallera azul", sin código SIIGO conocido todavía).
+ * A diferencia de un ítem 'Account' sin código (que puede caer al fallback
+ * de cuenta a nivel de documento, ver buildSiigoPurchaseSendRequest), un
+ * Producto sin código SIEMPRE requiere completarlo a mano — SIIGO exige un
+ * código de producto real por línea, no existe un "producto por defecto" a
+ * nivel de documento. */
+export function hasUnresolvedProductItem(
+  items: PurchaseInvoiceItemDraft[] | undefined,
+): boolean {
+  if (!items || items.length === 0) {
+    return false
+  }
+
+  return items.some(
+    (item) => item.tipo === 'Product' && item.producto.trim().length === 0,
+  )
 }
 
 export function purchaseInvoiceItemDraftBase(item: PurchaseInvoiceItemDraft): number {

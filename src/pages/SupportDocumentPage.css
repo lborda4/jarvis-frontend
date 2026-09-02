@@ -418,6 +418,22 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Filtro de rango de fechas (Factura de compra): el panel se porta a
+ * document.body y se posiciona con position:fixed inline (ver
+ * FilterDropdown en SupportDocumentFilterBar.tsx) — acá solo se anulan las
+ * restricciones de ancho/alto/relleno del popover angosto por defecto, que
+ * DateRangePicker.css ya resuelve por su cuenta (fondo oscuro propio,
+ * ancho fijo de dos meses). */
+.support-filter-bar__popover--portal {
+  width: auto;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: var(--shadow-lg, 0 20px 40px rgb(0 0 0 / 25%));
+}
+
 .support-filter-bar__field .supplier-multi-select {
   width: 100%;
 }
@@ -485,6 +501,39 @@
   background-color: #ffffff;
   overflow: visible;
   box-shadow: var(--shadow-xs);
+}
+
+.support-config-panel--compact {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+}
+
+.support-config-panel__clear-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--jarvis-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.support-config-panel__clear-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.support-config-panel__clear-link:disabled {
+  color: var(--jarvis-text-muted);
+  cursor: not-allowed;
+}
+
+.support-config-panel__compact-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
 }
 
 .support-config-panel__header {
@@ -1981,6 +2030,17 @@
 
   .support-config-panel__header {
     grid-template-columns: 1fr;
+  }
+
+  .support-config-panel--compact {
+    flex-wrap: wrap;
+  }
+
+  .support-config-panel__compact-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .support-config-panel__actions {

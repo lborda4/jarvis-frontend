@@ -61,6 +61,7 @@ import type {
 } from '../types/electronicDocument'
 import type { SupportDocumentImportNotice } from '../types/supportDocumentPage'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
+import { buildPurchaseInvoiceItemDrafts } from '../types/purchaseInvoiceItemDraft'
 import type { PurchaseInvoiceDetailEditorSave } from '../components/supportDocument/PurchaseInvoiceDetailEditor'
 import {
   EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS,
@@ -70,7 +71,10 @@ import {
 } from '../types/supportDocumentTableFilters'
 import { detectDocumentSourceType } from '../utils/fileType'
 import { mapElectronicDocumentToSupportRow } from '../utils/mapSupportDocumentRow'
-import { isSupportDocumentRowSelectable } from '../utils/mapImportRowStatus'
+import {
+  getSupportDocumentActionFromImportStatus,
+  isSupportDocumentRowSelectable,
+} from '../utils/mapImportRowStatus'
 import { IMPORT_ROW_STATUS } from '../types/import'
 import {
   buildInitialRowAccounts,
@@ -101,6 +105,7 @@ import {
   isDocumentDeletable,
   isDocumentDeletableFromSiigo,
   isDocumentRemovableFromDatabase,
+  needsPurchaseInvoiceReview,
 } from '../utils/supportDocumentSend'
 import {
   sortSupportDocumentRows,
@@ -316,8 +321,17 @@ function buildInitialPurchaseInvoiceRowAccounts(
  * que el usuario tenga que elegirlo a mano primero. Se evalúa de forma
  * independiente de la cuenta contable y demás campos (ver
  * buildInitialPurchaseInvoiceRowAccounts): el medio de pago puede ser
- * variable aunque la cuenta sea fija. Si el medio de pago en sí es
- * variable o el proveedor es nuevo, arranca vacío como antes. */
+ * variable aunque la cuenta sea fija.
+ *
+ * Si el proveedor es nuevo (sin historial propio), cae a
+ * `document.suggestedPaymentMethod` — que en el backend ya prueba, en
+ * orden: el medio de pago dominante de la CUENTA sugerida (sin importar el
+ * proveedor, ver findDominantPaymentMethodByCuenta) y luego el fallback
+ * genérico por contado/crédito — antes de dejarlo vacío. Bug real
+ * reportado: un proveedor nuevo (D1 SAS) sin historial propio, cuya cuenta
+ * sugerida ("Elementos de aseo y Cafetería") sí tiene medio de pago
+ * dominante en el histórico de OTROS proveedores, seguía mostrando el
+ * campo vacío porque este initializer nunca miraba ese campo. */
 function buildInitialPurchaseInvoiceRowPaymentMethods(
   documents: ElectronicDocumentListItem[],
   current: Record<string, SiigoPaymentMethodOption | null> = {},
@@ -328,7 +342,9 @@ function buildInitialPurchaseInvoiceRowPaymentMethods(
         return [document.id, current[document.id]]
       }
 
-      const paymentMethod = document.suggestedItemConfig?.paymentMethod
+      const paymentMethod =
+        document.suggestedItemConfig?.paymentMethod ??
+        document.suggestedPaymentMethod
 
       return [
         document.id,
@@ -471,6 +487,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     retentionOptionsByType,
     ivaOptions,
     costCenterOptions,
+    productOptions,
     accountsError,
     paymentMethodsError,
     costCentersError,
@@ -538,6 +555,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           selectedSupplierNits.length > 0 ? selectedSupplierNits : undefined,
         issueDates:
           columnFilters.dates.length > 0 ? columnFilters.dates : undefined,
+        issueDateFrom: columnFilters.dateFrom || undefined,
+        issueDateTo: columnFilters.dateTo || undefined,
         siigoDocumentNumbers:
           columnFilters.siigoNumbers.length > 0
             ? columnFilters.siigoNumbers
@@ -863,9 +882,65 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           return { ...row, action: 'none' as const }
         }
 
+        // Factura de compra SIIGO: si ni la regla exacta del proveedor, ni
+        // el historial, ni la IA lograron resolver una cuenta/producto para
+        // algún ítem (ni tampoco hay una cuenta de respaldo a nivel de
+        // documento), el estado pasa a "Requiere revisión" en vez de
+        // "Pendiente" — "Pendiente" sugiere que todo está listo y solo
+        // falta un clic, lo cual sería engañoso acá (caso real reportado:
+        // proveedor nuevo donde la IA no encontró nada para ningún ítem, y
+        // el documento seguía viéndose "Pendiente" como cualquier otro).
+        // Vuelve a Pendiente solo(a) al recalcularse sin nada pendiente por
+        // resolver (ver needsPurchaseInvoiceReview), típicamente después de
+        // que el usuario completa el dato a mano y guarda ("Guardar
+        // cambios" actualiza rowItems/rowAccounts, lo que dispara este
+        // mismo recálculo).
+        if (
+          config.key === 'purchaseInvoice' &&
+          config.provider === 'SIIGO' &&
+          row.importStatus === IMPORT_ROW_STATUS.PENDIENTE
+        ) {
+          const items =
+            rowItems[document.id] ??
+            buildPurchaseInvoiceItemDrafts(document, accountOptions, productOptions)
+
+          if (
+            needsPurchaseInvoiceReview(
+              document.id,
+              rowAccounts,
+              rowPaymentMethods,
+              { [document.id]: items },
+              {
+                requiresAccount: config.requiresAccount,
+                requiresPaymentMethod: config.requiresPaymentMethod,
+              },
+            )
+          ) {
+            const importStatus = IMPORT_ROW_STATUS.REQUIERE_REVISION
+
+            return {
+              ...row,
+              importStatus,
+              action: getSupportDocumentActionFromImportStatus(importStatus),
+            }
+          }
+        }
+
         return row
       }),
-    [filteredDocuments, importStatuses, config.provider],
+    [
+      filteredDocuments,
+      importStatuses,
+      config.provider,
+      config.key,
+      config.requiresAccount,
+      config.requiresPaymentMethod,
+      rowItems,
+      rowAccounts,
+      rowPaymentMethods,
+      accountOptions,
+      productOptions,
+    ],
   )
 
   const tableRows = useMemo(() => {
@@ -1964,6 +2039,23 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         {aiSuggestionError && <ErrorMessage message={aiSuggestionError} />}
       </div>
 
+      <SupportDocumentFilterBar
+        filterOptions={filterOptions}
+        columnFilters={columnFilters}
+        selectedSupplierNits={selectedSupplierNits}
+        dateRangeFilter={config.key === 'purchaseInvoice'}
+        disabled={
+          isInitialDocumentsLoad ||
+          isImporting ||
+          isResuming ||
+          isModalOpen ||
+          isSending ||
+          isDeleting
+        }
+        onSupplierNitsChange={handleSupplierNitsChange}
+        onColumnFiltersChange={handleColumnFiltersChange}
+      />
+
       <div
         ref={controlsAnchorRef}
         className="support-document-page__controls-anchor"
@@ -2019,24 +2111,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           onDueDateChange={handleConfigDueDateChange}
           onSend={handleSendSelected}
           onDelete={requestDeleteSelected}
+          onClearSelection={() => setSelectedDocumentIds(new Set())}
         />
       </div>
-
-      <SupportDocumentFilterBar
-        filterOptions={filterOptions}
-        columnFilters={columnFilters}
-        selectedSupplierNits={selectedSupplierNits}
-        disabled={
-          isInitialDocumentsLoad ||
-          isImporting ||
-          isResuming ||
-          isModalOpen ||
-          isSending ||
-          isDeleting
-        }
-        onSupplierNitsChange={handleSupplierNitsChange}
-        onColumnFiltersChange={handleColumnFiltersChange}
-      />
 
       <SupportDocumentTable
         rows={tableRows}
@@ -2054,6 +2131,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowObservations={rowObservations}
         rowItems={rowItems}
         paymentMethodOptions={paymentMethodOptions}
+        productOptions={productOptions}
         ivaOptions={ivaOptions}
         retentionCatalogTypes={config.retentionCatalogTypes}
         retentionOptionsByType={retentionOptionsByType}

@@ -349,6 +349,11 @@
   color: var(--jarvis-primary-hover);
 }
 
+.status-badge--requiere-revision {
+  background-color: var(--jarvis-primary-soft);
+  color: var(--jarvis-primary-hover);
+}
+
 .status-badge--lista {
   background-color: var(--jarvis-success-soft);
   color: var(--jarvis-success);

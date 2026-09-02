@@ -98,7 +98,6 @@ export interface DocumentWorkspaceConfig {
     selectedDate: string,
     dueDate?: string,
     observations?: string,
-    savePreferences?: boolean,
     ivaTax?: SiigoTaxOption | null,
     editedItems?: PurchaseInvoiceItemDraft[] | null,
   ) =>
@@ -220,7 +219,6 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
     selectedDate,
     dueDate,
     observations,
-    savePreferences,
   ) =>
     buildSiigoSupportDocumentRequest(
       document,
@@ -231,7 +229,6 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
       selectedDate,
       dueDate,
       observations,
-      savePreferences,
     ),
   sendDocument: (request) =>
     createSiigoSupportDocument(request as CreateSiigoSupportDocumentRequest),
@@ -341,7 +338,6 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
     selectedDate,
     dueDate,
     observations,
-    savePreferences,
     ivaTax,
     editedItems,
   ) =>
@@ -354,7 +350,6 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
       selectedDate,
       dueDate,
       observations,
-      savePreferences,
       ivaTax,
       editedItems,
     ),

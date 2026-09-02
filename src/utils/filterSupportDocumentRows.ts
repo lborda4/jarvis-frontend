@@ -44,6 +44,18 @@ export function rowMatchesColumnFilters(
     }
   }
 
+  if (filters.dateFrom || filters.dateTo) {
+    const rawDate = rowDates[row.id]
+
+    if (filters.dateFrom && (!rawDate || rawDate < filters.dateFrom)) {
+      return false
+    }
+
+    if (filters.dateTo && (!rawDate || rawDate > filters.dateTo)) {
+      return false
+    }
+  }
+
   if (filters.siigoNumbers.length > 0) {
     const siigoLabel = formatSupportDocumentTableSiigoNumber(
       row.siigoDocumentNumber,
@@ -148,7 +160,11 @@ export function isSupportDocumentColumnFilterActive(
 ): boolean {
   switch (column) {
     case 'date':
-      return columnFilterIsActive(filters, 'dates')
+      return (
+        columnFilterIsActive(filters, 'dates') ||
+        Boolean(filters.dateFrom) ||
+        Boolean(filters.dateTo)
+      )
     case 'supplier':
       return selectedSupplierNits.length > 0
     case 'siigoNumber':
@@ -166,7 +182,7 @@ export function clearSupportDocumentColumnFilter(
 ): SupportDocumentColumnFilters {
   switch (column) {
     case 'date':
-      return { ...filters, dates: [] }
+      return { ...filters, dates: [], dateFrom: null, dateTo: null }
     case 'siigoNumber':
       return { ...filters, siigoNumbers: [] }
     case 'status':

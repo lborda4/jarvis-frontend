@@ -41,7 +41,6 @@ interface SendDocumentsParams {
   rowDates: Record<string, string>
   rowDueDates: Record<string, string | null>
   rowObservations: Record<string, string>
-  savePreferences?: boolean
 }
 
 interface UseSupportDocumentSendOptions {
@@ -105,7 +104,6 @@ export function useSupportDocumentSend({
         rowDates,
         rowDueDates,
         rowObservations,
-        savePreferences = true,
       } = params
 
       // Se procesan TODOS los seleccionados (no se filtran en silencio antes
@@ -185,7 +183,6 @@ export function useSupportDocumentSend({
           rowDates[documentId],
           rowDueDates[documentId] ?? undefined,
           rowObservations[documentId],
-          savePreferences,
           rowIva[documentId] ?? null,
           rowItems?.[documentId] ?? null,
         ) as SiigoDocumentSendRequest

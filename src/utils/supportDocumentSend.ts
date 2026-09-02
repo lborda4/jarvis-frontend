@@ -2,6 +2,7 @@ import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
+import { hasUnresolvedProductItem } from '../types/purchaseInvoiceItemDraft'
 import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
 import { isCreditPaymentMethod } from './siigoPaymentMethods'
 import { isSupplierCheckPending, isSupplierMissingInSiigo } from './supplierSiigoStatus'
@@ -29,6 +30,53 @@ function itemsSatisfyAccountRequirement(
   )
 }
 
+/**
+ * true si el documento quedó sin resolución automática para al menos un
+ * ítem o para el medio de pago — ni la regla exacta del proveedor, ni el
+ * historial, ni la IA encontraron algo que exista en el catálogo real. Se
+ * usa para mostrar "Requiere revisión" en vez de "Pendiente" (que sugiere
+ * que todo ya está listo y solo falta hacer clic en Enviar).
+ *
+ * Tres casos:
+ * - Producto sin código: SIEMPRE requiere revisión (no existe un
+ *   "producto por defecto" a nivel de documento en SIIGO).
+ * - Cuenta sin código: solo requiere revisión si TAMPOCO hay una cuenta a
+ *   nivel de documento (rowAccounts) que sirva de respaldo — caso real
+ *   reportado: proveedor nuevo (D1 SAS) donde ni la IA ni el historial
+ *   encontraron cuenta para ningún ítem, y el documento seguía marcado
+ *   "Pendiente" como si solo faltara un clic.
+ * - Medio de pago sin resolver: no se puede enviar vacío — caso real
+ *   reportado: aunque la IA/historial ya resolvieron la cuenta, el medio de
+ *   pago seguía en blanco y el documento igual se veía "Pendiente".
+ */
+export function needsPurchaseInvoiceReview(
+  documentId: string,
+  rowAccounts: Record<string, SiigoAccountOption | null>,
+  rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
+  rowItems: Record<string, PurchaseInvoiceItemDraft[]> | undefined,
+  options: { requiresAccount: boolean; requiresPaymentMethod: boolean },
+): boolean {
+  const items = rowItems?.[documentId]
+
+  if (hasUnresolvedProductItem(items)) {
+    return true
+  }
+
+  if (
+    options.requiresAccount &&
+    !rowAccounts[documentId] &&
+    !itemsSatisfyAccountRequirement(items)
+  ) {
+    return true
+  }
+
+  if (options.requiresPaymentMethod && !rowPaymentMethods[documentId]) {
+    return true
+  }
+
+  return false
+}
+
 export function isDocumentReadyToSend(
   documentId: string,
   rowAccounts: Record<string, SiigoAccountOption | null>,
@@ -40,6 +88,13 @@ export function isDocumentReadyToSend(
     requiresPaymentMethod?: boolean
   },
 ): boolean {
+  // Un ítem Producto sin código bloquea el envío SIEMPRE, tenga o no
+  // asignada una cuenta contable a nivel de documento — a diferencia de un
+  // ítem Cuenta vacío, no existe un "producto por defecto" al que caer.
+  if (hasUnresolvedProductItem(rowItems?.[documentId])) {
+    return false
+  }
+
   const requiresAccount = options?.requiresAccount ?? true
   const requiresPaymentMethod = options?.requiresPaymentMethod ?? true
   const paymentMethod = rowPaymentMethods[documentId]
@@ -97,6 +152,10 @@ export function buildNotSendableReason(
 
   if (importStatus === IMPORT_ROW_STATUS.EN_PROCESO) {
     return 'El documento ya se está enviando.'
+  }
+
+  if (hasUnresolvedProductItem(rowItems?.[documentId])) {
+    return 'Hay un ítem de producto sin código asignado — requiere revisión.'
   }
 
   const requiresAccount = options?.requiresAccount ?? true

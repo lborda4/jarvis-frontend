@@ -6,6 +6,7 @@ import TaxAutocomplete from '../TaxAutocomplete'
 import PurchaseInvoiceItemsEditor from './PurchaseInvoiceItemsEditor'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
+import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import {
   formatRetentionTypeDisplayLabel,
@@ -62,6 +63,7 @@ interface PurchaseInvoiceDetailEditorProps {
   paymentMethod: SiigoPaymentMethodOption | null
   paymentMethodOptions: SiigoPaymentMethodOption[]
   accountOptions: SiigoAccountOption[]
+  productOptions: SiigoProductOption[]
   dueDate: string | null
   issueDate: string
   observations: string
@@ -73,13 +75,14 @@ interface PurchaseInvoiceDetailEditorProps {
    * certificado por la DIAN) mientras el contador no lo haya tocado. */
   documentDiscount: number
   disabled?: boolean
-  onSave: (edits: PurchaseInvoiceDetailEditorSave) => void
   onCancel: () => void
-  /** Se dispara con cada cambio en el borrador (ítems, retenciones, medio de
-   * pago, etc.) — no solo al guardar. Así el Total que se ve en la fila
-   * colapsada del listado (arriba) se mantiene siempre igual al "Total neto"
-   * de este panel mientras el usuario edita, en vez de quedarse con el
-   * último valor guardado hasta que hace clic en "Guardar cambios". */
+  /** Se dispara con CADA cambio en el borrador (ítems, retenciones, medio de
+   * pago, etc.) — no hay un paso de "guardar" aparte: lo único que persiste
+   * de verdad todo esto (historial de compras, preferencias del proveedor)
+   * es el envío a SIIGO, así que editar y quedar listo para enviar son la
+   * misma cosa. El Total que se ve en la fila colapsada del listado
+   * (arriba) se mantiene siempre igual al "Total neto" de este panel por la
+   * misma razón. */
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
 }
 
@@ -89,6 +92,7 @@ function PurchaseInvoiceDetailEditor({
   paymentMethod,
   paymentMethodOptions,
   accountOptions,
+  productOptions,
   dueDate,
   issueDate,
   observations,
@@ -98,17 +102,21 @@ function PurchaseInvoiceDetailEditor({
   retentionOptionsByType,
   documentDiscount,
   disabled = false,
-  onSave,
   onCancel,
   onChange,
 }: PurchaseInvoiceDetailEditorProps) {
   const sidebarRetentionTypes = retentionCatalogTypes.filter(
     (taxType) => taxType !== RETEFUENTE_TAX_TYPE,
   )
+  // Si la factura no trae su propio vencimiento (no vino en NextPyme/DIAN ni
+  // se eligió a mano antes), arranca en la fecha de la factura — Plazo en 0,
+  // "de contado" — en vez de vacío/oculto. El contador siempre ve una fecha
+  // de vencimiento y un Plazo concretos, y los edita a mano si es a crédito.
+  const initialDueDate = dueDate ?? (issueDate || null)
 
   const [draftItems, setDraftItems] = useState(items)
   const [draftPaymentMethod, setDraftPaymentMethod] = useState(paymentMethod)
-  const [draftDueDate, setDraftDueDate] = useState(dueDate)
+  const [draftDueDate, setDraftDueDate] = useState(initialDueDate)
   const [draftObservations, setDraftObservations] = useState(observations)
   const [draftRetentionsByType, setDraftRetentionsByType] = useState(() =>
     splitRetentionsByTypes(retentions, sidebarRetentionTypes),
@@ -117,17 +125,20 @@ function PurchaseInvoiceDetailEditor({
     useState(documentDiscount)
 
   const isCreditSelected = isCreditPaymentMethod(draftPaymentMethod)
-  // El medio de pago arranca en blanco (ya no se autosugiere), pero la
-  // factura puede traer plazo/fecha de vencimiento igual — no hay que
-  // esperar a que se elija un medio de pago de crédito para mostrarlos.
+  // El medio de pago arranca en blanco (ya no se autosugiere), pero con el
+  // fallback de initialDueDate de arriba draftDueDate casi siempre tiene
+  // valor — esta condición solo importa como respaldo en el caso borde de
+  // issueDate vacío.
   const showDueDateFields = isCreditSelected || Boolean(draftDueDate)
   // Plazo es un dato FIJO del documento (los días de crédito que otorgó el
   // vendedor al emitir la factura) — nunca se deriva de la fecha actual del
-  // sistema. Mientras el vencimiento no se haya tocado se confía primero en
-  // duration_measure (el dato explícito del emisor, más confiable); en
-  // cuanto el usuario edita el vencimiento (a mano o escribiendo el Plazo)
-  // se recalcula siempre desde issueDate/draftDueDate.
-  const dueDateWasEdited = draftDueDate !== dueDate
+  // sistema. Mientras el vencimiento no se haya tocado (comparado contra
+  // initialDueDate, no contra el prop `dueDate` crudo — si no, el fallback de
+  // arriba se contaría como "edición" desde el primer render) se confía
+  // primero en duration_measure (el dato explícito del emisor, más
+  // confiable); en cuanto el usuario edita el vencimiento (a mano o
+  // escribiendo el Plazo) se recalcula siempre desde issueDate/draftDueDate.
+  const dueDateWasEdited = draftDueDate !== initialDueDate
   const plazoDays = resolvePlazoDays(
     issueDate || null,
     draftDueDate,
@@ -186,17 +197,6 @@ function PurchaseInvoiceDetailEditor({
     draftDocumentDiscount,
   ])
 
-  const handleSave = () => {
-    onSave({
-      items: draftItems,
-      paymentMethod: draftPaymentMethod,
-      dueDate: draftDueDate,
-      observations: draftObservations,
-      retentions: draftRetentions,
-      documentDiscount: draftDocumentDiscount,
-    })
-  }
-
   return (
     <div className="purchase-invoice-editor">
       <PurchaseInvoiceItemsEditor
@@ -205,6 +205,7 @@ function PurchaseInvoiceDetailEditor({
         ivaOptions={ivaOptions}
         retefuenteOptions={retentionOptionsByType[RETEFUENTE_TAX_TYPE] ?? []}
         accountOptions={accountOptions}
+        productOptions={productOptions}
         documentTotal={document.total}
         disabled={disabled}
       />
@@ -356,9 +357,6 @@ function PurchaseInvoiceDetailEditor({
       <div className="purchase-invoice-editor__actions">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>
           Cancelar
-        </Button>
-        <Button type="button" variant="primary" onClick={handleSave} disabled={disabled}>
-          Guardar cambios
         </Button>
       </div>
     </div>

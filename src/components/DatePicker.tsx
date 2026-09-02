@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from './icons/SidebarIcons'
 import './DatePicker.css'
 
@@ -83,6 +84,13 @@ function DatePicker({
 }: DatePickerProps) {
   const dialogId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
+  // El panel se porta a document.body (ver render más abajo) para escapar
+  // de cualquier ancestro con overflow:hidden/auto que lo recorte o lo deje
+  // atrapado detrás de otro elemento (bug real: el calendario no aparecía
+  // al abrirse dentro del popover de filtros) — por eso necesita su propio
+  // ref para el chequeo de "click afuera", ya no basta con containerRef
+  // porque el panel deja de ser descendiente del contenedor en el DOM.
+  const panelRef = useRef<HTMLDivElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({})
   const selectedDate = useMemo(() => parseIsoDate(value), [value])
@@ -142,10 +150,11 @@ function DatePicker({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node
+      const insideTrigger = containerRef.current?.contains(target) ?? false
+      const insidePanel = panelRef.current?.contains(target) ?? false
+
+      if (!insideTrigger && !insidePanel) {
         setIsOpen(false)
       }
     }
@@ -198,70 +207,74 @@ function DatePicker({
         <CalendarIcon className="date-picker__icon" />
       </button>
 
-      {isOpen && !disabled && (
-        <div
-          id={dialogId}
-          role="dialog"
-          aria-label="Seleccionar fecha"
-          className="date-picker__panel"
-          style={panelStyle}
-        >
-          <div className="date-picker__header">
-            <button
-              type="button"
-              className="date-picker__nav"
-              onClick={goToPreviousMonth}
-              aria-label="Mes anterior"
-            >
-              <ChevronLeftIcon />
-            </button>
-            <span className="date-picker__month-label">
-              {MONTH_LABELS[viewMonth]} {viewYear}
-            </span>
-            <button
-              type="button"
-              className="date-picker__nav"
-              onClick={goToNextMonth}
-              aria-label="Mes siguiente"
-            >
-              <ChevronRightIcon />
-            </button>
-          </div>
+      {isOpen &&
+        !disabled &&
+        createPortal(
+          <div
+            id={dialogId}
+            ref={panelRef}
+            role="dialog"
+            aria-label="Seleccionar fecha"
+            className="date-picker__panel"
+            style={panelStyle}
+          >
+            <div className="date-picker__header">
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={goToPreviousMonth}
+                aria-label="Mes anterior"
+              >
+                <ChevronLeftIcon />
+              </button>
+              <span className="date-picker__month-label">
+                {MONTH_LABELS[viewMonth]} {viewYear}
+              </span>
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={goToNextMonth}
+                aria-label="Mes siguiente"
+              >
+                <ChevronRightIcon />
+              </button>
+            </div>
 
-          <div className="date-picker__weekdays">
-            {WEEKDAY_LABELS.map((label) => (
-              <span key={label}>{label}</span>
-            ))}
-          </div>
+            <div className="date-picker__weekdays">
+              {WEEKDAY_LABELS.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
 
-          <div className="date-picker__grid">
-            {grid.map((date) => {
-              const iso = formatIsoDate(date)
-              const isCurrentMonth = date.getMonth() === viewMonth
-              const isSelected = value === iso
-              const isDisabled = Boolean(minDateObj && date < minDateObj)
+            <div className="date-picker__grid">
+              {grid.map((date) => {
+                const iso = formatIsoDate(date)
+                const isCurrentMonth = date.getMonth() === viewMonth
+                const isSelected = value === iso
+                const isDisabled = Boolean(minDateObj && date < minDateObj)
 
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  className={[
-                    'date-picker__day',
-                    isCurrentMonth ? '' : 'date-picker__day--outside',
-                    isSelected ? 'date-picker__day--selected' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => selectDate(date)}
-                  disabled={isDisabled}
-                >
-                  {date.getDate()}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    className={[
+                      'date-picker__day',
+                      isCurrentMonth ? '' : 'date-picker__day--outside',
+                      isSelected ? 'date-picker__day--selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => selectDate(date)}
+                    disabled={isDisabled}
+                  >
+                    {date.getDate()}
+                  </button>
+                )
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

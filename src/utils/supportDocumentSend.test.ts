@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildNotSendableReason, canSendDocument } from './supportDocumentSend'
+import {
+  buildNotSendableReason,
+  canSendDocument,
+  needsPurchaseInvoiceReview,
+} from './supportDocumentSend'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import { createEmptyPurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
@@ -181,6 +185,44 @@ describe('buildNotSendableReason', () => {
     expect(reason).toBeNull()
   })
 
+  it('un ítem tipo Product SIN código bloquea el envío aunque haya cuenta a nivel de documento (caso real: producto nuevo sin código SIIGO conocido, ej. "cremallera azul")', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Product', producto: '' }),
+    ]
+
+    const reason = buildNotSendableReason(
+      buildDocument(),
+      'doc-1',
+      IMPORT_ROW_STATUS.PENDIENTE,
+      { 'doc-1': ACCOUNT },
+      { 'doc-1': PAYMENT_METHOD },
+      { 'doc-1': null },
+      { 'doc-1': items },
+    )
+
+    expect(reason).toBe(
+      'Hay un ítem de producto sin código asignado — requiere revisión.',
+    )
+  })
+
+  it('se puede enviar de nuevo una vez que el usuario completa el código de producto que faltaba', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Product', producto: 'PROD-NUEVO' }),
+    ]
+
+    const reason = buildNotSendableReason(
+      buildDocument(),
+      'doc-1',
+      IMPORT_ROW_STATUS.PENDIENTE,
+      { 'doc-1': ACCOUNT },
+      { 'doc-1': PAYMENT_METHOD },
+      { 'doc-1': null },
+      { 'doc-1': items },
+    )
+
+    expect(reason).toBeNull()
+  })
+
   it('canSendDocument sigue siendo equivalente a "buildNotSendableReason === null"', () => {
     const document = buildDocument()
     const args = [
@@ -194,5 +236,122 @@ describe('buildNotSendableReason', () => {
 
     expect(canSendDocument(...args)).toBe(false)
     expect(buildNotSendableReason(...args)).not.toBeNull()
+  })
+})
+
+describe('needsPurchaseInvoiceReview', () => {
+  const REQUIRES_BOTH = { requiresAccount: true, requiresPaymentMethod: true }
+
+  it('caso real D1 SAS: ítems tipo Cuenta sin resolver Y sin cuenta de respaldo a nivel de documento — requiere revisión, no es solo "Pendiente"', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '' }),
+      buildItem({ tipo: 'Account', producto: '' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': null },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+      ),
+    ).toBe(true)
+  })
+
+  it('no requiere revisión si hay una cuenta de respaldo a nivel de documento (la IA/historial sí encontraron algo)', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+      ),
+    ).toBe(false)
+  })
+
+  it('no requiere revisión si cada ítem Cuenta ya trae su propio código, aunque no haya cuenta de respaldo', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '5115' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': null },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+      ),
+    ).toBe(false)
+  })
+
+  it('un ítem Producto sin código SIEMPRE requiere revisión, aunque haya cuenta de respaldo a nivel de documento', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Product', producto: '' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+      ),
+    ).toBe(true)
+  })
+
+  it('false cuando el workspace no requiere cuenta ni medio de pago (ej. Jarvis)', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': null },
+        { 'doc-1': null },
+        { 'doc-1': items },
+        { requiresAccount: false, requiresPaymentMethod: false },
+      ),
+    ).toBe(false)
+  })
+
+  it('caso real reportado: cuenta ya resuelta (por IA) pero medio de pago sin resolver — igual requiere revisión, no se puede enviar vacío', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '51952503' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': null },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+      ),
+    ).toBe(true)
+  })
+
+  it('no requiere revisión por medio de pago si el workspace no lo exige', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '51952503' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': null },
+        { 'doc-1': items },
+        { requiresAccount: true, requiresPaymentMethod: false },
+      ),
+    ).toBe(false)
   })
 })

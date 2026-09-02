@@ -55,7 +55,6 @@ export function buildSiigoSupportDocumentRequest(
   selectedDate: string,
   dueDate?: string,
   observations?: string,
-  savePreferences = true,
 ): CreateSiigoSupportDocumentRequest {
   const supplierIdentification = normalizeSupplierIdentification(
     document.supplierNit?.trim() || '',
@@ -142,39 +141,34 @@ export function buildSiigoSupportDocumentRequest(
         due_date: resolvedDueDate,
       },
     ],
-    ...(savePreferences
-      ? {
-          savePreferences: true,
-          supplierPreferences: {
-            accountCode: account.code,
-            accountDescription: account.description,
-            paymentMethod: {
-              id: paymentMethod.id,
-              name: paymentMethod.name,
-              type: paymentMethod.type ?? '',
-              dueDate: paymentMethod.dueDate,
+    supplierPreferences: {
+      accountCode: account.code,
+      accountDescription: account.description,
+      paymentMethod: {
+        id: paymentMethod.id,
+        name: paymentMethod.name,
+        type: paymentMethod.type ?? '',
+        dueDate: paymentMethod.dueDate,
+      },
+      ...(costCenter && !isNoneCostCenterOption(costCenter)
+        ? {
+            costCenter: {
+              id: costCenter.id,
+              code: costCenter.code,
+              name: costCenter.name,
             },
-            ...(costCenter && !isNoneCostCenterOption(costCenter)
-              ? {
-                  costCenter: {
-                    id: costCenter.id,
-                    code: costCenter.code,
-                    name: costCenter.name,
-                  },
-                }
-              : {}),
-            retentions: documentRetentions.map((retention) => {
-              const source = retentions.find((tax) => tax.id === retention.id)
+          }
+        : {}),
+      retentions: documentRetentions.map((retention) => {
+        const source = retentions.find((tax) => tax.id === retention.id)
 
-              return {
-                id: retention.id,
-                name: source?.name ?? `Retención ${retention.id}`,
-                type: retention.type ?? source?.type ?? '',
-                percentage: source?.percentage ?? 0,
-              }
-            }),
-          },
+        return {
+          id: retention.id,
+          name: source?.name ?? `Retención ${retention.id}`,
+          type: retention.type ?? source?.type ?? '',
+          percentage: source?.percentage ?? 0,
         }
-      : {}),
+      }),
+    },
   }
 }

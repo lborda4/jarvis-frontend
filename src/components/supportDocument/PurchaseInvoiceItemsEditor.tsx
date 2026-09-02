@@ -1,7 +1,9 @@
 import AccountAutocomplete from '../AccountAutocomplete'
 import Button from '../Button'
+import ProductAutocomplete from '../ProductAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
+import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import type {
   PurchaseInvoiceItemDraft,
@@ -46,6 +48,11 @@ interface PurchaseInvoiceItemsEditorProps {
   /** Catálogo de cuentas contables — se usa para buscar código y nombre en
    * la columna "Producto" cuando el ítem es de tipo "Cuenta". */
   accountOptions: SiigoAccountOption[]
+  /** Catálogo de productos SIIGO (GET /v1/products) — se usa para buscar
+   * código y nombre en la columna "Producto" cuando el ítem es de tipo
+   * "Producto". Activo fijo sigue siendo texto libre (SIIGO no expone un
+   * catálogo de activos fijos por esta vía). */
+  productOptions: SiigoProductOption[]
   /** payload.totals.total del documento (payable_amount certificado por la
    * DIAN) — la columna "Valor total" reparte este monto entre las líneas en
    * vez de sumar cantidad × valor unitario + IVA por línea. */
@@ -59,6 +66,7 @@ function PurchaseInvoiceItemsEditor({
   ivaOptions,
   retefuenteOptions,
   accountOptions,
+  productOptions,
   documentTotal,
   disabled = false,
 }: PurchaseInvoiceItemsEditorProps) {
@@ -149,6 +157,23 @@ function PurchaseInvoiceItemsEditor({
                         options={accountOptions}
                         disabled={disabled}
                         placeholder="Buscar cuenta contable..."
+                      />
+                    ) : item.tipo === 'Product' ? (
+                      <ProductAutocomplete
+                        value={
+                          productOptions.find(
+                            (product) => product.code === item.producto,
+                          ) ??
+                          (item.producto
+                            ? { code: item.producto, description: item.producto }
+                            : null)
+                        }
+                        onChange={(product) =>
+                          updateItem(item.localId, { producto: product?.code ?? '' })
+                        }
+                        options={productOptions}
+                        disabled={disabled}
+                        placeholder="Buscar producto..."
                       />
                     ) : (
                       <input

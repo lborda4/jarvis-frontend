@@ -3,9 +3,15 @@ import {
   buildPurchaseInvoiceItemDrafts,
   calculatePurchaseInvoiceItemLineTotals,
   createEmptyPurchaseInvoiceItemDraft,
+  hasUnresolvedProductItem,
   type PurchaseInvoiceItemDraft,
 } from './purchaseInvoiceItemDraft'
 import type { ElectronicDocumentListItem } from './electronicDocument'
+import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
+
+function accountCatalogWith(...codes: string[]): SiigoAccountOption[] {
+  return codes.map((code) => ({ code, description: `Cuenta ${code}` }))
+}
 
 function buildDraft(
   overrides: Partial<PurchaseInvoiceItemDraft> = {},
@@ -119,13 +125,18 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
         itemType: 'Account',
         accountCode: '5135950001',
         accountName: '5135950001',
+        productCode: null,
+        productName: null,
         ivaTax: { id: 1, name: 'IVA 19%', percentage: 19 },
         retefuenteTax: { id: 4, name: 'Servicios 4%', percentage: 4 },
         paymentMethod: null,
       },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('5135950001', 'CODIGO-FACTURA'),
+    )
 
     expect(draft.tipo).toBe('Account')
     // La cuenta aprendida del historial del proveedor manda sobre el código
@@ -166,6 +177,8 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
         itemType: 'Account',
         accountCode: '5135950001',
         accountName: '5135950001',
+        productCode: null,
+        productName: null,
         ivaTax: { id: 1, name: 'IVA 19%', percentage: 19 },
         retefuenteTax: { id: 4, name: 'Servicios 4%', percentage: 4 },
         paymentMethod: null,
@@ -182,25 +195,158 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     })
   })
 
-  it('proveedor repetido con itemType=Product: precarga el código de producto aprendido', () => {
+  it('proveedor repetido con itemType=Product: precarga el código de producto aprendido cuando existe en el catálogo', () => {
     const document = buildDocument({
       items: [
         { description: 'Producto X', quantity: 2, unitValue: 5000, total: 10000 },
       ],
       suggestedItemConfig: {
         itemType: 'Product',
-        accountCode: 'PROD-001',
-        accountName: 'PROD-001',
+        accountCode: null,
+        accountName: null,
+        productCode: 'PROD-001',
+        productName: 'Producto de prueba',
         ivaTax: null,
         retefuenteTax: null,
         paymentMethod: null,
       },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [], [
+      { code: 'PROD-001', description: 'Producto de prueba' },
+    ])
 
     expect(draft.tipo).toBe('Product')
     expect(draft.producto).toBe('PROD-001')
+  })
+
+  it('proveedor repetido con itemType=Product: descarta el código aprendido si ya no existe en el catálogo real de productos', () => {
+    const document = buildDocument({
+      items: [
+        { description: 'Producto X', quantity: 2, unitValue: 5000, total: 10000 },
+      ],
+      suggestedItemConfig: {
+        itemType: 'Product',
+        accountCode: null,
+        accountName: null,
+        productCode: 'PROD-001',
+        productName: 'Producto de prueba',
+        ivaTax: null,
+        retefuenteTax: null,
+        paymentMethod: null,
+      },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [], [])
+
+    expect(draft.tipo).toBe('Product')
+    expect(draft.producto).toBe('')
+  })
+
+  it('caso real LAFAYETTE: proveedor dominante Producto, pero un ítem puntual ("BAHHIA") tiene regla exacta de cuenta — ese ítem se trata como Cuenta, no Producto', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'BAHHIA',
+          quantity: 1,
+          unitValue: 29900,
+          total: 29900,
+          suggestedAccount: {
+            code: '61350503',
+            name: 'Muestras gratis',
+            source: 'exact',
+          },
+        },
+      ],
+      suggestedItemConfig: {
+        itemType: 'Product',
+        accountCode: null,
+        accountName: null,
+        productCode: null,
+        productName: null,
+        ivaTax: null,
+        retefuenteTax: null,
+        paymentMethod: null,
+      },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('61350503'),
+    )
+
+    expect(draft.tipo).toBe('Account')
+    expect(draft.producto).toBe('61350503')
+  })
+
+  it('la regla exacta por ítem no aplica si la cuenta ya no existe en el catálogo real (se descarta, no fuerza tipo Cuenta con código inválido)', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'BAHHIA',
+          quantity: 1,
+          unitValue: 29900,
+          total: 29900,
+          suggestedAccount: {
+            code: '61350503',
+            name: 'Muestras gratis',
+            source: 'exact',
+          },
+        },
+      ],
+      suggestedItemConfig: {
+        itemType: 'Product',
+        accountCode: null,
+        accountName: null,
+        productCode: null,
+        productName: null,
+        ivaTax: null,
+        retefuenteTax: null,
+        paymentMethod: null,
+      },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [])
+
+    expect(draft.tipo).toBe('Account')
+    expect(draft.producto).toBe('')
+  })
+
+  it('una regla "fallback" (no confirmada) por ítem NO cambia el tipo dominante del proveedor', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'Concepto nuevo',
+          quantity: 1,
+          unitValue: 10000,
+          total: 10000,
+          suggestedAccount: {
+            code: '61350503',
+            name: 'Muestras gratis',
+            source: 'fallback',
+          },
+        },
+      ],
+      suggestedItemConfig: {
+        itemType: 'Product',
+        accountCode: null,
+        accountName: null,
+        productCode: 'PROD-002',
+        productName: 'Producto de prueba 2',
+        ivaTax: null,
+        retefuenteTax: null,
+        paymentMethod: null,
+      },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('61350503'),
+      [{ code: 'PROD-002', description: 'Producto de prueba 2' }],
+    )
+
+    expect(draft.tipo).toBe('Product')
+    expect(draft.producto).toBe('PROD-002')
   })
 
   it('proveedor nuevo o con variabilidad (sin suggestedItemConfig): no autocompleta, se comporta como hoy', () => {
@@ -218,10 +364,14 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       suggestedItemConfig: null,
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('CODIGO-FACTURA'),
+    )
 
     expect(draft.tipo).toBe('Account')
-    // Sin config del proveedor, producto cae al código de la factura importada.
+    // Sin config del proveedor, producto cae al código de la factura importada
+    // (siempre que exista de verdad en el catálogo de cuentas).
     expect(draft.producto).toBe('CODIGO-FACTURA')
     // Sin config del proveedor, el IVA cae al match por % de la factura (mecanismo existente).
     expect(draft.ivaTax).toEqual({
@@ -248,6 +398,8 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
         itemType: 'Account',
         accountCode: '5135950001',
         accountName: '5135950001',
+        productCode: null,
+        productName: null,
         ivaTax: { id: 1, name: 'IVA 19%', percentage: 19 },
         retefuenteTax: null,
         paymentMethod: null,
@@ -266,13 +418,18 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
         itemType: 'Account',
         accountCode: '5135950001',
         accountName: '5135950001',
+        productCode: null,
+        productName: null,
         ivaTax: { id: 1, name: 'IVA 19%', percentage: 19 },
         retefuenteTax: { id: 4, name: 'Servicios 4%', percentage: 4 },
         paymentMethod: null,
       },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('5135950001'),
+    )
 
     expect(draft.tipo).toBe('Account')
     expect(draft.producto).toBe('5135950001')
@@ -305,7 +462,10 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       suggestedAccount: { code: '51356002', name: 'Servicio Línea Telefónica', uses: 1 },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('51356002'),
+    )
 
     expect(draft.producto).toBe('51356002')
   })
@@ -319,6 +479,8 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
         itemType: 'Account',
         accountCode: '5135950001',
         accountName: '5135950001',
+        productCode: null,
+        productName: null,
         ivaTax: null,
         retefuenteTax: null,
         paymentMethod: null,
@@ -326,7 +488,10 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       suggestedAccount: { code: '51356002', name: 'Servicio Línea Telefónica', uses: 1 },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('5135950001', '51356002'),
+    )
 
     expect(draft.producto).toBe('5135950001')
   })
@@ -346,7 +511,10 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       suggestedAccount: { code: '51356002', name: 'Servicio Línea Telefónica', uses: 1 },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('CODIGO-FACTURA', '51356002'),
+    )
 
     expect(draft.producto).toBe('CODIGO-FACTURA')
   })
@@ -358,7 +526,10 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       suggestedAccount: { code: '51356002', name: 'Servicio Línea Telefónica', uses: 1 },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('51356002'),
+    )
 
     expect(draft.producto).toBe('51356002')
   })
@@ -382,7 +553,10 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       suggestedAccount: { code: '51356002', name: 'Servicio Línea Telefónica', uses: 1 },
     })
 
-    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('51356002'),
+    )
 
     expect(draft.producto).toBe('51356002')
   })
@@ -405,5 +579,126 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     const [draft] = buildPurchaseInvoiceItemDrafts(document)
 
     expect(draft.producto).toBe('')
+  })
+
+  it('un código de barras EAN-13 en la factura importada (caso real reportado: D1 S.A.S) se descarta y deja paso a la sugerencia de IA', () => {
+    // Caso real: factura de D1 (tienda de descuento) trae items[].code =
+    // "7702004025784", el código de barras del PRODUCTO puesto por el
+    // VENDEDOR en su propia factura — nunca una cuenta contable del
+    // comprador. Sin este fix, autocompletaba "7702004025784 -
+    // 7702004025784" como si fuera la cuenta.
+    const document = buildDocument({
+      items: [
+        {
+          description: 'PONY MALTA GO PET 20',
+          quantity: 12,
+          unitValue: 1176.47,
+          total: 14117.65,
+          code: '7702004025784',
+        },
+      ],
+      suggestedItemConfig: null,
+      suggestedAccount: { code: '51353501', name: 'Alimentos y bebidas', uses: 1 },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('51353501'),
+    )
+
+    expect(draft.producto).toBe('51353501')
+  })
+
+  it('un código de barras EAN-13 sin sugerencia de IA disponible tampoco se autocompleta: queda vacío', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'PONY MALTA GO PET 20',
+          quantity: 12,
+          unitValue: 1176.47,
+          total: 14117.65,
+          code: '7702004025784',
+        },
+      ],
+      suggestedItemConfig: null,
+      suggestedAccount: null,
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document)
+
+    expect(draft.producto).toBe('')
+  })
+
+  it('un código del ítem que sí coincide con una cuenta real del catálogo se sigue usando como fallback', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'Servicio de aseo',
+          quantity: 1,
+          unitValue: 100000,
+          total: 100000,
+          code: '5135950001',
+        },
+      ],
+      suggestedItemConfig: null,
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('5135950001'),
+    )
+
+    expect(draft.producto).toBe('5135950001')
+  })
+
+  it('un código del ítem que NO existe en el catálogo de cuentas nunca se usa, aunque no "parezca" basura (caso explícito pedido: solo cuentas reales del catálogo)', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'Servicio de aseo',
+          quantity: 1,
+          unitValue: 100000,
+          total: 100000,
+          code: 'ALGO-QUE-NO-EXISTE',
+        },
+      ],
+      suggestedItemConfig: null,
+      suggestedAccount: { code: '51356002', name: 'Servicio Línea Telefónica', uses: 1 },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('51356002'),
+    )
+
+    expect(draft.producto).toBe('51356002')
+  })
+})
+
+describe('hasUnresolvedProductItem', () => {
+  it('detecta un ítem tipo Producto sin código (caso real: primera compra de un producto nuevo, ej. "cremallera azul")', () => {
+    const items = [buildDraft({ tipo: 'Product', producto: '' })]
+
+    expect(hasUnresolvedProductItem(items)).toBe(true)
+  })
+
+  it('no marca nada si el ítem Producto ya tiene código', () => {
+    const items = [buildDraft({ tipo: 'Product', producto: 'PROD-001' })]
+
+    expect(hasUnresolvedProductItem(items)).toBe(false)
+  })
+
+  it('un ítem Cuenta o Activo fijo sin código NO cuenta como "requiere revisión" (tienen su propio manejo)', () => {
+    const items = [
+      buildDraft({ tipo: 'Account', producto: '' }),
+      buildDraft({ tipo: 'FixedAsset', producto: '' }),
+    ]
+
+    expect(hasUnresolvedProductItem(items)).toBe(false)
+  })
+
+  it('false sin ítems', () => {
+    expect(hasUnresolvedProductItem([])).toBe(false)
+    expect(hasUnresolvedProductItem(undefined)).toBe(false)
   })
 })

@@ -61,6 +61,9 @@ interface SupportDocumentConfigPanelProps {
   onDueDateChange: (date: string) => void
   onSend: () => void
   onDelete: () => void
+  /** Solo se usa en modo actionsOnly (Factura de compra) — deselecciona
+   * todos los documentos de una vez ("Quitar selección"). */
+  onClearSelection?: () => void
 }
 
 function formatRetentionTypeLabel(taxType: string): string {
@@ -116,6 +119,7 @@ function SupportDocumentConfigPanel({
   onDueDateChange,
   onSend,
   onDelete,
+  onClearSelection,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const isBusy = isSending || isDeleting
@@ -124,6 +128,73 @@ function SupportDocumentConfigPanel({
 
   if (selectedCount === 0) {
     return null
+  }
+
+  // Factura de compra: la configuración es por documento (cada fila tiene su
+  // propio editor), así que acá no hay campos que ocultar/expandir — una
+  // barra compacta de una sola línea alcanza, sin el chevron de
+  // colapsar/expandir que en este modo no tenía nada que hacer (los botones
+  // Enviar/Eliminar quedaban escondidos si el usuario lo colapsaba).
+  if (actionsOnly) {
+    const metaText =
+      canDelete && canSend
+        ? `${sendableCount} listo(s) para enviar · ${deletableCount} para eliminar`
+        : canDelete
+          ? `${deletableCount} listo(s) para eliminar`
+          : sendableCount > 0
+            ? `${sendableCount} listo(s) para enviar`
+            : null
+
+    return (
+      <section
+        className="support-config-panel support-config-panel--compact"
+        aria-label="Documentos seleccionados"
+      >
+        <span className="support-config-panel__title">
+          Documentos seleccionados: {selectedCount}
+        </span>
+
+        {metaText && (
+          <span className="support-config-panel__meta">{metaText}</span>
+        )}
+
+        {onClearSelection && (
+          <button
+            type="button"
+            className="support-config-panel__clear-link"
+            onClick={onClearSelection}
+            disabled={controlsDisabled}
+          >
+            Quitar selección
+          </button>
+        )}
+
+        <div className="support-config-panel__compact-actions">
+          {canDelete && (
+            <Button
+              variant="danger"
+              onClick={onDelete}
+              disabled={controlsDisabled || !canDelete}
+            >
+              {isDeleting ? (progressLabel ?? 'Eliminando...') : 'Eliminar'}
+            </Button>
+          )}
+          {canSend && (
+            <Button
+              variant="primary"
+              onClick={onSend}
+              disabled={controlsDisabled || !canSend}
+            >
+              {isSending
+                ? (progressLabel ?? (isRetry ? 'Reintentando...' : 'Enviando...'))
+                : isRetry
+                  ? 'Reintentar'
+                  : `Enviar ${sendableCount} documento${sendableCount === 1 ? '' : 's'}`}
+            </Button>
+          )}
+        </div>
+      </section>
+    )
   }
 
   return (

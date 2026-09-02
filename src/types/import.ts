@@ -5,6 +5,13 @@ export const IMPORT_ROW_STATUS = {
   EN_PROCESO: 'EN PROCESO',
   REQUIERE_PROVEEDOR: 'REQUIERE PROVEEDOR',
   REQUIERE_CUENTA: 'REQUIERE CUENTA',
+  /** Factura de compra: al menos un ítem tipo Producto quedó sin código —
+   * ni la regla exacta del proveedor ni la IA encontraron uno en el
+   * catálogo real (ej. primera compra de un producto nuevo). Vuelve a
+   * PENDIENTE solo cuando se recalcula sin ítems sin resolver (ver
+   * hasUnresolvedProductItem) — no es un estado que se "marque" manualmente,
+   * se deriva de los datos igual que el resto de IMPORT_ROW_STATUS. */
+  REQUIERE_REVISION: 'REQUIERE REVISIÓN',
   LISTA: 'LISTA',
   ERROR: 'ERROR',
 } as const
