@@ -33,7 +33,9 @@ export function mapDocumentToImportRowStatus(
     document.status === ELECTRONIC_DOCUMENT_STATUS.PURCHASE_CREATED ||
     document.status === ELECTRONIC_DOCUMENT_STATUS.COMPLETED
   ) {
-    return IMPORT_ROW_STATUS.LISTA
+    return document.alreadyInSiigo
+      ? IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO
+      : IMPORT_ROW_STATUS.LISTA
   }
 
   if (
@@ -63,6 +65,7 @@ export function getSupportDocumentActionFromImportStatus(
     case IMPORT_ROW_STATUS.EN_PROCESO:
       return 'processing'
     case IMPORT_ROW_STATUS.LISTA:
+    case IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO:
     case IMPORT_ROW_STATUS.ERROR:
       return 'delete'
     default:

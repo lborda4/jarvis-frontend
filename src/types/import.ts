@@ -13,6 +13,14 @@ export const IMPORT_ROW_STATUS = {
    * se deriva de los datos igual que el resto de IMPORT_ROW_STATUS. */
   REQUIERE_REVISION: 'REQUIERE REVISIÓN',
   LISTA: 'LISTA',
+  /** Factura de compra SIIGO: la factura ya existía en SIIGO al importar el
+   * Excel (match por provider_invoice, ver
+   * ElectronicDocumentService.createFromPurchaseInvoiceRows en el backend) —
+   * a diferencia de LISTA, no la enviamos nosotros, así que no tiene sentido
+   * ofrecer "Enviar" ni contarla como un envío hecho desde acá. Se deriva de
+   * `document.alreadyInSiigo`, no es un estado que el backend persista
+   * aparte (ver mapDocumentToImportRowStatus). */
+  EXISTENTE_EN_SIIGO: 'EXISTENTE EN SIIGO',
   ERROR: 'ERROR',
 } as const
 

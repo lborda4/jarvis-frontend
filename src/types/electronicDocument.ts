@@ -142,6 +142,11 @@ export interface ElectronicDocumentListItem {
   electronicDocumentType?: string | null
   siigoDocumentNumber?: string | number | null
   supplierExistsInSiigo?: boolean | null
+  /** true si quedó LISTA porque la factura ya existía en SIIGO al importar
+   * el Excel (match por provider_invoice), no porque se envió desde acá —
+   * ver mapDocumentToImportRowStatus, que lo muestra como "Existente en
+   * SIIGO" en vez de "Lista". */
+  alreadyInSiigo?: boolean
   suggestedAccount?: SuggestedAccount | null
   suggestedProduct?: SuggestedProduct | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null

@@ -66,7 +66,19 @@ export interface CreatedSiigoSupplier {
 
 export interface CreateSiigoSupplierResponse {
   success: boolean
+  /** true si se creó un tercero NUEVO en SIIGO en esta llamada — false si ya existía y solo se reutilizó. */
+  created?: boolean
   supplier: CreatedSiigoSupplier
+}
+
+export interface AutoCreatedSupplier {
+  supplierDocument: string
+  supplierName: string
+  createdAt: string
+}
+
+export interface ListAutoCreatedSuppliersResponse {
+  suppliers: AutoCreatedSupplier[]
 }
 
 export interface ValidateAccountMappingRequest extends DocumentIdRequest {}

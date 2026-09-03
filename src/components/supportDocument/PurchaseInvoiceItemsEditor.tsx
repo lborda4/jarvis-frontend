@@ -57,6 +57,11 @@ interface PurchaseInvoiceItemsEditorProps {
    * DIAN) — la columna "Valor total" reparte este monto entre las líneas en
    * vez de sumar cantidad × valor unitario + IVA por línea. */
   documentTotal: number
+  /** Prefijo + consecutivo de la factura del PROVEEDOR (ej. "FC-0418") — no
+   * el consecutivo interno de SIIGO (ver siigoDocumentNumber, que se
+   * muestra aparte en el estado de la fila). Se deja sin mostrar si el
+   * documento no trae uno. */
+  documentReference?: string | null
   disabled?: boolean
 }
 
@@ -68,6 +73,7 @@ function PurchaseInvoiceItemsEditor({
   accountOptions,
   productOptions,
   documentTotal,
+  documentReference = null,
   disabled = false,
 }: PurchaseInvoiceItemsEditorProps) {
   const lineTotals = calculatePurchaseInvoiceItemLineTotals(items, documentTotal)
@@ -88,7 +94,14 @@ function PurchaseInvoiceItemsEditor({
   return (
     <div className="purchase-item-editor">
       <div className="purchase-item-editor__header">
-        <h3 className="support-table__detail-title">Ítems de la factura</h3>
+        <div className="purchase-item-editor__heading">
+          <h3 className="support-table__detail-title">Ítems de la factura</h3>
+          {documentReference && (
+            <span className="purchase-item-editor__reference">
+              {documentReference}
+            </span>
+          )}
+        </div>
         <Button
           type="button"
           variant="secondary"

@@ -36,6 +36,11 @@ interface SupportDocumentFilterBarProps {
    * compra cada factura trae su propia fecha de emisión, así que un rango es
    * mucho más usable que tildar fecha por fecha. */
   dateRangeFilter?: boolean
+  /** Factura de compra SIIGO: agrega "Requiere revisión" y "Existente en
+   * SIIGO" a las opciones del filtro de Estado — ver
+   * buildSupportDocumentFilterOptions, son estados que solo existen en el
+   * frontend, no vienen en filterOptions.importStatuses del backend. */
+  showPurchaseInvoiceDerivedStatuses?: boolean
   onSupplierNitsChange: (nits: string[]) => void
   onColumnFiltersChange: (
     updater: (current: SupportDocumentColumnFilters) => SupportDocumentColumnFilters,
@@ -51,11 +56,19 @@ function FilterDropdown({
   isOpen,
   disabled,
   /** Cuando es true, el contenido se porta a document.body y se posiciona
-   * con position:fixed calculado desde el trigger, en vez de usar el
-   * popover angosto de ancho/alto fijo — para contenido que no entra ahí
-   * (el calendario de rango de Factura de compra, mucho más ancho/alto que
-   * la lista de checkboxes que usan los demás filtros). */
+   * con position:fixed calculado desde el trigger, en vez de usar
+   * position:absolute relativo al propio trigger. Necesario para no quedar
+   * atrapado/tapado por cualquier ancestro con su propio stacking context
+   * (bug real: al mover la barra de selección para que quedara justo debajo
+   * de los filtros, ese contenedor sticky con z-index propio terminó
+   * tapando el popover de "Estado" al abrirlo). */
   portal = false,
+  /** Cuando es true, el popover no trae su propia tarjeta blanca (fondo/
+   * borde/relleno) — para contenido que ya se estiliza completo a sí mismo,
+   * como el calendario de rango de Factura de compra (fondo oscuro propio).
+   * El resto de los filtros (listas de checkboxes) sí necesitan la tarjeta
+   * del popover, así que se dejan con el chrome por defecto. */
+  bare = false,
   onToggle,
   onClose,
   children,
@@ -66,6 +79,7 @@ function FilterDropdown({
   isOpen: boolean
   disabled?: boolean
   portal?: boolean
+  bare?: boolean
   onToggle: () => void
   onClose: () => void
   children: React.ReactNode
@@ -146,11 +160,12 @@ function FilterDropdown({
     <div
       ref={panelRef}
       id={popoverId}
-      className={
-        portal
-          ? 'support-filter-bar__popover support-filter-bar__popover--portal'
-          : 'support-filter-bar__popover'
-      }
+      className={[
+        'support-filter-bar__popover',
+        bare ? 'support-filter-bar__popover--bare' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="dialog"
       aria-label={`Filtro de ${label}`}
       style={portal ? panelStyle : undefined}
@@ -208,14 +223,19 @@ function SupportDocumentFilterBar({
   selectedSupplierNits,
   disabled = false,
   dateRangeFilter = false,
+  showPurchaseInvoiceDerivedStatuses = false,
   onSupplierNitsChange,
   onColumnFiltersChange,
 }: SupportDocumentFilterBarProps) {
   const [openFilter, setOpenFilter] = useState<OpenFilterKey>(null)
 
   const columnFilterOptions = useMemo(
-    () => buildSupportDocumentFilterOptions(filterOptions),
-    [filterOptions],
+    () =>
+      buildSupportDocumentFilterOptions(
+        filterOptions,
+        showPurchaseInvoiceDerivedStatuses,
+      ),
+    [filterOptions, showPurchaseInvoiceDerivedStatuses],
   )
   const supplierOptions = useMemo(
     () => buildSupplierFilterOptions(filterOptions),
@@ -306,7 +326,8 @@ function SupportDocumentFilterBar({
           }
           isOpen={openFilter === 'date'}
           disabled={disabled}
-          portal={dateRangeFilter}
+          portal
+          bare={dateRangeFilter}
           onToggle={() =>
             setOpenFilter((current) => (current === 'date' ? null : 'date'))
           }
@@ -354,6 +375,7 @@ function SupportDocumentFilterBar({
           isActive={columnFilters.statuses.length > 0}
           isOpen={openFilter === 'status'}
           disabled={disabled}
+          portal
           onToggle={() =>
             setOpenFilter((current) => (current === 'status' ? null : 'status'))
           }

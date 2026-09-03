@@ -7,6 +7,7 @@ import { pickSmallestPageSizeCovering } from '../constants/electronicDocuments'
 import {
   fetchElectronicDocuments,
   resumeElectronicDocument,
+  resumeElectronicDocumentsBatch,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
@@ -168,15 +169,30 @@ export function useSupportDocumentResume({
         return next
       })
 
-      await Promise.all(
-        uniqueIds.map(async (documentId) => {
-          try {
-            await resumeElectronicDocument(documentId, provider)
-          } catch {
-            // El polling continuará leyendo el estado actualizado del documento.
-          }
-        }),
-      )
+      try {
+        // Un solo request en lote para SIIGO (el backend ya reparte la
+        // concurrencia real contra su API) en vez de un resume() por
+        // documento en paralelo desde acá — antes, importar 50 facturas
+        // disparaba 50 llamadas simultáneas sin ningún límite, saturando
+        // el rate limit de SIIGO y disparando el aviso de "la validación
+        // está tardando más de lo esperado". Jarvis no tiene endpoint en
+        // lote todavía, así que sigue resumiendo uno por uno.
+        if (provider === 'SIIGO') {
+          await resumeElectronicDocumentsBatch(uniqueIds)
+        } else {
+          await Promise.all(
+            uniqueIds.map(async (documentId) => {
+              try {
+                await resumeElectronicDocument(documentId, provider)
+              } catch {
+                // El polling continuará leyendo el estado actualizado del documento.
+              }
+            }),
+          )
+        }
+      } catch {
+        // El polling continuará leyendo el estado actualizado del documento.
+      }
 
       let lastImported: ElectronicDocumentListItem[] = []
 

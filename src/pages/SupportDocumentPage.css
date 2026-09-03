@@ -418,13 +418,13 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Filtro de rango de fechas (Factura de compra): el panel se porta a
- * document.body y se posiciona con position:fixed inline (ver
- * FilterDropdown en SupportDocumentFilterBar.tsx) — acá solo se anulan las
- * restricciones de ancho/alto/relleno del popover angosto por defecto, que
- * DateRangePicker.css ya resuelve por su cuenta (fondo oscuro propio,
- * ancho fijo de dos meses). */
-.support-filter-bar__popover--portal {
+/* Filtro de rango de fechas (Factura de compra): DateRangePicker.css ya
+ * trae su propia tarjeta (fondo oscuro, ancho fijo de dos meses) — acá se
+ * anula el "chrome" por defecto del popover (fondo blanco/borde/relleno)
+ * para no ponerle una tarjeta blanca ENCIMA de la tarjeta oscura propia. El
+ * resto de los filtros (Fecha en modo lista, Estado) siguen usando el
+ * popover base tal cual, solo portado (ver prop `portal` más abajo). */
+.support-filter-bar__popover--bare {
   width: auto;
   max-height: none;
   overflow: visible;
@@ -1501,6 +1501,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.purchase-item-editor__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.purchase-item-editor__reference {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--jarvis-text);
 }
 
 .purchase-item-editor__table-wrap {

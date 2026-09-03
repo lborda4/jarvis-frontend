@@ -207,6 +207,9 @@ function PurchaseInvoiceDetailEditor({
         accountOptions={accountOptions}
         productOptions={productOptions}
         documentTotal={document.total}
+        documentReference={
+          document.invoiceNumber?.trim() || document.cufe?.trim() || null
+        }
         disabled={disabled}
       />
 

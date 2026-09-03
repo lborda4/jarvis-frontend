@@ -359,6 +359,11 @@
   color: var(--jarvis-success);
 }
 
+.status-badge--existente-en-siigo {
+  background-color: var(--jarvis-info-soft);
+  color: var(--jarvis-info);
+}
+
 @media (max-width: 900px) {
   .invoice-filters {
     grid-template-columns: 1fr;

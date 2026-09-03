@@ -54,8 +54,20 @@ function parseUtcDate(value: string): number | null {
   }
 
   const [, year, month, day] = match
+  const yearNumber = Number(year)
 
-  return Date.UTC(Number(year), Number(month) - 1, Number(day))
+  // Date.UTC (y el constructor de Date) interpreta años de 0-99 como
+  // "1900 + año" — un año realmente chico (ej. "0001", visto en un
+  // payment_due_date placeholder que trae NextPyme para facturas sin
+  // vencimiento real) se convertiría silenciosamente en 1901 en vez de
+  // fallar, dando un Plazo calculado sin sentido (caso real: -45744 días).
+  // El backend ya filtra esto en el origen, pero se rechaza también acá
+  // por las dudas de que llegue algún otro dato igual de inválido.
+  if (yearNumber < 1900) {
+    return null
+  }
+
+  return Date.UTC(yearNumber, Number(month) - 1, Number(day))
 }
 
 /** Días completos entre dos fechas YYYY-MM-DD, parseadas en UTC explícito

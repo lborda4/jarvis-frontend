@@ -171,3 +171,24 @@ export async function deleteElectronicDocument(
   await apiClient.delete(`${ELECTRONIC_DOCUMENTS_ENDPOINT}/${documentId}`)
   invalidateQueryCache(companyQueryKey(['electronic-documents']))
 }
+
+export interface DeleteElectronicDocumentsBatchResponse {
+  deletedIds: string[]
+  skippedIds: string[]
+}
+
+/** Variante en lote de deleteElectronicDocument — un solo request en vez de
+ * uno por documento (borrar 100 registros uno por uno se notaba lento por
+ * el límite de conexiones simultáneas del navegador). Solo para registros
+ * que ya no dependen de SIIGO (ver dbOnlyTargets en SupportDocumentPage). */
+export async function deleteElectronicDocumentsBatch(
+  documentIds: string[],
+): Promise<DeleteElectronicDocumentsBatchResponse> {
+  const response = await apiClient.post<DeleteElectronicDocumentsBatchResponse>(
+    `${ELECTRONIC_DOCUMENTS_ENDPOINT}/delete-batch`,
+    { documentIds },
+  )
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+
+  return response.data
+}

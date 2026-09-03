@@ -84,17 +84,37 @@ export function buildSiigoPurchaseSendRequest(
         ]
   const hasEditedItems = Boolean(editedItems && editedItems.length > 0)
 
+  // Retefuente sugerida por el historial del proveedor (igual que
+  // buildPurchaseInvoiceItemDrafts) — es el fallback para cuando el usuario
+  // envía directo desde la fila colapsada, SIN haber abierto el panel de
+  // detalle del ítem. Antes, en ese caso, la Retefuente nunca se aplicaba
+  // (solo vivía en editedItems, que queda vacío si la fila nunca se
+  // expandió): un documento con retención en la fuente consistente en el
+  // historial se enviaba a SIIGO sin ninguna retención. Ver bug reportado en
+  // producción.
+  const retefuenteTaxFromSupplierConfig = document.suggestedItemConfig?.retefuenteTax
+    ? {
+        id: document.suggestedItemConfig.retefuenteTax.id,
+        name: document.suggestedItemConfig.retefuenteTax.name,
+        type: 'Retefuente',
+        percentage: document.suggestedItemConfig.retefuenteTax.percentage,
+      }
+    : null
+
   // La Retefuente se elige por ítem en el editor de detalle (no a nivel de
   // documento como ReteIVA/ReteICA), pero SIIGO la espera igual que las
   // demás retenciones en el campo `retentions` de nivel documento — se
-  // agregan las distintas tarifas usadas en los ítems editados.
+  // agregan las distintas tarifas usadas en los ítems editados, o la
+  // sugerida por el historial si la fila nunca se editó a mano.
   const editedRetefuenteTaxes = hasEditedItems
     ? dedupeTaxOptionsById(
         editedItems!
           .map((item) => item.retefuenteTax)
           .filter((tax): tax is SiigoTaxOption => Boolean(tax)),
       )
-    : []
+    : retefuenteTaxFromSupplierConfig
+      ? [retefuenteTaxFromSupplierConfig]
+      : []
   const retentionOptionsPool = dedupeTaxOptionsById([
     ...retentions,
     ...editedRetefuenteTaxes,

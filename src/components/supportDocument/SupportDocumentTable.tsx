@@ -503,6 +503,16 @@ function SupportDocumentTable({
               const isSendAction = row.action === 'send'
               const isRowDeleting =
                 isDeleting && deletingDocumentId === row.id
+              // Ya se está enviando a SIIGO o ya quedó con consecutivo
+              // (LISTA) — el envío es lo único que persiste de verdad estos
+              // datos (ver comentario de onChange más abajo), así que editar
+              // acá no cambiaría nada real en SIIGO y solo confundiría al
+              // usuario. El panel se puede seguir desplegando, pero queda
+              // solo para visualizar.
+              const isRowLocked =
+                isProcessing ||
+                row.importStatus === IMPORT_ROW_STATUS.LISTA ||
+                Boolean(row.siigoDocumentNumber)
               const actionDisabled =
                 isResuming ||
                 isSending ||
@@ -692,7 +702,7 @@ function SupportDocumentTable({
                                   rowDocumentDiscounts[row.id] ??
                                   document.documentDiscount ??
                                   0,
-                                disabled: isSending || isDeleting,
+                                disabled: isSending || isDeleting || isRowLocked,
                                 onCancel: () => toggleRowExpanded(row.id),
                                 // No hay un paso de "guardar" aparte: cada
                                 // cambio actualiza directo rowItems/

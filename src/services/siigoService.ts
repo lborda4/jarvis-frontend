@@ -10,6 +10,7 @@ import type {
   DeleteSiigoSupportDocumentResponse,
   CreateSiigoSupplierRequest,
   CreateSiigoSupplierResponse,
+  ListAutoCreatedSuppliersResponse,
   ListAccountMappingRulesResponse,
   SaveAccountMappingRequest,
   SaveAccountMappingResponse,
@@ -42,6 +43,8 @@ import {
 
 const SIIGO_IMPORT_ENDPOINT = '/integrations/siigo/import'
 const SIIGO_SUPPLIERS_ENDPOINT = '/integrations/siigo/suppliers'
+const SIIGO_AUTO_CREATED_SUPPLIERS_ENDPOINT =
+  '/integrations/siigo/suppliers/auto-created'
 const SIIGO_ACCOUNT_MAPPINGS_VALIDATE_ENDPOINT =
   '/integrations/siigo/account-mappings/validate'
 const SIIGO_ACCOUNT_MAPPINGS_ENDPOINT = '/integrations/siigo/account-mappings'
@@ -282,6 +285,20 @@ export async function createSiigoSupplier(
 
     throw error
   }
+}
+
+/** Terceros creados AUTOMÁTICAMENTE en SIIGO (sin que el usuario clickeara
+ * "Crear tercero") desde `sinceIso` — se consulta justo después de un
+ * import para avisarle al usuario cuántos y cuáles se crearon solos. */
+export async function fetchAutoCreatedSuppliers(
+  sinceIso: string,
+): Promise<ListAutoCreatedSuppliersResponse> {
+  const response = await apiClient.get<ListAutoCreatedSuppliersResponse>(
+    SIIGO_AUTO_CREATED_SUPPLIERS_ENDPOINT,
+    { params: { since: sinceIso } },
+  )
+
+  return response.data
 }
 
 export async function validateAccountMapping(

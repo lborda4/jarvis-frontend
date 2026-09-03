@@ -150,6 +150,10 @@ export function buildNotSendableReason(
     return 'El documento ya fue enviado.'
   }
 
+  if (importStatus === IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO) {
+    return 'La factura ya existe en SIIGO.'
+  }
+
   if (importStatus === IMPORT_ROW_STATUS.EN_PROCESO) {
     return 'El documento ya se está enviando.'
   }
@@ -200,6 +204,7 @@ export function canSendDocument(
 
   if (
     importStatus === IMPORT_ROW_STATUS.LISTA ||
+    importStatus === IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO ||
     importStatus === IMPORT_ROW_STATUS.EN_PROCESO
   ) {
     return false

@@ -49,12 +49,14 @@ import { retryFailedPurchaseInvoiceImportRows } from '../services/documentSource
 import { waitForTerminalStatus } from '../services/realtime/purchaseInvoiceImportJobsStore'
 import {
   deleteElectronicDocument,
+  deleteElectronicDocumentsBatch,
   fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
   peekElectronicDocuments,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
 import { requestAiPurchaseSuggestion } from '../services/aiSuggestionService'
+import { fetchAutoCreatedSuppliers } from '../services/siigoService'
 import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListItem,
@@ -75,7 +77,7 @@ import {
   getSupportDocumentActionFromImportStatus,
   isSupportDocumentRowSelectable,
 } from '../utils/mapImportRowStatus'
-import { IMPORT_ROW_STATUS } from '../types/import'
+import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
 import {
   buildInitialRowAccounts,
   mergeSuggestedAccountsIntoOptions,
@@ -238,6 +240,18 @@ function buildInitialRowIva(
 /** Descuento general de Factura de compra: arranca en el valor certificado
  * por la DIAN (`document.documentDiscount`) mientras el contador no lo haya
  * editado a mano en el panel de detalle. */
+/** Pares [estado derivado del frontend, estado real de backend al que se
+ * proxea en el filtro server-side] — ver requestFilters y tableRows más
+ * abajo. "Requiere revisión" y "Existente en SIIGO" no existen como estado
+ * en el backend, así que se piden como su proxy y se recortan acá si el
+ * usuario marcó el derivado sin también marcar el proxy. */
+const PURCHASE_INVOICE_DERIVED_STATUS_PROXIES: Array<
+  [ImportRowStatus, ImportRowStatus]
+> = [
+  [IMPORT_ROW_STATUS.REQUIERE_REVISION, IMPORT_ROW_STATUS.PENDIENTE],
+  [IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO, IMPORT_ROW_STATUS.LISTA],
+]
+
 function buildInitialRowDocumentDiscounts(
   documents: ElectronicDocumentListItem[],
   current: Record<string, number> = {},
@@ -438,6 +452,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
   const [deleteFeedbackMessage, setDeleteFeedbackMessage] =
     useAutoDismissMessage()
+  const [autoCreatedSuppliersMessage, setAutoCreatedSuppliersMessage] =
+    useAutoDismissMessage()
   const [isSuggestingAi, setIsSuggestingAi] = useState(false)
   const [aiSuggestionMessage, setAiSuggestionMessage] = useAutoDismissMessage()
   const [aiSuggestionError, setAiSuggestionError] = useAutoDismissMessage(
@@ -563,7 +579,25 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             : undefined,
         importStatuses:
           columnFilters.statuses.length > 0
-            ? columnFilters.statuses
+            ? // "Requiere revisión" y "Existente en SIIGO" no existen como
+              // estado en el backend (se derivan en el frontend, ver
+              // pageTableRows más abajo) — se traducen a su estado real de
+              // backend (Pendiente/Lista) para el filtro server-side, y el
+              // recorte fino a solo las filas que de verdad matchean se hace
+              // en el cliente (ver tableRows).
+              Array.from(
+                new Set(
+                  columnFilters.statuses.map((status) => {
+                    if (status === IMPORT_ROW_STATUS.REQUIERE_REVISION) {
+                      return IMPORT_ROW_STATUS.PENDIENTE
+                    }
+                    if (status === IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO) {
+                      return IMPORT_ROW_STATUS.LISTA
+                    }
+                    return status
+                  }),
+                ),
+              )
             : undefined,
       }
 
@@ -666,6 +700,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     }
   }, [
     columnFilters.dates,
+    columnFilters.dateFrom,
+    columnFilters.dateTo,
     columnFilters.siigoNumbers,
     columnFilters.statuses,
     config.electronicDocumentType,
@@ -866,6 +902,45 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [documents],
   )
 
+  /** Factura de compra SIIGO: `rowItems[id]` solo se llena cuando el usuario
+   * despliega el detalle del documento y guarda (ver handleSaveRowEdits) —
+   * pero la cuenta/producto de cada ítem ya puede venir resuelta desde antes
+   * (regla del proveedor, historial o IA, ver buildPurchaseInvoiceItemDrafts)
+   * sin que el usuario haya tenido que abrir nada. Sin este fallback,
+   * canSendRow/sendDocuments veían `rowItems[id]` como vacío y el botón
+   * "Enviar" quedaba deshabilitado (o el envío perdía el código por ítem)
+   * aunque el documento ya tuviera todo lo necesario — bug real reportado:
+   * "si no se ha desplegado el detalle del registro, no se habilita enviar".
+   * Mismo fallback que ya usa pageTableRows más abajo para decidir
+   * "Requiere revisión", así que el botón queda consistente con el estado
+   * mostrado en la fila. */
+  const effectiveRowItems = useMemo(() => {
+    if (config.key !== 'purchaseInvoice' || config.provider !== 'SIIGO') {
+      return rowItems
+    }
+
+    const merged: Record<string, PurchaseInvoiceItemDraft[]> = { ...rowItems }
+
+    for (const document of documents) {
+      if (merged[document.id] === undefined) {
+        merged[document.id] = buildPurchaseInvoiceItemDrafts(
+          document,
+          accountOptions,
+          productOptions,
+        )
+      }
+    }
+
+    return merged
+  }, [
+    config.key,
+    config.provider,
+    documents,
+    rowItems,
+    accountOptions,
+    productOptions,
+  ])
+
   const pageTableRows = useMemo(
     () =>
       filteredDocuments.map((document) => {
@@ -944,8 +1019,26 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
 
   const tableRows = useMemo(() => {
+    // "Requiere revisión" y "Existente en SIIGO" se piden al backend como su
+    // estado real (Pendiente/Lista, ver requestFilters más arriba), así que
+    // si el usuario selecciona el derivado SIN también seleccionar su
+    // proxy, el backend igual devuelve todas las filas de ese estado real —
+    // hay que recortar acá a solo las que de verdad quedaron en el estado
+    // derivado que se marcó.
+    const selectedStatuses = columnFilters.statuses
+    const needsClientStatusNarrowing = PURCHASE_INVOICE_DERIVED_STATUS_PROXIES.some(
+      ([derived, proxy]) =>
+        selectedStatuses.includes(derived) && !selectedStatuses.includes(proxy),
+    )
+
+    const rows = needsClientStatusNarrowing
+      ? pageTableRows.filter((row) =>
+          selectedStatuses.includes(row.importStatus),
+        )
+      : pageTableRows
+
     return sortSupportDocumentRows(
-      pageTableRows,
+      rows,
       sortColumn,
       sortDirection,
       rowDates,
@@ -956,6 +1049,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     )
   }, [
     pageTableRows,
+    columnFilters.statuses,
     rowAccounts,
     rowDates,
     rowIva,
@@ -1264,7 +1358,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowAccounts,
         rowPaymentMethods,
         rowDueDates,
-        rowItems,
+        effectiveRowItems,
         {
           requiresAccount: config.requiresAccount,
           requiresPaymentMethod: config.requiresPaymentMethod,
@@ -1277,7 +1371,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowAccounts,
       rowPaymentMethods,
       rowDueDates,
-      rowItems,
+      effectiveRowItems,
       config.requiresAccount,
       config.requiresPaymentMethod,
     ],
@@ -1315,7 +1409,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           rowAccounts,
           rowPaymentMethods,
           rowDueDates,
-          rowItems,
+          effectiveRowItems,
           {
             requiresAccount: config.requiresAccount,
             requiresPaymentMethod: config.requiresPaymentMethod,
@@ -1341,7 +1435,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     rowAccounts,
     rowPaymentMethods,
     rowDueDates,
-    rowItems,
+    effectiveRowItems,
     config.requiresAccount,
     config.requiresPaymentMethod,
   ])
@@ -1354,7 +1448,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     for (const documentId of selectedDocumentIds) {
       const status = importStatuses[documentId]
 
-      if (status !== IMPORT_ROW_STATUS.LISTA) {
+      if (
+        status !== IMPORT_ROW_STATUS.LISTA &&
+        status !== IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO
+      ) {
         return true
       }
     }
@@ -1377,7 +1474,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowAccounts,
         rowPaymentMethods,
         rowDueDates,
-        rowItems,
+        effectiveRowItems,
         {
           requiresAccount: config.requiresAccount,
           requiresPaymentMethod: config.requiresPaymentMethod,
@@ -1390,7 +1487,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowAccounts,
       rowPaymentMethods,
       rowDueDates,
-      rowItems,
+      effectiveRowItems,
       config.requiresAccount,
       config.requiresPaymentMethod,
     ],
@@ -1406,7 +1503,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowCostCenters,
       rowRetentions,
       rowIva,
-      rowItems,
+      rowItems: effectiveRowItems,
       rowDates,
       rowDueDates,
       rowObservations,
@@ -1419,7 +1516,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     rowDates,
     rowDueDates,
     rowIva,
-    rowItems,
+    effectiveRowItems,
     rowObservations,
     rowPaymentMethods,
     rowRetentions,
@@ -1501,11 +1598,49 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       )
     }
 
+    const deleteDbOnlyBatch = async (documentIds: string[]) => {
+      if (documentIds.length === 0) {
+        return
+      }
+
+      started += documentIds.length
+      bumpProgress(`Eliminando ${documentIds.length} registro(s)…`)
+
+      try {
+        const { deletedIds, skippedIds } =
+          await deleteElectronicDocumentsBatch(documentIds)
+
+        deletedCount += deletedIds.length
+        removedIds.push(...deletedIds)
+
+        if (skippedIds.length > 0) {
+          failedCount += skippedIds.length
+          lastError = `${skippedIds.length} registro(s) ya no se pudieron eliminar (puede que ya estén en lista o hayan sido borrados desde otra pestaña).`
+        }
+      } catch (error) {
+        failedCount += documentIds.length
+        lastError = getApiErrorMessage(
+          error,
+          'No se pudieron eliminar los registros seleccionados.',
+        )
+      }
+
+      completed += documentIds.length
+      bumpProgress(
+        completed === targets.length
+          ? `Completado ${completed} de ${targets.length}`
+          : `Eliminando… ${completed} de ${targets.length}`,
+      )
+    }
+
     try {
       // Borrar solo de la base de datos local es una operación propia (no
-      // depende de una API externa), así que esos van todos en paralelo de
-      // una vez. Los que hay que eliminar primero en SIIGO sí se escalonan
-      // (1s entre cada uno) para no saturar su API — igual que antes.
+      // depende de una API externa), así que van todos en un solo request
+      // en lote (antes iban en paralelo pero uno por documento, lo que con
+      // 100 registros se notaba lento por el límite de conexiones
+      // simultáneas del navegador — ver deleteElectronicDocumentsBatch).
+      // Los que hay que eliminar primero en SIIGO sí se escalonan (1s entre
+      // cada uno, uno por uno) para no saturar su API — igual que antes.
       const siigoTargetIds = new Set(
         targets.filter((documentId) =>
           isDocumentDeletableFromSiigo(importStatuses[documentId], config.provider),
@@ -1519,7 +1654,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       )
 
       await Promise.all([
-        Promise.all(dbOnlyTargets.map((documentId) => deleteOne(documentId))),
+        deleteDbOnlyBatch(dbOnlyTargets),
         Promise.all(
           siigoTargets.map(async (documentId, index) => {
             if (index > 0) {
@@ -1585,7 +1720,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowCostCenters,
         rowRetentions,
         rowIva,
-        rowItems,
+        rowItems: effectiveRowItems,
         rowDates,
         rowDueDates,
         rowObservations,
@@ -1599,7 +1734,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowDates,
       rowDueDates,
       rowIva,
-      rowItems,
+      effectiveRowItems,
       rowObservations,
       rowPaymentMethods,
       rowRetentions,
@@ -1804,6 +1939,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setIsImporting(true)
       setErrorMessage(null)
       setPurchaseInvoiceRetryInfo(null)
+      // Se guarda ANTES de importar (no después) para no perderse terceros
+      // que la preparación en segundo plano alcance a crear justo en el
+      // borde del intervalo — mejor un margen de unos segundos de más que
+      // dejar alguno afuera del aviso.
+      const importStartedAt = new Date().toISOString()
 
       try {
         const { documentIds, documentCount, failedRows, jobId, errorCount } =
@@ -1836,6 +1976,33 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         await watchImportedDocuments(documentIds, () =>
           reloadDocuments({ resetPage: false }),
         )
+
+        // Solo SIIGO crea terceros automáticamente al preparar el import
+        // (ver SiigoDocumentPreparationService.tryAutoCreateSupplier) —
+        // Jarvis solo busca en su propia tabla de terceros, nunca crea
+        // nada. No debe romper el import si falla (ej. sin credenciales
+        // SIIGO en este momento puntual): es solo un aviso informativo.
+        if (config.provider === 'SIIGO') {
+          try {
+            const { suppliers } =
+              await fetchAutoCreatedSuppliers(importStartedAt)
+
+            if (suppliers.length > 0) {
+              const preview = suppliers
+                .slice(0, 3)
+                .map((supplier) => supplier.supplierName)
+                .join(', ')
+              const suffix =
+                suppliers.length > 3 ? `, +${suppliers.length - 3} más` : ''
+
+              setAutoCreatedSuppliersMessage(
+                `Se ${suppliers.length === 1 ? 'creó' : 'crearon'} automáticamente ${suppliers.length} tercero${suppliers.length === 1 ? '' : 's'} en SIIGO: ${preview}${suffix}.`,
+              )
+            }
+          } catch {
+            // Aviso informativo — si falla, el import ya se completó igual.
+          }
+        }
       } catch (error) {
         setErrorMessage(getApiErrorMessage(error, config.importFileError))
       } finally {
@@ -1880,11 +2047,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     setTerceroModalDocument(null)
     reloadDocuments({ resetPage: false })
   }, [reloadDocuments])
-
-  // Al cambiar un filtro conservamos las filas actuales hasta que llegue la
-  // respuesta. Evita reemplazar toda la tabla por el loader en cada cambio;
-  // el contenido solo se sustituye cuando están disponibles los nuevos datos.
-  const isInitialDocumentsLoad = isLoading && documents.length === 0
 
   return (
     <main className="support-document-page">
@@ -1978,6 +2140,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             {deleteFeedbackMessage}
           </p>
         )}
+        {autoCreatedSuppliersMessage && (
+          <p className="support-document-page__feedback" role="status">
+            {autoCreatedSuppliersMessage}
+          </p>
+        )}
 
         {purchaseInvoiceRetryInfo && (
           <p className="support-document-page__feedback" role="status">
@@ -2044,8 +2211,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         columnFilters={columnFilters}
         selectedSupplierNits={selectedSupplierNits}
         dateRangeFilter={config.key === 'purchaseInvoice'}
+        showPurchaseInvoiceDerivedStatuses={
+          config.key === 'purchaseInvoice' && config.provider === 'SIIGO'
+        }
         disabled={
-          isInitialDocumentsLoad ||
+          isLoading ||
           isImporting ||
           isResuming ||
           isModalOpen ||
@@ -2102,7 +2272,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           isSending={isSending}
           isDeleting={isDeleting}
           progressLabel={queueProgress?.label ?? null}
-          disabled={isInitialDocumentsLoad || isImporting || isResuming || isModalOpen}
+          disabled={isLoading || isImporting || isResuming || isModalOpen}
           onAccountChange={handleConfigAccountChange}
           onPaymentMethodChange={handleConfigPaymentMethodChange}
           onCostCenterChange={handleConfigCostCenterChange}
@@ -2138,13 +2308,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         onSaveRowEdits={handleSaveRowEdits}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
-        isLoading={isInitialDocumentsLoad}
+        isLoading={isLoading}
         isResuming={isResuming}
         isSending={isSending}
         isDeleting={isDeleting}
         deletingDocumentId={deletingDocumentId}
         selectionDisabled={
-          isInitialDocumentsLoad ||
+          isLoading ||
           isImporting ||
           isResuming ||
           isModalOpen ||
@@ -2152,7 +2322,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           isDeleting
         }
         sortDisabled={
-          isInitialDocumentsLoad ||
+          isLoading ||
           isImporting ||
           isResuming ||
           isModalOpen ||
@@ -2243,12 +2413,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         page={page}
         limit={pageLimit}
         total={totalDocuments}
-        disabled={isInitialDocumentsLoad || isImporting || isResuming || isSending}
+        disabled={isLoading || isImporting || isResuming || isSending}
         onPageChange={handlePageChange}
         onLimitChange={handleLimitChange}
       />
 
-      {!isInitialDocumentsLoad && totalDocuments > 0 && selectedDocumentIds.size > 0 && (
+      {!isLoading && totalDocuments > 0 && selectedDocumentIds.size > 0 && (
         <p className="support-document-page__count">
           {selectedDocumentIds.size} documento(s) seleccionado(s) en esta página
         </p>
