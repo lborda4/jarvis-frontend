@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   buildNotSendableReason,
   canSendDocument,
+  isDocumentDeletable,
+  isDocumentDeletableFromSiigo,
+  isDocumentRemovableFromDatabase,
   needsPurchaseInvoiceReview,
 } from './supportDocumentSend'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
@@ -353,5 +356,41 @@ describe('needsPurchaseInvoiceReview', () => {
         { requiresAccount: true, requiresPaymentMethod: false },
       ),
     ).toBe(false)
+  })
+})
+
+describe('borrado — EXISTENTE EN SIIGO no se puede eliminar (caso real pedido: la factura ya existía en SIIGO antes del import, no debe poder borrarse ni de la BD ni de SIIGO)', () => {
+  it('isDocumentRemovableFromDatabase es false para EXISTENTE EN SIIGO', () => {
+    expect(
+      isDocumentRemovableFromDatabase(IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO),
+    ).toBe(false)
+  })
+
+  it('isDocumentDeletableFromSiigo es false para EXISTENTE EN SIIGO', () => {
+    expect(
+      isDocumentDeletableFromSiigo(
+        IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO,
+        'SIIGO',
+      ),
+    ).toBe(false)
+  })
+
+  it('isDocumentDeletable (BD + SIIGO combinados) es false para EXISTENTE EN SIIGO', () => {
+    expect(
+      isDocumentDeletable(IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO, 'SIIGO'),
+    ).toBe(false)
+  })
+
+  it('LISTA (enviada de verdad desde Jarvis) sigue siendo eliminable en SIIGO, a diferencia de EXISTENTE EN SIIGO', () => {
+    expect(isDocumentDeletable(IMPORT_ROW_STATUS.LISTA, 'SIIGO')).toBe(true)
+    expect(
+      isDocumentDeletableFromSiigo(IMPORT_ROW_STATUS.LISTA, 'SIIGO'),
+    ).toBe(true)
+  })
+
+  it('PENDIENTE sigue siendo eliminable de la BD (nunca se envió a SIIGO)', () => {
+    expect(isDocumentDeletable(IMPORT_ROW_STATUS.PENDIENTE, 'SIIGO')).toBe(
+      true,
+    )
   })
 })

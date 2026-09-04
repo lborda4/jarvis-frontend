@@ -258,7 +258,11 @@ export function countSendableDocuments(
   return count
 }
 
-/** Registros aún no enviados (no LISTA / no EN PROCESO): se pueden borrar de la BD. */
+/** Registros aún no enviados desde acá (no LISTA / no EN PROCESO / no
+ * EXISTENTE EN SIIGO): se pueden borrar de la BD. EXISTENTE EN SIIGO queda
+ * afuera a propósito — esa factura ya existía en SIIGO antes de este import
+ * (no la creamos nosotros), así que no debe poder borrarse ni de la BD ni de
+ * SIIGO (ver isDocumentDeletableFromSiigo, que tampoco la incluye). */
 export function isDocumentRemovableFromDatabase(
   importStatus: ImportRowStatus | undefined,
 ): boolean {
@@ -268,7 +272,8 @@ export function isDocumentRemovableFromDatabase(
 
   return (
     importStatus !== IMPORT_ROW_STATUS.LISTA &&
-    importStatus !== IMPORT_ROW_STATUS.EN_PROCESO
+    importStatus !== IMPORT_ROW_STATUS.EN_PROCESO &&
+    importStatus !== IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO
   )
 }
 

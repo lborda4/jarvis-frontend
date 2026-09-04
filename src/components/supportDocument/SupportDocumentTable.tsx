@@ -102,6 +102,7 @@ interface SupportDocumentTableProps {
   selectionDisabled?: boolean
   sortDisabled?: boolean
   canSendRow: (rowId: string) => boolean
+  canDeleteRow: (rowId: string) => boolean
   sendProcessingLabel?: string
   supplierMissingLabel?: string
   onToggleRow: (id: string) => void
@@ -245,6 +246,7 @@ function SupportDocumentTable({
   selectionDisabled = false,
   sortDisabled = false,
   canSendRow,
+  canDeleteRow,
   sendProcessingLabel,
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
   onToggleRow,
@@ -501,6 +503,7 @@ function SupportDocumentTable({
                 row.importStatus,
               )
               const isSendAction = row.action === 'send'
+              const isDeleteAction = row.action === 'delete'
               const isRowDeleting =
                 isDeleting && deletingDocumentId === row.id
               // Ya se está enviando a SIIGO o ya quedó con consecutivo
@@ -518,7 +521,8 @@ function SupportDocumentTable({
                 isSending ||
                 isDeleting ||
                 isProcessing ||
-                (isSendAction && !canSendRow(row.id))
+                (isSendAction && !canSendRow(row.id)) ||
+                (isDeleteAction && !canDeleteRow(row.id))
 
               const handleAction = () => {
                 if (!document) return

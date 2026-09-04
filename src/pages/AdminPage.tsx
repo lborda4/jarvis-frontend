@@ -1047,6 +1047,7 @@ function AdminPage() {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th>Código de invitación</th>
                   <th>NIT</th>
                   <th>Empresa</th>
                   <th>Tipo</th>
@@ -1057,7 +1058,6 @@ function AdminPage() {
                   <th>Límite</th>
                   <th>Suscripción</th>
                   <th>Creada</th>
-                  <th>Código de invitación</th>
                   <th>Token NextPyme</th>
                   <th>Ciudad</th>
                 </tr>
@@ -1071,6 +1071,30 @@ function AdminPage() {
 
                   return (
                     <tr key={company.id}>
+                      <td>
+                        <div className="admin-invite-code">
+                          <code>{company.inviteCode}</code>
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyInviteCode(company)}
+                          >
+                            {copiedCompanyId === company.id
+                              ? 'Copiado'
+                              : 'Copiar'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={regeneratingCompanyId === company.id}
+                            onClick={() =>
+                              void handleRegenerateInviteCode(company)
+                            }
+                          >
+                            {regeneratingCompanyId === company.id
+                              ? 'Regenerando...'
+                              : 'Regenerar'}
+                          </button>
+                        </div>
+                      </td>
                       <td>{company.nit}</td>
                       <td>{company.name}</td>
                       <td>{formatPersonType(company.personType)}</td>
@@ -1269,30 +1293,6 @@ function AdminPage() {
                       </td>
                       <td>
                         {new Date(company.createdAt).toLocaleDateString('es-CO')}
-                      </td>
-                      <td>
-                        <div className="admin-invite-code">
-                          <code>{company.inviteCode}</code>
-                          <button
-                            type="button"
-                            onClick={() => void handleCopyInviteCode(company)}
-                          >
-                            {copiedCompanyId === company.id
-                              ? 'Copiado'
-                              : 'Copiar'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={regeneratingCompanyId === company.id}
-                            onClick={() =>
-                              void handleRegenerateInviteCode(company)
-                            }
-                          >
-                            {regeneratingCompanyId === company.id
-                              ? 'Regenerando...'
-                              : 'Regenerar'}
-                          </button>
-                        </div>
                       </td>
                       <td>
                         {editingTokenCompanyId === company.id ? (

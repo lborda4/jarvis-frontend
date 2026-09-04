@@ -77,7 +77,7 @@ import {
   getSupportDocumentActionFromImportStatus,
   isSupportDocumentRowSelectable,
 } from '../utils/mapImportRowStatus'
-import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
+import { IMPORT_ROW_STATUS } from '../types/import'
 import {
   buildInitialRowAccounts,
   mergeSuggestedAccountsIntoOptions,
@@ -240,18 +240,6 @@ function buildInitialRowIva(
 /** Descuento general de Factura de compra: arranca en el valor certificado
  * por la DIAN (`document.documentDiscount`) mientras el contador no lo haya
  * editado a mano en el panel de detalle. */
-/** Pares [estado derivado del frontend, estado real de backend al que se
- * proxea en el filtro server-side] — ver requestFilters y tableRows más
- * abajo. "Requiere revisión" y "Existente en SIIGO" no existen como estado
- * en el backend, así que se piden como su proxy y se recortan acá si el
- * usuario marcó el derivado sin también marcar el proxy. */
-const PURCHASE_INVOICE_DERIVED_STATUS_PROXIES: Array<
-  [ImportRowStatus, ImportRowStatus]
-> = [
-  [IMPORT_ROW_STATUS.REQUIERE_REVISION, IMPORT_ROW_STATUS.PENDIENTE],
-  [IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO, IMPORT_ROW_STATUS.LISTA],
-]
-
 function buildInitialRowDocumentDiscounts(
   documents: ElectronicDocumentListItem[],
   current: Record<string, number> = {},
@@ -1020,22 +1008,22 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const tableRows = useMemo(() => {
     // "Requiere revisión" y "Existente en SIIGO" se piden al backend como su
-    // estado real (Pendiente/Lista, ver requestFilters más arriba), así que
-    // si el usuario selecciona el derivado SIN también seleccionar su
-    // proxy, el backend igual devuelve todas las filas de ese estado real —
-    // hay que recortar acá a solo las que de verdad quedaron en el estado
-    // derivado que se marcó.
+    // estado real (Pendiente/Lista, ver requestFilters más arriba) — el
+    // backend siempre devuelve el superconjunto de ambos (ej. pedir
+    // "Pendiente" trae tanto lo que sigue Pendiente como lo que ya se
+    // recalculó a "Requiere revisión"). El recorte final a EXACTAMENTE los
+    // checkboxes marcados se hace acá, sin importar cuál de los dos (o
+    // ninguno) haya seleccionado el usuario — bug real reportado: marcar
+    // solo "Pendiente" seguía mostrando filas en "Requiere revisión" porque
+    // antes solo se recortaba en el caso contrario (derivado sin su proxy).
     const selectedStatuses = columnFilters.statuses
-    const needsClientStatusNarrowing = PURCHASE_INVOICE_DERIVED_STATUS_PROXIES.some(
-      ([derived, proxy]) =>
-        selectedStatuses.includes(derived) && !selectedStatuses.includes(proxy),
-    )
 
-    const rows = needsClientStatusNarrowing
-      ? pageTableRows.filter((row) =>
-          selectedStatuses.includes(row.importStatus),
-        )
-      : pageTableRows
+    const rows =
+      selectedStatuses.length > 0
+        ? pageTableRows.filter((row) =>
+            selectedStatuses.includes(row.importStatus),
+          )
+        : pageTableRows
 
     return sortSupportDocumentRows(
       rows,
@@ -1491,6 +1479,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       config.requiresAccount,
       config.requiresPaymentMethod,
     ],
+  )
+
+  const canDeleteRow = useCallback(
+    (rowId: string) =>
+      isDocumentDeletable(importStatuses[rowId], config.provider),
+    [importStatuses, config.provider],
   )
 
   const handleSendSelected = useCallback(() => {
@@ -2330,6 +2324,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           isDeleting
         }
         canSendRow={canSendRow}
+        canDeleteRow={canDeleteRow}
         documentsById={documentsById}
         sendProcessingLabel={
           queueProgress?.label ?? config.sendProcessingLabel
