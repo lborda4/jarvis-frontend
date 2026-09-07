@@ -24,6 +24,7 @@ import ImportLoadingOverlay from '../components/supportDocument/ImportLoadingOve
 import PurchaseInvoiceImportProgress from '../components/supportDocument/PurchaseInvoiceImportProgress'
 import ImportSuccessBanner from '../components/supportDocument/ImportSuccessBanner'
 import BatchQueueProgressBanner from '../components/supportDocument/BatchQueueProgressBanner'
+import SendSuccessBanner from '../components/supportDocument/SendSuccessBanner'
 import SupportDocumentConfigPanel from '../components/supportDocument/SupportDocumentConfigPanel'
 import SupportDocumentFilterBar from '../components/supportDocument/SupportDocumentFilterBar'
 import SupportDocumentPagination from '../components/supportDocument/SupportDocumentPagination'
@@ -42,6 +43,7 @@ import {
 import { useSupportDocumentResume } from '../hooks/useSupportDocumentResume'
 import { useLatestPurchaseInvoiceImportJob } from '../hooks/usePurchaseInvoiceImportJobs'
 import {
+  AUTO_DISMISS_CONFIRMATION_MS,
   AUTO_DISMISS_ERROR_MS,
   useAutoDismissMessage,
 } from '../hooks/useAutoDismissMessage'
@@ -61,7 +63,10 @@ import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListItem,
 } from '../types/electronicDocument'
-import type { SupportDocumentImportNotice } from '../types/supportDocumentPage'
+import type {
+  SupportDocumentImportNotice,
+  SupportDocumentSendNotice,
+} from '../types/supportDocumentPage'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import { buildPurchaseInvoiceItemDrafts } from '../types/purchaseInvoiceItemDraft'
 import type { PurchaseInvoiceDetailEditorSave } from '../components/supportDocument/PurchaseInvoiceDetailEditor'
@@ -77,7 +82,7 @@ import {
   getSupportDocumentActionFromImportStatus,
   isSupportDocumentRowSelectable,
 } from '../utils/mapImportRowStatus'
-import { IMPORT_ROW_STATUS } from '../types/import'
+import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
 import {
   buildInitialRowAccounts,
   mergeSuggestedAccountsIntoOptions,
@@ -439,7 +444,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     AUTO_DISMISS_ERROR_MS,
   )
   const [deleteFeedbackMessage, setDeleteFeedbackMessage] =
-    useAutoDismissMessage()
+    useAutoDismissMessage(AUTO_DISMISS_CONFIRMATION_MS)
   const [autoCreatedSuppliersMessage, setAutoCreatedSuppliersMessage] =
     useAutoDismissMessage()
   const [isSuggestingAi, setIsSuggestingAi] = useState(false)
@@ -461,6 +466,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [importNotice, setImportNotice] =
     useState<SupportDocumentImportNotice | null>(null)
   const [showImportOnly, setShowImportOnly] = useState(false)
+  const [sendNotice, setSendNotice] =
+    useState<SupportDocumentSendNotice | null>(null)
+  const [showSendOnly, setShowSendOnly] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [purchaseInvoiceRetryInfo, setPurchaseInvoiceRetryInfo] = useState<{
     jobId: string
@@ -820,16 +828,19 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     })
   }, [retentionOptionsByType, config.retentionCatalogTypes])
 
-  const importFilteredDocuments = useMemo(() => {
-    if (!showImportOnly || !importNotice) {
-      return documents
+  const filteredDocuments = useMemo(() => {
+    if (showImportOnly && importNotice) {
+      const importedIds = new Set(importNotice.documentIds)
+      return documents.filter((document) => importedIds.has(document.id))
     }
 
-    const importedIds = new Set(importNotice.documentIds)
-    return documents.filter((document) => importedIds.has(document.id))
-  }, [documents, importNotice, showImportOnly])
+    if (showSendOnly && sendNotice) {
+      const sentIds = new Set(sendNotice.documentIds)
+      return documents.filter((document) => sentIds.has(document.id))
+    }
 
-  const filteredDocuments = importFilteredDocuments
+    return documents
+  }, [documents, importNotice, showImportOnly, sendNotice, showSendOnly])
 
   const tableAccountOptions = useMemo(
     () => mergeSuggestedAccountsIntoOptions(accountOptions, filteredDocuments),
@@ -1006,6 +1017,81 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     ],
   )
 
+  // Estados que de verdad muestra alguna fila cargada — con esto se arma el
+  // desplegable de Estado. No alcanza con filterOptions.importStatuses del
+  // backend: ese trae el estado GUARDADO, y la tabla muestra uno DERIVADO
+  // (ver pageTableRows). Un documento guardado como "Lista" que ya existe en
+  // SIIGO se muestra como "Existente en SIIGO", así que ofrecer "Lista"
+  // llevaba a marcar un filtro que no devolvía ni una fila (bug reportado).
+  // Se calcula sobre pageTableRows, o sea antes del recorte por el propio
+  // filtro de Estado, para no depender de lo que ese filtro ya descartó.
+  const pageStatuses = useMemo(() => {
+    const set = new Set<ImportRowStatus>()
+
+    for (const row of pageTableRows) {
+      set.add(row.importStatus)
+    }
+
+    return set
+  }, [pageTableRows])
+
+  // Con un Estado marcado, el backend solo devuelve documentos de ESE estado
+  // (ver requestFilters), así que pageStatuses deja de ver el resto y las
+  // demás opciones se caerían del desplegable: no se podría pasar de un
+  // estado a otro sin limpiar el filtro antes. Por eso se recuerda la última
+  // foto tomada sin filtro de Estado y se usa como base mientras haya uno.
+  const unfilteredStatusesRef = useRef<ReadonlySet<ImportRowStatus>>(new Set())
+
+  useEffect(() => {
+    if (columnFilters.statuses.length === 0) {
+      unfilteredStatusesRef.current = pageStatuses
+    }
+  }, [columnFilters.statuses, pageStatuses])
+
+  // El encabezado de la tabla se fija debajo de la barra de acciones, que
+  // también es sticky y cambia de alto según haya o no filas seleccionadas
+  // (ver .support-document-page__controls). Se publica su alto como variable
+  // CSS en vez de fijar un valor a mano, que quedaría corto justo cuando
+  // aparecen las acciones de selección y taparía el encabezado.
+  const pageRef = useRef<HTMLElement>(null)
+  const controlsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const page = pageRef.current
+    const controls = controlsRef.current
+
+    if (!page || !controls) {
+      return
+    }
+
+    const updateControlsHeight = () => {
+      page.style.setProperty(
+        '--support-controls-height',
+        `${controls.offsetHeight}px`,
+      )
+    }
+
+    updateControlsHeight()
+
+    const observer = new ResizeObserver(updateControlsHeight)
+    observer.observe(controls)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  const visibleStatuses = useMemo(() => {
+    if (columnFilters.statuses.length === 0) {
+      return pageStatuses
+    }
+
+    return new Set<ImportRowStatus>([
+      ...unfilteredStatusesRef.current,
+      ...pageStatuses,
+    ])
+  }, [columnFilters.statuses, pageStatuses])
+
   const tableRows = useMemo(() => {
     // "Requiere revisión" y "Existente en SIIGO" se piden al backend como su
     // estado real (Pendiente/Lista, ver requestFilters más arriba) — el
@@ -1152,7 +1238,21 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     sendDocuments,
   } = useSupportDocumentSend({
     workspace: config,
-    onCompleted: () => {
+    onCompleted: (summary) => {
+      // Mismo mecanismo que el aviso de import (ver handleImportFile): se
+      // guarda la tanda recién enviada, se activa "solo esta tanda" y se
+      // deja preseleccionada — así el usuario ve de una cuáles mandó, sin
+      // tener que buscarlas entre el resto de la tabla. Reemplaza cualquier
+      // vista de import activa (son mutuamente excluyentes).
+      setImportNotice(null)
+      setShowImportOnly(false)
+      setSendNotice({
+        documentIds: summary.documentIds,
+        successCount: summary.successCount,
+        errorCount: summary.errorCount,
+      })
+      setShowSendOnly(true)
+      setSelectedDocumentIds(new Set(summary.documentIds))
       reloadDocuments()
       void refreshSetupStatus()
     },
@@ -1964,6 +2064,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           )
         }
 
+        setSendNotice(null)
+        setShowSendOnly(false)
         setImportNotice({ documentCount, documentIds })
         setShowImportOnly(true)
         reloadDocuments({ resetPage: true })
@@ -2043,7 +2145,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   }, [reloadDocuments])
 
   return (
-    <main className="support-document-page">
+    <main className="support-document-page" ref={pageRef}>
       <PageHeader
         title={config.pageTitle}
         description={config.pageDescription}
@@ -2092,6 +2194,19 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         />
       )}
 
+      {sendNotice && (
+        <SendSuccessBanner
+          notice={sendNotice}
+          showSendOnly={showSendOnly}
+          onShowSendOnly={() => setShowSendOnly(true)}
+          onShowAll={() => setShowSendOnly(false)}
+          onDismiss={() => {
+            setSendNotice(null)
+            setShowSendOnly(false)
+          }}
+        />
+      )}
+
       {isResuming ? (
         <ImportLoadingOverlay
           key="resuming"
@@ -2124,7 +2239,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             tone="delete"
           />
         )}
-        {feedbackMessage && (
+        {feedbackMessage && !sendNotice && (
           <p className="support-document-page__feedback" role="status">
             {feedbackMessage}
           </p>
@@ -2205,9 +2320,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         columnFilters={columnFilters}
         selectedSupplierNits={selectedSupplierNits}
         dateRangeFilter={config.key === 'purchaseInvoice'}
-        showPurchaseInvoiceDerivedStatuses={
-          config.key === 'purchaseInvoice' && config.provider === 'SIIGO'
-        }
+        visibleStatuses={visibleStatuses}
         disabled={
           isLoading ||
           isImporting ||
@@ -2227,6 +2340,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       />
 
       <div
+        ref={controlsRef}
         className={[
           'support-document-page__controls',
           isControlsAnchored ? 'support-document-page__controls--anchored' : '',

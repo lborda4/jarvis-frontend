@@ -14,6 +14,10 @@ interface TaxAutocompleteProps {
   disabled?: boolean
   placeholder?: string
   options?: SiigoTaxOption[]
+  /** Por defecto formatTaxOptionLabel (nombre completo + %). Para columnas
+   * que ya dicen de qué categoría se trata (ej. "IVA", "Imp. Ret." por
+   * ítem), pasar formatTaxOptionLabelWithoutPrefix para no repetirlo. */
+  formatOptionLabel?: (tax: SiigoTaxOption) => string
 }
 
 function TaxAutocomplete({
@@ -23,6 +27,7 @@ function TaxAutocomplete({
   disabled = false,
   placeholder = 'Buscar retención...',
   options = [],
+  formatOptionLabel = formatTaxOptionLabel,
 }: TaxAutocompleteProps) {
   const optionsWithNone = useMemo(
     () => [NONE_TAX_OPTION, ...options.filter((option) => !isNoneTaxOption(option))],
@@ -52,7 +57,7 @@ function TaxAutocomplete({
       placeholder={placeholder}
       emptyMessage="No se encontraron retenciones"
       getOptionKey={(tax) => tax.id}
-      getOptionLabel={formatTaxOptionLabel}
+      getOptionLabel={formatOptionLabel}
       isOptionMatch={isOptionMatch}
     />
   )

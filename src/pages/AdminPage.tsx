@@ -12,9 +12,12 @@ import {
   fetchAdminCities,
   fetchAdminCompanies,
   fetchAdminPlans,
+  fetchBoldBindedTerminals,
+  fetchBoldCashRegisters,
   lookupAdminCompanyName,
   parseAdminCompanyRut,
   regenerateCompanyInviteCode,
+  saveBoldCashRegister,
   updateCompanyCity,
   updateCompanyNextPymeToken,
   updateIntegrationSubscription,
@@ -29,6 +32,8 @@ import {
   type AdminCompanyListItem,
   type AdminIntegrationItem,
   type AdminPlan,
+  type BoldCashRegister,
+  type BoldTerminal,
   type CompanyPersonType,
   type ElectronicDocumentType,
   type IntegrationProvider,
@@ -52,6 +57,22 @@ const AVAILABLE_DOCUMENT_TYPES: Array<{
   },
 ]
 
+/** Borrador de la fila "nueva caja" al final de la tabla — texto libre
+ * mientras se edita, se valida/convierte recién al guardar. */
+interface BoldCashRegisterDraft {
+  branchOfficeId: string
+  cashRegisterId: string
+  cashRegisterName: string
+  boldTerminalId: string
+}
+
+const EMPTY_CASH_REGISTER_DRAFT: BoldCashRegisterDraft = {
+  branchOfficeId: '',
+  cashRegisterId: '',
+  cashRegisterName: '',
+  boldTerminalId: '',
+}
+
 function formatDocumentLimit(limit: number | null | undefined): string {
   if (limit == null) {
     return 'Sin límite'
@@ -65,7 +86,9 @@ function formatPlanName(plan: AdminPlan): string {
 }
 
 function formatProviderLabel(provider: IntegrationProvider): string {
-  return provider === INTEGRATION_PROVIDER.SIIGO ? 'SIIGO' : 'Jarvis'
+  if (provider === INTEGRATION_PROVIDER.SIIGO) return 'SIIGO'
+  if (provider === INTEGRATION_PROVIDER.BOLD) return 'Bold'
+  return 'Jarvis'
 }
 
 function formatPersonType(personType: CompanyPersonType | null): string {
@@ -132,6 +155,36 @@ function AdminPage() {
   >(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  // Panel de Bold (caja/datáfonos) por empresa — la llave de identidad no se
+  // persiste todavía (ver ensureBoldIntegration en el backend), así que vive
+  // solo en memoria del navegador mientras dura la sesión del admin.
+  const [expandedBoldCompanyId, setExpandedBoldCompanyId] = useState<
+    string | null
+  >(null)
+  const [boldApiKeyByCompanyId, setBoldApiKeyByCompanyId] = useState<
+    Record<string, string>
+  >({})
+  const [boldTerminalsByCompanyId, setBoldTerminalsByCompanyId] = useState<
+    Record<string, BoldTerminal[]>
+  >({})
+  const [loadingBoldTerminalsCompanyId, setLoadingBoldTerminalsCompanyId] =
+    useState<string | null>(null)
+  const [boldTerminalsErrorByCompanyId, setBoldTerminalsErrorByCompanyId] =
+    useState<Record<string, string | null>>({})
+  const [boldCashRegistersByCompanyId, setBoldCashRegistersByCompanyId] =
+    useState<Record<string, BoldCashRegister[]>>({})
+  const [
+    loadingBoldCashRegistersCompanyId,
+    setLoadingBoldCashRegistersCompanyId,
+  ] = useState<string | null>(null)
+  const [
+    boldCashRegistersErrorByCompanyId,
+    setBoldCashRegistersErrorByCompanyId,
+  ] = useState<Record<string, string | null>>({})
+  const [newCashRegisterDraftByCompanyId, setNewCashRegisterDraftByCompanyId] =
+    useState<Record<string, BoldCashRegisterDraft>>({})
+  const [savingCashRegisterCompanyId, setSavingCashRegisterCompanyId] =
+    useState<string | null>(null)
   const [nit, setNit] = useState('')
   const [name, setName] = useState('')
   const [isLookingUpName, setIsLookingUpName] = useState(false)
@@ -154,6 +207,12 @@ function AdminPage() {
   // cualquier proveedor (SIIGO o Jarvis). Antes solo se podía configurar
   // después de crear la empresa, desde la columna de la tabla.
   const [companyNextPymeToken, setCompanyNextPymeToken] = useState('')
+  // Llave de identidad (x-api-key) de Bold para esta empresa — igual que el
+  // resto del panel de Bold, no se persiste en BD todavía (ver
+  // ensureBoldIntegration en el backend); al crear la empresa solo queda
+  // precargada en memoria (boldApiKeyByCompanyId) para no tener que
+  // volver a escribirla al abrir su panel de cajas/datáfonos.
+  const [companyBoldApiKey, setCompanyBoldApiKey] = useState('')
   const [siigoPlanId, setSiigoPlanId] = useState('')
   const [jarvisPlanId, setJarvisPlanId] = useState('')
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
@@ -382,6 +441,18 @@ function AdminPage() {
 
       setCompanies((current) => [response.company, ...current])
       setSuccessMessage(`Empresa ${response.company.name} creada correctamente.`)
+
+      if (selectedIntegrations.includes(INTEGRATION_PROVIDER.BOLD)) {
+        const trimmedBoldApiKey = companyBoldApiKey.trim()
+
+        if (trimmedBoldApiKey) {
+          setBoldApiKeyByCompanyId((current) => ({
+            ...current,
+            [response.company.id]: trimmedBoldApiKey,
+          }))
+        }
+      }
+
       setNit('')
       setName('')
       setPersonType('')
@@ -395,6 +466,7 @@ function AdminPage() {
       setIdSoftware('')
       setTokenNextPyme('')
       setCompanyNextPymeToken('')
+      setCompanyBoldApiKey('')
       setSelectedCity(null)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
       setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
@@ -582,6 +654,169 @@ function AdminPage() {
     }
   }
 
+  const handleLoadBoldCashRegisters = async (
+    company: AdminCompanyListItem,
+  ) => {
+    setLoadingBoldCashRegistersCompanyId(company.id)
+    setBoldCashRegistersErrorByCompanyId((current) => ({
+      ...current,
+      [company.id]: null,
+    }))
+
+    try {
+      const response = await fetchBoldCashRegisters(company.id)
+      setBoldCashRegistersByCompanyId((current) => ({
+        ...current,
+        [company.id]: response.items,
+      }))
+    } catch (error) {
+      setBoldCashRegistersErrorByCompanyId((current) => ({
+        ...current,
+        [company.id]: getApiErrorMessage(
+          error,
+          'No se pudieron cargar las cajas de esta empresa.',
+        ),
+      }))
+    } finally {
+      setLoadingBoldCashRegistersCompanyId(null)
+    }
+  }
+
+  const handleToggleBoldPanel = (company: AdminCompanyListItem) => {
+    const isOpening = expandedBoldCompanyId !== company.id
+
+    setExpandedBoldCompanyId(isOpening ? company.id : null)
+
+    // Trae las cajas ya guardadas apenas se despliega el panel — así se ve
+    // la misma tabla persistida cada vez que se abre, no solo justo después
+    // de guardar una nueva en esta misma sesión.
+    if (isOpening && !boldCashRegistersByCompanyId[company.id]) {
+      void handleLoadBoldCashRegisters(company)
+    }
+  }
+
+  const handleBoldApiKeyChange = (companyId: string, value: string) => {
+    setBoldApiKeyByCompanyId((current) => ({ ...current, [companyId]: value }))
+  }
+
+  const handleCashRegisterDraftChange = (
+    companyId: string,
+    patch: Partial<BoldCashRegisterDraft>,
+  ) => {
+    setNewCashRegisterDraftByCompanyId((current) => ({
+      ...current,
+      [companyId]: {
+        ...(current[companyId] ?? EMPTY_CASH_REGISTER_DRAFT),
+        ...patch,
+      },
+    }))
+  }
+
+  const handleSaveCashRegister = async (company: AdminCompanyListItem) => {
+    const draft =
+      newCashRegisterDraftByCompanyId[company.id] ?? EMPTY_CASH_REGISTER_DRAFT
+    const branchOfficeId = Number(draft.branchOfficeId)
+
+    if (!draft.branchOfficeId.trim() || !Number.isFinite(branchOfficeId)) {
+      setBoldCashRegistersErrorByCompanyId((current) => ({
+        ...current,
+        [company.id]: 'La sucursal debe ser un número válido.',
+      }))
+      return
+    }
+
+    if (!draft.cashRegisterId.trim() || !draft.cashRegisterName.trim()) {
+      setBoldCashRegistersErrorByCompanyId((current) => ({
+        ...current,
+        [company.id]: 'El id y el nombre de la caja son obligatorios.',
+      }))
+      return
+    }
+
+    if (!draft.boldTerminalId) {
+      setBoldCashRegistersErrorByCompanyId((current) => ({
+        ...current,
+        [company.id]: 'Seleccione un datáfono.',
+      }))
+      return
+    }
+
+    setSavingCashRegisterCompanyId(company.id)
+    setBoldCashRegistersErrorByCompanyId((current) => ({
+      ...current,
+      [company.id]: null,
+    }))
+
+    try {
+      const response = await saveBoldCashRegister({
+        companyId: company.id,
+        branchOfficeId,
+        cashRegisterId: draft.cashRegisterId.trim(),
+        cashRegisterName: draft.cashRegisterName.trim(),
+        boldTerminalId: draft.boldTerminalId,
+      })
+
+      setBoldCashRegistersByCompanyId((current) => {
+        const existing = current[company.id] ?? []
+        const withoutOldVersion = existing.filter(
+          (item) => item.id !== response.item.id,
+        )
+
+        return {
+          ...current,
+          [company.id]: [...withoutOldVersion, response.item],
+        }
+      })
+      setNewCashRegisterDraftByCompanyId((current) => ({
+        ...current,
+        [company.id]: EMPTY_CASH_REGISTER_DRAFT,
+      }))
+    } catch (error) {
+      setBoldCashRegistersErrorByCompanyId((current) => ({
+        ...current,
+        [company.id]: getApiErrorMessage(
+          error,
+          'No se pudo guardar la caja.',
+        ),
+      }))
+    } finally {
+      setSavingCashRegisterCompanyId(null)
+    }
+  }
+
+  const handleLoadBoldTerminals = async (company: AdminCompanyListItem) => {
+    // No se exige la llave acá — mientras Bold no esté configurado de
+    // verdad en el backend (BOLD_API_KEY/BOLD_API_BASE_URL), el endpoint
+    // devuelve un mock sin importar qué se haya escrito; una vez sí esté
+    // configurado, el backend rechaza la llave faltante y ese error llega
+    // igual al catch de abajo con el mismo mensaje.
+    const apiKey = boldApiKeyByCompanyId[company.id]?.trim() ?? ''
+
+    setLoadingBoldTerminalsCompanyId(company.id)
+    setBoldTerminalsErrorByCompanyId((current) => ({
+      ...current,
+      [company.id]: null,
+    }))
+
+    try {
+      const response = await fetchBoldBindedTerminals(apiKey)
+      setBoldTerminalsByCompanyId((current) => ({
+        ...current,
+        [company.id]: response.payload.available_terminals,
+      }))
+    } catch (error) {
+      setBoldTerminalsErrorByCompanyId((current) => ({
+        ...current,
+        [company.id]: getApiErrorMessage(
+          error,
+          'No se pudieron consultar los datáfonos de Bold.',
+        ),
+      }))
+    } finally {
+      setLoadingBoldTerminalsCompanyId(null)
+    }
+  }
+
   const handleStartEditCity = (company: AdminCompanyListItem) => {
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -684,6 +919,7 @@ function AdminPage() {
   const includesJarvis = selectedIntegrations.includes(
     INTEGRATION_PROVIDER.JARVIS,
   )
+  const includesBold = selectedIntegrations.includes(INTEGRATION_PROVIDER.BOLD)
 
   const handleLogout = () => {
     logout()
@@ -785,122 +1021,7 @@ function AdminPage() {
                 getOptionLabel={(city) => `${city.name} (${city.code})`}
               />
             </div>
-
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-nextpyme-token">
-                Token NextPyme (opcional)
-              </label>
-              <input
-                id="admin-company-nextpyme-token"
-                type="password"
-                value={companyNextPymeToken}
-                onChange={(event) =>
-                  setCompanyNextPymeToken(event.target.value)
-                }
-                placeholder="Deja en blanco para usar el token global"
-                disabled={isSubmitting}
-                autoComplete="new-password"
-              />
-            </div>
-
-            {includesSiigo && (
-              <div className="admin-form__field">
-                <label htmlFor="admin-company-plan-siigo">Plan SIIGO</label>
-                <select
-                  id="admin-company-plan-siigo"
-                  value={siigoPlanId}
-                  onChange={(event) => setSiigoPlanId(event.target.value)}
-                  required
-                  disabled={isSubmitting || siigoPlans.length === 0}
-                >
-                  {siigoPlans.length === 0 ? (
-                    <option value="">Sin planes SIIGO disponibles</option>
-                  ) : (
-                    siigoPlans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            )}
-
-            {includesJarvis && (
-              <div className="admin-form__field">
-                <label htmlFor="admin-company-plan-jarvis">Plan Jarvis</label>
-                <select
-                  id="admin-company-plan-jarvis"
-                  value={jarvisPlanId}
-                  onChange={(event) => setJarvisPlanId(event.target.value)}
-                  required
-                  disabled={isSubmitting || jarvisPlans.length === 0}
-                >
-                  {jarvisPlans.length === 0 ? (
-                    <option value="">Sin planes Jarvis disponibles</option>
-                  ) : (
-                    jarvisPlans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            )}
-
-            {includesJarvis && (
-              <>
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-id-software">IDSoftware</label>
-                  <input
-                    id="admin-company-id-software"
-                    type="text"
-                    value={idSoftware}
-                    onChange={(event) => setIdSoftware(event.target.value)}
-                    placeholder="Identificador de software NextPyme/DIAN"
-                    disabled={isSubmitting}
-                    autoComplete="off"
-                  />
-                </div>
-
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-token-nextpyme">
-                    tokenNextPyme
-                  </label>
-                  <input
-                    id="admin-company-token-nextpyme"
-                    type="password"
-                    value={tokenNextPyme}
-                    onChange={(event) => setTokenNextPyme(event.target.value)}
-                    placeholder="Token de autenticación NextPyme"
-                    disabled={isSubmitting}
-                    autoComplete="new-password"
-                  />
-                </div>
-              </>
-            )}
           </div>
-
-          {(includesSiigo || includesJarvis) && (
-            <fieldset className="admin-form__integrations">
-              <legend>Documentos incluidos</legend>
-              {AVAILABLE_DOCUMENT_TYPES.map((documentType) => (
-                <label
-                  key={documentType.value}
-                  className="admin-form__checkbox"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDocumentTypes.includes(documentType.value)}
-                    onChange={() => toggleCreateDocumentType(documentType.value)}
-                    disabled={isSubmitting}
-                  />
-                  {documentType.label}
-                </label>
-              ))}
-            </fieldset>
-          )}
 
           <fieldset className="admin-form__responsible">
             <legend>Persona a cargo (opcional)</legend>
@@ -962,7 +1083,156 @@ function AdminPage() {
               />
               Jarvis
             </label>
+            <label className="admin-form__checkbox">
+              <input
+                type="checkbox"
+                checked={selectedIntegrations.includes(INTEGRATION_PROVIDER.BOLD)}
+                onChange={() => toggleIntegration(INTEGRATION_PROVIDER.BOLD)}
+                disabled={isSubmitting}
+              />
+              Bold
+            </label>
           </fieldset>
+
+          {(includesSiigo || includesJarvis || includesBold) && (
+            <div className="admin-form__grid">
+              {includesSiigo && (
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-plan-siigo">Plan SIIGO</label>
+                  <select
+                    id="admin-company-plan-siigo"
+                    value={siigoPlanId}
+                    onChange={(event) => setSiigoPlanId(event.target.value)}
+                    required
+                    disabled={isSubmitting || siigoPlans.length === 0}
+                  >
+                    {siigoPlans.length === 0 ? (
+                      <option value="">Sin planes SIIGO disponibles</option>
+                    ) : (
+                      siigoPlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {includesJarvis && (
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-plan-jarvis">Plan Jarvis</label>
+                  <select
+                    id="admin-company-plan-jarvis"
+                    value={jarvisPlanId}
+                    onChange={(event) => setJarvisPlanId(event.target.value)}
+                    required
+                    disabled={isSubmitting || jarvisPlans.length === 0}
+                  >
+                    {jarvisPlans.length === 0 ? (
+                      <option value="">Sin planes Jarvis disponibles</option>
+                    ) : (
+                      jarvisPlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {includesJarvis && (
+                <>
+                  <div className="admin-form__field">
+                    <label htmlFor="admin-company-id-software">IDSoftware</label>
+                    <input
+                      id="admin-company-id-software"
+                      type="text"
+                      value={idSoftware}
+                      onChange={(event) => setIdSoftware(event.target.value)}
+                      placeholder="Identificador de software NextPyme/DIAN"
+                      disabled={isSubmitting}
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  <div className="admin-form__field">
+                    <label htmlFor="admin-company-token-nextpyme">
+                      tokenNextPyme
+                    </label>
+                    <input
+                      id="admin-company-token-nextpyme"
+                      type="password"
+                      value={tokenNextPyme}
+                      onChange={(event) => setTokenNextPyme(event.target.value)}
+                      placeholder="Token de autenticación NextPyme"
+                      disabled={isSubmitting}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </>
+              )}
+
+              {(includesSiigo || includesJarvis) && (
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-nextpyme-token">
+                    Token NextPyme (opcional)
+                  </label>
+                  <input
+                    id="admin-company-nextpyme-token"
+                    type="password"
+                    value={companyNextPymeToken}
+                    onChange={(event) =>
+                      setCompanyNextPymeToken(event.target.value)
+                    }
+                    placeholder="Deja en blanco para usar el token global"
+                    disabled={isSubmitting}
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
+
+              {includesBold && (
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-bold-token">
+                    Token Bold (opcional)
+                  </label>
+                  <input
+                    id="admin-company-bold-token"
+                    type="password"
+                    value={companyBoldApiKey}
+                    onChange={(event) =>
+                      setCompanyBoldApiKey(event.target.value)
+                    }
+                    placeholder="Llave de identidad (x-api-key) de la cuenta Bold"
+                    disabled={isSubmitting}
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {(includesSiigo || includesJarvis) && (
+            <fieldset className="admin-form__integrations">
+              <legend>Documentos incluidos</legend>
+              {AVAILABLE_DOCUMENT_TYPES.map((documentType) => (
+                <label
+                  key={documentType.value}
+                  className="admin-form__checkbox"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDocumentTypes.includes(documentType.value)}
+                    onChange={() => toggleCreateDocumentType(documentType.value)}
+                    disabled={isSubmitting}
+                  />
+                  {documentType.label}
+                </label>
+              ))}
+            </fieldset>
+          )}
 
           {includesJarvis && (
             <section className="admin-rut-upload" aria-labelledby="admin-rut-title">
@@ -1047,6 +1317,7 @@ function AdminPage() {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th aria-label="Expandir" />
                   <th>Código de invitación</th>
                   <th>NIT</th>
                   <th>Empresa</th>
@@ -1063,14 +1334,37 @@ function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {companies.map((company) => {
+                {companies.flatMap((company) => {
                   const plansByProvider = {
                     [INTEGRATION_PROVIDER.SIIGO]: siigoPlans,
                     [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
                   }
+                  const hasBold = company.integrations.some(
+                    (integration) =>
+                      integration.provider === INTEGRATION_PROVIDER.BOLD,
+                  )
+                  const isBoldPanelOpen =
+                    hasBold && expandedBoldCompanyId === company.id
 
-                  return (
+                  return [
                     <tr key={company.id}>
+                      <td>
+                        {hasBold && (
+                          <button
+                            type="button"
+                            className="admin-table__expand-button"
+                            aria-expanded={isBoldPanelOpen}
+                            aria-label={
+                              isBoldPanelOpen
+                                ? `Ocultar Bold de ${company.name}`
+                                : `Ver Bold de ${company.name}`
+                            }
+                            onClick={() => handleToggleBoldPanel(company)}
+                          >
+                            {isBoldPanelOpen ? '▾' : '▸'}
+                          </button>
+                        )}
+                      </td>
                       <td>
                         <div className="admin-invite-code">
                           <code>{company.inviteCode}</code>
@@ -1390,8 +1684,254 @@ function AdminPage() {
                           </div>
                         )}
                       </td>
-                    </tr>
-                  )
+                    </tr>,
+                    isBoldPanelOpen ? (
+                      <tr key={`${company.id}-bold`} className="admin-bold-panel-row">
+                        <td colSpan={14}>
+                          <div className="admin-bold-panel">
+                            <h3 className="admin-bold-panel__title">
+                              Bold — Cajas y datáfonos de {company.name}
+                            </h3>
+
+                            <div className="admin-bold-panel__key-row">
+                              <label htmlFor={`bold-api-key-${company.id}`}>
+                                Llave de identidad (x-api-key)
+                              </label>
+                              <input
+                                id={`bold-api-key-${company.id}`}
+                                type="text"
+                                value={boldApiKeyByCompanyId[company.id] ?? ''}
+                                onChange={(event) =>
+                                  handleBoldApiKeyChange(
+                                    company.id,
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Llave de la cuenta Bold de esta empresa"
+                                disabled={
+                                  loadingBoldTerminalsCompanyId === company.id
+                                }
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleLoadBoldTerminals(company)
+                                }
+                                disabled={
+                                  loadingBoldTerminalsCompanyId === company.id
+                                }
+                              >
+                                {loadingBoldTerminalsCompanyId === company.id
+                                  ? 'Consultando...'
+                                  : 'Consultar datáfonos'}
+                              </button>
+                            </div>
+
+                            {boldTerminalsErrorByCompanyId[company.id] && (
+                              <p className="admin-bold-panel__error">
+                                {boldTerminalsErrorByCompanyId[company.id]}
+                              </p>
+                            )}
+
+                            {boldCashRegistersErrorByCompanyId[
+                              company.id
+                            ] && (
+                              <p className="admin-bold-panel__error">
+                                {boldCashRegistersErrorByCompanyId[company.id]}
+                              </p>
+                            )}
+
+                            <table className="admin-table admin-bold-panel__table">
+                              <thead>
+                                <tr>
+                                  <th>Caja</th>
+                                  <th>Datáfonos</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {loadingBoldCashRegistersCompanyId ===
+                                  company.id && (
+                                  <tr>
+                                    <td colSpan={2} className="admin-empty">
+                                      Cargando cajas...
+                                    </td>
+                                  </tr>
+                                )}
+
+                                {(
+                                  boldCashRegistersByCompanyId[company.id] ??
+                                  []
+                                ).map((cashRegister) => {
+                                  const terminal = (
+                                    boldTerminalsByCompanyId[company.id] ?? []
+                                  ).find(
+                                    (item) =>
+                                      item.terminal_serial ===
+                                      cashRegister.boldTerminalId,
+                                  )
+
+                                  return (
+                                    <tr key={cashRegister.id}>
+                                      <td>
+                                        <div className="admin-bold-panel__caja-name">
+                                          {cashRegister.cashRegisterName}
+                                        </div>
+                                        <div className="admin-bold-panel__caja-meta">
+                                          Sucursal {cashRegister.branchOfficeId}{' '}
+                                          · Caja {cashRegister.cashRegisterId}
+                                        </div>
+                                      </td>
+                                      <td>
+                                        {terminal
+                                          ? `${terminal.name} (${terminal.terminal_model})`
+                                          : cashRegister.boldTerminalId}
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+
+                                <tr>
+                                  <td>
+                                    <div className="admin-bold-panel__new-caja">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        placeholder="Sucursal"
+                                        value={
+                                          newCashRegisterDraftByCompanyId[
+                                            company.id
+                                          ]?.branchOfficeId ?? ''
+                                        }
+                                        onChange={(event) =>
+                                          handleCashRegisterDraftChange(
+                                            company.id,
+                                            {
+                                              branchOfficeId:
+                                                event.target.value,
+                                            },
+                                          )
+                                        }
+                                        disabled={
+                                          savingCashRegisterCompanyId ===
+                                          company.id
+                                        }
+                                      />
+                                      <input
+                                        type="text"
+                                        placeholder="Id de caja (SIIGO POS)"
+                                        value={
+                                          newCashRegisterDraftByCompanyId[
+                                            company.id
+                                          ]?.cashRegisterId ?? ''
+                                        }
+                                        onChange={(event) =>
+                                          handleCashRegisterDraftChange(
+                                            company.id,
+                                            { cashRegisterId: event.target.value },
+                                          )
+                                        }
+                                        disabled={
+                                          savingCashRegisterCompanyId ===
+                                          company.id
+                                        }
+                                      />
+                                      <input
+                                        type="text"
+                                        placeholder="Nombre (ej. Caja 1)"
+                                        value={
+                                          newCashRegisterDraftByCompanyId[
+                                            company.id
+                                          ]?.cashRegisterName ?? ''
+                                        }
+                                        onChange={(event) =>
+                                          handleCashRegisterDraftChange(
+                                            company.id,
+                                            {
+                                              cashRegisterName:
+                                                event.target.value,
+                                            },
+                                          )
+                                        }
+                                        disabled={
+                                          savingCashRegisterCompanyId ===
+                                          company.id
+                                        }
+                                      />
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="admin-bold-panel__new-caja-datafono">
+                                      <select
+                                        value={
+                                          newCashRegisterDraftByCompanyId[
+                                            company.id
+                                          ]?.boldTerminalId ?? ''
+                                        }
+                                        onChange={(event) =>
+                                          handleCashRegisterDraftChange(
+                                            company.id,
+                                            {
+                                              boldTerminalId:
+                                                event.target.value,
+                                            },
+                                          )
+                                        }
+                                        disabled={
+                                          !(
+                                            boldTerminalsByCompanyId[
+                                              company.id
+                                            ]?.length
+                                          ) ||
+                                          savingCashRegisterCompanyId ===
+                                            company.id
+                                        }
+                                      >
+                                        <option value="">
+                                          {boldTerminalsByCompanyId[company.id]
+                                            ?.length
+                                            ? 'Seleccione un datáfono...'
+                                            : 'Consulte los datáfonos primero'}
+                                        </option>
+                                        {(
+                                          boldTerminalsByCompanyId[
+                                            company.id
+                                          ] ?? []
+                                        ).map((terminal) => (
+                                          <option
+                                            key={terminal.terminal_serial}
+                                            value={terminal.terminal_serial}
+                                          >
+                                            {terminal.name} (
+                                            {terminal.terminal_model}) —{' '}
+                                            {terminal.status}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void handleSaveCashRegister(company)
+                                        }
+                                        disabled={
+                                          savingCashRegisterCompanyId ===
+                                          company.id
+                                        }
+                                      >
+                                        {savingCashRegisterCompanyId ===
+                                        company.id
+                                          ? 'Guardando...'
+                                          : 'Guardar'}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null,
+                  ]
                 })}
               </tbody>
             </table>

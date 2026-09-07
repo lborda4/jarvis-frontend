@@ -342,7 +342,36 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
   }, [applyCatalogState, isAuthenticated, isSiigoConfigured])
 
   useEffect(() => {
-    void refreshCatalogs()
+    // Sin caché todavía (login recién resuelto, o cambio de empresa): esta
+    // única llamada dispara ~9 requests al catálogo de SIIGO (cuentas,
+    // medios de pago x2, impuestos x4, centros de costo, productos) más el
+    // sync en background — el navegador solo abre ~6 conexiones
+    // simultáneas por dominio, así que esa ráfaga competía por sockets con
+    // la petición de la página que se está montando en ese mismo instante
+    // (ej. GET /electronic-documents de Factura de compra) y la dejaba en
+    // cola. Bug real reportado: la tabla tardaba ~18s (o se veía vacía) solo
+    // la primera vez que se entraba tras el login; la segunda vez, con el
+    // catálogo ya en caché, cargaba rápido porque no había ráfaga que
+    // competir. Este pequeño delay deja que la petición de la página gane
+    // el socket primero — el catálogo de todas formas no bloquea el render
+    // de la tabla (solo alimenta las opciones de los selects). Si ya hay
+    // caché (aunque esté por vencer), se refresca de una sin delay: en ese
+    // caso `refreshCatalogs` ya sirve el bundle cacheado al instante y no
+    // dispara la ráfaga completa hasta que sí vence.
+    const hasCache = Boolean(
+      peekCachedQuery<SiigoCatalogBundle>(siigoCatalogCacheKey()),
+    )
+
+    if (hasCache) {
+      void refreshCatalogs()
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void refreshCatalogs()
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
   }, [refreshCatalogs, companyId])
 
   const value = useMemo<SiigoCatalogContextValue>(

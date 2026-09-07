@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import Button from '../Button'
 import DatePicker from '../DatePicker'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
@@ -75,7 +74,6 @@ interface PurchaseInvoiceDetailEditorProps {
    * certificado por la DIAN) mientras el contador no lo haya tocado. */
   documentDiscount: number
   disabled?: boolean
-  onCancel: () => void
   /** Se dispara con CADA cambio en el borrador (ítems, retenciones, medio de
    * pago, etc.) — no hay un paso de "guardar" aparte: lo único que persiste
    * de verdad todo esto (historial de compras, preferencias del proveedor)
@@ -102,7 +100,6 @@ function PurchaseInvoiceDetailEditor({
   retentionOptionsByType,
   documentDiscount,
   disabled = false,
-  onCancel,
   onChange,
 }: PurchaseInvoiceDetailEditorProps) {
   const sidebarRetentionTypes = retentionCatalogTypes.filter(
@@ -113,6 +110,12 @@ function PurchaseInvoiceDetailEditor({
   // "de contado" — en vez de vacío/oculto. El contador siempre ve una fecha
   // de vencimiento y un Plazo concretos, y los edita a mano si es a crédito.
   const initialDueDate = dueDate ?? (issueDate || null)
+
+  // Con la factura ya en SIIGO ningún campo se puede editar: un "Buscar
+  // medio de pago..." ahí solo invita a escribir donde no se puede, y de
+  // lejos se lee como si el campo trajera un dato. Sin valor, en blanco.
+  const editablePlaceholder = (placeholder: string) =>
+    disabled ? '' : placeholder
 
   const [draftItems, setDraftItems] = useState(items)
   const [draftPaymentMethod, setDraftPaymentMethod] = useState(paymentMethod)
@@ -170,6 +173,13 @@ function PurchaseInvoiceDetailEditor({
     draftItems,
     draftDocumentDiscount,
   )
+  // La Retefuente se elige por ítem, así que no tiene selector en este panel
+  // (a diferencia de Rete ICA/Rete IVA) — pero su monto sí se resta del Total
+  // neto, y sin una fila propia no había forma de ver de dónde salía esa
+  // diferencia. Se muestra igual que el IVA: acumulado de todas las líneas.
+  const retefuenteAmount =
+    summary.retentionLines.find((line) => line.type === RETEFUENTE_TAX_TYPE)
+      ?.amount ?? 0
 
   // Ref en vez de dependencia directa: `onChange` es una closure nueva en
   // cada render del padre (no viene memoizada con useCallback), así que
@@ -224,7 +234,9 @@ function PurchaseInvoiceDetailEditor({
                 onChange={setDraftPaymentMethod}
                 options={paymentMethodOptions}
                 disabled={disabled}
-                placeholder="Buscar medio de pago..."
+                // Ver editablePlaceholder: con la factura ya en SIIGO no hay
+                // nada que buscar, y el texto se lee como si fuera un dato.
+                placeholder={editablePlaceholder('Buscar medio de pago...')}
               />
             </div>
 
@@ -294,19 +306,28 @@ function PurchaseInvoiceDetailEditor({
 
           <div className="purchase-invoice-editor__summary-row">
             <span>Descuento general</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              className="purchase-invoice-editor__discount-input"
-              value={formatNumberInputValue(draftDocumentDiscount)}
-              onChange={(event) =>
-                setDraftDocumentDiscount(parseNumberInputValue(event.target.value))
-              }
-              onFocus={selectAllOnFocus}
-              disabled={disabled}
-              placeholder="0"
-            />
+            {/* Con la factura ya en SIIGO el campo no se puede editar, así que
+              * el recuadro solo agrega ruido: se muestra el monto como un dato
+              * más del resumen, igual que Subtotal o IVA. Mientras la factura
+              * sea editable sigue siendo un input — el descuento general es
+              * uno de los pocos valores que el contador puede ajustar a mano
+              * (desplaza el Total neto, ver calculatePurchaseInvoiceRowSummary). */}
+            {disabled ? (
+              <span>{formatCurrency(draftDocumentDiscount)}</span>
+            ) : (
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                className="purchase-invoice-editor__discount-input"
+                value={formatNumberInputValue(draftDocumentDiscount)}
+                onChange={(event) =>
+                  setDraftDocumentDiscount(parseNumberInputValue(event.target.value))
+                }
+                onFocus={selectAllOnFocus}
+                placeholder="0"
+              />
+            )}
           </div>
 
           <div className="purchase-invoice-editor__summary-row">
@@ -314,8 +335,30 @@ function PurchaseInvoiceDetailEditor({
             <span>{formatCurrency(summary.ivaAmount)}</span>
           </div>
 
+          <div className="purchase-invoice-editor__summary-row">
+            <span>{formatRetentionTypeDisplayLabel(RETEFUENTE_TAX_TYPE)}</span>
+            <span
+              className={
+                retefuenteAmount > 0
+                  ? 'purchase-invoice-editor__amount purchase-invoice-editor__amount--negative'
+                  : 'purchase-invoice-editor__amount'
+              }
+            >
+              {retefuenteAmount > 0
+                ? `-${formatCurrency(retefuenteAmount)}`
+                : formatCurrency(0)}
+            </span>
+          </div>
+
           {sidebarRetentionTypes.map((taxType) => {
             const line = summary.retentionLines.find((entry) => entry.type === taxType)
+            const selectedTax = draftRetentionsByType[taxType] ?? null
+            // Con la factura ya en SIIGO (o mientras se está enviando) el
+            // buscador no hace nada, y si además no hay retención elegida
+            // queda un campo muerto que invita a escribir. Se oculta solo el
+            // buscador: la fila sigue mostrando la retención y su monto, para
+            // que el resumen no cambie de forma según el estado.
+            const showRetentionPicker = !disabled || Boolean(selectedTax)
 
             return (
               <div
@@ -323,18 +366,27 @@ function PurchaseInvoiceDetailEditor({
                 className="purchase-invoice-editor__summary-row purchase-invoice-editor__summary-row--select"
               >
                 <span>{formatRetentionTypeDisplayLabel(taxType)}</span>
-                <TaxAutocomplete
-                  value={draftRetentionsByType[taxType] ?? null}
-                  onChange={(tax) =>
-                    setDraftRetentionsByType((current) => ({
-                      ...current,
-                      [taxType]: tax,
-                    }))
-                  }
-                  options={retentionOptionsByType[taxType] ?? []}
-                  disabled={disabled}
-                  placeholder={`Buscar ${formatRetentionTypeDisplayLabel(taxType)}...`}
-                />
+                {showRetentionPicker ? (
+                  <TaxAutocomplete
+                    value={selectedTax}
+                    onChange={(tax) =>
+                      setDraftRetentionsByType((current) => ({
+                        ...current,
+                        [taxType]: tax,
+                      }))
+                    }
+                    options={retentionOptionsByType[taxType] ?? []}
+                    disabled={disabled}
+                    placeholder={editablePlaceholder(
+                      `Buscar ${formatRetentionTypeDisplayLabel(taxType)}...`,
+                    )}
+                  />
+                ) : (
+                  // La celda del medio se mantiene (la fila es una grilla de
+                  // 3 columnas) para que el monto siga alineado con el de las
+                  // demás filas del resumen.
+                  <span />
+                )}
                 <span
                   className={
                     line && line.amount > 0
@@ -357,11 +409,6 @@ function PurchaseInvoiceDetailEditor({
         </div>
       </div>
 
-      <div className="purchase-invoice-editor__actions">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>
-          Cancelar
-        </Button>
-      </div>
     </div>
   )
 }

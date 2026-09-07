@@ -1,9 +1,11 @@
 import type {
+  BoldBindedTerminalsResponse,
   CreateAdminCompanyRequest,
   CreateAdminCompanyResponse,
   ListAdminCitiesResponse,
   ListAdminCompaniesResponse,
   ListAdminPlansResponse,
+  ListBoldCashRegistersResponse,
   LookupAdminCompanyNameResponse,
   ParseRutResponse,
   RegenerateCompanyInviteCodeResponse,
@@ -13,6 +15,8 @@ import type {
   UpdateCompanyNextPymeTokenResponse,
   UpdateIntegrationSubscriptionRequest,
   UpdateIntegrationSubscriptionResponse,
+  UpsertBoldCashRegisterRequest,
+  UpsertBoldCashRegisterResponse,
 } from '../types/admin'
 import type { IntegrationProvider } from '../types/admin'
 import { apiClient } from './apiClient'
@@ -21,6 +25,8 @@ const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
 const ADMIN_PLANS_ENDPOINT = '/admin/plans'
 const ADMIN_CITIES_ENDPOINT = '/admin/cities'
 const ADMIN_RUT_PARSE_ENDPOINT = '/admin/companies/rut/parse'
+const BOLD_BINDED_TERMINALS_ENDPOINT = '/bold/payments/binded-terminals'
+const BOLD_CASH_REGISTERS_ENDPOINT = '/bold/cash-registers'
 
 export async function fetchAdminPlans(): Promise<ListAdminPlansResponse> {
   const response = await apiClient.get<ListAdminPlansResponse>(
@@ -108,6 +114,41 @@ export async function updateCompanyCity(
 ): Promise<UpdateCompanyCityResponse> {
   const response = await apiClient.patch<UpdateCompanyCityResponse>(
     `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/city`,
+    request,
+  )
+
+  return response.data
+}
+
+/** La llave de identidad (x-api-key) de Bold no se persiste todavía (ver
+ * ensureBoldIntegration en el backend) — viaja en este header en cada
+ * llamada, la ingresa el admin a mano en el panel. */
+export async function fetchBoldBindedTerminals(
+  apiKey: string,
+): Promise<BoldBindedTerminalsResponse> {
+  const response = await apiClient.get<BoldBindedTerminalsResponse>(
+    BOLD_BINDED_TERMINALS_ENDPOINT,
+    { headers: { 'x-bold-api-key': apiKey } },
+  )
+
+  return response.data
+}
+
+export async function fetchBoldCashRegisters(
+  companyId: string,
+): Promise<ListBoldCashRegistersResponse> {
+  const response = await apiClient.get<ListBoldCashRegistersResponse>(
+    `${BOLD_CASH_REGISTERS_ENDPOINT}/${companyId}`,
+  )
+
+  return response.data
+}
+
+export async function saveBoldCashRegister(
+  request: UpsertBoldCashRegisterRequest,
+): Promise<UpsertBoldCashRegisterResponse> {
+  const response = await apiClient.post<UpsertBoldCashRegisterResponse>(
+    BOLD_CASH_REGISTERS_ENDPOINT,
     request,
   )
 

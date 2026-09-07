@@ -18,7 +18,9 @@ import {
 } from '../services/authService'
 import {
   AUTH_SESSION_EXPIRED_EVENT,
+  getStoredSessionSnapshot,
   hasStoredSession,
+  setStoredSessionSnapshot,
 } from '../services/authStorage'
 import { wakeBackend } from '../services/healthService'
 import {
@@ -41,9 +43,17 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [companies, setCompanies] = useState<AuthCompany[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  // Snapshot de la última sesión confirmada (ver authStorage) — permite
+  // pintar la app de una sola vez cuando el navegador descarta/recarga la
+  // pestaña por inactividad, en vez de bloquear con "Validando sesión..."
+  // esperando el roundtrip a fetchCurrentUser. Se revalida en segundo plano
+  // en el efecto de abajo, sin bloquear el render si ya había snapshot.
+  const [initialSnapshot] = useState(() => getStoredSessionSnapshot())
+  const [user, setUser] = useState<AuthUser | null>(initialSnapshot?.user ?? null)
+  const [companies, setCompanies] = useState<AuthCompany[]>(
+    initialSnapshot?.companies ?? [],
+  )
+  const [isLoading, setIsLoading] = useState(!initialSnapshot)
   const [isSwitchingCompany, setIsSwitchingCompany] = useState(false)
 
   useEffect(() => {
@@ -85,15 +95,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setActiveCompanyId(currentSession.user.company?.id ?? null)
           setUser(currentSession.user)
           setCompanies(currentSession.companies)
+          setStoredSessionSnapshot(
+            currentSession.user,
+            currentSession.companies,
+          )
         }
       } catch {
-        logoutRequest()
+        // Ya había un snapshot cacheado (pestaña recargada por el navegador,
+        // no necesariamente una sesión inválida): no se fuerza logout por un
+        // fallo puntual de ESTA revalidación en segundo plano (ej. cold
+        // start de Render, blip de red) — un 401 real ya dispara
+        // AUTH_SESSION_EXPIRED_EVENT vía el interceptor de apiClient en la
+        // siguiente petición real. Forzar logout acá solo cuando este
+        // chequeo era la única fuente de verdad (sin snapshot previo).
+        if (!initialSnapshot) {
+          logoutRequest()
 
-        if (isMounted) {
-          setActiveCompanyId(null)
-          invalidateQueryCache()
-          setUser(null)
-          setCompanies([])
+          if (isMounted) {
+            setActiveCompanyId(null)
+            invalidateQueryCache()
+            setUser(null)
+            setCompanies([])
+          }
         }
       } finally {
         if (isMounted) {
@@ -119,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setActiveCompanyId(currentSession.user.company?.id ?? null)
     setUser(currentSession.user)
     setCompanies(currentSession.companies)
+    setStoredSessionSnapshot(currentSession.user, currentSession.companies)
 
     return currentSession.user
   }, [])
@@ -130,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setActiveCompanyId(currentUser.company?.id ?? null)
     setUser(currentUser)
     setCompanies(session.companies)
+    setStoredSessionSnapshot(currentUser, session.companies)
   }, [])
 
   const switchCompany = useCallback(async (companyId: string) => {
@@ -149,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setActiveCompanyId(currentSession.user.company?.id ?? null)
       setUser(currentSession.user)
       setCompanies(currentSession.companies)
+      setStoredSessionSnapshot(currentSession.user, currentSession.companies)
     } finally {
       setIsSwitchingCompany(false)
     }

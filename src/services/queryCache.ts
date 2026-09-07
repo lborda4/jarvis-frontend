@@ -14,7 +14,7 @@ export const QUERY_STALE_MS = {
   credentials: 60_000,
   providers: 60_000,
   filterOptions: 30_000,
-  documents: 15_000,
+  documents: 10 * 60_000,
   siigoCatalogBundle: 5 * 60_000,
 } as const
 

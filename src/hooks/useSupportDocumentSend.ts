@@ -28,6 +28,17 @@ export interface BatchQueueProgress {
   label: string
 }
 
+/** Desglose de un lote de envío recién terminado — Factura de compra SIIGO
+ * lo usa para armar el aviso "se enviaron a crear N, X creadas, Y en error"
+ * con el mismo mecanismo de "solo esta tanda"/"ver todos" y auto-selección
+ * que ya tiene el import (ver SupportDocumentSendNotice y showSendOnly en
+ * SupportDocumentPage.tsx). */
+export interface SendBatchSummary {
+  documentIds: string[]
+  successCount: number
+  errorCount: number
+}
+
 interface SendDocumentsParams {
   documentIds: string[]
   documentsById: Record<string, ElectronicDocumentListItem>
@@ -52,7 +63,7 @@ interface UseSupportDocumentSendOptions {
     | 'requiresAccount'
     | 'requiresPaymentMethod'
   >
-  onCompleted: () => void
+  onCompleted: (summary: SendBatchSummary) => void
   onDocumentStatusChange?: (
     documentId: string,
     status: ImportRowStatus,
@@ -376,9 +387,22 @@ export function useSupportDocumentSend({
       setIsSending(false)
       setQueueProgress(null)
 
+      // Se avisa SIEMPRE que el lote tuvo al menos un documento (incluido
+      // el caso "todos fallaron") — a diferencia del feedbackMessage de
+      // abajo, que solo se arma cuando hubo al menos un éxito, este resumen
+      // es lo que Factura de compra SIIGO usa para armar el aviso con los 3
+      // conteos (enviadas/creadas/error) y la auto-selección de la tanda,
+      // sin importar el resultado.
+      if (results.length > 0) {
+        onCompleted({
+          documentIds: targets,
+          successCount: sentCount,
+          errorCount: failedCount,
+        })
+      }
+
       if (sentCount > 0) {
         setFeedbackMessage(workspace.sendSuccessFeedback(sentCount, failedCount))
-        onCompleted()
       }
 
       if (failedCount > 0 && sentCount === 0) {

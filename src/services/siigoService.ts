@@ -476,6 +476,8 @@ export async function createSiigoSupportDocument(
       dataJson: JSON.stringify(response.data),
     })
 
+    invalidateQueryCache(companyQueryKey(['electronic-documents']))
+
     return response.data
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -506,6 +508,12 @@ export async function deleteSiigoSupportDocument(
     `${SIIGO_SUPPORT_DOCUMENTS_ENDPOINT}/${encodeURIComponent(documentId)}`,
   )
 
+  // Sin esto, la lista y el filtro de Estado seguían sirviendo la
+  // respuesta cacheada (hasta 15s/30s vieja) con el estado de ANTES de
+  // borrar — bug real reportado: "LISTA" seguía apareciendo como opción del
+  // filtro (y marcado) aunque ya no quedara ningún documento así.
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+
   return response.data
 }
 
@@ -515,6 +523,8 @@ export async function deleteSiigoPurchase(
   const response = await apiClient.delete<DeleteSiigoPurchaseResponse>(
     `${SIIGO_PURCHASES_ENDPOINT}/${encodeURIComponent(documentId)}`,
   )
+
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
 
   return response.data
 }
@@ -526,6 +536,12 @@ export async function createSiigoPurchaseSend(
     SIIGO_PURCHASES_SEND_ENDPOINT,
     request,
   )
+
+  // Igual que el borrado: sin invalidar, la lista/filtro de Estado podían
+  // seguir mostrando el estado de ANTES de enviar (PENDIENTE en vez de
+  // LISTA, o "LISTA" faltando/sobrando como opción del filtro) hasta que
+  // venciera la caché por su cuenta.
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
 
   return response.data
 }

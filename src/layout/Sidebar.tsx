@@ -6,9 +6,10 @@ import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
   AdminIcon,
   ChevronDownIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
   DocumentIcon,
   HelpIcon,
-  PanelLeftIcon,
   PulseIcon,
   SettingsIcon,
   SuppliersIcon,
@@ -359,8 +360,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               className="app-sidebar__collapse-btn"
               onClick={onClose}
               aria-label="Ocultar menú lateral"
+              title="Ocultar menú"
             >
-              <PanelLeftIcon className="app-sidebar__collapse-icon" />
+              {/* Doble flecha hacia la izquierda: apunta hacia donde se va el
+                  panel al esconderse. El icono anterior (un rectángulo con
+                  una división) no dejaba claro qué hacía el botón. */}
+              <ChevronsLeftIcon className="app-sidebar__collapse-icon" />
             </button>
           </div>
         )}
@@ -460,7 +465,9 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             aria-label="Mostrar menú lateral"
             title="Mostrar menú"
           >
-            <PanelLeftIcon className="app-sidebar__rail-tab-icon" />
+            {/* Espejo del botón de ocultar: apunta hacia la derecha, que es
+                hacia donde se despliega el panel. */}
+            <ChevronsRightIcon className="app-sidebar__rail-tab-icon" />
           </button>
         </div>
       )}

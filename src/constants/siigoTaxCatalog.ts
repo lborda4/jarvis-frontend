@@ -27,6 +27,36 @@ export function formatTaxOptionLabel(option: SiigoTaxOption): string {
   return `${option.name}${percentageLabel}`
 }
 
+/** Igual que formatTaxOptionLabel, pero sin repetir el prefijo de
+ * categoría del nombre (ej. "IVA Bienes" -> "Bienes") — para columnas que
+ * ya dicen "IVA"/"Imp. Ret." en su encabezado, donde repetirlo en cada
+ * opción del selector es ruido en vez de información (el catálogo de SIIGO
+ * nombra sus impuestos con ese prefijo, ver GET /v1/taxes). Si el nombre no
+ * empieza con el prefijo (ej. "Ninguno"), lo deja tal cual. Cuando el nombre
+ * ES el prefijo entero (ej. name: "Retefuente", sin subcategoría — caso
+ * real visto en catálogos SIIGO sin desglose), quitar el prefijo deja el
+ * nombre vacío: en vez de volver a mostrar esa misma palabra sin nada más
+ * (perdiendo el porcentaje, que es lo único que aporta info nueva ahí),
+ * se muestra solo el porcentaje. */
+export function formatTaxOptionLabelWithoutPrefix(
+  prefix: string,
+  option: SiigoTaxOption,
+): string {
+  const strippedName = option.name
+    .replace(new RegExp(`^${prefix}\\s*`, 'i'), '')
+    .trim()
+
+  if (strippedName) {
+    return formatTaxOptionLabel({ ...option, name: strippedName })
+  }
+
+  if (Number.isFinite(option.percentage) && option.percentage > 0) {
+    return `${option.percentage}%`
+  }
+
+  return option.name
+}
+
 export const PURCHASE_INVOICE_PAYMENT_DOCUMENT_TYPE = 'FC'
 export const SUPPORT_DOCUMENT_PAYMENT_DOCUMENT_TYPE = 'DS'
 export const SUPPORT_DOCUMENT_RETE_ICA_TAX_TYPE = 'ReteICA'

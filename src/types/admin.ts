@@ -1,6 +1,7 @@
 export const INTEGRATION_PROVIDER = {
   SIIGO: 'SIIGO',
   JARVIS: 'JARVIS',
+  BOLD: 'BOLD',
 } as const
 
 export type IntegrationProvider =
@@ -194,4 +195,45 @@ export interface ParsedRutData {
 
 export interface ParseRutResponse {
   data: ParsedRutData
+}
+
+/** Forma tal cual la devuelve GET /payments/binded-terminals de Bold. */
+export interface BoldTerminal {
+  terminal_model: string
+  terminal_serial: string
+  status: string
+  name: string
+}
+
+export interface BoldBindedTerminalsResponse {
+  payload: {
+    available_terminals: BoldTerminal[]
+  }
+  errors: unknown[]
+}
+
+/** Caja SIIGO ya mapeada a un datáfono Bold — mismo registro que después
+ * usará la extensión de Chrome, ver SiigoBoldCashRegister en el backend. */
+export interface BoldCashRegister {
+  id: string
+  branchOfficeId: number
+  cashRegisterId: string
+  cashRegisterName: string
+  boldTerminalId: string
+}
+
+export interface ListBoldCashRegistersResponse {
+  items: BoldCashRegister[]
+}
+
+export interface UpsertBoldCashRegisterRequest {
+  companyId: string
+  branchOfficeId: number
+  cashRegisterId: string
+  cashRegisterName: string
+  boldTerminalId: string
+}
+
+export interface UpsertBoldCashRegisterResponse {
+  item: BoldCashRegister
 }

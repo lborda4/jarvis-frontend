@@ -24,7 +24,6 @@ export interface DocumentRowDetailEditableProps {
   retentionOptionsByType: Record<string, SiigoTaxOption[]>
   documentDiscount: number
   disabled?: boolean
-  onCancel: () => void
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
 }
 
@@ -80,7 +79,6 @@ export default function DocumentRowDetailPanel({
           retentionOptionsByType={editable.retentionOptionsByType}
           documentDiscount={editable.documentDiscount}
           disabled={editable.disabled}
-          onCancel={editable.onCancel}
           onChange={editable.onChange}
         />
       </div>

@@ -377,3 +377,123 @@
     grid-template-columns: 1fr;
   }
 }
+
+.admin-table__expand-button {
+  border: none;
+  background: none;
+  color: var(--jarvis-text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+}
+
+.admin-bold-panel-row td {
+  background-color: var(--jarvis-gray-50, #fafafa);
+}
+
+.admin-bold-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 0.25rem;
+}
+
+.admin-bold-panel__title {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--jarvis-text);
+}
+
+.admin-bold-panel__key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-bold-panel__key-row input {
+  min-width: 18rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+}
+
+.admin-bold-panel__key-row button {
+  border: 1px solid var(--jarvis-gray-300);
+  background: #fff;
+  color: var(--jarvis-text);
+  border-radius: var(--r-sm);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.admin-bold-panel__key-row button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-bold-panel__error {
+  margin: 0;
+  color: var(--jarvis-danger, #b3261e);
+  font-size: var(--text-sm);
+}
+
+.admin-bold-panel__table {
+  max-width: 46rem;
+}
+
+.admin-bold-panel__caja-name {
+  font-weight: 600;
+}
+
+.admin-bold-panel__caja-meta {
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.admin-bold-panel__new-caja {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-bold-panel__new-caja input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+}
+
+.admin-bold-panel__new-caja input[type='number'] {
+  width: 5.5rem;
+}
+
+.admin-bold-panel__new-caja-datafono {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-bold-panel__new-caja-datafono select {
+  min-width: 14rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+}
+
+.admin-bold-panel__new-caja-datafono button {
+  border: 1px solid var(--jarvis-gray-300);
+  background: #fff;
+  color: var(--jarvis-text);
+  border-radius: var(--r-sm);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.admin-bold-panel__new-caja-datafono button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

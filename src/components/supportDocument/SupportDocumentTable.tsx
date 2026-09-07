@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from '../Button'
 import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
 import SupportDocumentColumnHeader from './SupportDocumentColumnHeader'
@@ -337,11 +337,49 @@ function SupportDocumentTable({
     })
   }
 
+  const collapseAllRows = () => {
+    setExpandedRowIds(new Set())
+  }
+
+  // El encabezado se fija con `position: sticky` respecto al scroll de la
+  // PÁGINA, y para eso este contenedor no puede ser una caja de scroll: con
+  // `overflow-x: auto`, CSS obliga a que overflow-y compute a `auto`
+  // también, y el sticky se anclaría a una caja que no scrollea en vertical
+  // (o sea, nunca se pegaría). Por eso el scroll horizontal se enciende solo
+  // cuando la tabla de verdad no cabe, en vez de dejarlo puesto siempre:
+  // así en pantallas donde entra completa —lo normal desde que se
+  // compactaron las columnas— el encabezado queda fijo.
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [needsHorizontalScroll, setNeedsHorizontalScroll] = useState(false)
+
+  useEffect(() => {
+    const container = containerRef.current
+
+    if (!container) {
+      return
+    }
+
+    const updateOverflow = () => {
+      setNeedsHorizontalScroll(container.scrollWidth > container.clientWidth)
+    }
+
+    updateOverflow()
+
+    const observer = new ResizeObserver(updateOverflow)
+    observer.observe(container)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   return (
     <div
+      ref={containerRef}
       className={[
         'support-table',
         isLoading || isResuming ? 'support-table--busy' : '',
+        needsHorizontalScroll ? 'support-table--scrollable' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -349,7 +387,19 @@ function SupportDocumentTable({
       <table aria-busy={isLoading || isResuming}>
         <thead>
           <tr>
-            <th className="support-table__expand-col" aria-label="Detalle" />
+            <th className="support-table__expand-col" aria-label="Detalle">
+              {expandedRowIds.size > 0 && (
+                <button
+                  type="button"
+                  className="support-table__expand-button"
+                  onClick={collapseAllRows}
+                  aria-label="Contraer todos los registros desplegados"
+                  title="Contraer todos"
+                >
+                  <ChevronDownIcon />
+                </button>
+              )}
+            </th>
 
             <th className="support-table__checkbox-col">
               <input
@@ -609,12 +659,12 @@ function SupportDocumentTable({
                     </td>
                   )}
                   {showSummaryColumns && (
-                    <td className="support-table__cell-config">
+                    <td className="support-table__cell-config support-table__cell-config--amount">
                       {rowSummary ? formatCurrency(rowSummary.subtotal) : '—'}
                     </td>
                   )}
                   {showIvaColumn && (
-                    <td className="support-table__cell-config">
+                    <td className="support-table__cell-config support-table__cell-config--amount">
                       {showSummaryColumns
                         ? rowSummary
                           ? formatCurrency(rowSummary.ivaAmount)
@@ -640,7 +690,7 @@ function SupportDocumentTable({
                     )}
                   </td>
                   {showSummaryColumns && (
-                    <td className="support-table__cell-config">
+                    <td className="support-table__cell-config support-table__cell-config--amount">
                       {rowSummary ? formatCurrency(rowSummary.total) : '—'}
                     </td>
                   )}
@@ -707,7 +757,6 @@ function SupportDocumentTable({
                                   document.documentDiscount ??
                                   0,
                                 disabled: isSending || isDeleting || isRowLocked,
-                                onCancel: () => toggleRowExpanded(row.id),
                                 // No hay un paso de "guardar" aparte: cada
                                 // cambio actualiza directo rowItems/
                                 // rowPaymentMethods/etc. (el mismo estado que

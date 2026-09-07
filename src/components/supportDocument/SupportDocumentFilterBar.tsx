@@ -36,11 +36,12 @@ interface SupportDocumentFilterBarProps {
    * compra cada factura trae su propia fecha de emisión, así que un rango es
    * mucho más usable que tildar fecha por fecha. */
   dateRangeFilter?: boolean
-  /** Factura de compra SIIGO: agrega "Requiere revisión" y "Existente en
-   * SIIGO" a las opciones del filtro de Estado — ver
-   * buildSupportDocumentFilterOptions, son estados que solo existen en el
-   * frontend, no vienen en filterOptions.importStatuses del backend. */
-  showPurchaseInvoiceDerivedStatuses?: boolean
+  /** Estados que de verdad muestra al menos una fila cargada (ver
+   * visibleStatuses en SupportDocumentPage.tsx). El filtro de Estado se arma
+   * con este set en vez de con filterOptions.importStatuses, que trae el
+   * estado GUARDADO en el backend y no siempre coincide con el que se ve en
+   * la tabla. Sin él, se ofrecían estados que no devolvían ninguna fila. */
+  visibleStatuses?: ReadonlySet<ImportRowStatus>
   onSupplierNitsChange: (nits: string[]) => void
   onColumnFiltersChange: (
     updater: (current: SupportDocumentColumnFilters) => SupportDocumentColumnFilters,
@@ -223,7 +224,7 @@ function SupportDocumentFilterBar({
   selectedSupplierNits,
   disabled = false,
   dateRangeFilter = false,
-  showPurchaseInvoiceDerivedStatuses = false,
+  visibleStatuses,
   onSupplierNitsChange,
   onColumnFiltersChange,
 }: SupportDocumentFilterBarProps) {
@@ -233,9 +234,10 @@ function SupportDocumentFilterBar({
     () =>
       buildSupportDocumentFilterOptions(
         filterOptions,
-        showPurchaseInvoiceDerivedStatuses,
+        visibleStatuses ?? null,
+        columnFilters.statuses,
       ),
-    [filterOptions, showPurchaseInvoiceDerivedStatuses],
+    [filterOptions, visibleStatuses, columnFilters.statuses],
   )
   const supplierOptions = useMemo(
     () => buildSupplierFilterOptions(filterOptions),

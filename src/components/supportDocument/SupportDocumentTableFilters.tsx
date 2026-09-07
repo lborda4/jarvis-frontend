@@ -48,15 +48,30 @@ function ColumnCheckboxFilter<T extends string>({
   )
 }
 
+const DERIVED_STATUSES = [
+  IMPORT_ROW_STATUS.REQUIERE_REVISION,
+  IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO,
+] as const
+
 export function buildSupportDocumentFilterOptions(
   filterOptions: ElectronicDocumentFilterOptions | null,
-  /** Factura de compra SIIGO: "Requiere revisión" y "Existente en SIIGO" son
-   * estados que solo existen en el frontend (se derivan de datos del
-   * documento, ver mapDocumentToImportRowStatus y pageTableRows en
-   * SupportDocumentPage.tsx) — el backend no los conoce, así que nunca
-   * vienen en filterOptions.importStatuses y hay que agregarlos a mano acá
-   * cuando aplica. */
-  includePurchaseInvoiceDerivedStatuses = false,
+  /** Estados que de verdad se ven en alguna fila cargada. El desplegable de
+   * Estado se arma con ESTE set, no con filterOptions.importStatuses a secas,
+   * porque los dos no son lo mismo: el backend reporta el estado GUARDADO de
+   * cada documento, mientras que la tabla muestra un estado DERIVADO (ver
+   * mapDocumentToImportRowStatus y pageTableRows en SupportDocumentPage.tsx).
+   * Un documento guardado como "Lista" puede mostrarse como "Existente en
+   * SIIGO", y uno "Pendiente" como "Requiere revisión" — así que ofrecer el
+   * estado guardado llevaba a filtros que no devolvían ni una fila (bug real
+   * reportado: "Lista" marcada, tabla vacía). Los dos estados derivados
+   * tampoco existen en el backend, así que se agregan desde acá.
+   *
+   * `null` desactiva el recorte y deja pasar lo que reporte el backend. */
+  visibleStatuses: ReadonlySet<ImportRowStatus> | null = null,
+  /** Un estado ya marcado siempre se ofrece, aunque no quede ninguna fila
+   * con él: si no, la selección vigente desaparecería del desplegable y no
+   * habría forma de desmarcarla. */
+  selectedStatuses: readonly ImportRowStatus[] = [],
 ): {
   dates: ColumnCheckboxFilterOption<string>[]
   siigoNumbers: ColumnCheckboxFilterOption<string>[]
@@ -70,20 +85,24 @@ export function buildSupportDocumentFilterOptions(
     }
   }
 
-  const statuses: ColumnCheckboxFilterOption<ImportRowStatus>[] =
-    filterOptions.importStatuses.map((status) => ({
-      value: status as ImportRowStatus,
-      label: status,
-    }))
+  const isOfferable = (status: ImportRowStatus) =>
+    visibleStatuses === null ||
+    visibleStatuses.has(status) ||
+    selectedStatuses.includes(status)
 
-  if (includePurchaseInvoiceDerivedStatuses) {
-    for (const derivedStatus of [
-      IMPORT_ROW_STATUS.REQUIERE_REVISION,
-      IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO,
-    ]) {
-      if (!statuses.some((option) => option.value === derivedStatus)) {
-        statuses.push({ value: derivedStatus, label: derivedStatus })
-      }
+  const statuses: ColumnCheckboxFilterOption<ImportRowStatus>[] =
+    filterOptions.importStatuses
+      .map((status) => status as ImportRowStatus)
+      .filter(isOfferable)
+      .map((status) => ({ value: status, label: status }))
+
+  for (const derivedStatus of DERIVED_STATUSES) {
+    if (
+      visibleStatuses !== null &&
+      isOfferable(derivedStatus) &&
+      !statuses.some((option) => option.value === derivedStatus)
+    ) {
+      statuses.push({ value: derivedStatus, label: derivedStatus })
     }
   }
 

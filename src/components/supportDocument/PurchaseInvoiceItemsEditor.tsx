@@ -4,6 +4,7 @@ import ProductAutocomplete from '../ProductAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
+import { formatTaxOptionLabelWithoutPrefix } from '../../constants/siigoTaxCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import type {
   PurchaseInvoiceItemDraft,
@@ -76,6 +77,13 @@ function PurchaseInvoiceItemsEditor({
   documentReference = null,
   disabled = false,
 }: PurchaseInvoiceItemsEditorProps) {
+  // Con la factura ya en SIIGO ningún campo se puede editar, así que los
+  // placeholders ("Buscar producto...", "Descripción") solo invitan a
+  // escribir donde no se puede, y peor: se leen como si hubiera un dato. Un
+  // campo sin valor se deja en blanco.
+  const editablePlaceholder = (placeholder: string) =>
+    disabled ? '' : placeholder
+
   const lineTotals = calculatePurchaseInvoiceItemLineTotals(items, documentTotal)
   const updateItem = (localId: string, patch: Partial<PurchaseInvoiceItemDraft>) => {
     onChange(
@@ -135,7 +143,7 @@ function PurchaseInvoiceItemsEditor({
 
               return (
                 <tr key={item.localId}>
-                  <td>
+                  <td className="purchase-item-editor__cell--tipo">
                     <select
                       className="purchase-item-editor__select purchase-item-editor__select--tipo"
                       value={item.tipo}
@@ -169,7 +177,7 @@ function PurchaseInvoiceItemsEditor({
                         }
                         options={accountOptions}
                         disabled={disabled}
-                        placeholder="Buscar cuenta contable..."
+                        placeholder={editablePlaceholder('Buscar cuenta contable...')}
                       />
                     ) : item.tipo === 'Product' ? (
                       <ProductAutocomplete
@@ -186,7 +194,7 @@ function PurchaseInvoiceItemsEditor({
                         }
                         options={productOptions}
                         disabled={disabled}
-                        placeholder="Buscar producto..."
+                        placeholder={editablePlaceholder('Buscar producto...')}
                       />
                     ) : (
                       <input
@@ -197,11 +205,11 @@ function PurchaseInvoiceItemsEditor({
                           updateItem(item.localId, { producto: event.target.value })
                         }
                         disabled={disabled}
-                        placeholder="Código SIIGO"
+                        placeholder={editablePlaceholder('Código SIIGO')}
                       />
                     )}
                   </td>
-                  <td>
+                  <td className="purchase-item-editor__cell--description">
                     <input
                       type="text"
                       className="purchase-item-editor__input purchase-item-editor__input--wide"
@@ -210,10 +218,10 @@ function PurchaseInvoiceItemsEditor({
                         updateItem(item.localId, { description: event.target.value })
                       }
                       disabled={disabled}
-                      placeholder="Descripción"
+                      placeholder={editablePlaceholder('Descripción')}
                     />
                   </td>
-                  <td>
+                  <td className="purchase-item-editor__cell--qty">
                     <input
                       type="number"
                       min={0}
@@ -228,7 +236,7 @@ function PurchaseInvoiceItemsEditor({
                       disabled={disabled}
                     />
                   </td>
-                  <td>
+                  <td className="purchase-item-editor__cell--unit-value">
                     <input
                       type="number"
                       min={0}
@@ -243,7 +251,7 @@ function PurchaseInvoiceItemsEditor({
                       disabled={disabled}
                     />
                   </td>
-                  <td>
+                  <td className="purchase-item-editor__cell--discount">
                     <input
                       type="number"
                       min={0}
@@ -264,7 +272,14 @@ function PurchaseInvoiceItemsEditor({
                       onChange={(tax) => updateItem(item.localId, { ivaTax: tax })}
                       options={ivaOptions}
                       disabled={disabled}
-                      placeholder="IVA"
+                      // Sin placeholder a propósito: el encabezado de la
+                      // columna ya dice "IVA", y sin impuesto la celda se ve
+                      // vacía igual que la de Descuento en vez de aparentar
+                      // que trae un dato.
+                      placeholder=""
+                      formatOptionLabel={(tax) =>
+                        formatTaxOptionLabelWithoutPrefix('IVA', tax)
+                      }
                     />
                   </td>
                   <td className="purchase-item-editor__tax-cell">
@@ -273,13 +288,16 @@ function PurchaseInvoiceItemsEditor({
                       onChange={(tax) => updateItem(item.localId, { retefuenteTax: tax })}
                       options={retefuenteOptions}
                       disabled={disabled}
-                      placeholder="Retefuente"
+                      placeholder=""
+                      formatOptionLabel={(tax) =>
+                        formatTaxOptionLabelWithoutPrefix('Retefuente', tax)
+                      }
                     />
                   </td>
                   <td className="purchase-item-editor__readonly-cell purchase-item-editor__readonly-cell--total">
                     {formatCurrency(lineTotal)}
                   </td>
-                  <td>
+                  <td className="purchase-item-editor__cell--remove">
                     <button
                       type="button"
                       className="purchase-item-editor__remove"

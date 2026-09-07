@@ -30,3 +30,13 @@ export interface SupportDocumentImportNotice {
   documentCount: number
   documentIds: string[]
 }
+
+/** Aviso tras un lote de envío a SIIGO — igual que
+ * SupportDocumentImportNotice (mismo mecanismo de "solo esta tanda" vs "ver
+ * todos", ver showSendOnly en SupportDocumentPage.tsx), pero con el
+ * desglose de éxito/error del envío en vez de solo el total importado. */
+export interface SupportDocumentSendNotice {
+  documentIds: string[]
+  successCount: number
+  errorCount: number
+}

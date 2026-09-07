@@ -257,6 +257,13 @@ export async function createJarvisSupportDocument(
     request,
   )
 
+  // Sin esto, la lista y el filtro de Estado de Factura de compra/Documento
+  // soporte seguían sirviendo la respuesta cacheada con el estado de ANTES
+  // de enviar (bug real reportado: "LISTA" aparecía como opción del filtro,
+  // o marcado, sin que quedara ningún documento así) hasta que venciera la
+  // caché por su cuenta.
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+
   return response.data
 }
 
