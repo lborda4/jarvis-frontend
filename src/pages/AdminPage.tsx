@@ -1335,7 +1335,13 @@ function AdminPage() {
               </thead>
               <tbody>
                 {companies.flatMap((company) => {
-                  const plansByProvider = {
+                  // Partial: Bold queda fuera del mapa a propósito (no tiene
+                  // planes, no consume cupo de documentos), así que indexarlo
+                  // con cualquier provider devuelve undefined en vez de
+                  // romper el tipo.
+                  const plansByProvider: Partial<
+                    Record<IntegrationProvider, AdminPlan[]>
+                  > = {
                     [INTEGRATION_PROVIDER.SIIGO]: siigoPlans,
                     [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
                   }
