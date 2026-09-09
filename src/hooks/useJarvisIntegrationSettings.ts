@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  AUTO_DISMISS_TRANSIENT_ERROR_MS,
+  useAutoDismissMessage,
+} from './useAutoDismissMessage'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
 import { parseRegistrationRut } from '../services/authService'
 import {
+  fetchJarvisAvailableResolutions,
   fetchJarvisCredentialsStatus,
   parseJarvisResolution,
   saveJarvisCredentials,
@@ -12,17 +17,20 @@ import {
 import {
   JARVIS_TAX_REGIME,
   JARVIS_TAX_RESPONSIBILITY,
+  JARVIS_RESOLUTION_DOCUMENT_TYPES,
+  isResolutionOfDocumentType,
   JARVIS_VAT_REGIME,
+  type JarvisAvailableResolution,
   type JarvisDianResolution,
   type JarvisTaxRegime,
   type JarvisTaxResponsibility,
   type JarvisVatRegime,
 } from '../types/jarvis'
 
-export type JarvisSetupStepId =
-  | 'company'
-  | 'electronic_invoice'
-  | 'support_document'
+/** Las dos resoluciones (factura y documento soporte) van en UN solo paso:
+ * salen de la misma consulta a la DIAN y se eligen de la misma lista, así
+ * que separarlas obligaba a pasar dos veces por lo mismo. */
+export type JarvisSetupStepId = 'company' | 'resolutions'
 
 export interface JarvisSetupStep {
   id: JarvisSetupStepId
@@ -205,6 +213,17 @@ export function useJarvisIntegrationSettings() {
   const [resolutionFileName, setResolutionFileName] = useState('')
   const [resolutionWarnings, setResolutionWarnings] = useState<string[]>([])
   const [statusLoaded, setStatusLoaded] = useState(false)
+  const [availableResolutions, setAvailableResolutions] = useState<
+    JarvisAvailableResolution[]
+  >([])
+  const [isLoadingResolutions, setIsLoadingResolutions] = useState(false)
+  const [resolutionsError, setResolutionsError] = useAutoDismissMessage(
+    AUTO_DISMISS_TRANSIENT_ERROR_MS,
+  )
+  const [selectedInvoiceResolutionId, setSelectedInvoiceResolutionId] =
+    useState('')
+  const [selectedSupportResolutionId, setSelectedSupportResolutionId] =
+    useState('')
 
   const steps = useMemo<JarvisSetupStep[]>(() => {
     const nextSteps: JarvisSetupStep[] = [
@@ -215,39 +234,40 @@ export function useJarvisIntegrationSettings() {
       },
     ]
 
-    if (hasPurchaseInvoiceAccess) {
+    if (hasPurchaseInvoiceAccess || hasSupportDocumentAccess) {
       nextSteps.push({
-        id: 'electronic_invoice',
-        label: 'Factura electrónica',
-        description: 'Resolución DIAN de numeración',
-      })
-    }
-
-    if (hasSupportDocumentAccess) {
-      nextSteps.push({
-        id: 'support_document',
-        label: 'Documento soporte',
-        description: 'Resolución DIAN de numeración',
+        id: 'resolutions',
+        label: 'Resoluciones DIAN',
+        description: 'Numeración autorizada por tipo de documento',
       })
     }
 
     return nextSteps
   }, [hasPurchaseInvoiceAccess, hasSupportDocumentAccess])
 
+  const isInvoiceResolutionReady =
+    invoiceConfigured || isElectronicInvoiceResolutionConfigured
+  const isSupportResolutionReady =
+    supportConfigured || isSupportDocumentResolutionConfigured
+
   const isStepComplete = useCallback(
     (stepId: JarvisSetupStepId) => {
       if (stepId === 'company') return isJarvisCompanyConfigured
-      if (stepId === 'electronic_invoice') {
-        return invoiceConfigured || isElectronicInvoiceResolutionConfigured
-      }
-      return supportConfigured || isSupportDocumentResolutionConfigured
+
+      // Solo cuentan los tipos que el plan incluye: con un plan de solo
+      // documento soporte, exigir también la de factura dejaría el paso
+      // eternamente incompleto.
+      return (
+        (!hasPurchaseInvoiceAccess || isInvoiceResolutionReady) &&
+        (!hasSupportDocumentAccess || isSupportResolutionReady)
+      )
     },
     [
-      invoiceConfigured,
-      isElectronicInvoiceResolutionConfigured,
+      hasPurchaseInvoiceAccess,
+      hasSupportDocumentAccess,
+      isInvoiceResolutionReady,
       isJarvisCompanyConfigured,
-      isSupportDocumentResolutionConfigured,
-      supportConfigured,
+      isSupportResolutionReady,
     ],
   )
 
@@ -539,54 +559,208 @@ export function useJarvisIntegrationSettings() {
     ],
   )
 
-  const handleResolutionSubmit = useCallback(
+  // Cada selector lista SOLO las resoluciones de su tipo de documento. La
+  // consulta trae todos los tipos de la empresa (nómina, notas, POS,
+  // exportación...), y ofrecerlos para facturar llevaría a emitir contra una
+  // numeración que no corresponde.
+  const invoiceResolutionOptions = useMemo(
+    () =>
+      availableResolutions.filter((resolution) =>
+        isResolutionOfDocumentType(
+          resolution,
+          JARVIS_RESOLUTION_DOCUMENT_TYPES.ELECTRONIC_INVOICE,
+        ),
+      ),
+    [availableResolutions],
+  )
+  const supportResolutionOptions = useMemo(
+    () =>
+      availableResolutions.filter((resolution) =>
+        isResolutionOfDocumentType(
+          resolution,
+          JARVIS_RESOLUTION_DOCUMENT_TYPES.SUPPORT_DOCUMENT,
+        ),
+      ),
+    [availableResolutions],
+  )
+
+  const loadAvailableResolutions = useCallback(async () => {
+    setIsLoadingResolutions(true)
+    setResolutionsError(null)
+
+    try {
+      const response = await fetchJarvisAvailableResolutions()
+      setAvailableResolutions(response.resolutions)
+    } catch {
+      // Mensaje fijo a propósito: el detalle del error (ruta, estado HTTP,
+      // cuerpo del proxy) no le sirve al contador y solo expone plomería.
+      setAvailableResolutions([])
+      setResolutionsError(
+        'No se pudieron consultar las resoluciones. Intenta de nuevo.',
+      )
+    } finally {
+      setIsLoadingResolutions(false)
+    }
+  }, [])
+
+  // Se consultan una vez que la empresa ya está guardada: antes de eso
+  // NextPyme todavía no tiene con qué responder por esta empresa.
+  useEffect(() => {
+    if (!isJarvisCompanyConfigured) {
+      return
+    }
+
+    void loadAvailableResolutions()
+  }, [isJarvisCompanyConfigured, loadAvailableResolutions])
+
+  /** Vuelca la resolución elegida sobre el borrador que ya usa el guardado,
+   * en vez de duplicar la lógica de envío: el paso queda igual que antes,
+   * solo cambia de dónde salen los datos (antes, del PDF transcrito). */
+  const handleSelectResolution = useCallback(
+    (kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT', resolutionId: string) => {
+      const setSelectedId =
+        kind === 'SUPPORT_DOCUMENT'
+          ? setSelectedSupportResolutionId
+          : setSelectedInvoiceResolutionId
+      const setDraft =
+        kind === 'SUPPORT_DOCUMENT' ? setSupportResolution : setInvoiceResolution
+
+      setSelectedId(resolutionId)
+
+      const resolution = availableResolutions.find(
+        (item) => item.id === resolutionId,
+      )
+
+      if (!resolution) {
+        return
+      }
+
+      setDraft((current) => ({
+        ...current,
+        formNumber: resolution.formNumber ?? '',
+        documentTypeLabel:
+          resolution.documentTypeLabel?.trim() ||
+          (kind === 'SUPPORT_DOCUMENT'
+            ? 'DOCUMENTO SOPORTE'
+            : 'FACTURA ELECTRÓNICA DE VENTA'),
+        prefix: resolution.prefix,
+        // El borrador guarda en fromNumber el PRÓXIMO consecutivo a emitir,
+        // no el inicio del rango autorizado (ver resolutionToDraft).
+        fromNumber: String(resolution.nextConsecutive ?? resolution.fromNumber),
+        toNumber: String(resolution.toNumber),
+        authorizedAt: resolution.authorizedAt ?? '',
+        year: (resolution.authorizedAt ?? resolution.dateFrom)?.slice(0, 4) ?? '',
+        technicalKey: resolution.technicalKey ?? '',
+        dateFrom: resolution.dateFrom ?? resolution.authorizedAt ?? '',
+        dateTo: resolution.dateTo ?? '',
+      }))
+    },
+    [availableResolutions],
+  )
+
+  /** Valida y envía UNA resolución. Devuelve el mensaje de error si algo
+   * falta, o null si quedó guardada. */
+  const saveResolutionDraft = useCallback(
     async (
-      event: FormEvent<HTMLFormElement>,
       kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT',
-    ) => {
+      draft: ResolutionDraft,
+    ): Promise<string | null> => {
+      const label =
+        kind === 'SUPPORT_DOCUMENT'
+          ? 'documento soporte'
+          : 'factura electrónica'
+      const fromNumber = Number(draft.fromNumber)
+      const toNumber = Number(draft.toNumber)
+
+      if (!draft.prefix.trim() || !draft.formNumber.trim()) {
+        return `Elige la resolución de ${label}.`
+      }
+
+      // Documento soporte no lleva clave técnica: la DIAN solo se la asigna
+      // a las resoluciones de factura electrónica.
+      if (kind === 'ELECTRONIC_INVOICE' && !draft.technicalKey.trim()) {
+        return 'La resolución de factura electrónica debe traer clave técnica.'
+      }
+
+      if (!draft.dateFrom.trim() || !draft.dateTo.trim()) {
+        return `La resolución de ${label} no trae fechas de vigencia.`
+      }
+
+      if (
+        !Number.isFinite(fromNumber) ||
+        fromNumber < 1 ||
+        !Number.isFinite(toNumber) ||
+        toNumber < fromNumber
+      ) {
+        return `El rango de numeración de ${label} es inválido.`
+      }
+
+      const response = await saveJarvisResolution({
+        kind,
+        formNumber: draft.formNumber.trim(),
+        nit: draft.nit.trim() || undefined,
+        checkDigit: draft.checkDigit.trim() || undefined,
+        businessName: draft.businessName.trim() || undefined,
+        documentTypeLabel:
+          draft.documentTypeLabel.trim() ||
+          (kind === 'SUPPORT_DOCUMENT'
+            ? 'DOCUMENTO SOPORTE'
+            : 'FACTURA ELECTRÓNICA DE VENTA'),
+        modalityCode: draft.modalityCode.trim() || undefined,
+        prefix: draft.prefix.trim().toUpperCase(),
+        fromNumber,
+        toNumber,
+        requestType: draft.requestType.trim() || undefined,
+        year: draft.year.trim() || undefined,
+        authorizedAt:
+          draft.authorizedAt.trim() || draft.dateFrom.trim() || undefined,
+        technicalKey: draft.technicalKey.trim() || undefined,
+        dateFrom: draft.dateFrom.trim(),
+        dateTo: draft.dateTo.trim(),
+      })
+
+      if (kind === 'SUPPORT_DOCUMENT') {
+        setSupportConfigured(true)
+        setSupportResolution(resolutionToDraft(response.resolution))
+      } else {
+        setInvoiceConfigured(true)
+        setInvoiceResolution(resolutionToDraft(response.resolution))
+      }
+
+      return null
+    },
+    [],
+  )
+
+  /** Guarda las dos resoluciones del paso en un solo envío. Se manda una por
+   * una porque el backend persiste cada tipo por separado; si la primera
+   * falla se corta ahí, para no dejar media configuración guardada sin que
+   * el usuario se entere. */
+  const handleResolutionsSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
 
       if (isSavingResolution) {
         return
       }
 
-      const draft =
-        kind === 'SUPPORT_DOCUMENT' ? supportResolution : invoiceResolution
-      const fromNumber = Number(draft.fromNumber)
-      const toNumber = Number(draft.toNumber)
+      // Solo se envía lo que el usuario haya elegido: puede guardar una
+      // resolución hoy y la otra después, sin quedar bloqueado por la que
+      // todavía no tiene a mano.
+      const pending: Array<
+        ['ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT', ResolutionDraft]
+      > = []
 
-      if (!draft.prefix.trim()) {
-        setErrorMessage('El prefijo es obligatorio.')
-        return
+      if (hasPurchaseInvoiceAccess && selectedInvoiceResolutionId) {
+        pending.push(['ELECTRONIC_INVOICE', invoiceResolution])
       }
 
-      if (!draft.formNumber.trim()) {
-        setErrorMessage('El número de resolución DIAN es obligatorio.')
-        return
+      if (hasSupportDocumentAccess && selectedSupportResolutionId) {
+        pending.push(['SUPPORT_DOCUMENT', supportResolution])
       }
 
-      if (!draft.technicalKey.trim()) {
-        setErrorMessage('La clave técnica es obligatoria.')
-        return
-      }
-
-      if (!draft.dateFrom.trim() || !draft.dateTo.trim()) {
-        setErrorMessage('Las fechas de vigencia (Desde/Hasta) son obligatorias.')
-        return
-      }
-
-      if (draft.dateTo.trim() < draft.dateFrom.trim()) {
-        setErrorMessage('La vigencia es inválida: Hasta es menor que Desde.')
-        return
-      }
-
-      if (!Number.isFinite(fromNumber) || fromNumber < 1) {
-        setErrorMessage('El número Desde es inválido.')
-        return
-      }
-
-      if (!Number.isFinite(toNumber) || toNumber < fromNumber) {
-        setErrorMessage('El número Hasta es inválido.')
+      if (pending.length === 0) {
+        setErrorMessage('Elige al menos una resolución para guardar.')
         return
       }
 
@@ -595,52 +769,42 @@ export function useJarvisIntegrationSettings() {
       setSuccessMessage(null)
 
       try {
-        const response = await saveJarvisResolution({
-          kind,
-          formNumber: draft.formNumber.trim(),
-          nit: draft.nit.trim() || undefined,
-          checkDigit: draft.checkDigit.trim() || undefined,
-          businessName: draft.businessName.trim() || undefined,
-          documentTypeLabel:
-            draft.documentTypeLabel.trim() ||
-            (kind === 'SUPPORT_DOCUMENT'
-              ? 'DOCUMENTO SOPORTE'
-              : 'FACTURA ELECTRÓNICA DE VENTA'),
-          modalityCode: draft.modalityCode.trim() || undefined,
-          prefix: draft.prefix.trim().toUpperCase(),
-          fromNumber,
-          toNumber,
-          requestType: draft.requestType.trim() || undefined,
-          year: draft.year.trim() || undefined,
-          authorizedAt:
-            draft.authorizedAt.trim() || draft.dateFrom.trim() || undefined,
-          technicalKey: draft.technicalKey.trim(),
-          dateFrom: draft.dateFrom.trim(),
-          dateTo: draft.dateTo.trim(),
-        })
+        for (const [kind, draft] of pending) {
+          const validationError = await saveResolutionDraft(kind, draft)
 
-        if (kind === 'SUPPORT_DOCUMENT') {
-          setSupportConfigured(true)
-          setSupportResolution(resolutionToDraft(response.resolution))
-          setSuccessMessage(
-            'Resolución de Documento soporte enviada correctamente.',
-          )
-          await refreshSetupStatus()
-          goToNextStep('support_document')
-        } else {
-          setInvoiceConfigured(true)
-          setInvoiceResolution(resolutionToDraft(response.resolution))
-          setSuccessMessage(
-            'Resolución de Factura electrónica enviada correctamente.',
-          )
-          await refreshSetupStatus()
-          goToNextStep('electronic_invoice')
+          if (validationError) {
+            setErrorMessage(validationError)
+            return
+          }
+        }
+
+        setSuccessMessage(
+          pending.length > 1
+            ? 'Resoluciones guardadas correctamente.'
+            : 'Resolución guardada correctamente.',
+        )
+        await refreshSetupStatus()
+
+        // Se cierra el paso solo si ya quedaron TODAS las que el plan pide.
+        // Guardando una sola, colapsar la sección dejaría al usuario buscando
+        // cómo volver para configurar la que falta.
+        const invoiceReady =
+          !hasPurchaseInvoiceAccess ||
+          isInvoiceResolutionReady ||
+          pending.some(([kind]) => kind === 'ELECTRONIC_INVOICE')
+        const supportReady =
+          !hasSupportDocumentAccess ||
+          isSupportResolutionReady ||
+          pending.some(([kind]) => kind === 'SUPPORT_DOCUMENT')
+
+        if (invoiceReady && supportReady) {
+          goToNextStep('resolutions')
         }
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
             error,
-            'No se pudo enviar la resolución. Intenta nuevamente.',
+            'No se pudo guardar la resolución. Intenta nuevamente.',
           ),
         )
       } finally {
@@ -649,9 +813,16 @@ export function useJarvisIntegrationSettings() {
     },
     [
       goToNextStep,
+      hasPurchaseInvoiceAccess,
+      hasSupportDocumentAccess,
       invoiceResolution,
+      isInvoiceResolutionReady,
       isSavingResolution,
+      isSupportResolutionReady,
       refreshSetupStatus,
+      saveResolutionDraft,
+      selectedInvoiceResolutionId,
+      selectedSupportResolutionId,
       supportResolution,
     ],
   )
@@ -711,6 +882,15 @@ export function useJarvisIntegrationSettings() {
     isSavingResolution,
     resolutionFileName,
     resolutionWarnings,
+    availableResolutions,
+    invoiceResolutionOptions,
+    supportResolutionOptions,
+    isLoadingResolutions,
+    resolutionsError,
+    selectedInvoiceResolutionId,
+    selectedSupportResolutionId,
+    handleSelectResolution,
+    reloadAvailableResolutions: loadAvailableResolutions,
     allRequiredStepsComplete,
     setBusinessName,
     setTradeName,
@@ -728,6 +908,6 @@ export function useJarvisIntegrationSettings() {
     handleRutUpload,
     handleResolutionUpload,
     handleSubmit,
-    handleResolutionSubmit,
+    handleResolutionsSubmit,
   }
 }

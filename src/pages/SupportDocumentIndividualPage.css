@@ -431,37 +431,53 @@
   height: 18px;
 }
 
+/* Mismo cuadro de totales que el detalle de Factura de compra (ver
+ * .purchase-invoice-editor__summary): tarjeta blanca con una fila por
+ * concepto, rótulo a la izquierda y monto a la derecha. Antes era una fila
+ * horizontal de bloques apilados, que al lado de la otra pantalla se leía
+ * como otro producto. */
 .ds-individual__totals {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 1.25rem;
-  margin-top: 1rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--jarvis-gray-200);
+  display: grid;
+  gap: 0.6rem;
+  width: min(100%, 22rem);
+  margin: 1rem 0 0 auto;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--jarvis-gray-200);
+  border-radius: var(--r-md);
+  background: #ffffff;
+  align-content: start;
 }
 
 .ds-individual__totals > div {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 7.5rem;
-  text-align: right;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .ds-individual__totals span {
-  color: var(--jarvis-text-muted);
-  font-size: 0.8rem;
+  color: var(--jarvis-text);
+  font-size: var(--text-base);
 }
 
 .ds-individual__totals strong {
-  color: var(--jarvis-navy);
-  font-size: 1rem;
+  color: var(--jarvis-text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
+.ds-individual__totals-payable {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--jarvis-gray-100);
+}
+
+.ds-individual__totals-payable span,
 .ds-individual__totals-payable strong {
   color: var(--jarvis-primary);
-  font-size: 1.15rem;
+  font-size: var(--text-md);
+  font-weight: 700;
 }
 
 .ds-individual__actions {

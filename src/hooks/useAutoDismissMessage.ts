@@ -7,6 +7,10 @@ export const AUTO_DISMISS_ERROR_MS = 5_000
  * el usuario ya sabe qué pidió y solo está buscando la señal de que salió
  * bien — dejarlo tanto tiempo lo vuelve un cartel pegado en pantalla. */
 export const AUTO_DISMISS_CONFIRMATION_MS = 4_000
+/** Aviso puntual de que algo no se pudo consultar y se puede reintentar. Se
+ * va solo: dejarlo fijo convierte un tropiezo momentáneo en un cartel de
+ * error permanente sobre una pantalla que por lo demás funciona. */
+export const AUTO_DISMISS_TRANSIENT_ERROR_MS = 3_000
 
 export function useAutoDismissMessage(
   durationMs = AUTO_DISMISS_MESSAGE_MS,

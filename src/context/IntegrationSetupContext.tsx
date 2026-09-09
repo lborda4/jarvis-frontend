@@ -54,6 +54,7 @@ interface IntegrationSetupContextValue {
   isElectronicInvoiceResolutionConfigured: boolean
   isSupportDocumentEnabled: boolean
   isPurchaseInvoiceEnabled: boolean
+  isSalesInvoiceEnabled: boolean
   requiresSetup: boolean
   setupPath: string
   markConfigured: () => void
@@ -320,16 +321,28 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   const hasPurchaseInvoiceAccess = includedDocumentTypes.includes(
     'PURCHASE_INVOICE',
   )
+  // En Jarvis cada tipo de documento se emite contra SU resolución DIAN, así
+  // que sin ella la sección no puede hacer nada: se habilita solo cuando la
+  // resolución de ese tipo ya quedó asociada. En SIIGO no aplica — ahí la
+  // numeración la pone el comprobante de cargue, no una resolución propia.
   const isSupportDocumentEnabled =
     isConfigured &&
     isSubscriptionActive &&
     hasSupportDocumentAccess &&
-    (isSiigoCompany || isJarvisCompany)
+    (isSiigoCompany ||
+      (isJarvisCompany && isSupportDocumentResolutionConfigured))
   const isPurchaseInvoiceEnabled =
     isConfigured &&
     isSubscriptionActive &&
     hasPurchaseInvoiceAccess &&
-    (isSiigoCompany || isJarvisCompany)
+    isSiigoCompany
+  /** Factura de venta es exclusiva de Jarvis y se emite con la resolución de
+   * factura electrónica. */
+  const isSalesInvoiceEnabled =
+    isJarvisCompany &&
+    isConfigured &&
+    isSubscriptionActive &&
+    isElectronicInvoiceResolutionConfigured
 
   const value = useMemo<IntegrationSetupContextValue>(
     () => ({
@@ -355,6 +368,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isElectronicInvoiceResolutionConfigured,
       isSupportDocumentEnabled,
       isPurchaseInvoiceEnabled,
+      isSalesInvoiceEnabled,
       requiresSetup,
       setupPath,
       markConfigured,
@@ -382,6 +396,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isElectronicInvoiceResolutionConfigured,
       isSupportDocumentEnabled,
       isPurchaseInvoiceEnabled,
+      isSalesInvoiceEnabled,
       requiresSetup,
       setupPath,
       markConfigured,
