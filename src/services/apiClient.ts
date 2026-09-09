@@ -139,10 +139,12 @@ export function getApiErrorMessage(
       }
     }
 
-    if (typeof data === 'string' && data.length > 0) {
-      return sanitize(data) || fallbackMessage
-    }
-
+    // Un cuerpo de respuesta en texto plano NO se muestra: nuestro backend
+    // siempre responde el error como JSON { message }, así que un string
+    // viene de otra capa (el 404 "Cannot GET /ruta" de Express, una página de
+    // error de un proxy, HTML de nginx) y son mensajes técnicos que exponen
+    // rutas internas y no le dicen nada al usuario. Se cae al mensaje por
+    // estado o al fallback de quien llama.
     if (error.response?.status) {
       return `Error del servidor (${error.response.status}). Intenta nuevamente.`
     }

@@ -105,6 +105,63 @@ export interface JarvisDianResolution {
   configuredAt?: string | null
 }
 
+/** Resolución vigente en la DIAN, consultada a NextPyme. No trae `kind`: la
+ * DIAN identifica cada rango por prefijo y no distingue factura de documento
+ * soporte, así que cuál va en cada tipo lo elige el usuario. */
+export interface JarvisAvailableResolution {
+  id: string
+  prefix: string
+  formNumber?: string | null
+  fromNumber: number
+  toNumber: number
+  nextConsecutive?: number | null
+  /** Null en documento soporte: la DIAN no le asigna clave técnica. */
+  technicalKey?: string | null
+  authorizedAt?: string | null
+  dateFrom?: string | null
+  dateTo?: string | null
+  documentTypeLabel?: string | null
+  typeDocumentId?: number | null
+}
+
+export interface ListJarvisAvailableResolutionsResponse {
+  resolutions: JarvisAvailableResolution[]
+}
+
+/** Los dos únicos tipos de documento que emite la integración Jarvis, con su
+ * type_document_id de NextPyme y el nombre exacto con el que los reporta.
+ * El nombre se usa cuando la respuesta no trae el id; tiene que coincidir
+ * completo porque hay tipos vecinos que comparten texto y NO son estos:
+ * "Factura electrónica de venta - exportación" (2) y "Nota de Ajuste al
+ * Documento Soporte Electrónico" (13). */
+export const JARVIS_RESOLUTION_DOCUMENT_TYPES = {
+  ELECTRONIC_INVOICE: {
+    id: 1,
+    label: 'factura electrónica de venta',
+  },
+  SUPPORT_DOCUMENT: {
+    id: 11,
+    label: 'documento soporte electrónico',
+  },
+} as const
+
+/** true si la resolución pertenece a ese tipo de documento. Sin id ni nombre
+ * reconocibles devuelve false: es preferible que el selector quede vacío —y
+ * se note— a ofrecer una resolución de nómina o de nota crédito para
+ * facturar. */
+export function isResolutionOfDocumentType(
+  resolution: JarvisAvailableResolution,
+  documentType: (typeof JARVIS_RESOLUTION_DOCUMENT_TYPES)[keyof typeof JARVIS_RESOLUTION_DOCUMENT_TYPES],
+): boolean {
+  if (resolution.typeDocumentId != null && resolution.typeDocumentId !== 0) {
+    return resolution.typeDocumentId === documentType.id
+  }
+
+  return (
+    resolution.documentTypeLabel?.trim().toLowerCase() === documentType.label
+  )
+}
+
 export interface JarvisCredentialsStatusResponse {
   configured: boolean
   subscription: JarvisSubscriptionStatus

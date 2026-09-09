@@ -13,233 +13,21 @@ import {
   JARVIS_TAX_REGIME_OPTIONS,
   JARVIS_TAX_RESPONSIBILITY_OPTIONS,
   JARVIS_VAT_REGIME_OPTIONS,
+  type JarvisAvailableResolution,
 } from '../types/jarvis'
 import '../pages/InvoiceUpload.css'
 import './SiigoIntegrationSettings.css'
 
-function ResolutionFields({
-  prefixId,
-  draft,
-  disabled,
-  onChange,
-}: {
-  prefixId: string
-  draft: {
-    formNumber: string
-    nit: string
-    checkDigit: string
-    businessName: string
-    documentTypeLabel: string
-    modalityCode: string
-    prefix: string
-    fromNumber: string
-    toNumber: string
-    requestType: string
-    year: string
-    authorizedAt: string
-    technicalKey: string
-    dateFrom: string
-    dateTo: string
-  }
-  disabled: boolean
-  onChange: (patch: Partial<typeof draft>) => void
-}) {
-  return (
-    <>
-      <div className="settings-form__field">
-        <label htmlFor={`${prefixId}-document-type`}>Tipo de documento *</label>
-        <input
-          id={`${prefixId}-document-type`}
-          type="text"
-          value={draft.documentTypeLabel}
-          onChange={(event) =>
-            onChange({ documentTypeLabel: event.target.value })
-          }
-          disabled={disabled}
-          required
-        />
-      </div>
+/** Etiqueta de una resolución en el selector: prefijo, número DIAN y rango
+ * autorizado — lo que el contador necesita para reconocerla sin abrir la
+ * autorización. Mismo formato que los comprobantes de SIIGO. */
+function formatResolutionOptionLabel(
+  resolution: JarvisAvailableResolution,
+): string {
+  const range = `${resolution.fromNumber}–${resolution.toNumber}`
+  const number = resolution.formNumber ? ` — ${resolution.formNumber}` : ''
 
-      <div className="settings-form__row">
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-prefix`}>Prefijo *</label>
-          <input
-            id={`${prefixId}-prefix`}
-            type="text"
-            value={draft.prefix}
-            onChange={(event) => onChange({ prefix: event.target.value })}
-            placeholder="Ej. DSJ"
-            disabled={disabled}
-            required
-          />
-        </div>
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-modality`}>Modalidad</label>
-          <input
-            id={`${prefixId}-modality`}
-            type="text"
-            value={draft.modalityCode}
-            onChange={(event) => onChange({ modalityCode: event.target.value })}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-
-      <div className="settings-form__row">
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-from`}>Próximo consecutivo *</label>
-          <input
-            id={`${prefixId}-from`}
-            type="number"
-            min={1}
-            value={draft.fromNumber}
-            onChange={(event) => onChange({ fromNumber: event.target.value })}
-            disabled={disabled}
-            required
-          />
-        </div>
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-to`}>Hasta el número *</label>
-          <input
-            id={`${prefixId}-to`}
-            type="number"
-            min={1}
-            value={draft.toNumber}
-            onChange={(event) => onChange({ toNumber: event.target.value })}
-            disabled={disabled}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="settings-form__row">
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-form`}>Número de resolución *</label>
-          <input
-            id={`${prefixId}-form`}
-            type="text"
-            value={draft.formNumber}
-            onChange={(event) => onChange({ formNumber: event.target.value })}
-            placeholder="Ej. 18760000001"
-            disabled={disabled}
-            required
-          />
-        </div>
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-request`}>Tipo de solicitud</label>
-          <input
-            id={`${prefixId}-request`}
-            type="text"
-            value={draft.requestType}
-            onChange={(event) => onChange({ requestType: event.target.value })}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-
-      <div className="settings-form__field">
-        <label htmlFor={`${prefixId}-technical-key`}>Clave técnica *</label>
-        <input
-          id={`${prefixId}-technical-key`}
-          type="text"
-          value={draft.technicalKey}
-          onChange={(event) => onChange({ technicalKey: event.target.value })}
-          placeholder="Clave técnica DIAN"
-          disabled={disabled}
-          required
-        />
-      </div>
-
-      <div className="settings-form__row">
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-date`}>Fecha resolución *</label>
-          <input
-            id={`${prefixId}-date`}
-            type="date"
-            value={draft.authorizedAt}
-            onChange={(event) => {
-              const authorizedAt = event.target.value
-              onChange({
-                authorizedAt,
-                dateFrom: draft.dateFrom || authorizedAt,
-              })
-            }}
-            disabled={disabled}
-            required
-          />
-        </div>
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-year`}>Año</label>
-          <input
-            id={`${prefixId}-year`}
-            type="text"
-            value={draft.year}
-            onChange={(event) => onChange({ year: event.target.value })}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-
-      <div className="settings-form__row">
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-date-from`}>Vigencia desde *</label>
-          <input
-            id={`${prefixId}-date-from`}
-            type="date"
-            value={draft.dateFrom}
-            onChange={(event) => onChange({ dateFrom: event.target.value })}
-            disabled={disabled}
-            required
-          />
-        </div>
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-date-to`}>Vigencia hasta *</label>
-          <input
-            id={`${prefixId}-date-to`}
-            type="date"
-            value={draft.dateTo}
-            onChange={(event) => onChange({ dateTo: event.target.value })}
-            disabled={disabled}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="settings-form__row">
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-nit`}>NIT</label>
-          <input
-            id={`${prefixId}-nit`}
-            type="text"
-            value={draft.nit}
-            onChange={(event) => onChange({ nit: event.target.value })}
-            disabled={disabled}
-          />
-        </div>
-        <div className="settings-form__field">
-          <label htmlFor={`${prefixId}-dv`}>DV</label>
-          <input
-            id={`${prefixId}-dv`}
-            type="text"
-            value={draft.checkDigit}
-            onChange={(event) => onChange({ checkDigit: event.target.value })}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-
-      <div className="settings-form__field">
-        <label htmlFor={`${prefixId}-business`}>Razón social</label>
-        <input
-          id={`${prefixId}-business`}
-          type="text"
-          value={draft.businessName}
-          onChange={(event) => onChange({ businessName: event.target.value })}
-          disabled={disabled}
-        />
-      </div>
-    </>
-  )
+  return `${resolution.prefix}${number} (${range})`
 }
 
 function JarvisIntegrationSettings() {
@@ -271,14 +59,19 @@ function JarvisIntegrationSettings() {
     setActiveStepId,
     isStepComplete,
     isStepUnlocked,
-    invoiceResolution,
-    supportResolution,
-    setInvoiceResolution,
-    setSupportResolution,
+    hasPurchaseInvoiceAccess,
+    hasSupportDocumentAccess,
     isParsingResolution,
     isSavingResolution,
-    resolutionFileName,
-    resolutionWarnings,
+    availableResolutions,
+    invoiceResolutionOptions,
+    supportResolutionOptions,
+    isLoadingResolutions,
+    resolutionsError,
+    selectedInvoiceResolutionId,
+    selectedSupportResolutionId,
+    handleSelectResolution,
+    reloadAvailableResolutions,
     allRequiredStepsComplete,
     setBusinessName,
     setTradeName,
@@ -294,9 +87,8 @@ function JarvisIntegrationSettings() {
     setAddress,
     setPhone,
     handleRutUpload,
-    handleResolutionUpload,
     handleSubmit,
-    handleResolutionSubmit,
+    handleResolutionsSubmit,
   } = useJarvisIntegrationSettings()
 
   const canSubmitCompany =
@@ -314,11 +106,6 @@ function JarvisIntegrationSettings() {
     Boolean(vatRegime) &&
     Boolean(taxResponsibility) &&
     !isSaving
-
-  const activeStepIndex = Math.max(
-    0,
-    steps.findIndex((step) => step.id === activeStepId),
-  )
 
   const handleStepClick = (stepId: JarvisSetupStepId) => {
     if (!isStepUnlocked(stepId) && !isStepComplete(stepId)) {
@@ -345,12 +132,14 @@ function JarvisIntegrationSettings() {
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [activeStepId])
 
-  const showElectronicInvoiceStep = steps.some(
-    (step) => step.id === 'electronic_invoice',
-  )
-  const showSupportDocumentStep = steps.some(
-    (step) => step.id === 'support_document',
-  )
+  const showResolutionsStep = steps.some((step) => step.id === 'resolutions')
+
+  // Basta con UNA resolución elegida: se puede configurar un tipo hoy y el
+  // otro después. Cada sección del menú se habilita por su cuenta cuando su
+  // resolución queda guardada, así que no hay nada que esperar.
+  const canSaveResolutions =
+    (hasPurchaseInvoiceAccess && Boolean(selectedInvoiceResolutionId)) ||
+    (hasSupportDocumentAccess && Boolean(selectedSupportResolutionId))
 
   const renderAccordionTrigger = (
     stepId: JarvisSetupStepId,
@@ -383,6 +172,73 @@ function JarvisIntegrationSettings() {
         </span>
         <span className="settings-accordion__chevron" aria-hidden="true" />
       </button>
+    )
+  }
+
+  /** Misma tarjeta que usa SIIGO en "Comprobantes de cargue": ícono, título
+   * y un selector, que lista SOLO las resoluciones del tipo de documento de
+   * la tarjeta. */
+  const renderResolutionPicker = (
+    kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT',
+    iconLabel: string,
+    title: string,
+    description: string,
+  ) => {
+    const selectId = `jarvis-resolution-${kind.toLowerCase()}`
+    const selectedId =
+      kind === 'SUPPORT_DOCUMENT'
+        ? selectedSupportResolutionId
+        : selectedInvoiceResolutionId
+    const iconModifier =
+      kind === 'SUPPORT_DOCUMENT'
+        ? 'settings-document-type-card__icon--support'
+        : 'settings-document-type-card__icon--purchase'
+    const options =
+      kind === 'SUPPORT_DOCUMENT'
+        ? supportResolutionOptions
+        : invoiceResolutionOptions
+
+    return (
+          <div className="settings-document-type-card">
+            <div
+              className={`settings-document-type-card__icon ${iconModifier}`}
+            >
+              {iconLabel}
+            </div>
+            <div className="settings-document-type-card__body">
+              <h3 className="settings-document-type-card__title">{title}</h3>
+              <p className="settings-document-type-card__description">
+                {description}
+              </p>
+              <label
+                className="settings-document-type-card__label"
+                htmlFor={selectId}
+              >
+                Resolución
+              </label>
+              <select
+                id={selectId}
+                value={selectedId}
+                onChange={(event) =>
+                  handleSelectResolution(kind, event.target.value)
+                }
+                disabled={
+                  isBusy || isLoadingResolutions || options.length === 0
+                }
+              >
+                <option value="">
+                  {options.length === 0
+                    ? 'Sin resoluciones para este tipo'
+                    : 'Seleccione una resolución'}
+                </option>
+                {options.map((resolution) => (
+                  <option key={resolution.id} value={resolution.id}>
+                    {formatResolutionOptionLabel(resolution)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
     )
   }
 
@@ -426,68 +282,8 @@ function JarvisIntegrationSettings() {
         </div>
       )}
 
-      {!allRequiredStepsComplete && (
-        <nav className="settings-stepper" aria-label="Pasos de configuración">
-          <ol className="settings-stepper__list">
-            {steps.map((step, index) => {
-              const complete = isStepComplete(step.id)
-              const unlocked = isStepUnlocked(step.id)
-              const active = activeStepId === step.id
-              const previousComplete =
-                index > 0 && isStepComplete(steps[index - 1].id)
-
-              return (
-                <li
-                  key={step.id}
-                  className={[
-                    'settings-stepper__item',
-                    previousComplete
-                      ? 'settings-stepper__item--connector-done'
-                      : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
-                  <button
-                    type="button"
-                    className={[
-                      'settings-stepper__step',
-                      active ? 'settings-stepper__step--active' : '',
-                      complete ? 'settings-stepper__step--complete' : '',
-                      !unlocked && !complete
-                        ? 'settings-stepper__step--locked'
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => handleStepClick(step.id)}
-                    disabled={!unlocked && !complete}
-                    aria-current={active ? 'step' : undefined}
-                  >
-                    <span className="settings-stepper__badge" aria-hidden="true">
-                      {complete ? <CheckIcon /> : index + 1}
-                    </span>
-                    <span className="settings-stepper__copy">
-                      <strong>{step.label}</strong>
-                      <small>
-                        {!unlocked && !complete
-                          ? 'Bloqueado'
-                          : complete
-                            ? 'Completo'
-                            : step.description}
-                      </small>
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-          <p className="settings-stepper__progress">
-            Paso {activeStepIndex + 1} de {steps.length}
-          </p>
-        </nav>
-      )}
-
+      {/* Sin barra de pasos, igual que en SIIGO: el acordeón ya numera cada
+          paso y muestra su estado (Completo / Bloqueado). */}
       <div className="settings-accordion">
         <section
           id="jarvis-step-panel-company"
@@ -756,223 +552,100 @@ function JarvisIntegrationSettings() {
           </div>
         </section>
 
-        {showElectronicInvoiceStep && (
+        {showResolutionsStep && (
           <section
-            id="jarvis-step-panel-electronic_invoice"
-            className={accordionPanelClass('electronic_invoice')}
+            id="jarvis-step-panel-resolutions"
+            className={accordionPanelClass('resolutions')}
           >
             {renderAccordionTrigger(
-              'electronic_invoice',
-              'Resolución de factura electrónica',
-              'Autorización DIAN de numeración',
+              'resolutions',
+              'Resoluciones DIAN',
+              'Numeración autorizada por tipo de documento',
             )}
             <div
-              id="jarvis-step-body-electronic_invoice"
+              id="jarvis-step-body-resolutions"
               className="settings-accordion__body"
               role="region"
+              aria-labelledby="jarvis-step-panel-resolutions"
             >
               <div className="settings-accordion__body-inner">
                 <div className="settings-accordion__content">
                   <p className="settings-card__description">
-                    Suba el PDF de autorización DIAN para autocompletar prefijo
-                    y rango de numeración.
+                    Seleccione la resolución DIAN que desea utilizar para cada
+                    tipo de documento. Podrá cambiarlas posteriormente cuando
+                    lo necesite.
                   </p>
 
-                  {!isStepUnlocked('electronic_invoice') ? (
+                  {!isStepUnlocked('resolutions') ? (
                     <div className="settings-page__setup-notice" role="status">
-                      Para configurar la resolución de factura, primero complete
-                      los datos de la empresa.
+                      Complete primero los datos de la empresa para configurar
+                      las resoluciones.
                     </div>
                   ) : (
                     <>
-                      <div className="settings-form__field settings-form__field--rut">
-                        <label htmlFor="jarvis-invoice-resolution-upload">
-                          Autocompletar con resolución DIAN (PDF)
-                        </label>
-                        <input
-                          id="jarvis-invoice-resolution-upload"
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          disabled={isBusy}
-                          onChange={(event) => {
-                            void handleResolutionUpload(
-                              'ELECTRONIC_INVOICE',
-                              event.target.files?.[0],
-                            )
-                            event.currentTarget.value = ''
-                          }}
-                        />
-                        {isParsingResolution && (
-                          <span>Leyendo resolución...</span>
-                        )}
-                        {resolutionFileName && !isParsingResolution && (
-                          <p className="settings-card__description">
-                            Datos cargados desde{' '}
-                            <strong>{resolutionFileName}</strong>
-                          </p>
-                        )}
-                        {resolutionWarnings.length > 0 && (
-                          <ul className="settings-card__description">
-                            {resolutionWarnings.map((warning) => (
-                              <li key={warning}>{warning}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                      {isLoadingResolutions && (
+                        <LoadingIndicator message="Consultando resoluciones habilitadas en la DIAN..." />
+                      )}
 
-                      <form
-                        className="settings-form"
-                        onSubmit={(event) =>
-                          void handleResolutionSubmit(
-                            event,
-                            'ELECTRONIC_INVOICE',
-                          )
-                        }
-                      >
-                        <ResolutionFields
-                          prefixId="jarvis-invoice"
-                          draft={invoiceResolution}
-                          disabled={isBusy}
-                          onChange={(patch) =>
-                            setInvoiceResolution((current) => ({
-                              ...current,
-                              ...patch,
-                            }))
-                          }
-                        />
-
-                        <div className="settings-card__actions">
-                          <button
-                            type="submit"
-                            className="import-siigo-button"
-                            disabled={
-                              isBusy ||
-                              !invoiceResolution.prefix.trim() ||
-                              !invoiceResolution.formNumber.trim() ||
-                              !invoiceResolution.technicalKey.trim() ||
-                              !invoiceResolution.dateFrom.trim() ||
-                              !invoiceResolution.dateTo.trim() ||
-                              !invoiceResolution.fromNumber ||
-                              !invoiceResolution.toNumber
-                            }
-                          >
-                            {isSavingResolution
-                              ? 'Enviando...'
-                              : 'Enviar resolución y continuar'}
-                          </button>
+                      {resolutionsError && !isLoadingResolutions && (
+                        <div
+                          className="settings-page__setup-notice"
+                          role="status"
+                        >
+                          {resolutionsError}
                         </div>
-                      </form>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+                      )}
 
-        {showSupportDocumentStep && (
-          <section
-            id="jarvis-step-panel-support_document"
-            className={accordionPanelClass('support_document')}
-          >
-            {renderAccordionTrigger(
-              'support_document',
-              'Resolución de documento soporte',
-              'Autorización DIAN de numeración',
-            )}
-            <div
-              id="jarvis-step-body-support_document"
-              className="settings-accordion__body"
-              role="region"
-            >
-              <div className="settings-accordion__body-inner">
-                <div className="settings-accordion__content">
-                  <p className="settings-card__description">
-                    Suba el PDF de autorización DIAN para autocompletar prefijo
-                    y rango de numeración.
-                  </p>
-
-                  {!isStepUnlocked('support_document') ? (
-                    <div className="settings-page__setup-notice" role="status">
-                      Complete el paso anterior antes de configurar la
-                      resolución de documento soporte.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="settings-form__field settings-form__field--rut">
-                        <label htmlFor="jarvis-support-resolution-upload">
-                          Autocompletar con resolución DIAN (PDF)
-                        </label>
-                        <input
-                          id="jarvis-support-resolution-upload"
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          disabled={isBusy}
-                          onChange={(event) => {
-                            void handleResolutionUpload(
-                              'SUPPORT_DOCUMENT',
-                              event.target.files?.[0],
-                            )
-                            event.currentTarget.value = ''
-                          }}
-                        />
-                        {isParsingResolution && (
-                          <span>Leyendo resolución...</span>
-                        )}
-                        {resolutionFileName && !isParsingResolution && (
+                      {/* El reintento vive acá y no dentro del aviso porque
+                          ese aviso se va solo a los 3 segundos; si el enlace
+                          se fuera con él, quedaría una pantalla sin salida. */}
+                      {!isLoadingResolutions &&
+                        availableResolutions.length === 0 && (
                           <p className="settings-card__description">
-                            Datos cargados desde{' '}
-                            <strong>{resolutionFileName}</strong>
+                            No hay resoluciones vigentes para mostrar.{' '}
+                            <button
+                              type="button"
+                              className="settings-card__hint-link"
+                              onClick={() => void reloadAvailableResolutions()}
+                            >
+                              Volver a consultar
+                            </button>
                           </p>
                         )}
-                        {resolutionWarnings.length > 0 && (
-                          <ul className="settings-card__description">
-                            {resolutionWarnings.map((warning) => (
-                              <li key={warning}>{warning}</li>
-                            ))}
-                          </ul>
-                        )}
+
+                      <div className="settings-document-types">
+                        {hasPurchaseInvoiceAccess &&
+                          renderResolutionPicker(
+                            'ELECTRONIC_INVOICE',
+                            'FE',
+                            'Factura electrónica',
+                            'Resolución de numeración autorizada',
+                          )}
+
+                        {hasSupportDocumentAccess &&
+                          renderResolutionPicker(
+                            'SUPPORT_DOCUMENT',
+                            'DS',
+                            'Documento soporte',
+                            'Resolución de numeración autorizada',
+                          )}
                       </div>
 
                       <form
                         className="settings-form"
                         onSubmit={(event) =>
-                          void handleResolutionSubmit(
-                            event,
-                            'SUPPORT_DOCUMENT',
-                          )
+                          void handleResolutionsSubmit(event)
                         }
                       >
-                        <ResolutionFields
-                          prefixId="jarvis-support"
-                          draft={supportResolution}
-                          disabled={isBusy}
-                          onChange={(patch) =>
-                            setSupportResolution((current) => ({
-                              ...current,
-                              ...patch,
-                            }))
-                          }
-                        />
-
                         <div className="settings-card__actions">
                           <button
                             type="submit"
                             className="import-siigo-button"
-                            disabled={
-                              isBusy ||
-                              !supportResolution.prefix.trim() ||
-                              !supportResolution.formNumber.trim() ||
-                              !supportResolution.technicalKey.trim() ||
-                              !supportResolution.dateFrom.trim() ||
-                              !supportResolution.dateTo.trim() ||
-                              !supportResolution.fromNumber ||
-                              !supportResolution.toNumber
-                            }
+                            disabled={isBusy || !canSaveResolutions}
                           >
                             {isSavingResolution
-                              ? 'Enviando...'
-                              : 'Finalizar configuración'}
+                              ? 'Guardando...'
+                              : 'Guardar resoluciones'}
                           </button>
                         </div>
                       </form>

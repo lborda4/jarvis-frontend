@@ -5,6 +5,7 @@ import type {
   JarvisDianResolution,
   JarvisDocumentType,
   JarvisTercerosListResponse,
+  ListJarvisAvailableResolutionsResponse,
   LookupJarvisTerceroNitResponse,
   SaveJarvisCredentialsRequest,
   SaveJarvisCredentialsResponse,
@@ -27,6 +28,7 @@ const JARVIS_TERCEROS_ENDPOINT = '/integrations/jarvis/terceros'
 const JARVIS_CATALOGS_ENDPOINT = '/integrations/jarvis/catalogs'
 const JARVIS_SUPPORT_DOCUMENTS_ENDPOINT =
   '/integrations/jarvis/support-documents'
+const JARVIS_INVOICES_ENDPOINT = '/integrations/jarvis/invoices'
 
 export interface JarvisCatalogItem {
   id: number
@@ -97,6 +99,47 @@ export interface CreateManualJarvisSupportDocumentResponse {
   }
 }
 
+export interface CreateJarvisInvoiceItem {
+  description: string
+  quantity: number
+  unitValue: number
+  discount?: number
+  taxAmount?: number
+  code?: string
+  notes?: string
+}
+
+export interface CreateJarvisInvoiceRequest {
+  issueDate: string
+  customerDocumentType: string
+  customerIdentification: string
+  customerName?: string
+  currency?: string
+  observations?: string
+  headNote?: string
+  footNote?: string
+  items: CreateJarvisInvoiceItem[]
+  discountAmount?: number
+  retentions?: Array<{ id: number; type?: string; percentage?: number }>
+  payment?: {
+    id: number
+    payment_form_id?: number
+    due_date?: string
+  }
+}
+
+export interface CreateJarvisInvoiceResponse {
+  success: boolean
+  invoice: {
+    id: string
+    number?: number | string
+    consecutive?: string
+    prefix?: string
+    date: string
+    cufe?: string | null
+  }
+}
+
 export async function fetchJarvisCredentialsStatus(): Promise<JarvisCredentialsStatusResponse> {
   return cachedQuery(
     companyQueryKey(['jarvis', 'credentials-status']),
@@ -138,7 +181,8 @@ export type SaveJarvisResolutionRequest = Omit<
   'configuredAt'
 > & {
   formNumber: string
-  technicalKey: string
+  /** Opcional: solo factura electrónica lleva clave técnica. */
+  technicalKey?: string
   dateFrom: string
   dateTo: string
 }
@@ -176,6 +220,18 @@ export async function saveJarvisResolution(
   )
 
   invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
+
+  return response.data
+}
+
+/** Resoluciones vigentes en la DIAN (GET /reports/resolutions de NextPyme).
+ * Sin caché: son pocas, cambian cuando el contador habilita una nueva, y
+ * mostrar una lista vieja acá lleva a configurar una resolución que ya no
+ * está autorizada. */
+export async function fetchJarvisAvailableResolutions(): Promise<ListJarvisAvailableResolutionsResponse> {
+  const response = await apiClient.get<ListJarvisAvailableResolutionsResponse>(
+    `${JARVIS_RESOLUTIONS_ENDPOINT}/available`,
+  )
 
   return response.data
 }
@@ -272,6 +328,17 @@ export async function createManualJarvisSupportDocument(
 ): Promise<CreateManualJarvisSupportDocumentResponse> {
   const response = await apiClient.post<CreateManualJarvisSupportDocumentResponse>(
     `${JARVIS_SUPPORT_DOCUMENTS_ENDPOINT}/manual`,
+    request,
+  )
+
+  return response.data
+}
+
+export async function createJarvisInvoice(
+  request: CreateJarvisInvoiceRequest,
+): Promise<CreateJarvisInvoiceResponse> {
+  const response = await apiClient.post<CreateJarvisInvoiceResponse>(
+    JARVIS_INVOICES_ENDPOINT,
     request,
   )
 

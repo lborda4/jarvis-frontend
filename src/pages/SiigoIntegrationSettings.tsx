@@ -72,11 +72,6 @@ function SiigoIntegrationSettings() {
         }. Contacte al administrador.`
       : null
 
-  const activeStepIndex = Math.max(
-    0,
-    steps.findIndex((step) => step.id === activeStepId),
-  )
-
   const handleStepClick = (stepId: SiigoSetupStepId) => {
     if (!isStepUnlocked(stepId) && !isStepComplete(stepId)) {
       return
@@ -184,68 +179,9 @@ function SiigoIntegrationSettings() {
         </div>
       )}
 
-      {!allRequiredStepsComplete && (
-        <nav className="settings-stepper" aria-label="Pasos de configuración">
-          <ol className="settings-stepper__list">
-            {steps.map((step, index) => {
-              const complete = isStepComplete(step.id)
-              const unlocked = isStepUnlocked(step.id)
-              const active = activeStepId === step.id
-              const previousComplete =
-                index > 0 && isStepComplete(steps[index - 1].id)
-
-              return (
-                <li
-                  key={step.id}
-                  className={[
-                    'settings-stepper__item',
-                    previousComplete
-                      ? 'settings-stepper__item--connector-done'
-                      : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
-                  <button
-                    type="button"
-                    className={[
-                      'settings-stepper__step',
-                      active ? 'settings-stepper__step--active' : '',
-                      complete ? 'settings-stepper__step--complete' : '',
-                      !unlocked && !complete
-                        ? 'settings-stepper__step--locked'
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => handleStepClick(step.id)}
-                    disabled={!unlocked && !complete}
-                    aria-current={active ? 'step' : undefined}
-                  >
-                    <span className="settings-stepper__badge" aria-hidden="true">
-                      {complete ? <CheckIcon /> : index + 1}
-                    </span>
-                    <span className="settings-stepper__copy">
-                      <strong>{step.label}</strong>
-                      <small>
-                        {!unlocked && !complete
-                          ? 'Bloqueado'
-                          : complete
-                            ? 'Completo'
-                            : step.description}
-                      </small>
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-          <p className="settings-stepper__progress">
-            Paso {activeStepIndex + 1} de {steps.length}
-          </p>
-        </nav>
-      )}
-
+      {/* Sin barra de pasos: el acordeón de abajo ya numera cada paso y
+          muestra su estado (Completo / Bloqueado), así que el stepper
+          repetía la misma información ocupando media pantalla. */}
       <div className="settings-accordion">
         <section
           id="siigo-step-panel-credentials"

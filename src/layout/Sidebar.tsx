@@ -12,7 +12,6 @@ import {
   HelpIcon,
   PulseIcon,
   SettingsIcon,
-  SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
 
@@ -53,6 +52,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const {
     isSupportDocumentEnabled,
     isPurchaseInvoiceEnabled,
+    isSalesInvoiceEnabled,
     hasSupportDocumentAccess,
     hasPurchaseInvoiceAccess,
     requiresSetup,
@@ -100,7 +100,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    ...(hasPurchaseInvoiceAccess
+    // Factura de compra es el flujo de SIIGO; en Jarvis ese mismo tipo de
+    // documento del plan corresponde a Factura de venta (la que se emite con
+    // la resolución de factura electrónica).
+    ...(hasPurchaseInvoiceAccess && !isJarvisCompany
       ? [
           {
             label: 'Factura de compra',
@@ -110,22 +113,28 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    {
-      label: 'Extractos bancarios',
-      to: BANK_STATEMENTS_ROOT,
-      icon: PulseIcon,
-      children: BANK_STATEMENT_CHILDREN,
-    },
     ...(isJarvisCompany
       ? [
           {
-            label: 'Terceros',
-            to: '/terceros',
-            icon: SuppliersIcon,
-            requiresJarvisSetup: true as const,
+            label: 'Factura de venta',
+            to: '/factura-venta',
+            icon: DocumentIcon,
+            featureEnabled: isSalesInvoiceEnabled,
           },
         ]
       : []),
+    // Jarvis, por ahora, solo cubre Documento soporte y Factura de venta: el
+    // resto de secciones no tiene nada que hacer con esta integración.
+    ...(isJarvisCompany
+      ? []
+      : [
+          {
+            label: 'Extractos bancarios',
+            to: BANK_STATEMENTS_ROOT,
+            icon: PulseIcon,
+            children: BANK_STATEMENT_CHILDREN,
+          },
+        ]),
     ...(isAdminRole(user?.role)
       ? [
           {

@@ -1,16 +1,26 @@
+/* Misma escala tipográfica que el detalle de Factura de compra: se redefinen
+ * los tokens (no cada font-size por separado) para que también bajen los
+ * componentes compartidos que ya los usan. Están en rem, así que anidar no
+ * los encoge dos veces. */
 .settings-page {
   width: 100%;
   max-width: var(--app-settings-max-width, 960px);
   margin: 0 auto;
-  padding: 2.5rem 1.5rem 3rem;
+  padding: 1.5rem 1.25rem 2rem;
   transition: max-width 0.2s ease;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.75rem;
+  --text-base: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 0.9375rem;
+  font-size: var(--text-base);
 }
 
 /* Header ahora es <PageHeader> (components/PageHeader.css) */
 
 .settings-page__setup-notice {
-  margin-bottom: 1.25rem;
-  padding: 0.9rem 1rem;
+  margin-bottom: 0.9rem;
+  padding: 0.7rem 0.9rem;
   border-radius: var(--r-sm);
   border: 1px solid var(--jarvis-warning-border);
   background-color: var(--jarvis-warning-soft);
@@ -20,8 +30,8 @@
 }
 
 .settings-page__ready-notice {
-  margin-bottom: 1.25rem;
-  padding: 0.9rem 1rem;
+  margin-bottom: 0.9rem;
+  padding: 0.7rem 0.9rem;
   border-radius: var(--r-sm);
   border: 1px solid var(--jarvis-success-border);
   background-color: var(--jarvis-success-soft);
@@ -43,7 +53,7 @@
 .settings-accordion {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .settings-accordion__panel {
@@ -77,7 +87,7 @@
   gap: 0.85rem;
   width: 100%;
   margin: 0;
-  padding: 1rem 1.15rem;
+  padding: 0.75rem 1rem;
   border: none;
   background: transparent;
   color: var(--jarvis-gray-700);
@@ -98,8 +108,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 1.6rem;
+  height: 1.6rem;
   border-radius: 999px;
   border: 2px solid var(--jarvis-gray-200);
   background: #ffffff;
@@ -142,13 +152,13 @@
 }
 
 .settings-accordion__copy strong {
-  font-size: 0.98rem;
+  font-size: var(--text-md);
   color: var(--jarvis-text);
 }
 
 .settings-accordion__copy small {
   color: var(--jarvis-text-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .settings-accordion__chevron {
@@ -183,11 +193,11 @@
 }
 
 .settings-accordion__content {
-  padding: 1.25rem 1.35rem 1.4rem;
+  padding: 1rem 1.1rem 1.1rem;
 }
 
 .settings-accordion__content > .settings-card__description {
-  margin-bottom: 1.15rem;
+  margin-bottom: 0.85rem;
 }
 
 .settings-accordion__content .settings-company-field {
@@ -219,8 +229,8 @@
 }
 
 .settings-card__hint {
-  margin: 1rem 0 0;
-  padding: 0.85rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0.7rem 0.85rem;
   border: 1px solid var(--jarvis-info-soft);
   border-radius: var(--r-sm);
   background-color: var(--jarvis-info-soft);
@@ -246,22 +256,22 @@
 }
 
 .settings-card__actions {
-  margin-top: 1.25rem;
+  margin-top: 0.9rem;
 }
 
 .settings-company-field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1.25rem;
-  padding: 0.85rem 1rem;
+  gap: 0.3rem;
+  margin-bottom: 0.9rem;
+  padding: 0.65rem 0.85rem;
   border: 1px solid var(--jarvis-gray-200);
   border-radius: var(--r-sm);
   background-color: var(--jarvis-gray-50);
 }
 
 .settings-company-field__label {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--jarvis-text-muted);
 }
@@ -282,7 +292,7 @@
 .settings-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.75rem 1rem;
 }
 
 .settings-form__field {
@@ -300,7 +310,7 @@
 .settings-form__field input,
 .settings-form__field select {
   width: 100%;
-  padding: 0.72rem 0.85rem;
+  padding: 0.5rem 0.7rem;
   border: 1px solid var(--jarvis-gray-300);
   border-radius: var(--r-sm);
   background-color: #ffffff;
@@ -335,169 +345,6 @@
 .settings-form__field--rut {
   grid-column: 1 / -1;
   margin-bottom: 0.5rem;
-}
-
-.settings-stepper {
-  margin-bottom: 1.5rem;
-  padding: 1.15rem 1rem 1rem;
-  border: 1px solid var(--jarvis-gray-200);
-  border-radius: 1.25rem;
-  background:
-    linear-gradient(180deg, var(--jarvis-gray-50) 0%, #ffffff 48%);
-}
-
-.settings-stepper__list {
-  display: flex;
-  align-items: flex-start;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.settings-stepper__item {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  justify-content: center;
-}
-
-.settings-stepper__item:not(:first-child)::before {
-  content: '';
-  position: absolute;
-  top: 1.05rem;
-  right: 50%;
-  left: -50%;
-  height: 2px;
-  background: var(--jarvis-gray-200);
-  z-index: 0;
-}
-
-.settings-stepper__item--connector-done:not(:first-child)::before {
-  background: linear-gradient(90deg, var(--jarvis-success), var(--jarvis-success-border));
-}
-
-.settings-stepper__step {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-  width: 100%;
-  max-width: 11.5rem;
-  margin: 0;
-  padding: 0.15rem 0.5rem 0;
-  border: none;
-  background: transparent;
-  color: var(--jarvis-text-muted);
-  text-align: center;
-  cursor: pointer;
-}
-
-.settings-stepper__step:hover:not(:disabled) .settings-stepper__badge {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
-}
-
-.settings-stepper__step--active {
-  color: var(--jarvis-navy);
-}
-
-.settings-stepper__step--complete {
-  color: var(--jarvis-success);
-}
-
-.settings-stepper__step--locked {
-  color: var(--jarvis-gray-500);
-  cursor: not-allowed;
-}
-
-.settings-stepper__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 999px;
-  border: 2px solid var(--jarvis-gray-200);
-  background: #ffffff;
-  color: var(--jarvis-text-muted);
-  font-size: var(--text-base);
-  font-weight: 700;
-  flex-shrink: 0;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.settings-stepper__badge svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-.settings-stepper__step--active .settings-stepper__badge {
-  border-color: var(--jarvis-primary);
-  background: var(--jarvis-primary);
-  color: #ffffff;
-  box-shadow: 0 0 0 4px var(--jarvis-primary-soft);
-}
-
-.settings-stepper__step--complete .settings-stepper__badge {
-  border-color: var(--jarvis-success);
-  background: var(--jarvis-success);
-  color: #ffffff;
-}
-
-.settings-stepper__step--locked .settings-stepper__badge {
-  background: var(--jarvis-gray-50);
-  border-color: var(--jarvis-gray-200);
-  color: var(--jarvis-gray-500);
-}
-
-.settings-stepper__copy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  min-width: 0;
-  width: 100%;
-}
-
-.settings-stepper__copy strong {
-  display: block;
-  width: 100%;
-  font-size: var(--text-base);
-  line-height: 1.25;
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-stepper__copy small {
-  display: block;
-  width: 100%;
-  color: var(--jarvis-text-muted);
-  font-size: 0.72rem;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-stepper__step--locked .settings-stepper__copy small {
-  color: var(--jarvis-gray-500);
-}
-
-.settings-stepper__progress {
-  margin: 0.95rem 0 0;
-  color: var(--jarvis-text-muted);
-  font-size: var(--text-sm);
-  text-align: center;
 }
 
 .settings-document-types {
@@ -584,10 +431,5 @@
 
   .settings-document-types {
     grid-template-columns: 1fr;
-  }
-
-  .settings-stepper__copy strong,
-  .settings-stepper__copy small {
-    white-space: normal;
   }
 }
