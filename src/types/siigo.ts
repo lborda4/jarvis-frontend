@@ -334,12 +334,12 @@ export function isAccountMappingResolvedStatus(
   )
 }
 
-export interface ImportBalanceTrialResponse {
+/** Resultado de importar el plan de cuentas desde un Excel. */
+export interface ImportSiigoAccountsResponse {
   processedRows: number
   accountsCreated: number
   accountsUpdated: number
   skippedRows: number
-  yearsProcessed: number
 }
 
 export interface SaveSiigoCredentialsRequest {

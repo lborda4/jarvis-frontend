@@ -153,6 +153,11 @@ export interface ElectronicDocumentListItem {
   suggestedRetentions?: SuggestedRetention[]
   suggestedCostCenter?: SuggestedCostCenter | null
   suggestedItemConfig?: SuggestedPurchaseItemConfig | null
+  /** 0-100, confianza que reportó la clasificación automática con IA para
+   * suggestedAccount/suggestedProduct — null si esa clasificación nunca
+   * corrió para este documento. Se usa para mostrar "Requiere revisión" en
+   * vez de "Pendiente" cuando queda por debajo del umbral (hoy 80). */
+  aiConfidence?: number | null
   observations?: string | null
   items?: ElectronicDocumentListItemItem[]
   createdAt: string

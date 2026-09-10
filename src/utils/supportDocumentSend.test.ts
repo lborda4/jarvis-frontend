@@ -357,6 +357,57 @@ describe('needsPurchaseInvoiceReview', () => {
       ),
     ).toBe(false)
   })
+
+  it('requiere revisión si la confianza de la IA es menor a 80, aunque cuenta y medio de pago ya estén resueltos', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '51952503' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+        79,
+      ),
+    ).toBe(true)
+  })
+
+  it('no requiere revisión por confianza cuando es 80 o más', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '51952503' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+        80,
+      ),
+    ).toBe(false)
+  })
+
+  it('no requiere revisión por confianza cuando es null (la clasificación automática nunca corrió)', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '51952503' }),
+    ]
+
+    expect(
+      needsPurchaseInvoiceReview(
+        'doc-1',
+        { 'doc-1': ACCOUNT },
+        { 'doc-1': PAYMENT_METHOD },
+        { 'doc-1': items },
+        REQUIRES_BOTH,
+        null,
+      ),
+    ).toBe(false)
+  })
 })
 
 describe('borrado — EXISTENTE EN SIIGO no se puede eliminar (caso real pedido: la factura ya existía en SIIGO antes del import, no debe poder borrarse ni de la BD ni de SIIGO)', () => {

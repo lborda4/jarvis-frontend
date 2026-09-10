@@ -1171,6 +1171,25 @@
   background-color: var(--jarvis-surface);
 }
 
+/* Cuando la tabla no cabe a lo ancho se le enciende overflow-x (ver
+ * .support-table--scrollable), y con eso ESTE contenedor pasa a ser la caja
+ * de scroll de referencia del encabezado pegajoso. Su borde superior es el
+ * de la tabla, no el de la página, así que un `top` pensado para la barra de
+ * acciones empujaba el encabezado ~100px HACIA ABAJO, encima de sus propias
+ * primeras filas: eso era la primera fila cortada en pantallas chicas. Acá
+ * el encabezado se pega al borde de la tabla y ya. */
+.support-table--scrollable > table > thead th {
+  top: 0;
+}
+
+/* Arriba de cada fila se apilan dos barras pegajosas: la de acciones y el
+ * encabezado de la tabla. Sin este margen, cualquier scroll automático (al
+ * desplegar el detalle de una factura, por ejemplo) deja la fila justo
+ * debajo de ellas y se ve cortada. */
+.support-table > table > tbody > tr {
+  scroll-margin-top: calc(var(--support-controls-height, 0px) + 3.5rem);
+}
+
 .support-table th {
   padding: 0.7rem 0.6rem;
   border-bottom: 1px solid var(--jarvis-border);

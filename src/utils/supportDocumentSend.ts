@@ -48,13 +48,22 @@ function itemsSatisfyAccountRequirement(
  * - Medio de pago sin resolver: no se puede enviar vacío — caso real
  *   reportado: aunque la IA/historial ya resolvieron la cuenta, el medio de
  *   pago seguía en blanco y el documento igual se veía "Pendiente".
+ * - Confianza baja de la IA: aunque cuenta/producto y medio de pago ya
+ *   tengan un valor, si la clasificación automática reportó menos de 80% de
+ *   confianza para esa sugerencia, igual requiere revisión — pedido
+ *   explícito del usuario: la IA siempre sugiere algo, pero cuando no está
+ *   segura el contador debe mirarlo con más cuidado en vez de verlo como
+ *   "Pendiente" (listo para enviar).
  */
+const AI_CONFIDENCE_REVIEW_THRESHOLD = 80
+
 export function needsPurchaseInvoiceReview(
   documentId: string,
   rowAccounts: Record<string, SiigoAccountOption | null>,
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
   rowItems: Record<string, PurchaseInvoiceItemDraft[]> | undefined,
   options: { requiresAccount: boolean; requiresPaymentMethod: boolean },
+  aiConfidence?: number | null,
 ): boolean {
   const items = rowItems?.[documentId]
 
@@ -71,6 +80,10 @@ export function needsPurchaseInvoiceReview(
   }
 
   if (options.requiresPaymentMethod && !rowPaymentMethods[documentId]) {
+    return true
+  }
+
+  if (aiConfidence != null && aiConfidence < AI_CONFIDENCE_REVIEW_THRESHOLD) {
     return true
   }
 

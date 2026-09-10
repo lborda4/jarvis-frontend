@@ -988,6 +988,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 requiresAccount: config.requiresAccount,
                 requiresPaymentMethod: config.requiresPaymentMethod,
               },
+              document.aiConfidence,
             )
           ) {
             const importStatus = IMPORT_ROW_STATUS.REQUIERE_REVISION

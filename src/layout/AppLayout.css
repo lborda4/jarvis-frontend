@@ -278,11 +278,24 @@
   cursor: wait;
 }
 
+/* El panel mide 100dvh y no scrollea. Sin `min-height: 0` un ítem flex no se
+ * encoge por debajo del alto de su contenido, así que en pantallas bajas la
+ * lista de secciones empujaba el pie fuera de la pantalla y "Cerrar sesión"
+ * quedaba inalcanzable (había que alejar el zoom). Ahora scrollea la lista y
+ * el pie se queda siempre visible. */
 .app-sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.app-sidebar__brand,
+.app-sidebar__usage,
+.app-sidebar__footer {
+  flex-shrink: 0;
 }
 
 .app-sidebar__link {
@@ -660,5 +673,8 @@
   .app-sidebar__nav {
     flex-direction: row;
     flex-wrap: wrap;
+    /* Acá el panel es una barra superior y la página entera scrollea, así
+       que la lista no necesita scroll propio. */
+    overflow-y: visible;
   }
 }

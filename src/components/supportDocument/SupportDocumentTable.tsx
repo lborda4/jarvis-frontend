@@ -116,12 +116,15 @@ interface SupportDocumentTableProps {
 
 function ImportStatusBadge({
   status,
+  aiConfidence,
 }: {
   status: SupportDocumentRow['importStatus']
+  aiConfidence?: number | null
 }) {
   return (
     <span
       className={`status-badge status-badge--${normalizeStatusClass(status)}`}
+      title={aiConfidence != null ? `Confianza IA: ${aiConfidence}%` : undefined}
     >
       {status}
     </span>
@@ -696,7 +699,10 @@ function SupportDocumentTable({
                   )}
                   <td>
                     <div className="support-table__status-cell">
-                      <ImportStatusBadge status={row.importStatus} />
+                      <ImportStatusBadge
+                        status={row.importStatus}
+                        aiConfidence={documentsById[row.id]?.aiConfidence}
+                      />
                       {row.siigoDocumentNumber && (
                         <span className="support-table__status-consecutivo">
                           Consecutivo:{' '}

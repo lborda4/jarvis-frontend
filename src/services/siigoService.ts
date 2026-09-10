@@ -20,7 +20,7 @@ import type {
   ValidateAccountMappingResponse,
   ValidateSiigoImportRequest,
   ValidateSiigoImportResponse,
-  ImportBalanceTrialResponse,
+  ImportSiigoAccountsResponse,
   SaveSiigoCredentialsRequest,
   SaveSiigoCredentialsResponse,
   SaveSiigoDocumentTypesRequest,
@@ -60,8 +60,7 @@ const SIIGO_PAYMENT_TYPES_ENDPOINT = '/integrations/siigo/payment-types'
 const SIIGO_TAXES_ENDPOINT = '/integrations/siigo/taxes'
 const SIIGO_COST_CENTERS_ENDPOINT = '/integrations/siigo/cost-centers'
 const SIIGO_PRODUCTS_ENDPOINT = '/integrations/siigo/products'
-const SIIGO_BALANCE_TRIAL_IMPORT_ENDPOINT =
-  '/integrations/siigo/balance-trial/import'
+const SIIGO_ACCOUNTS_IMPORT_ENDPOINT = '/integrations/siigo/accounts/import'
 const SIIGO_CREDENTIALS_STATUS_ENDPOINT = '/integrations/siigo/credentials/status'
 const SIIGO_CREDENTIALS_ENDPOINT = '/integrations/siigo/credentials'
 const SIIGO_DOCUMENT_TYPES_ENDPOINT = '/integrations/siigo/document-types'
@@ -113,7 +112,7 @@ function sleep(ms: number): Promise<void> {
 
 /** Arranca (si hace falta) y espera a que termine la sincronización del
  * historial de facturas de compra — pensada para correr en paralelo con
- * syncSiigoSuppliers (Balance de Prueba) durante el paso "Cuentas contables"
+ * la importación del plan de cuentas durante el paso "Cuentas contables"
  * de la configuración, en vez de dejarla para cuando el usuario entre a
  * Factura de compra por primera vez. Nunca lanza por un status 'error' del
  * job en sí (se resuelve igual, con ese status) — solo lanza si se agota el
@@ -614,13 +613,21 @@ export async function saveSiigoCredentials(
   return response.data
 }
 
-export async function syncSiigoSuppliers(): Promise<ImportBalanceTrialResponse> {
-  const response = await apiClient.post<ImportBalanceTrialResponse>(
-    SIIGO_BALANCE_TRIAL_IMPORT_ENDPOINT,
-    undefined,
+/** Carga el plan de cuentas desde un Excel. Reemplaza a la importación del
+ * Balance de Prueba: las cuentas ya no se deducen de los movimientos de los
+ * últimos años, sino que vienen en el archivo que sube el contador. */
+export async function importSiigoAccountsExcel(
+  file: File,
+): Promise<ImportSiigoAccountsResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await apiClient.post<ImportSiigoAccountsResponse>(
+    SIIGO_ACCOUNTS_IMPORT_ENDPOINT,
+    formData,
     {
-      // La sincronización consulta el Balance de Prueba en SIIGO.
-      timeout: 10 * 60 * 1000,
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 5 * 60 * 1000,
     },
   )
 

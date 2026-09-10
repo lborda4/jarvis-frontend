@@ -7,8 +7,8 @@ import {
   fetchSiigoDocumentTypes,
   runSiigoPurchaseHistorySyncToCompletion,
   saveSiigoCredentials,
+  importSiigoAccountsExcel,
   saveSiigoDocumentTypes,
-  syncSiigoSuppliers,
 } from '../services/siigoService'
 import type {
   SaveSiigoCredentialsResponse,
@@ -16,9 +16,9 @@ import type {
   SiigoSubscriptionStatus,
 } from '../types/siigo'
 import {
-  formatBalanceTrialSuccessMessage,
-  BALANCE_TRIAL_IMPORT_ERROR_MESSAGE,
-} from '../utils/formatBalanceTrialSuccess'
+  ACCOUNTS_IMPORT_ERROR_MESSAGE,
+  formatAccountsImportSuccessMessage,
+} from '../utils/formatAccountsImportSuccess'
 import { formatSiigoCredentialsSuccessMessage } from '../utils/formatSiigoCredentialsSuccess'
 
 export type SiigoSetupStepId = 'credentials' | 'accounts' | 'document_types'
@@ -112,7 +112,7 @@ export function useSiigoIntegrationSettings() {
       {
         id: 'accounts',
         label: 'Cuentas contables',
-        description: 'Sincronizar desde el Balance de Prueba',
+        description: 'Importar el plan de cuentas desde Excel',
       },
     ]
 
@@ -335,8 +335,12 @@ export function useSiigoIntegrationSettings() {
     ],
   )
 
-  const handleSyncSuppliers = useCallback(async () => {
+  const handleImportAccountsExcel = useCallback(async (file?: File) => {
     if (isSyncingSuppliers || isSavingCredentials) {
+      return
+    }
+
+    if (!file) {
       return
     }
 
@@ -349,7 +353,7 @@ export function useSiigoIntegrationSettings() {
 
     if (!isSiigoConfigured) {
       setErrorMessage(
-        'Primero guarde las credenciales de SIIGO para poder sincronizar las cuentas.',
+        'Primero guarde las credenciales de SIIGO para poder importar las cuentas.',
       )
       return
     }
@@ -358,16 +362,16 @@ export function useSiigoIntegrationSettings() {
     clearMessages()
 
     try {
-      // Cuentas contables (Balance de Prueba) e historial de Factura de
+      // La importación del plan de cuentas y el historial de Factura de
       // compra arrancan juntos y corren de forma independiente — si uno
       // falla, el otro sigue su curso igual — para que el cliente no tenga
-      // que esperar dos sincronizaciones separadas (una ahora y otra más
-      // adelante al entrar a Factura de compra). Este paso no se da por
-      // terminado hasta que ambos terminan. Solo se corre el de facturas si
-      // el plan incluye Factura de compra; si ese falla, no bloquea ni
-      // ensucia el mensaje de éxito de este paso.
+      // que esperar dos procesos separados (uno ahora y otro más adelante al
+      // entrar a Factura de compra). Este paso no se da por terminado hasta
+      // que ambos terminan. Solo se corre el de facturas si el plan incluye
+      // Factura de compra; si ese falla, no bloquea ni ensucia el mensaje de
+      // éxito de este paso.
       const [accountsResult] = await Promise.allSettled([
-        syncSiigoSuppliers(),
+        importSiigoAccountsExcel(file),
         hasPurchaseInvoiceAccess
           ? runSiigoPurchaseHistorySyncToCompletion()
           : Promise.resolve(null),
@@ -378,7 +382,7 @@ export function useSiigoIntegrationSettings() {
       }
 
       const response = accountsResult.value
-      setSuppliersSuccessMessage(formatBalanceTrialSuccessMessage(response))
+      setSuppliersSuccessMessage(formatAccountsImportSuccessMessage(response))
       await refreshSetupStatus()
 
       const status = await fetchSiigoCredentialsStatus({ force: true })
@@ -390,14 +394,14 @@ export function useSiigoIntegrationSettings() {
 
       if (!accountsSaved) {
         setErrorMessage(
-          'La sincronización terminó, pero no se encontraron cuentas contables transaccionales. Verifique el Balance de Prueba en SIIGO.',
+          'El archivo se procesó, pero no se guardó ninguna cuenta contable. Revise que el Excel tenga las columnas esperadas.',
         )
       } else {
         goToNextStep('accounts')
       }
     } catch (error) {
       setErrorMessage(
-        getApiErrorMessage(error, BALANCE_TRIAL_IMPORT_ERROR_MESSAGE),
+        getApiErrorMessage(error, ACCOUNTS_IMPORT_ERROR_MESSAGE),
       )
     } finally {
       setIsSyncingSuppliers(false)
@@ -579,7 +583,7 @@ export function useSiigoIntegrationSettings() {
     setSelectedSupportDocumentTypeId,
     setSelectedPurchaseDocumentTypeId,
     handleSaveCredentials,
-    handleSyncSuppliers,
+    handleImportAccountsExcel,
     handleSaveDocumentTypes,
   }
 }
