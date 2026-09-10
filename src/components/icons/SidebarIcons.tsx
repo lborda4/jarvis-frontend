@@ -34,6 +34,25 @@ export function InvoiceIcon({ className }: IconProps) {
   )
 }
 
+export function PackageIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 7.2 10 4l6.5 3.2v5.6L10 16l-6.5-3.2V7.2Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 16V10M3.5 7.2 10 10l6.5-2.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function DocumentIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">

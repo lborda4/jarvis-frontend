@@ -6,6 +6,9 @@ import SupportDocumentRoute from './components/SupportDocumentRoute'
 import PurchaseInvoiceRoute from './components/PurchaseInvoiceRoute'
 import BankStatementClosingPage from './pages/BankStatementClosingPage'
 import BankStatementHistoryPage from './pages/BankStatementHistoryPage'
+import CreateProductPage from './pages/CreateProductPage'
+import ProductListPage from './pages/ProductListPage'
+import ClientProductsRoute from './components/ClientProductsRoute'
 import TercerosRoute from './components/TercerosRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
@@ -60,6 +63,15 @@ function App() {
                 <Route path="/factura-venta" element={<SalesInvoicePage />} />
 
                 <Route path="/terceros" element={<TercerosRoute />} />
+
+                <Route element={<ClientProductsRoute />}>
+                  <Route
+                    path="/productos"
+                    element={<Navigate to="/productos/crear" replace />}
+                  />
+                  <Route path="/productos/crear" element={<CreateProductPage />} />
+                  <Route path="/productos/listar" element={<ProductListPage />} />
+                </Route>
 
                 <Route
                   path="/extractos-bancarios"

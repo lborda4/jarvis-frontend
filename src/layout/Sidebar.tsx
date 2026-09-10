@@ -10,6 +10,7 @@ import {
   ChevronsRightIcon,
   DocumentIcon,
   HelpIcon,
+  PackageIcon,
   PulseIcon,
   SettingsIcon,
 } from '../components/icons/SidebarIcons'
@@ -19,6 +20,12 @@ const BANK_STATEMENTS_ROOT = '/extractos-bancarios'
 const BANK_STATEMENT_CHILDREN = [
   { label: 'Cargar extracto', to: '/extractos-bancarios/cargar' },
   { label: 'Historial de cierres', to: '/extractos-bancarios/historial' },
+]
+
+const PRODUCTS_ROOT = '/productos'
+const PRODUCT_CHILDREN = [
+  { label: 'Crear producto', to: '/productos/crear' },
+  { label: 'Listar productos', to: '/productos/listar' },
 ]
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
@@ -123,6 +130,17 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
+    // Productos es menú de cliente (rol user), no de administrador.
+    ...(!isAdminRole(user?.role)
+      ? [
+          {
+            label: 'Productos',
+            to: PRODUCTS_ROOT,
+            icon: PackageIcon,
+            children: PRODUCT_CHILDREN,
+          },
+        ]
+      : []),
     // Jarvis, por ahora, solo cubre Documento soporte y Factura de venta: el
     // resto de secciones no tiene nada que hacer con esta integración.
     ...(isJarvisCompany
@@ -172,6 +190,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
     if (to === '/terceros') {
       return location.pathname.startsWith('/terceros')
+    }
+
+    if (to === PRODUCTS_ROOT) {
+      return location.pathname.startsWith(PRODUCTS_ROOT)
     }
 
     return location.pathname === to

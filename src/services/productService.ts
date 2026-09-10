@@ -1,0 +1,186 @@
+import { apiClient } from './apiClient'
+import {
+  cachedQuery,
+  companyQueryKey,
+  invalidateQueryCache,
+  QUERY_STALE_MS,
+} from './queryCache'
+
+const PRODUCTS_ENDPOINT = '/products'
+const PRODUCT_CATEGORIES_ENDPOINT = '/products/categories'
+
+const PRODUCT_CATEGORIES_CACHE_KEY = ['products', 'categories']
+
+export interface ProductCategoryResponse {
+  id: string
+  name: string
+}
+
+export interface ProductCategoriesListResponse {
+  items: ProductCategoryResponse[]
+  total: number
+}
+
+export interface ProductPriceListInput {
+  position: number
+  name: string
+  price: number
+  enabled: boolean
+}
+
+export interface CreateProductRequest {
+  sku: string
+  name: string
+  kind: 'product' | 'service'
+  unit: string
+  categoryId?: string | null
+  description?: string | null
+  applyIva: boolean
+  taxClassification?: string | null
+  ivaRate?: number | null
+  priceIncludesIva: boolean
+  retefuenteEnabled: boolean
+  retefuenteConcept?: string | null
+  retefuenteRate?: number | null
+  retefuenteMinBase?: number | null
+  reteicaEnabled: boolean
+  reteicaMunicipality?: string | null
+  reteicaRate?: number | null
+  reteicaMinBase?: number | null
+  reteivaEnabled: boolean
+  reteivaRate?: number | null
+  priceLists: ProductPriceListInput[]
+}
+
+export interface ProductResponse {
+  id: string
+  sku: string
+  name: string
+  kind: string
+  unit: string
+  categoryId: string | null
+  categoryName: string | null
+  description: string | null
+  applyIva: boolean
+  taxClassification: string | null
+  ivaRate: number | null
+  priceIncludesIva: boolean
+  retefuenteEnabled: boolean
+  retefuenteConcept: string | null
+  retefuenteRate: number | null
+  retefuenteMinBase: number | null
+  reteicaEnabled: boolean
+  reteicaMunicipality: string | null
+  reteicaRate: number | null
+  reteicaMinBase: number | null
+  reteivaEnabled: boolean
+  reteivaRate: number | null
+  priceLists: Array<{
+    id: string
+    position: number
+    name: string
+    price: number
+    enabled: boolean
+  }>
+}
+
+export interface CreateProductResponse {
+  success: boolean
+  product: ProductResponse
+}
+
+export interface ProductsListResponse {
+  items: ProductResponse[]
+  total: number
+}
+
+export async function fetchProducts(
+  search?: string,
+): Promise<ProductsListResponse> {
+  const trimmedSearch = search?.trim()
+
+  // Las búsquedas tipeadas no se cachean; la lista completa sí.
+  if (trimmedSearch) {
+    const { data } = await apiClient.get<ProductsListResponse>(
+      PRODUCTS_ENDPOINT,
+      { params: { search: trimmedSearch } },
+    )
+    return data
+  }
+
+  return cachedQuery(
+    companyQueryKey(['products', 'list']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const { data } = await apiClient.get<ProductsListResponse>(
+        PRODUCTS_ENDPOINT,
+      )
+      return data
+    },
+  )
+}
+
+export async function fetchNextSku(
+  kind: 'product' | 'service',
+): Promise<string> {
+  const { data } = await apiClient.get<{ sku: string }>(
+    `${PRODUCTS_ENDPOINT}/next-sku`,
+    { params: { kind } },
+  )
+  return data.sku
+}
+
+export async function fetchProductCategories(): Promise<ProductCategoryResponse[]> {
+  const response = await cachedQuery(
+    companyQueryKey(PRODUCT_CATEGORIES_CACHE_KEY),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const { data } = await apiClient.get<ProductCategoriesListResponse>(
+        PRODUCT_CATEGORIES_ENDPOINT,
+      )
+      return data
+    },
+  )
+
+  return response.items
+}
+
+export async function createProductCategory(
+  name: string,
+): Promise<ProductCategoryResponse> {
+  const { data } = await apiClient.post<ProductCategoryResponse>(
+    PRODUCT_CATEGORIES_ENDPOINT,
+    { name },
+  )
+
+  invalidateQueryCache(companyQueryKey(PRODUCT_CATEGORIES_CACHE_KEY))
+
+  return data
+}
+
+export async function updateProductCategory(
+  id: string,
+  name: string,
+): Promise<ProductCategoryResponse> {
+  const { data } = await apiClient.put<ProductCategoryResponse>(
+    `${PRODUCT_CATEGORIES_ENDPOINT}/${id}`,
+    { name },
+  )
+
+  invalidateQueryCache(companyQueryKey(PRODUCT_CATEGORIES_CACHE_KEY))
+
+  return data
+}
+
+export async function createProduct(
+  request: CreateProductRequest,
+): Promise<CreateProductResponse> {
+  const { data } = await apiClient.post<CreateProductResponse>(
+    PRODUCTS_ENDPOINT,
+    request,
+  )
+
+  invalidateQueryCache(companyQueryKey(['products', 'list']))
+
+  return data
+}
