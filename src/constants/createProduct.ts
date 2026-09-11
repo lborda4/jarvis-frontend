@@ -10,14 +10,6 @@ export const PRODUCT_KIND_OPTIONS: Array<{ value: ProductKind; label: string }> 
   { value: PRODUCT_KIND.SERVICE, label: 'Servicio' },
 ]
 
-export const DIAN_UNIT_OPTIONS = [
-  { value: '94', label: '94 - Unidad' },
-  { value: 'KGM', label: 'KGM - Kilogramo' },
-  { value: 'MTR', label: 'MTR - Metro' },
-  { value: 'LTR', label: 'LTR - Litro' },
-  { value: 'HUR', label: 'HUR - Hora' },
-] as const
-
 export interface ProductCategory {
   /** Identificador (uuid) de la categoría en el backend. */
   id: string

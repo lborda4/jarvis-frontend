@@ -130,6 +130,33 @@ export async function fetchNextSku(
   return data.sku
 }
 
+export interface UnitMeasure {
+  code: string
+  name: string
+}
+
+interface UnitMeasuresListResponse {
+  items: UnitMeasure[]
+  total: number
+}
+
+/** Unidades de medida DIAN (tabla maestra de NextPyme). Es un catálogo grande
+ * (~1093 filas) y estable, así que se cachea por empresa. */
+export async function fetchUnitMeasures(): Promise<UnitMeasure[]> {
+  const response = await cachedQuery(
+    companyQueryKey(['products', 'unit-measures']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const { data } = await apiClient.get<UnitMeasuresListResponse>(
+        `${PRODUCTS_ENDPOINT}/unit-measures`,
+      )
+      return data
+    },
+  )
+
+  return response.items
+}
+
 export async function fetchProductCategories(): Promise<ProductCategoryResponse[]> {
   const response = await cachedQuery(
     companyQueryKey(PRODUCT_CATEGORIES_CACHE_KEY),
