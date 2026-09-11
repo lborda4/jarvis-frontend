@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Autocomplete from '../components/Autocomplete'
 import Button from '../components/Button'
 import CategorySelect from '../components/CategorySelect'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -15,7 +16,6 @@ import {
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
   CREATE_PRODUCT_STEPS,
-  DIAN_UNIT_OPTIONS,
   IVA_RATE_OPTIONS,
   PRODUCT_DESCRIPTION_MAX_LENGTH,
   PRODUCT_KIND,
@@ -36,10 +36,16 @@ import {
   createProductCategory,
   fetchNextSku,
   fetchProductCategories,
+  fetchUnitMeasures,
   updateProductCategory,
   type CreateProductRequest,
+  type UnitMeasure,
 } from '../services/productService'
 import './CreateProductPage.css'
+
+/** Unidad de medida DIAN por defecto: "Unidad" (código 94). Se preselecciona
+ * en el formulario y se muestra mientras carga el catálogo de NextPyme. */
+const DEFAULT_UNIT_MEASURE: UnitMeasure = { code: '94', name: 'Unidad' }
 
 /** Convierte una tarifa escrita por el usuario ("2,5" o "9.66") a número, o
  * null si está vacía. El backend espera number para las columnas numeric. */
@@ -148,6 +154,11 @@ function CreateProductPage() {
   const [categories, setCategories] = useState<ProductCategory[]>([])
   // El usuario editó el SKU a mano: dejamos de auto-sugerirlo al cambiar de tipo.
   const [skuTouched, setSkuTouched] = useState(false)
+  // Sembrado con la opción por defecto para que "Unidad - 94" se vea al
+  // instante, antes de que responda el catálogo de NextPyme.
+  const [unitMeasures, setUnitMeasures] = useState<UnitMeasure[]>([
+    DEFAULT_UNIT_MEASURE,
+  ])
 
   useEffect(() => {
     let active = true
@@ -162,6 +173,24 @@ function CreateProductPage() {
             getApiErrorMessage(error, 'No se pudieron cargar las categorías.'),
           )
         }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // Catálogo de unidades de medida DIAN (tabla maestra de NextPyme). Si falla,
+  // se conserva al menos la opción por defecto "Unidad - 94".
+  useEffect(() => {
+    let active = true
+
+    fetchUnitMeasures()
+      .then((items) => {
+        if (active && items.length > 0) setUnitMeasures(items)
+      })
+      .catch(() => {
+        // Silencioso: queda la unidad por defecto ya seleccionada.
       })
 
     return () => {
@@ -420,6 +449,10 @@ function CreateProductPage() {
   }
 
   const descriptionCount = form.description.length
+  const selectedUnit = useMemo(
+    () => unitMeasures.find((unit) => unit.code === form.unit) ?? null,
+    [unitMeasures, form.unit],
+  )
   const stepTitle = useMemo(() => {
     if (step === 3) return 'Retenciones (configuración predeterminada)'
     return currentStep.label
@@ -557,17 +590,23 @@ function CreateProductPage() {
                   <span>
                     Unidad de medida DIAN <span className="create-product-req">*</span>
                   </span>
-                  <select
-                    value={form.unit}
-                    onChange={(event) => patchForm({ unit: event.target.value })}
-                    aria-invalid={Boolean(fieldErrors.unit)}
-                  >
-                    {DIAN_UNIT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Autocomplete<UnitMeasure>
+                    value={selectedUnit}
+                    onChange={(unit) =>
+                      patchForm({ unit: unit?.code ?? '' })
+                    }
+                    options={unitMeasures}
+                    placeholder="Buscar unidad..."
+                    emptyMessage="No se encontraron unidades"
+                    getOptionKey={(unit) => unit.code}
+                    getOptionLabel={(unit) => `${unit.name} - ${unit.code}`}
+                    isOptionMatch={(unit, query) =>
+                      `${unit.name} - ${unit.code}`
+                        .toLowerCase()
+                        .includes(query)
+                    }
+                    className="account-autocomplete create-product-unit"
+                  />
                 </label>
 
                 <label className="create-product-field">
