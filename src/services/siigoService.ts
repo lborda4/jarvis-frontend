@@ -10,7 +10,9 @@ import type {
   DeleteSiigoSupportDocumentResponse,
   CreateSiigoSupplierRequest,
   CreateSiigoSupplierResponse,
+  CreateSiigoSuppliersBulkResponse,
   ListAutoCreatedSuppliersResponse,
+  ListPendingSiigoSuppliersResponse,
   ListAccountMappingRulesResponse,
   SaveAccountMappingRequest,
   SaveAccountMappingResponse,
@@ -101,49 +103,6 @@ export async function fetchSiigoPurchaseHistorySyncStatus(): Promise<PurchaseHis
     SIIGO_PURCHASE_HISTORY_SYNC_STATUS_ENDPOINT,
   )
   return response.data
-}
-
-const PURCHASE_HISTORY_SYNC_POLL_INTERVAL_MS = 2000
-const PURCHASE_HISTORY_SYNC_POLL_MAX_ATTEMPTS = 900 // ~30 min tope de seguridad
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/** Arranca (si hace falta) y espera a que termine la sincronización del
- * historial de facturas de compra — pensada para correr en paralelo con
- * la importación del plan de cuentas durante el paso "Cuentas contables"
- * de la configuración, en vez de dejarla para cuando el usuario entre a
- * Factura de compra por primera vez. Nunca lanza por un status 'error' del
- * job en sí (se resuelve igual, con ese status) — solo lanza si se agota el
- * tope de reintentos de polling. */
-export async function runSiigoPurchaseHistorySyncToCompletion(): Promise<PurchaseHistorySyncStatusResponse> {
-  const initial = await fetchSiigoPurchaseHistorySyncStatus()
-
-  if (initial.status === 'completed' || initial.status === 'error') {
-    return initial
-  }
-
-  if (initial.status !== 'running') {
-    await startSiigoPurchaseHistorySync()
-  }
-
-  for (
-    let attempt = 0;
-    attempt < PURCHASE_HISTORY_SYNC_POLL_MAX_ATTEMPTS;
-    attempt += 1
-  ) {
-    await sleep(PURCHASE_HISTORY_SYNC_POLL_INTERVAL_MS)
-    const next = await fetchSiigoPurchaseHistorySyncStatus()
-
-    if (next.status === 'completed' || next.status === 'error') {
-      return next
-    }
-  }
-
-  throw new Error(
-    'Tiempo de espera agotado sincronizando el historial de facturas de compra.',
-  )
 }
 
 export async function fetchSiigoAccounts(): Promise<SiigoAccountCatalogItem[]> {
@@ -295,6 +254,32 @@ export async function fetchAutoCreatedSuppliers(
   const response = await apiClient.get<ListAutoCreatedSuppliersResponse>(
     SIIGO_AUTO_CREATED_SUPPLIERS_ENDPOINT,
     { params: { since: sinceIso } },
+  )
+
+  return response.data
+}
+
+/** Proveedores distintos que aparecen en documentos "Requiere proveedor" y
+ * no existen todavía en SIIGO — ya vienen enriquecidos con RUT/RUES de
+ * NextPyme del lado del backend, para el modal de creación masiva. */
+export async function fetchPendingSiigoSuppliers(): Promise<ListPendingSiigoSuppliersResponse> {
+  const response = await apiClient.get<ListPendingSiigoSuppliersResponse>(
+    `${SIIGO_SUPPLIERS_ENDPOINT}/pending`,
+  )
+
+  return response.data
+}
+
+/** Crea varios terceros en SIIGO a la vez (no uno por uno) — cada
+ * documentId ya trae consigo todo lo necesario del lado del backend
+ * (createSupplier resuelve RUT/RUES, tipo de persona, etc.), así que acá
+ * solo hace falta pasar los ids seleccionados en el modal. */
+export async function createSiigoSuppliersBulk(
+  documentIds: string[],
+): Promise<CreateSiigoSuppliersBulkResponse> {
+  const response = await apiClient.post<CreateSiigoSuppliersBulkResponse>(
+    `${SIIGO_SUPPLIERS_ENDPOINT}/bulk`,
+    { documentIds },
   )
 
   return response.data

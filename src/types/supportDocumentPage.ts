@@ -6,6 +6,7 @@ export type SupportDocumentAction =
   | 'send'
   | 'delete'
   | 'none'
+  | 'empty'
 
 export interface SuggestedAccount {
   code: string

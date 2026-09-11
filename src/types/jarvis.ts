@@ -232,6 +232,35 @@ export interface LookupJarvisTerceroNitResponse {
   address: string | null
 }
 
+/** Proveedor distinto (NIT + tipo de documento) pendiente de crear como
+ * tercero Jarvis — ya viene enriquecido con NextPyme del lado del backend
+ * (ver GET terceros/pending). `document_id` identifica un documento
+ * pendiente de ese proveedor, para reanudar su preparación tras crearlo. */
+export interface PendingJarvisSupplier {
+  document_id: string
+  document_type: string
+  document_number: string
+  name: string | null
+  email: string | null
+}
+
+export interface ListPendingJarvisSuppliersResponse {
+  items: PendingJarvisSupplier[]
+}
+
+export interface CreateJarvisTercerosBulkRequestItem {
+  document_id: string
+  document_type: JarvisDocumentType
+  document_number: string
+  name: string
+  email?: string
+}
+
+export interface CreateJarvisTercerosBulkResponse {
+  created: number
+  skipped: number
+}
+
 export const JARVIS_ENTITY_TYPE_OPTIONS: Array<{
   value: JarvisEntityType
   label: string

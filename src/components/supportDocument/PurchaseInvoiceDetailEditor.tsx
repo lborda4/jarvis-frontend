@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import Button from '../Button'
 import DatePicker from '../DatePicker'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
@@ -74,13 +75,12 @@ interface PurchaseInvoiceDetailEditorProps {
    * certificado por la DIAN) mientras el contador no lo haya tocado. */
   documentDiscount: number
   disabled?: boolean
-  /** Se dispara con CADA cambio en el borrador (ítems, retenciones, medio de
-   * pago, etc.) — no hay un paso de "guardar" aparte: lo único que persiste
-   * de verdad todo esto (historial de compras, preferencias del proveedor)
-   * es el envío a SIIGO, así que editar y quedar listo para enviar son la
-   * misma cosa. El Total que se ve en la fila colapsada del listado
-   * (arriba) se mantiene siempre igual al "Total neto" de este panel por la
-   * misma razón. */
+  /** Persiste el borrador. Sin este callback no se muestra el botón. */
+  onSaveDraft?: () => void | Promise<void>
+  isSavingDraft?: boolean
+  /** Se dispara con CADA cambio del borrador para mantener sincronizada la
+   * fila del listado (el Total de la fila colapsada sigue al "Total neto" de
+   * este panel). Persistir es otra cosa: eso lo hace onSaveDraft. */
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
 }
 
@@ -100,6 +100,8 @@ function PurchaseInvoiceDetailEditor({
   retentionOptionsByType,
   documentDiscount,
   disabled = false,
+  onSaveDraft,
+  isSavingDraft = false,
   onChange,
 }: PurchaseInvoiceDetailEditorProps) {
   const sidebarRetentionTypes = retentionCatalogTypes.filter(
@@ -409,6 +411,18 @@ function PurchaseInvoiceDetailEditor({
         </div>
       </div>
 
+      {onSaveDraft && !disabled && (
+        <div className="purchase-invoice-editor__actions">
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => void onSaveDraft()}
+            disabled={isSavingDraft}
+          >
+            {isSavingDraft ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

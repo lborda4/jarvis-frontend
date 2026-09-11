@@ -39,9 +39,10 @@ function PurchaseInvoiceRoute() {
     )
   }
 
-  // El historial de compras (SIIGO) ya se sincroniza junto con las cuentas
-  // contables en el paso 2 de configuración — ver handleSyncSuppliers en
-  // useSiigoIntegrationSettings.ts — así que acá ya no hace falta gate.
+  // El historial de compras (SIIGO) ya arranca en segundo plano apenas se
+  // guardan las credenciales, en el paso 1 de configuración — ver
+  // saveCredentialsRequest en useSiigoIntegrationSettings.ts — así que acá
+  // ya no hace falta gate.
   return (
     <SupportDocumentPage
       config={

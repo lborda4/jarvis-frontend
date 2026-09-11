@@ -1,11 +1,14 @@
 import type {
   CreateJarvisTerceroRequest,
   CreateJarvisTerceroResponse,
+  CreateJarvisTercerosBulkRequestItem,
+  CreateJarvisTercerosBulkResponse,
   JarvisCredentialsStatusResponse,
   JarvisDianResolution,
   JarvisDocumentType,
   JarvisTercerosListResponse,
   ListJarvisAvailableResolutionsResponse,
+  ListPendingJarvisSuppliersResponse,
   LookupJarvisTerceroNitResponse,
   SaveJarvisCredentialsRequest,
   SaveJarvisCredentialsResponse,
@@ -288,6 +291,31 @@ export async function lookupJarvisTerceroByNit(
       identification_number: identificationNumber,
     },
   )
+
+  return response.data
+}
+
+/** Proveedores distintos que aparecen en documentos "Requiere proveedor" y no
+ * existen todavía como tercero Jarvis — ya vienen enriquecidos con la
+ * consulta a NextPyme del lado del backend (mismo autocompletado que el
+ * modal uno por uno), para el modal de creación masiva. */
+export async function fetchPendingJarvisTerceros(): Promise<ListPendingJarvisSuppliersResponse> {
+  const response = await apiClient.get<ListPendingJarvisSuppliersResponse>(
+    `${JARVIS_TERCEROS_ENDPOINT}/pending`,
+  )
+
+  return response.data
+}
+
+export async function createJarvisTercerosBulk(
+  suppliers: CreateJarvisTercerosBulkRequestItem[],
+): Promise<CreateJarvisTercerosBulkResponse> {
+  const response = await apiClient.post<CreateJarvisTercerosBulkResponse>(
+    `${JARVIS_TERCEROS_ENDPOINT}/bulk`,
+    { suppliers },
+  )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
 
   return response.data
 }

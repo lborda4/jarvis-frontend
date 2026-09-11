@@ -5,7 +5,7 @@ import { getApiErrorMessage } from '../services/apiClient'
 import {
   fetchSiigoCredentialsStatus,
   fetchSiigoDocumentTypes,
-  runSiigoPurchaseHistorySyncToCompletion,
+  startSiigoPurchaseHistorySync,
   saveSiigoCredentials,
   importSiigoAccountsExcel,
   saveSiigoDocumentTypes,
@@ -285,9 +285,31 @@ export function useSiigoIntegrationSettings() {
     setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
     markConfigured()
     await refreshSetupStatus()
+
+    // Arranca el historial de compras apenas quedan guardadas las
+    // credenciales, en vez de esperar al paso de "Cuentas contables" — corre
+    // en segundo plano (no se espera acá, no bloquea este paso ni los que
+    // siguen) mientras el usuario sube el Excel de cuentas y elige la
+    // resolución. startSync es idempotente (ver
+    // siigo-purchase-history-sync.service.ts): si ya hay un job corriendo
+    // para la empresa, lo reusa en vez de duplicarlo, así que no pasa nada
+    // si este paso se reintenta. Si falla acá (ej. hipo de red), no ensucia
+    // el mensaje de éxito de credenciales — la detección de "ya existe en
+    // SIIGO" en prepareSupplierAndAccounts sigue funcionando igual aunque
+    // este sync arranque más tarde o nunca.
+    if (hasPurchaseInvoiceAccess) {
+      void startSiigoPurchaseHistorySync().catch((error) => {
+        console.error(
+          'No se pudo iniciar el sync de historial de compras SIIGO en segundo plano.',
+          error,
+        )
+      })
+    }
+
     return response
   }, [
     accessKey,
+    hasPurchaseInvoiceAccess,
     markConfigured,
     partnerId,
     refreshSetupStatus,
@@ -362,26 +384,11 @@ export function useSiigoIntegrationSettings() {
     clearMessages()
 
     try {
-      // La importación del plan de cuentas y el historial de Factura de
-      // compra arrancan juntos y corren de forma independiente — si uno
-      // falla, el otro sigue su curso igual — para que el cliente no tenga
-      // que esperar dos procesos separados (uno ahora y otro más adelante al
-      // entrar a Factura de compra). Este paso no se da por terminado hasta
-      // que ambos terminan. Solo se corre el de facturas si el plan incluye
-      // Factura de compra; si ese falla, no bloquea ni ensucia el mensaje de
-      // éxito de este paso.
-      const [accountsResult] = await Promise.allSettled([
-        importSiigoAccountsExcel(file),
-        hasPurchaseInvoiceAccess
-          ? runSiigoPurchaseHistorySyncToCompletion()
-          : Promise.resolve(null),
-      ])
-
-      if (accountsResult.status === 'rejected') {
-        throw accountsResult.reason
-      }
-
-      const response = accountsResult.value
+      // El historial de Factura de compra ya arrancó en segundo plano al
+      // guardar las credenciales (ver saveCredentialsRequest) y sigue su
+      // curso de forma independiente — este paso ya no espera a que
+      // termine, solo se ocupa de la importación del plan de cuentas.
+      const response = await importSiigoAccountsExcel(file)
       setSuppliersSuccessMessage(formatAccountsImportSuccessMessage(response))
       await refreshSetupStatus()
 
@@ -410,7 +417,6 @@ export function useSiigoIntegrationSettings() {
   }, [
     clearMessages,
     goToNextStep,
-    hasPurchaseInvoiceAccess,
     isSavingCredentials,
     isSiigoConfigured,
     isSyncingSuppliers,

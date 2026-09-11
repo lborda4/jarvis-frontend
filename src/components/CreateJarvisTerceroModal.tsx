@@ -14,11 +14,9 @@ import {
   JARVIS_DOCUMENT_TYPE_OPTIONS,
   JARVIS_ENTITY_TYPE,
   JARVIS_ENTITY_TYPE_OPTIONS,
-  JARVIS_TAX_REGIME_OPTIONS,
   type CreateJarvisTerceroRequest,
   type JarvisDocumentType,
   type JarvisEntityType,
-  type JarvisTaxRegime,
   type JarvisTercero,
 } from '../types/jarvis'
 import type { SiigoSupplierPersonType } from '../types/siigo'
@@ -88,28 +86,6 @@ function CreateJarvisTerceroModal({
   const [lookupError, setLookupError] = useState<string | null>(null)
   const openedKeyRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (!isOpen) {
-      openedKeyRef.current = null
-      return
-    }
-
-    const openKey = `${initialDocumentType ?? ''}|${initialDocumentNumber ?? ''}|${resumeDocumentId ?? ''}`
-    if (openedKeyRef.current === openKey) {
-      return
-    }
-
-    openedKeyRef.current = openKey
-    setForm({
-      ...EMPTY_FORM,
-      document_type: resolveDocumentType(initialDocumentType),
-      document_number: initialDocumentNumber?.trim() || '',
-    })
-    setErrorMessage(null)
-    setLookupMessage(null)
-    setLookupError(null)
-  }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId])
-
   const handleLookupDocument = useCallback(
     async (documentType: JarvisDocumentType, rawDocumentValue: string) => {
       const [rawDocumentNumber, rawCheckDigit] = rawDocumentValue.split('-')
@@ -118,7 +94,7 @@ function CreateJarvisTerceroModal({
 
       if (documentNumber.length < 5) {
         setLookupError(
-          'Ingresa un número de documento válido (mínimo 5 dígitos) para autocompletar.',
+          'El número de documento debe tener al menos 5 dígitos para poder buscarlo.',
         )
         setLookupMessage(null)
         return
@@ -165,9 +141,37 @@ function CreateJarvisTerceroModal({
     [isLookingUpNit],
   )
 
-  const handleAutocompletar = () => {
-    void handleLookupDocument(form.document_type, form.document_number)
-  }
+  useEffect(() => {
+    if (!isOpen) {
+      openedKeyRef.current = null
+      return
+    }
+
+    const openKey = `${initialDocumentType ?? ''}|${initialDocumentNumber ?? ''}|${resumeDocumentId ?? ''}`
+    if (openedKeyRef.current === openKey) {
+      return
+    }
+
+    openedKeyRef.current = openKey
+    const documentType = resolveDocumentType(initialDocumentType)
+    const documentNumber = initialDocumentNumber?.trim() || ''
+    setForm({
+      ...EMPTY_FORM,
+      document_type: documentType,
+      document_number: documentNumber,
+    })
+    setErrorMessage(null)
+    setLookupMessage(null)
+    setLookupError(null)
+
+    // Ya no hay botón "Autocompletar": la consulta a NextPyme (vía
+    // lookup-nit) se dispara sola apenas se abre el modal, para que el
+    // usuario vea los datos ya llenos en vez de tener que pedirlos a mano.
+    if (documentNumber) {
+      void handleLookupDocument(documentType, documentNumber)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId])
 
   const handleClose = () => {
     if (isSaving || isLookingUpNit) return
@@ -327,18 +331,23 @@ function CreateJarvisTerceroModal({
                   disabled={isSaving || isLookingUpNit}
                   required
                 />
-                <Button
-                  variant="outline"
-                  className="terceros-page__autocomplete-btn"
-                  onClick={handleAutocompletar}
-                  disabled={
-                    isSaving ||
-                    isLookingUpNit ||
-                    form.document_number.trim().length < 5
+                <input
+                  id="tercero-check-digit"
+                  className="terceros-page__check-digit-input"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="DV"
+                  aria-label="Dígito de verificación"
+                  value={form.check_digit ?? ''}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      check_digit: event.target.value,
+                    }))
                   }
-                >
-                  {isLookingUpNit ? 'Consultando...' : 'Autocompletar'}
-                </Button>
+                  disabled={isSaving || isLookingUpNit}
+                  maxLength={2}
+                />
               </div>
             </div>
 
@@ -351,29 +360,10 @@ function CreateJarvisTerceroModal({
                 }`}
               >
                 {isLookingUpNit
-                  ? 'Consultando información...'
+                  ? 'Buscando información...'
                   : (lookupError ?? lookupMessage)}
               </p>
             )}
-
-            <div className="terceros-page__field">
-              <label htmlFor="tercero-check-digit">
-                Dígito de verificación
-              </label>
-              <input
-                id="tercero-check-digit"
-                type="text"
-                value={form.check_digit ?? ''}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    check_digit: event.target.value,
-                  }))
-                }
-                disabled={isSaving || isLookingUpNit}
-                maxLength={2}
-              />
-            </div>
 
             <div className="terceros-page__field terceros-page__field--full">
               <label htmlFor="tercero-name">Nombre / razón social</label>
@@ -414,30 +404,6 @@ function CreateJarvisTerceroModal({
                     : 'Sin especificar'}
                 </option>
                 {JARVIS_ENTITY_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="terceros-page__field">
-              <label htmlFor="tercero-tax-regime">Régimen</label>
-              <select
-                id="tercero-tax-regime"
-                value={form.tax_regime ?? ''}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    tax_regime: (event.target.value || undefined) as
-                      | JarvisTaxRegime
-                      | undefined,
-                  }))
-                }
-                disabled={isSaving || isLookingUpNit}
-              >
-                <option value="">Sin especificar</option>
-                {JARVIS_TAX_REGIME_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

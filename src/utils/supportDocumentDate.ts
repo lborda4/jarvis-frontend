@@ -167,13 +167,24 @@ export function buildInitialRowDates(
  * del documento, puede ser una fecha futura, así que no se valida contra el
  * rango de fechas seleccionables, solo el formato. */
 export function buildInitialRowDueDates(
-  documents: Array<{ id: string; dueDate?: string | null }>,
+  documents: Array<{
+    id: string
+    dueDate?: string | null
+    draft?: { dueDate?: string | null } | null
+  }>,
   current: Record<string, string | null> = {},
 ): Record<string, string | null> {
   return Object.fromEntries(
     documents.map((document) => {
       if (current[document.id] !== undefined) {
         return [document.id, current[document.id]]
+      }
+
+      // Borrador guardado por el contador tiene prioridad sobre el
+      // importado — es el que puede haber editado a mano.
+      const draftDueDate = document.draft?.dueDate?.trim()
+      if (draftDueDate && /^\d{4}-\d{2}-\d{2}$/.test(draftDueDate)) {
+        return [document.id, draftDueDate]
       }
 
       const importedDueDate = document.dueDate?.trim()

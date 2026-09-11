@@ -1,0 +1,66 @@
+.terceros-bulk-modal {
+  width: min(100%, 56rem);
+}
+
+.terceros-bulk-modal__description {
+  margin: 0 0 0.6rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.terceros-bulk-modal__table-wrap {
+  max-height: 22rem;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  margin: 1rem 0 0.6rem;
+}
+
+.terceros-bulk-modal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.terceros-bulk-modal__table th,
+.terceros-bulk-modal__table td {
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.terceros-bulk-modal__table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--jarvis-surface-soft, #f4f6f8);
+  color: var(--jarvis-text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--jarvis-border-strong);
+  z-index: 1;
+}
+
+.terceros-bulk-modal__table tbody tr {
+  border-bottom: 1px solid var(--jarvis-border-soft, #e5e9ec);
+}
+
+.terceros-bulk-modal__row--selected {
+  background: var(--jarvis-success-soft);
+}
+
+.terceros-bulk-modal__checkbox-col {
+  width: 2.5rem;
+}
+
+.terceros-bulk-modal__empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  color: var(--jarvis-text-muted);
+  white-space: normal;
+}
+
+.terceros-bulk-modal__count {
+  margin: 0 0 1rem;
+  font-size: var(--text-sm);
+  color: var(--jarvis-text-muted);
+}

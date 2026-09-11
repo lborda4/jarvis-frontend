@@ -58,16 +58,22 @@ export function mapDocumentToImportRowStatus(
 
 export function getSupportDocumentActionFromImportStatus(
   importStatus: ImportRowStatus,
-): 'supplier_missing' | 'processing' | 'send' | 'delete' | 'none' {
+): 'supplier_missing' | 'processing' | 'send' | 'delete' | 'none' | 'empty' {
   switch (importStatus) {
     case IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR:
       return 'supplier_missing'
     case IMPORT_ROW_STATUS.EN_PROCESO:
       return 'processing'
     case IMPORT_ROW_STATUS.LISTA:
-    case IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO:
     case IMPORT_ROW_STATUS.ERROR:
       return 'delete'
+    // Ya existía en SIIGO antes de este import (no la creamos nosotros), así
+    // que no debe poder borrarse ni de la BD ni de SIIGO (ver
+    // isDocumentRemovableFromDatabase / isDocumentDeletableFromSiigo en
+    // supportDocumentSend.ts, que ya la excluyen a propósito) — la celda de
+    // acción queda vacía en vez de mostrar un botón de eliminar inválido.
+    case IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO:
+      return 'empty'
     default:
       return 'send'
   }

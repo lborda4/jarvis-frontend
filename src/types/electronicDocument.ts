@@ -91,6 +91,31 @@ export interface SuggestedPurchaseItemConfig {
   paymentMethod: SuggestedPaymentMethod | null
 }
 
+/** Borrador de contabilización guardado en electronic_documents.draft. Se
+ * guardan códigos e ids y no los objetos del catálogo, para que un cambio de
+ * nombre o una reimportación del plan de cuentas no deje copias viejas. */
+export interface ElectronicDocumentDraftItem {
+  tipo: 'Product' | 'FixedAsset' | 'Account'
+  producto: string
+  description: string
+  quantity: number
+  unitValue: number
+  discount: number
+  ivaTaxId?: number | null
+  retefuenteTaxId?: number | null
+}
+
+export interface ElectronicDocumentDraft {
+  items?: ElectronicDocumentDraftItem[]
+  accountCode?: string | null
+  paymentMethodId?: number | null
+  dueDate?: string | null
+  observations?: string | null
+  retentionTaxIds?: number[]
+  documentDiscount?: number | null
+  savedAt: string
+}
+
 /** Cuenta PUC sugerida para ESTE ítem puntual, resuelta por proveedor +
  * descripción normalizada (ver SupplierItemAccountMapping en el backend).
  * `source: 'exact'` = regla confirmada para esta descripción — más
@@ -147,6 +172,10 @@ export interface ElectronicDocumentListItem {
    * ver mapDocumentToImportRowStatus, que lo muestra como "Existente en
    * SIIGO" en vez de "Lista". */
   alreadyInSiigo?: boolean
+  /** Ajustes guardados por el contador y todavía sin enviar. Si viene, el
+   * panel de detalle arranca de acá en vez de recalcular las sugerencias:
+   * es lo que evita perder el trabajo al recargar o cambiar de sección. */
+  draft?: ElectronicDocumentDraft | null
   suggestedAccount?: SuggestedAccount | null
   suggestedProduct?: SuggestedProduct | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
@@ -158,6 +187,13 @@ export interface ElectronicDocumentListItem {
    * corrió para este documento. Se usa para mostrar "Requiere revisión" en
    * vez de "Pendiente" cuando queda por debajo del umbral (hoy 80). */
   aiConfidence?: number | null
+  /** Solo Factura de compra SIIGO: true si al documento le falta algo por
+   * resolver (cuenta, producto, medio de pago o confianza de IA baja) —
+   * ya viene calculado del backend, así que refleja lo último GUARDADO
+   * (el borrador, si existe), no lo que se está escribiendo sin guardar
+   * todavía. Reemplaza a needsPurchaseInvoiceReview, que recalculaba esto
+   * mismo en el frontend a partir del estado del editor. */
+  requiresReview?: boolean
   observations?: string | null
   items?: ElectronicDocumentListItemItem[]
   createdAt: string

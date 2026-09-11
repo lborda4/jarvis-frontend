@@ -5,7 +5,6 @@ import {
   isDocumentDeletable,
   isDocumentDeletableFromSiigo,
   isDocumentRemovableFromDatabase,
-  needsPurchaseInvoiceReview,
 } from './supportDocumentSend'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
@@ -134,8 +133,8 @@ describe('buildNotSendableReason', () => {
 
   it('se puede enviar sin cuenta a nivel de documento si TODOS los ítems editados ya traen su propio código (caso real reportado: cuenta asignada a mano por ítem, "Enviar" seguía deshabilitado)', () => {
     const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '5115' }),
-      buildItem({ tipo: 'Account', producto: '5115' }),
+      buildItem({ tipo: 'Account', producto: '5115', description: 'Gasto 1' }),
+      buildItem({ tipo: 'Account', producto: '5115', description: 'Gasto 2' }),
     ]
 
     const reason = buildNotSendableReason(
@@ -151,17 +150,19 @@ describe('buildNotSendableReason', () => {
     expect(reason).toBeNull()
   })
 
-  it('sigue faltando la cuenta si algún ítem editado se dejó sin código', () => {
+  it('sigue faltando la cuenta si algún ítem editado se dejó sin código, aunque SÍ haya una cuenta a nivel de documento (caso real reportado: el contador borraba el código del ítem para corregirlo y "Enviar" seguía habilitado por una cuenta vieja invisible en este editor)', () => {
     const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '5115' }),
-      buildItem({ tipo: 'Account', producto: '' }),
+      buildItem({ tipo: 'Account', producto: '5115', description: 'Gasto 1' }),
+      buildItem({ tipo: 'Account', producto: '', description: 'Gasto 2' }),
     ]
 
     const reason = buildNotSendableReason(
       buildDocument(),
       'doc-1',
       IMPORT_ROW_STATUS.PENDIENTE,
-      { 'doc-1': null },
+      // Cuenta a nivel de documento SÍ presente a propósito: con ítems
+      // editados esto ya no debe funcionar como escape.
+      { 'doc-1': ACCOUNT },
       { 'doc-1': PAYMENT_METHOD },
       { 'doc-1': null },
       { 'doc-1': items },
@@ -170,9 +171,45 @@ describe('buildNotSendableReason', () => {
     expect(reason).toBe('Falta asignar la cuenta contable.')
   })
 
+  it('un ítem tipo FixedAsset SIN código también bloquea el envío (mismo criterio que Account: sin fallback a la cuenta del documento)', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'FixedAsset', producto: '', description: 'Activo fijo' }),
+    ]
+
+    const reason = buildNotSendableReason(
+      buildDocument(),
+      'doc-1',
+      IMPORT_ROW_STATUS.PENDIENTE,
+      { 'doc-1': ACCOUNT },
+      { 'doc-1': PAYMENT_METHOD },
+      { 'doc-1': null },
+      { 'doc-1': items },
+    )
+
+    expect(reason).toBe('Falta asignar la cuenta contable.')
+  })
+
+  it('un ítem con descripción vacía bloquea el envío sin importar el tipo', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ tipo: 'Account', producto: '5115', description: '' }),
+    ]
+
+    const reason = buildNotSendableReason(
+      buildDocument(),
+      'doc-1',
+      IMPORT_ROW_STATUS.PENDIENTE,
+      { 'doc-1': ACCOUNT },
+      { 'doc-1': PAYMENT_METHOD },
+      { 'doc-1': null },
+      { 'doc-1': items },
+    )
+
+    expect(reason).toBe('Falta la descripción de un ítem.')
+  })
+
   it('un ítem tipo Product/FixedAsset no necesita cuenta contable propia', () => {
     const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Product', producto: 'SKU-1' }),
+      buildItem({ tipo: 'Product', producto: 'SKU-1', description: 'Producto 1' }),
     ]
 
     const reason = buildNotSendableReason(
@@ -210,7 +247,7 @@ describe('buildNotSendableReason', () => {
 
   it('se puede enviar de nuevo una vez que el usuario completa el código de producto que faltaba', () => {
     const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Product', producto: 'PROD-NUEVO' }),
+      buildItem({ tipo: 'Product', producto: 'PROD-NUEVO', description: 'Producto nuevo' }),
     ]
 
     const reason = buildNotSendableReason(
@@ -242,173 +279,6 @@ describe('buildNotSendableReason', () => {
   })
 })
 
-describe('needsPurchaseInvoiceReview', () => {
-  const REQUIRES_BOTH = { requiresAccount: true, requiresPaymentMethod: true }
-
-  it('caso real D1 SAS: ítems tipo Cuenta sin resolver Y sin cuenta de respaldo a nivel de documento — requiere revisión, no es solo "Pendiente"', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '' }),
-      buildItem({ tipo: 'Account', producto: '' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': null },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-      ),
-    ).toBe(true)
-  })
-
-  it('no requiere revisión si hay una cuenta de respaldo a nivel de documento (la IA/historial sí encontraron algo)', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-      ),
-    ).toBe(false)
-  })
-
-  it('no requiere revisión si cada ítem Cuenta ya trae su propio código, aunque no haya cuenta de respaldo', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '5115' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': null },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-      ),
-    ).toBe(false)
-  })
-
-  it('un ítem Producto sin código SIEMPRE requiere revisión, aunque haya cuenta de respaldo a nivel de documento', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Product', producto: '' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-      ),
-    ).toBe(true)
-  })
-
-  it('false cuando el workspace no requiere cuenta ni medio de pago (ej. Jarvis)', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': null },
-        { 'doc-1': null },
-        { 'doc-1': items },
-        { requiresAccount: false, requiresPaymentMethod: false },
-      ),
-    ).toBe(false)
-  })
-
-  it('caso real reportado: cuenta ya resuelta (por IA) pero medio de pago sin resolver — igual requiere revisión, no se puede enviar vacío', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '51952503' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': null },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-      ),
-    ).toBe(true)
-  })
-
-  it('no requiere revisión por medio de pago si el workspace no lo exige', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '51952503' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': null },
-        { 'doc-1': items },
-        { requiresAccount: true, requiresPaymentMethod: false },
-      ),
-    ).toBe(false)
-  })
-
-  it('requiere revisión si la confianza de la IA es menor a 80, aunque cuenta y medio de pago ya estén resueltos', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '51952503' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-        79,
-      ),
-    ).toBe(true)
-  })
-
-  it('no requiere revisión por confianza cuando es 80 o más', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '51952503' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-        80,
-      ),
-    ).toBe(false)
-  })
-
-  it('no requiere revisión por confianza cuando es null (la clasificación automática nunca corrió)', () => {
-    const items: PurchaseInvoiceItemDraft[] = [
-      buildItem({ tipo: 'Account', producto: '51952503' }),
-    ]
-
-    expect(
-      needsPurchaseInvoiceReview(
-        'doc-1',
-        { 'doc-1': ACCOUNT },
-        { 'doc-1': PAYMENT_METHOD },
-        { 'doc-1': items },
-        REQUIRES_BOTH,
-        null,
-      ),
-    ).toBe(false)
-  })
-})
 
 describe('borrado — EXISTENTE EN SIIGO no se puede eliminar (caso real pedido: la factura ya existía en SIIGO antes del import, no debe poder borrarse ni de la BD ni de SIIGO)', () => {
   it('isDocumentRemovableFromDatabase es false para EXISTENTE EN SIIGO', () => {

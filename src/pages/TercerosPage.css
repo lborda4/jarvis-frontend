@@ -181,10 +181,13 @@
   min-width: 0;
 }
 
-/* Colors/padding now come from <Button variant="outline" /> — this rule only keeps it from wrapping in the row. */
-.terceros-page__autocomplete-btn {
-  flex-shrink: 0;
-  white-space: nowrap;
+/* Dígito de verificación: al lado del número de documento, no debajo — se
+ * ve como su continuación (2 dígitos como mucho), así que no necesita el
+ * mismo ancho que el número completo. */
+.terceros-page__check-digit-input {
+  flex: 0 0 3.5rem;
+  min-width: 0;
+  text-align: center;
 }
 
 .terceros-page__lookup-feedback {

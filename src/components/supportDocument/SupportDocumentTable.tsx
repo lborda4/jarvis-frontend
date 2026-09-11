@@ -92,6 +92,9 @@ interface SupportDocumentTableProps {
   retentionCatalogTypes?: readonly string[]
   retentionOptionsByType?: Record<string, SiigoTaxOption[]>
   onSaveRowEdits?: (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => void
+  /** Persiste el borrador del documento (electronic_documents.draft). */
+  onSaveDraft?: (documentId: string) => void | Promise<void>
+  savingDraftDocumentId?: string | null
   sortColumn: SupportDocumentSortColumn | null
   sortDirection: SupportDocumentSortDirection
   isLoading?: boolean
@@ -191,6 +194,10 @@ function ActionCell({
     )
   }
 
+  if (action === 'empty') {
+    return null
+  }
+
   if (action === 'delete') {
     return (
       <Button
@@ -239,6 +246,8 @@ function SupportDocumentTable({
   retentionCatalogTypes = [],
   retentionOptionsByType = {},
   onSaveRowEdits,
+  onSaveDraft,
+  savingDraftDocumentId = null,
   sortColumn,
   sortDirection,
   isLoading = false,
@@ -763,13 +772,19 @@ function SupportDocumentTable({
                                   document.documentDiscount ??
                                   0,
                                 disabled: isSending || isDeleting || isRowLocked,
-                                // No hay un paso de "guardar" aparte: cada
-                                // cambio actualiza directo rowItems/
+                                onSaveDraft: onSaveDraft
+                                  ? () => onSaveDraft(row.id)
+                                  : undefined,
+                                isSavingDraft: savingDraftDocumentId === row.id,
+                                // Cada cambio actualiza directo rowItems/
                                 // rowPaymentMethods/etc. (el mismo estado que
-                                // ya usa "Enviar") — lo único que persiste de
-                                // verdad todo esto es el envío a SIIGO, así
-                                // que en cuanto los campos requeridos quedan
-                                // completos, "Enviar" se habilita solo.
+                                // usa "Enviar"), así que en cuanto los campos
+                                // requeridos quedan completos "Enviar" se
+                                // habilita solo — sin esperar a que se
+                                // presione "Guardar cambios". Ese botón solo
+                                // PERSISTE el borrador (electronic_documents
+                                // .draft) para que no se pierda al recargar;
+                                // no es lo que habilita nada.
                                 onChange: (edits) =>
                                   onSaveRowEdits?.(row.id, edits),
                               }

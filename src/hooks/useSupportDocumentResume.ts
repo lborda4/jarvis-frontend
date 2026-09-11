@@ -27,6 +27,22 @@ import { useAccountMappingModal } from './useAccountMappingModal'
 
 const VALIDATION_POLL_INTERVAL_MS = 1000
 const VALIDATION_MAX_ATTEMPTS = 45
+/** Documentos validados por segundo que se puede esperar del backend, dado
+ * su límite de 5 en simultáneo contra la API real de SIIGO (ver
+ * SIIGO_DOCUMENT_PREPARATION_CONCURRENCY) — con esto, un lote grande recibe
+ * una ventana de espera proporcional en vez de agotar siempre el mismo tope
+ * fijo pensado para lotes chicos. Caso real reportado: un import de 74
+ * documentos disparaba el aviso de "tardando más de lo esperado" con la
+ * ventana fija de 45s, aunque el backend siguiera validando de fondo. */
+const ESTIMATED_DOCUMENTS_VALIDATED_PER_SECOND = 2
+
+function computeValidationMaxAttempts(documentCount: number): number {
+  const estimatedSeconds = Math.ceil(
+    documentCount / ESTIMATED_DOCUMENTS_VALIDATED_PER_SECOND,
+  )
+
+  return Math.max(VALIDATION_MAX_ATTEMPTS, estimatedSeconds)
+}
 
 interface UseSupportDocumentResumeOptions {
   electronicDocumentType: ElectronicDocumentType
@@ -195,14 +211,22 @@ export function useSupportDocumentResume({
       }
 
       let lastImported: ElectronicDocumentListItem[] = []
+      const maxAttempts = computeValidationMaxAttempts(uniqueIds.length)
 
       try {
-        for (let attempt = 0; attempt < VALIDATION_MAX_ATTEMPTS; attempt += 1) {
-          const response = await fetchElectronicDocuments({
-            electronicDocumentType,
-            page: 1,
-            limit: pickSmallestPageSizeCovering(uniqueIds.length + 10),
-          })
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          const response = await fetchElectronicDocuments(
+            {
+              electronicDocumentType,
+              page: 1,
+              limit: pickSmallestPageSizeCovering(uniqueIds.length + 10),
+            },
+            // Fuerza bypass de la caché de 10 minutos (ver
+            // fetchElectronicDocuments): sin esto, cada intento del loop
+            // devolvía la misma respuesta cacheada del primero en vez de
+            // reflejar lo que el backend ya validó de fondo.
+            { force: true },
+          )
 
           const imported = response.items.filter((document) =>
             uniqueIds.includes(document.id),

@@ -1983,6 +1983,18 @@
   color: var(--jarvis-primary);
 }
 
+/* Botón "Guardar cambios" del panel de detalle: persiste el borrador
+ * (electronic_documents.draft). Separado del resto por el mismo motivo que
+ * el bloque de totales — es la acción de cierre del panel, no otro campo
+ * más del formulario. */
+.purchase-invoice-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--jarvis-gray-100);
+}
+
 
 @media (max-width: 900px) {
   .purchase-invoice-editor__lower {
