@@ -15,6 +15,23 @@ export const JARVIS_TAX_REGIME = {
 export type JarvisTaxRegime =
   (typeof JARVIS_TAX_REGIME)[keyof typeof JARVIS_TAX_REGIME]
 
+export const JARVIS_CLIENT_TYPE = {
+  CLIENT: 'client',
+  SUPPLIER: 'supplier',
+} as const
+
+export type JarvisClientType =
+  (typeof JARVIS_CLIENT_TYPE)[keyof typeof JARVIS_CLIENT_TYPE]
+
+export const JARVIS_FISCAL_REGIME = {
+  ORDINARY: 'ordinary',
+  SIMPLE: 'simple',
+  SPECIAL: 'special',
+} as const
+
+export type JarvisFiscalRegime =
+  (typeof JARVIS_FISCAL_REGIME)[keyof typeof JARVIS_FISCAL_REGIME]
+
 export const JARVIS_VAT_REGIME = {
   RESPONSIBLE: 'vat_responsible',
   NON_RESPONSIBLE: 'non_vat_responsible',
@@ -193,11 +210,28 @@ export interface JarvisTercero {
   name: string
   entity_type: JarvisEntityType | null
   tax_regime: JarvisTaxRegime | null
+  client_type: JarvisClientType | null
+  fiscal_regime: JarvisFiscalRegime | null
+  vat_regime: JarvisVatRegime | null
+  economic_activity: string | null
   email: string | null
   phone: string | null
   address: string | null
+  country: string | null
+  city: string | null
+  city_code: string | null
   created_at: string
   updated_at: string
+}
+
+export interface JarvisCatalogOption {
+  code: string | null
+  name: string
+}
+
+export interface JarvisCatalogListResponse {
+  items: JarvisCatalogOption[]
+  total: number
 }
 
 export interface JarvisTercerosListResponse {
@@ -212,12 +246,41 @@ export interface CreateJarvisTerceroRequest {
   check_digit?: string
   entity_type?: JarvisEntityType
   tax_regime?: JarvisTaxRegime
+  client_type?: JarvisClientType
+  fiscal_regime?: JarvisFiscalRegime
+  vat_regime?: JarvisVatRegime
+  economic_activity?: string
   email?: string
   phone?: string
   address?: string
+  country?: string
+  city?: string
+  city_code?: string
 }
 
 export interface CreateJarvisTerceroResponse {
+  success: boolean
+  tercero: JarvisTercero
+}
+
+export interface UpdateJarvisTerceroRequest {
+  name: string
+  check_digit?: string
+  entity_type?: JarvisEntityType
+  tax_regime?: JarvisTaxRegime
+  client_type?: JarvisClientType
+  fiscal_regime?: JarvisFiscalRegime
+  vat_regime?: JarvisVatRegime
+  economic_activity?: string
+  email?: string
+  phone?: string
+  address?: string
+  country?: string
+  city?: string
+  city_code?: string
+}
+
+export interface UpdateJarvisTerceroResponse {
   success: boolean
   tercero: JarvisTercero
 }
@@ -230,6 +293,9 @@ export interface LookupJarvisTerceroNitResponse {
   email: string | null
   phone: string | null
   address: string | null
+  cityCode: string | null
+  cityName: string | null
+  stateCode: string | null
 }
 
 export const JARVIS_ENTITY_TYPE_OPTIONS: Array<{
@@ -247,6 +313,26 @@ export const JARVIS_TAX_REGIME_OPTIONS: Array<{
   { value: JARVIS_TAX_REGIME.COMMON, label: 'Régimen común' },
   { value: JARVIS_TAX_REGIME.SIMPLIFIED, label: 'Régimen simplificado' },
   { value: JARVIS_TAX_REGIME.SPECIAL, label: 'Régimen especial' },
+]
+
+export const JARVIS_CLIENT_TYPE_OPTIONS: Array<{
+  value: JarvisClientType
+  label: string
+}> = [
+  { value: JARVIS_CLIENT_TYPE.CLIENT, label: 'Cliente' },
+  { value: JARVIS_CLIENT_TYPE.SUPPLIER, label: 'Proveedor' },
+]
+
+export const JARVIS_FISCAL_REGIME_OPTIONS: Array<{
+  value: JarvisFiscalRegime
+  label: string
+}> = [
+  { value: JARVIS_FISCAL_REGIME.ORDINARY, label: 'Régimen ordinario' },
+  {
+    value: JARVIS_FISCAL_REGIME.SIMPLE,
+    label: 'Régimen simple de tributación',
+  },
+  { value: JARVIS_FISCAL_REGIME.SPECIAL, label: 'Régimen tributario especial' },
 ]
 
 export const JARVIS_VAT_REGIME_OPTIONS: Array<{

@@ -13,6 +13,7 @@ import {
   PackageIcon,
   PulseIcon,
   SettingsIcon,
+  SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
 
@@ -130,7 +131,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Productos es menú de cliente (rol user), no de administrador.
+    // Productos y Terceros son menú de cliente (rol user), no de administrador.
     ...(!isAdminRole(user?.role)
       ? [
           {
@@ -138,6 +139,11 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             to: PRODUCTS_ROOT,
             icon: PackageIcon,
             children: PRODUCT_CHILDREN,
+          },
+          {
+            label: 'Terceros',
+            to: '/terceros',
+            icon: SuppliersIcon,
           },
         ]
       : []),

@@ -219,3 +219,240 @@
     grid-column: auto;
   }
 }
+
+/* ---- Barra de filtros (rediseño listado) ---- */
+.terceros-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.9rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  background: var(--jarvis-gray-50);
+}
+
+.terceros-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 12rem;
+}
+
+.terceros-filters__field--grow {
+  flex: 1;
+  min-width: 18rem;
+}
+
+.terceros-filters__field label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--jarvis-text-muted);
+}
+
+.terceros-filters__search-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.terceros-filters__search-row input,
+.terceros-filters__field select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  color: var(--jarvis-text);
+  font-size: var(--text-md);
+  font-family: inherit;
+}
+
+.terceros-filters__search-row input:focus,
+.terceros-filters__field select:focus {
+  outline: none;
+  border-color: var(--jarvis-primary);
+  box-shadow: 0 0 0 3px var(--jarvis-primary-soft);
+}
+
+.terceros-filters__search-row button {
+  flex-shrink: 0;
+}
+
+/* ---- Paginación ---- */
+.terceros-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--jarvis-border);
+}
+
+.terceros-pagination__info {
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.terceros-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.terceros-pagination__page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.terceros-pagination__page-size select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.terceros-pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.terceros-pagination__page,
+.terceros-pagination__nav {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.terceros-pagination__page:hover:not(.terceros-pagination__page--active),
+.terceros-pagination__nav:hover:not(:disabled) {
+  background: var(--jarvis-gray-50);
+}
+
+.terceros-pagination__page--active {
+  border-color: var(--jarvis-primary);
+  background: var(--jarvis-primary);
+  color: #ffffff;
+}
+
+.terceros-pagination__nav:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .terceros-filters__field,
+  .terceros-filters__field--grow {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .terceros-pagination {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ---- Modal Crear/Editar cliente (rediseño) ---- */
+/* Doble clase para ganar en especificidad al width de .modal-dialog--lg
+   (definido en Modal.css) y que el modal sea realmente más ancho. */
+.modal-dialog.terceros-page__dialog--wide {
+  width: min(100%, 60rem);
+  max-width: min(100%, 60rem);
+}
+
+.tercero-modal__subtitle {
+  margin: -0.35rem 0 1.25rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.tercero-modal__section {
+  margin-bottom: 1.5rem;
+  padding: 1.1rem 1.15rem 1.25rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  background: var(--jarvis-gray-50);
+}
+
+.tercero-modal__section-title {
+  margin: 0 0 1rem;
+  color: var(--jarvis-text);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+/* Fila de identificación: Tipo + Número + DV + botón Validar, todo alineado
+   en una sola línea con anchos proporcionados. */
+.tercero-modal__id-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.tercero-modal__id-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.tercero-modal__id-cell label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--jarvis-text-muted);
+  white-space: nowrap;
+}
+
+/* Tipo: pequeño. Número: el que se lleva el espacio. DV: mínimo. */
+.tercero-modal__id-cell--type {
+  flex: 0 0 9.5rem;
+}
+
+.tercero-modal__id-cell--number {
+  flex: 1 1 auto;
+}
+
+.tercero-modal__id-cell--dv {
+  flex: 0 0 3.5rem;
+}
+
+.tercero-modal__id-cell--dv input {
+  text-align: center;
+}
+
+.tercero-modal__id-cell--action {
+  flex: 0 0 auto;
+}
+
+.tercero-modal__validate-btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .tercero-modal__id-row {
+    flex-wrap: wrap;
+  }
+
+  .tercero-modal__id-cell--type,
+  .tercero-modal__id-cell--number {
+    flex: 1 1 100%;
+  }
+}

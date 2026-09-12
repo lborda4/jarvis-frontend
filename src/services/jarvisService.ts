@@ -1,6 +1,8 @@
 import type {
   CreateJarvisTerceroRequest,
   CreateJarvisTerceroResponse,
+  JarvisCatalogListResponse,
+  JarvisCatalogOption,
   JarvisCredentialsStatusResponse,
   JarvisDianResolution,
   JarvisDocumentType,
@@ -9,6 +11,8 @@ import type {
   LookupJarvisTerceroNitResponse,
   SaveJarvisCredentialsRequest,
   SaveJarvisCredentialsResponse,
+  UpdateJarvisTerceroRequest,
+  UpdateJarvisTerceroResponse,
 } from '../types/jarvis'
 import { apiClient } from './apiClient'
 import {
@@ -275,6 +279,53 @@ export async function createJarvisTercero(
   invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
 
   return response.data
+}
+
+export async function updateJarvisTercero(
+  id: string,
+  request: UpdateJarvisTerceroRequest,
+): Promise<UpdateJarvisTerceroResponse> {
+  const response = await apiClient.put<UpdateJarvisTerceroResponse>(
+    `${JARVIS_TERCEROS_ENDPOINT}/${id}`,
+    request,
+  )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
+
+  return response.data
+}
+
+/** Catálogo de municipios de NextPyme para el selector de ciudad. Cacheado
+ * por empresa: es grande y estable. */
+export async function fetchTerceroMunicipalities(): Promise<
+  JarvisCatalogOption[]
+> {
+  const response = await cachedQuery(
+    companyQueryKey(['jarvis', 'terceros', 'municipalities']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const { data } = await apiClient.get<JarvisCatalogListResponse>(
+        `${JARVIS_TERCEROS_ENDPOINT}/municipalities`,
+      )
+      return data
+    },
+  )
+  return response.items
+}
+
+/** Catálogo de países de NextPyme para el selector de país. */
+export async function fetchTerceroCountries(): Promise<JarvisCatalogOption[]> {
+  const response = await cachedQuery(
+    companyQueryKey(['jarvis', 'terceros', 'countries']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const { data } = await apiClient.get<JarvisCatalogListResponse>(
+        `${JARVIS_TERCEROS_ENDPOINT}/countries`,
+      )
+      return data
+    },
+  )
+  return response.items
 }
 
 export async function lookupJarvisTerceroByNit(
