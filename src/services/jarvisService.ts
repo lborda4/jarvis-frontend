@@ -188,6 +188,12 @@ export type SaveJarvisResolutionRequest = Omit<
   technicalKey?: string
   dateFrom: string
   dateTo: string
+  /** type_document_id que NextPyme reportó para ESTA resolución puntual (ver
+   * JarvisAvailableResolution.typeDocumentId) — si se omite, el backend cae
+   * a un id fijo por kind que puede no coincidir con el real (bug real
+   * reportado: NextPyme rechazaba la clave técnica de una resolución de
+   * factura de venta porque ese id fijo no era el que tenía registrado). */
+  typeDocumentId?: number | null
 }
 
 export interface SaveJarvisResolutionResponse {

@@ -64,9 +64,12 @@ export function getSupportDocumentActionFromImportStatus(
       return 'supplier_missing'
     case IMPORT_ROW_STATUS.EN_PROCESO:
       return 'processing'
+    // Ya se envió y SIIGO confirmó — no debe poder borrarse desde acá (ver
+    // isDocumentDeletableFromSiigo en supportDocumentSend.ts, que ya no la
+    // incluye), así que la celda de acción muestra "Completado" en vez de un
+    // botón de eliminar.
     case IMPORT_ROW_STATUS.LISTA:
-    case IMPORT_ROW_STATUS.ERROR:
-      return 'delete'
+      return 'none'
     // Ya existía en SIIGO antes de este import (no la creamos nosotros), así
     // que no debe poder borrarse ni de la BD ni de SIIGO (ver
     // isDocumentRemovableFromDatabase / isDocumentDeletableFromSiigo en
@@ -74,6 +77,10 @@ export function getSupportDocumentActionFromImportStatus(
     // acción queda vacía en vez de mostrar un botón de eliminar inválido.
     case IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO:
       return 'empty'
+    // ERROR (falló el envío) cae al 'send' por defecto: el usuario reintenta
+    // desde el mismo botón en vez de solo poder eliminar el documento — caso
+    // real reportado: un documento soporte que quedó en error no tenía
+    // ninguna forma de reintentarlo desde la tabla.
     default:
       return 'send'
   }

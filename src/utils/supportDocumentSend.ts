@@ -232,7 +232,9 @@ export function countSendableDocuments(
  * EXISTENTE EN SIIGO): se pueden borrar de la BD. EXISTENTE EN SIIGO queda
  * afuera a propósito — esa factura ya existía en SIIGO antes de este import
  * (no la creamos nosotros), así que no debe poder borrarse ni de la BD ni de
- * SIIGO (ver isDocumentDeletableFromSiigo, que tampoco la incluye). */
+ * SIIGO (ver isDocumentDeletableFromSiigo, que tampoco la incluye). LISTA
+ * también queda afuera: ya se envió y SIIGO confirmó — caso real pedido: que
+ * un documento correctamente enviado ya no muestre botón de eliminar. */
 export function isDocumentRemovableFromDatabase(
   importStatus: ImportRowStatus | undefined,
 ): boolean {
@@ -247,14 +249,17 @@ export function isDocumentRemovableFromDatabase(
   )
 }
 
-/** LISTA en Siigo: se elimina en SIIGO y se revierte el estado local. */
+/** Ya no se permite revertir un envío confirmado en SIIGO borrándolo desde
+ * acá (antes LISTA sí se podía, para corregir un envío hecho por error) —
+ * caso real pedido: los documentos que se enviaron correctamente a SIIGO no
+ * deben mostrar botón de eliminar. Queda la función (en vez de borrarla del
+ * todo) para no tener que tocar cada lugar que la llama si esto cambia de
+ * nuevo más adelante. */
 export function isDocumentDeletableFromSiigo(
-  importStatus: ImportRowStatus | undefined,
-  provider: 'SIIGO' | 'JARVIS',
+  _importStatus: ImportRowStatus | undefined,
+  _provider: 'SIIGO' | 'JARVIS',
 ): boolean {
-  return (
-    provider === 'SIIGO' && importStatus === IMPORT_ROW_STATUS.LISTA
-  )
+  return false
 }
 
 export function isDocumentDeletable(

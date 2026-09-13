@@ -23,10 +23,6 @@ const BANK_STATEMENT_CHILDREN = [
 ]
 
 const PRODUCTS_ROOT = '/productos'
-const PRODUCT_CHILDREN = [
-  { label: 'Crear producto', to: '/productos/crear' },
-  { label: 'Listar productos', to: '/productos/listar' },
-]
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
 
@@ -130,14 +126,16 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Productos es menú de cliente (rol user), no de administrador.
-    ...(!isAdminRole(user?.role)
+    // Productos es menú de cliente (rol user) con integración Jarvis — SIIGO
+    // maneja su propio catálogo de productos allá, no tiene nada que hacer
+    // acá. Es un solo ítem (no un grupo desplegable): lleva directo al
+    // listado, que ya tiene su propio botón "Crear producto" para el otro caso.
+    ...(!isAdminRole(user?.role) && isJarvisCompany
       ? [
           {
             label: 'Productos',
-            to: PRODUCTS_ROOT,
+            to: '/productos/listar',
             icon: PackageIcon,
-            children: PRODUCT_CHILDREN,
           },
         ]
       : []),
@@ -192,7 +190,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       return location.pathname.startsWith('/terceros')
     }
 
-    if (to === PRODUCTS_ROOT) {
+    if (to === '/productos/listar') {
+      // También queda activo en "Crear producto" (accesible desde el botón
+      // del listado, ya no desde un submenú acá) — sigue siendo la misma
+      // sección para el usuario.
       return location.pathname.startsWith(PRODUCTS_ROOT)
     }
 

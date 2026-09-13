@@ -142,6 +142,7 @@ function ActionCell({
   isDeletingDocument = false,
   sendProcessingLabel = 'Enviando documento a SIIGO...',
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
+  sendLabel = 'Enviar',
 }: {
   action: SupportDocumentAction
   disabled?: boolean
@@ -150,6 +151,7 @@ function ActionCell({
   isDeletingDocument?: boolean
   sendProcessingLabel?: string
   supplierMissingLabel?: string
+  sendLabel?: string
 }) {
   if (action === 'supplier_missing') {
     if (onClick) {
@@ -220,7 +222,7 @@ function ActionCell({
       disabled={disabled}
       onClick={onClick}
     >
-      Enviar
+      {sendLabel}
     </Button>
   )
 }
@@ -735,6 +737,11 @@ function SupportDocumentTable({
                       isDeletingDocument={isRowDeleting}
                       sendProcessingLabel={sendProcessingLabel}
                       supplierMissingLabel={supplierMissingLabel}
+                      sendLabel={
+                        row.importStatus === IMPORT_ROW_STATUS.ERROR
+                          ? 'Reintentar'
+                          : undefined
+                      }
                     />
                   </td>
                 </tr>,

@@ -302,11 +302,11 @@ describe('borrado — EXISTENTE EN SIIGO no se puede eliminar (caso real pedido:
     ).toBe(false)
   })
 
-  it('LISTA (enviada de verdad desde Jarvis) sigue siendo eliminable en SIIGO, a diferencia de EXISTENTE EN SIIGO', () => {
-    expect(isDocumentDeletable(IMPORT_ROW_STATUS.LISTA, 'SIIGO')).toBe(true)
+  it('LISTA (enviada y confirmada en SIIGO) ya no se puede eliminar desde acá — caso real pedido: un documento correctamente enviado no debe mostrar botón de eliminar', () => {
+    expect(isDocumentDeletable(IMPORT_ROW_STATUS.LISTA, 'SIIGO')).toBe(false)
     expect(
       isDocumentDeletableFromSiigo(IMPORT_ROW_STATUS.LISTA, 'SIIGO'),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('PENDIENTE sigue siendo eliminable de la BD (nunca se envió a SIIGO)', () => {

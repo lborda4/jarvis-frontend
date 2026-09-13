@@ -1081,14 +1081,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           importStatuses[document.id],
         )
 
-        if (
-          config.provider === 'JARVIS' &&
-          row.action === 'delete' &&
-          importStatuses[document.id] === IMPORT_ROW_STATUS.LISTA
-        ) {
-          return { ...row, action: 'none' as const }
-        }
-
         // Factura de compra SIIGO: si al documento le falta algo por
         // resolver (cuenta/producto, medio de pago, o confianza de IA
         // baja), el estado pasa a "Requiere revisión" en vez de "Pendiente"
