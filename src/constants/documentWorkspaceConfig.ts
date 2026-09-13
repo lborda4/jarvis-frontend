@@ -209,7 +209,12 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   showTemplateDownload: true,
   supplierMissingLabel: 'Crear tercero',
   downloadTemplate: () => downloadSupportDocumentTemplate('SIIGO'),
-  importFile: importSupportDocumentExcel,
+  // La ventana de 5 días hacia atrás era una restricción propia de la app
+  // (no una validación real de SIIGO) — se quitó a pedido explícito: se
+  // permite subir/editar cualquier fecha, igual que ya hacía JARVIS acá
+  // abajo (ver JARVIS_SUPPORT_DOCUMENT_WORKSPACE.importFile).
+  importFile: (file) =>
+    importSupportDocumentExcel(file, { enforceDateRange: false }),
   buildSendRequest: (
     document,
     account,

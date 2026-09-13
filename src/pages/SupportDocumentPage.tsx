@@ -768,12 +768,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         )
         setRowDates((current) =>
           buildInitialRowDates(response.items, current, {
-            // La ventana de 5 días hacia atrás es una restricción de SIIGO
-            // para CREAR un Documento Soporte nuevo — no aplica a Factura de
-            // compra, donde la fecha es la de una factura de tercero ya
-            // emitida (puede ser de hace meses).
-            allowAnyDate:
-              config.provider === 'JARVIS' || config.key === 'purchaseInvoice',
+            // La ventana de 5 días hacia atrás era una restricción propia de
+            // la app (no de SIIGO) para Documento soporte — se quitó a
+            // pedido explícito, se permite cualquier fecha para cualquier
+            // proveedor/tipo de documento.
+            allowAnyDate: true,
           }),
         )
         setRowObservations((current) =>
