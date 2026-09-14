@@ -63,7 +63,6 @@ import {
   saveElectronicDocumentDraft,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
-import { requestAiPurchaseSuggestion } from '../services/aiSuggestionService'
 import {
   createSiigoSuppliersBulk,
   fetchAutoCreatedSuppliers,
@@ -564,11 +563,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [autoCreatedSuppliersMessage, setAutoCreatedSuppliersMessage] =
     useAutoDismissMessage()
   const [bulkTercerosMessage, setBulkTercerosMessage] = useAutoDismissMessage()
-  const [isSuggestingAi, setIsSuggestingAi] = useState(false)
-  const [aiSuggestionMessage, setAiSuggestionMessage] = useAutoDismissMessage()
-  const [aiSuggestionError, setAiSuggestionError] = useAutoDismissMessage(
-    AUTO_DISMISS_ERROR_MS,
-  )
   const [isDeleting, setIsDeleting] = useState(false)
   const [savingDraftDocumentId, setSavingDraftDocumentId] = useState<
     string | null
@@ -1396,58 +1390,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     },
     [selectedDocumentIds],
   )
-
-  const canSuggestAi = selectedDocumentIds.size === 1
-
-  const handleSuggestAccountWithAi = useCallback(async () => {
-    if (selectedDocumentIds.size !== 1) {
-      return
-    }
-
-    const [documentId] = selectedDocumentIds
-
-    setIsSuggestingAi(true)
-    setAiSuggestionError(null)
-    setAiSuggestionMessage(null)
-
-    try {
-      const suggestion = await requestAiPurchaseSuggestion(documentId)
-
-      if (suggestion.accountCode) {
-        handleConfigAccountChange({
-          code: suggestion.accountCode,
-          description: suggestion.accountName ?? suggestion.accountCode,
-        })
-      }
-
-      const messageParts: string[] = [
-        suggestion.accountCode
-          ? `Cuenta sugerida aplicada: ${suggestion.accountCode} — ${
-              suggestion.accountName ?? ''
-            }`.trim()
-          : 'La IA no encontró una cuenta contable segura para este documento.',
-      ]
-
-      if (suggestion.taxId && suggestion.taxName) {
-        messageParts.push(
-          `IVA sugerido (revisar y aplicar manualmente si corresponde): ${suggestion.taxName} (${suggestion.taxPercentage}%).`,
-        )
-      }
-
-      setAiSuggestionMessage(messageParts.join(' '))
-    } catch (error) {
-      setAiSuggestionError(
-        getApiErrorMessage(error, 'No se pudo obtener la sugerencia de IA.'),
-      )
-    } finally {
-      setIsSuggestingAi(false)
-    }
-  }, [
-    selectedDocumentIds,
-    handleConfigAccountChange,
-    setAiSuggestionError,
-    setAiSuggestionMessage,
-  ])
 
   const handleConfigPaymentMethodChange = useCallback(
     (paymentMethod: SiigoPaymentMethodOption | null) => {
@@ -2552,12 +2494,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         {paymentMethodsError && <ErrorMessage message={paymentMethodsError} />}
         {costCentersError && <ErrorMessage message={costCentersError} />}
         {retentionsError && <ErrorMessage message={retentionsError} />}
-        {aiSuggestionMessage && (
-          <p className="support-document-page__feedback" role="status">
-            {aiSuggestionMessage}
-          </p>
-        )}
-        {aiSuggestionError && <ErrorMessage message={aiSuggestionError} />}
       </div>
 
       <SupportDocumentFilterBar
@@ -2619,9 +2555,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           canDelete={canDeleteSelected}
           hasConfigurableSelection={hasConfigurableSelection}
           isRetry={isRetrySelected}
-          canSuggestAi={canSuggestAi}
-          isSuggestingAi={isSuggestingAi}
-          onSuggestAi={handleSuggestAccountWithAi}
           isSending={isSending}
           isDeleting={isDeleting}
           progressLabel={queueProgress?.label ?? null}

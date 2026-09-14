@@ -603,22 +603,6 @@
   font-weight: 600;
 }
 
-.support-config-panel__account-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.support-config-panel__account-row > *:first-child {
-  flex: 1;
-  min-width: 0;
-}
-
-.support-config-panel__account-row button {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
 .support-config-panel__info {
   display: inline-flex;
   color: var(--jarvis-gray-500);

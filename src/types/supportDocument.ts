@@ -44,6 +44,24 @@ export interface PurchaseInvoiceValidationReport {
   errors: PurchaseInvoiceValidationRowError[]
 }
 
+export interface SupportDocumentValidationRowError {
+  groupKey: string
+  /** "Prefijo+Consecutivo (NIT proveedor)" — lo que el usuario puede buscar
+   * en el Excel para encontrar el documento con el error. */
+  reference: string
+  reason: string
+}
+
+/** Reporte de la pasada de validación rápida (tipo de documento inválido,
+ * centro de costos que no existe en SIIGO) que corre ANTES de confirmar la
+ * importación de Documento Soporte. */
+export interface SupportDocumentValidationReport {
+  totalGroups: number
+  validGroups: number
+  invalidGroups: number
+  errors: SupportDocumentValidationRowError[]
+}
+
 export interface PurchaseInvoiceImportFailedRowDetail {
   rowIndex: number
   cufe: string
