@@ -1407,6 +1407,17 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [applySelectionToCheckedRows],
   )
 
+  // Centro de costos editable desde el detalle desplegado de CADA fila
+  // (Documento soporte) — a diferencia de handleConfigCostCenterChange, que
+  // solo aplica a los documentos marcados con el checkbox, este cambia uno
+  // solo sin necesidad de seleccionarlo primero.
+  const handleRowCostCenterChange = useCallback(
+    (documentId: string, costCenter: SiigoCostCenterOption) => {
+      setRowCostCenters((current) => ({ ...current, [documentId]: costCenter }))
+    },
+    [],
+  )
+
   const handleConfigIvaChange = useCallback(
     (tax: SiigoTaxOption | null) => {
       setSelectedIva(tax)
@@ -2075,8 +2086,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       const importStartedAt = new Date().toISOString()
 
       try {
-        const { documentIds, documentCount, failedRows, jobId, errorCount } =
-          await config.importFile(file)
+        const {
+          documentIds,
+          documentCount,
+          failedRows,
+          jobId,
+          errorCount,
+          documentsReused,
+        } = await config.importFile(file)
 
         if (config.key === 'purchaseInvoice' && jobId && errorCount) {
           setPurchaseInvoiceRetryInfo({ jobId, errorCount })
@@ -2101,7 +2118,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
         setSendNotice(null)
         setShowSendOnly(false)
-        setImportNotice({ documentCount, documentIds })
+        setImportNotice({ documentCount, documentIds, documentsReused })
         setShowImportOnly(true)
         reloadDocuments({ resetPage: true })
         await watchImportedDocuments(documentIds, () =>
@@ -2294,7 +2311,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         )
       } else {
         const result = await createSiigoSuppliersBulk(
-          selected.map((supplier) => supplier.document_id),
+          selected.map((supplier) => ({
+            documentId: supplier.document_id,
+            ...(supplier.name?.trim() ? { name: supplier.name.trim() } : {}),
+            ...(supplier.email?.trim()
+              ? { email: supplier.email.trim() }
+              : {}),
+          })),
         )
         setBulkTercerosMessage(
           result.failed > 0
@@ -2580,6 +2603,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
         rowIva={rowIva}
+        rowCostCenters={rowCostCenters}
+        costCenterOptions={costCenterOptions}
+        onRowCostCenterChange={handleRowCostCenterChange}
         rowDocumentDiscounts={rowDocumentDiscounts}
         showIvaColumn={config.showIvaField || config.key === 'purchaseInvoice'}
         showSummaryColumns={config.key === 'purchaseInvoice'}

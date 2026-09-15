@@ -272,14 +272,15 @@ export async function fetchPendingSiigoSuppliers(): Promise<ListPendingSiigoSupp
 
 /** Crea varios terceros en SIIGO a la vez (no uno por uno) — cada
  * documentId ya trae consigo todo lo necesario del lado del backend
- * (createSupplier resuelve RUT/RUES, tipo de persona, etc.), así que acá
- * solo hace falta pasar los ids seleccionados en el modal. */
+ * (createSupplier resuelve RUT/RUES, tipo de persona, etc.); name/email son
+ * opcionales y solo hace falta mandarlos si el usuario los corrigió en el
+ * modal (createSupplier los prioriza sobre lo que traiga el documento). */
 export async function createSiigoSuppliersBulk(
-  documentIds: string[],
+  suppliers: Array<{ documentId: string; name?: string; email?: string }>,
 ): Promise<CreateSiigoSuppliersBulkResponse> {
   const response = await apiClient.post<CreateSiigoSuppliersBulkResponse>(
     `${SIIGO_SUPPLIERS_ENDPOINT}/bulk`,
-    { documentIds },
+    { suppliers },
   )
 
   return response.data

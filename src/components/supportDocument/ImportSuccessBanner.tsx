@@ -22,9 +22,18 @@ function ImportSuccessBanner({
         <span className="support-import-banner__icon" aria-hidden="true">
           <CheckIcon />
         </span>
-        <p className="support-import-banner__title">
-          Se importaron {notice.documentCount} documentos correctamente
-        </p>
+        <div>
+          <p className="support-import-banner__title">
+            Se importaron {notice.documentCount} documentos correctamente
+          </p>
+          {notice.documentsReused ? (
+            <p className="support-import-banner__meta">
+              {notice.documentsReused} ya existía
+              {notice.documentsReused === 1 ? '' : 'n'} de una importación
+              anterior — no se duplicaron.
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="support-import-banner__actions">

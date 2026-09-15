@@ -3,6 +3,7 @@ import Button from '../Button'
 import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
 import SupportDocumentColumnHeader from './SupportDocumentColumnHeader'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
+import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
 import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
@@ -77,6 +78,14 @@ interface SupportDocumentTableProps {
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowIva: Record<string, SiigoTaxOption | null>
+  /** Documento soporte: centro de costos editable desde el detalle
+   * desplegado de cada fila (no solo desde la barra de selección masiva). */
+  rowCostCenters?: Record<string, SiigoCostCenterOption | null>
+  costCenterOptions?: SiigoCostCenterOption[]
+  onRowCostCenterChange?: (
+    documentId: string,
+    costCenter: SiigoCostCenterOption,
+  ) => void
   /** Solo aplica a Factura de compra SIIGO. */
   showIvaColumn?: boolean
   /** Factura de compra: cambia Cuenta contable/Medio de pago por
@@ -237,6 +246,9 @@ function SupportDocumentTable({
   rowPaymentMethods,
   rowRetentions,
   rowIva,
+  rowCostCenters = {},
+  costCenterOptions = [],
+  onRowCostCenterChange,
   showIvaColumn = false,
   showSummaryColumns = false,
   rowDueDates = {},
@@ -754,6 +766,15 @@ function SupportDocumentTable({
                       <DocumentRowDetailPanel
                         document={document}
                         observations={rowObservations[row.id]}
+                        costCenterOptions={costCenterOptions}
+                        costCenter={rowCostCenters[row.id] ?? null}
+                        onCostCenterChange={
+                          onRowCostCenterChange
+                            ? (costCenter) =>
+                                onRowCostCenterChange(row.id, costCenter)
+                            : undefined
+                        }
+                        costCenterDisabled={isSending || isDeleting || isRowLocked}
                         editable={
                           showSummaryColumns
                             ? {

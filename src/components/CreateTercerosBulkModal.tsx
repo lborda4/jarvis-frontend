@@ -25,7 +25,7 @@ export interface CreateTercerosBulkModalProps {
   /** Hace la llamada real (bulk JARVIS o bulk SIIGO) y cualquier trabajo de
    * seguimiento (recargar documentos, avisar cuántos fallaron, etc.) — el
    * modal solo espera a que resuelva para cerrarse, o muestra el mensaje si
-   * lanza. */
+   * lanza. Recibe los datos ya con las ediciones de nombre/correo aplicadas. */
   onSubmit: (selected: PendingSupplierRow[]) => Promise<void>
   title?: string
   descriptionLines?: string[]
@@ -37,6 +37,14 @@ const DEFAULT_DESCRIPTION_LINES = [
   'Selecciona los que quieres crear.',
 ]
 
+function buildEditedMap(
+  suppliers: PendingSupplierRow[],
+): Record<string, PendingSupplierRow> {
+  return Object.fromEntries(
+    suppliers.map((supplier) => [supplier.document_id, supplier]),
+  )
+}
+
 function CreateTercerosBulkModal({
   isOpen,
   onClose,
@@ -46,6 +54,11 @@ function CreateTercerosBulkModal({
   descriptionLines = DEFAULT_DESCRIPTION_LINES,
 }: CreateTercerosBulkModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Copia editable — el usuario puede corregir nombre/correo antes de crear
+  // sin tocar lo que devolvió el backend (por si cancela y vuelve a abrir).
+  const [editedSuppliers, setEditedSuppliers] = useState<
+    Record<string, PendingSupplierRow>
+  >({})
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -54,19 +67,25 @@ function CreateTercerosBulkModal({
       // Todos vienen marcados por defecto — el usuario destilda los que no
       // quiere crear en este lote (ver captura del pedido original).
       setSelectedIds(new Set(suppliers.map((supplier) => supplier.document_id)))
+      setEditedSuppliers(buildEditedMap(suppliers))
       setErrorMessage(null)
     }
   }, [isOpen, suppliers])
 
-  const allSelected =
-    suppliers.length > 0 && selectedIds.size === suppliers.length
+  const rows = useMemo(
+    () =>
+      suppliers.map(
+        (supplier) => editedSuppliers[supplier.document_id] ?? supplier,
+      ),
+    [suppliers, editedSuppliers],
+  )
+
+  const allSelected = rows.length > 0 && selectedIds.size === rows.length
   const someSelected = selectedIds.size > 0 && !allSelected
 
   const handleToggleAll = () => {
     setSelectedIds(
-      allSelected
-        ? new Set()
-        : new Set(suppliers.map((supplier) => supplier.document_id)),
+      allSelected ? new Set() : new Set(rows.map((row) => row.document_id)),
     )
   }
 
@@ -82,14 +101,26 @@ function CreateTercerosBulkModal({
     })
   }
 
+  const handleFieldChange = (
+    documentId: string,
+    field: 'name' | 'email',
+    value: string,
+  ) => {
+    setEditedSuppliers((current) => {
+      const row = current[documentId]
+      if (!row) return current
+      return { ...current, [documentId]: { ...row, [field]: value } }
+    })
+  }
+
   const handleClose = () => {
     if (isSaving) return
     onClose()
   }
 
   const selectedSuppliers = useMemo(
-    () => suppliers.filter((supplier) => selectedIds.has(supplier.document_id)),
-    [suppliers, selectedIds],
+    () => rows.filter((row) => selectedIds.has(row.document_id)),
+    [rows, selectedIds],
   )
 
   const handleCreate = async () => {
@@ -126,11 +157,13 @@ function CreateTercerosBulkModal({
         {title}
       </h2>
 
-      {descriptionLines.map((line) => (
-        <p className="terceros-bulk-modal__description" key={line}>
-          {line}
-        </p>
-      ))}
+      <div className="terceros-bulk-modal__description-group">
+        {descriptionLines.map((line) => (
+          <p className="terceros-bulk-modal__description" key={line}>
+            {line}
+          </p>
+        ))}
+      </div>
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
 
@@ -148,29 +181,29 @@ function CreateTercerosBulkModal({
                     }
                   }}
                   onChange={handleToggleAll}
-                  disabled={isSaving || suppliers.length === 0}
+                  disabled={isSaving || rows.length === 0}
                   aria-label="Seleccionar todos los terceros"
                 />
               </th>
-              <th>Tipo de documento</th>
+              <th>Tipo</th>
               <th>Número de documento</th>
               <th>Nombre / razón social</th>
               <th>Correo</th>
             </tr>
           </thead>
           <tbody>
-            {suppliers.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="terceros-bulk-modal__empty">
                   No hay proveedores pendientes por crear.
                 </td>
               </tr>
             ) : (
-              suppliers.map((supplier) => {
-                const checked = selectedIds.has(supplier.document_id)
+              rows.map((row) => {
+                const checked = selectedIds.has(row.document_id)
                 return (
                   <tr
-                    key={supplier.document_id}
+                    key={row.document_id}
                     className={
                       checked ? 'terceros-bulk-modal__row--selected' : undefined
                     }
@@ -179,15 +212,53 @@ function CreateTercerosBulkModal({
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => handleToggleOne(supplier.document_id)}
+                        onChange={() => handleToggleOne(row.document_id)}
                         disabled={isSaving}
-                        aria-label={`Seleccionar ${supplier.name ?? supplier.document_number}`}
+                        aria-label={`Seleccionar ${row.name ?? row.document_number}`}
                       />
                     </td>
-                    <td>{supplier.document_type}</td>
-                    <td>{supplier.document_number}</td>
-                    <td>{supplier.name ?? '—'}</td>
-                    <td>{supplier.email ?? '—'}</td>
+                    <td>
+                      <span className="terceros-bulk-modal__type-badge">
+                        {row.document_type}
+                      </span>
+                    </td>
+                    <td className="terceros-bulk-modal__mono">
+                      {row.document_number}
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="terceros-bulk-modal__cell-input"
+                        value={row.name ?? ''}
+                        onChange={(event) =>
+                          handleFieldChange(
+                            row.document_id,
+                            'name',
+                            event.target.value,
+                          )
+                        }
+                        disabled={isSaving}
+                        placeholder="Nombre / razón social"
+                        aria-label={`Nombre de ${row.document_number}`}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="email"
+                        className="terceros-bulk-modal__cell-input"
+                        value={row.email ?? ''}
+                        onChange={(event) =>
+                          handleFieldChange(
+                            row.document_id,
+                            'email',
+                            event.target.value,
+                          )
+                        }
+                        disabled={isSaving}
+                        placeholder="Correo (opcional)"
+                        aria-label={`Correo de ${row.document_number}`}
+                      />
+                    </td>
                   </tr>
                 )
               })
@@ -197,7 +268,9 @@ function CreateTercerosBulkModal({
       </div>
 
       <p className="terceros-bulk-modal__count">
-        {selectedIds.size} terceros seleccionados de {suppliers.length}
+        <strong>{selectedIds.size}</strong> tercero
+        {selectedIds.size === 1 ? '' : 's'} seleccionado
+        {selectedIds.size === 1 ? '' : 's'} de {rows.length}
       </p>
 
       <div className="modal-dialog__actions">

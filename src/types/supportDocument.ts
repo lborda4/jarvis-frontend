@@ -81,6 +81,8 @@ export interface PurchaseInvoiceImportStatus {
   progressPercent: number | null
   itemsTotal: number | null
   documentsCreated: number | null
+  /** Filas que reusaron un documento ya existente (mismo CUFE de un import anterior) en vez de crear uno nuevo — explica por qué documentsCreated puede ser menor que successCount. */
+  documentsReused: number | null
   documentIds: string[] | null
   records: InvoicePreview[] | null
   /** Detalle de filas fallidas (hasta 200) — se llena incrementalmente por lote, no solo al terminar. */
