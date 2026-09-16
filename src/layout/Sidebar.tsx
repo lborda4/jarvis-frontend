@@ -153,18 +153,18 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Jarvis, por ahora, solo cubre Documento soporte y Factura de venta: el
-    // resto de secciones no tiene nada que hacer con esta integración.
-    ...(isJarvisCompany
-      ? []
-      : [
-          {
-            label: 'Extractos bancarios',
-            to: BANK_STATEMENTS_ROOT,
-            icon: PulseIcon,
-            children: BANK_STATEMENT_CHILDREN,
-          },
-        ]),
+    // Extractos bancarios oculto temporalmente a pedido explícito — la ruta
+    // y la página siguen intactas, solo se saca el ítem del menú.
+    // ...(isJarvisCompany
+    //   ? []
+    //   : [
+    //       {
+    //         label: 'Extractos bancarios',
+    //         to: BANK_STATEMENTS_ROOT,
+    //         icon: PulseIcon,
+    //         children: BANK_STATEMENT_CHILDREN,
+    //       },
+    //     ]),
     ...(isAdminRole(user?.role)
       ? [
           {
