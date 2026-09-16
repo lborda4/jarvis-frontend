@@ -328,6 +328,19 @@ function CreateJarvisTerceroModal({
                     setLookupMessage(null)
                     setLookupError(null)
                   }}
+                  // Cuando se abre "en blanco" (crear uno nuevo desde el
+                  // listado, sin documento precargado) la búsqueda a
+                  // NextPyme solo se disparaba al ABRIR el modal — si el
+                  // usuario tipeaba el número a mano, nunca se llamaba al
+                  // mismo lookup que ya reutiliza el flujo de "Requiere
+                  // proveedor" (bug real reportado). Se reusa el mismo
+                  // handleLookupDocument al salir del campo.
+                  onBlur={(event) => {
+                    const value = event.target.value.trim()
+                    if (value) {
+                      void handleLookupDocument(form.document_type, value)
+                    }
+                  }}
                   disabled={isSaving || isLookingUpNit}
                   required
                 />

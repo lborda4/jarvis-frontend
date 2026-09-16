@@ -318,6 +318,19 @@ function SiigoIntegrationSettings() {
                   Este paso es obligatorio para habilitar los documentos de su
                   plan.
                 </p>
+                <p className="settings-card__hint">
+                  Consulta la guía oficial de SIIGO con el paso a paso para
+                  generar este archivo en{' '}
+                  <a
+                    href="https://siigonube.portaldeclientes.siigo.com/buscar-cuentas-contables/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="settings-card__hint-link"
+                  >
+                    Buscar cuentas contables
+                  </a>
+                  .
+                </p>
 
                 {!isStepUnlocked('accounts') ? (
                   <div className="settings-page__setup-notice" role="status">

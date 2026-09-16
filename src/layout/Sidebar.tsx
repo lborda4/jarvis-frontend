@@ -13,6 +13,7 @@ import {
   PackageIcon,
   PulseIcon,
   SettingsIcon,
+  SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
 
@@ -136,6 +137,19 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             label: 'Productos',
             to: '/productos/listar',
             icon: PackageIcon,
+          },
+        ]
+      : []),
+    // Terceros: mismo criterio que Productos (menú de cliente con
+    // integración Jarvis) — ya existía la ruta y la página completas, pero
+    // nunca se agregó acá, así que solo se veía entrando directo por URL o
+    // desde el panel de admin (bug real reportado).
+    ...(!isAdminRole(user?.role) && isJarvisCompany
+      ? [
+          {
+            label: 'Terceros',
+            to: '/terceros',
+            icon: SuppliersIcon,
           },
         ]
       : []),

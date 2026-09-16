@@ -115,6 +115,11 @@ interface SupportDocumentTableProps {
   sortDisabled?: boolean
   canSendRow: (rowId: string) => boolean
   canDeleteRow: (rowId: string) => boolean
+  /** Explica por qué "Enviar" está deshabilitado en esta fila (tooltip) —
+   * caso real reportado: filas con todo lleno a simple vista pero sin poder
+   * enviar (p.ej. medio de pago a crédito sin fecha de vencimiento, un campo
+   * que no es columna de la tabla), sin ninguna pista de qué faltaba. */
+  getNotSendableReason?: (rowId: string) => string | null
   sendProcessingLabel?: string
   supplierMissingLabel?: string
   onToggleRow: (id: string) => void
@@ -152,6 +157,7 @@ function ActionCell({
   sendProcessingLabel = 'Enviando documento a SIIGO...',
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
   sendLabel = 'Enviar',
+  title,
 }: {
   action: SupportDocumentAction
   disabled?: boolean
@@ -161,6 +167,7 @@ function ActionCell({
   sendProcessingLabel?: string
   supplierMissingLabel?: string
   sendLabel?: string
+  title?: string
 }) {
   if (action === 'supplier_missing') {
     if (onClick) {
@@ -230,6 +237,7 @@ function ActionCell({
       className="support-table__action"
       disabled={disabled}
       onClick={onClick}
+      title={disabled ? title : undefined}
     >
       {sendLabel}
     </Button>
@@ -273,6 +281,7 @@ function SupportDocumentTable({
   sortDisabled = false,
   canSendRow,
   canDeleteRow,
+  getNotSendableReason,
   sendProcessingLabel,
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
   onToggleRow,
@@ -754,6 +763,11 @@ function SupportDocumentTable({
                           ? 'Reintentar'
                           : undefined
                       }
+                      title={
+                        isSendAction
+                          ? (getNotSendableReason?.(row.id) ?? undefined)
+                          : undefined
+                      }
                     />
                   </td>
                 </tr>,
@@ -775,6 +789,8 @@ function SupportDocumentTable({
                             : undefined
                         }
                         costCenterDisabled={isSending || isDeleting || isRowLocked}
+                        paymentMethod={rowPaymentMethods[row.id] ?? null}
+                        dueDate={rowDueDates[row.id] ?? null}
                         editable={
                           showSummaryColumns
                             ? {

@@ -228,7 +228,29 @@ export function useSupportDocumentSend({
           }
         }
 
-        const request = buildRequest(documentId)
+        // buildRequest (y workspace.buildSendRequest, que arma el body a
+        // mano a partir de los datos de la fila) puede tirar una excepción
+        // en vez de devolver null si algún dato viene en una forma
+        // inesperada — sin este try/catch, esa excepción se escapaba del
+        // Promise.all de todo el lote (ver el try/catch general más abajo)
+        // y ni el resumen final ni el aviso de "se enviaron N" llegaban a
+        // mostrarse: el envío fallaba en silencio, sin ningún mensaje, para
+        // TODO el lote (bug real reportado: a veces no aparece ningún aviso
+        // al enviar).
+        let request: SiigoDocumentSendRequest | null
+        try {
+          request = buildRequest(documentId)
+        } catch (error) {
+          return {
+            documentId,
+            success: false,
+            attempted: false,
+            error: getApiErrorMessage(
+              error,
+              'No se pudieron preparar los datos del documento para enviarlo.',
+            ),
+          }
+        }
 
         if (!request) {
           return {
@@ -260,155 +282,174 @@ export function useSupportDocumentSend({
         }
       }
 
-      const readyTargetSet = new Set(readyTargets)
-      const notReadyIds = targets.filter((id) => !readyTargetSet.has(id))
+      const runBatch = async (): Promise<void> => {
+        const readyTargetSet = new Set(readyTargets)
+        const notReadyIds = targets.filter((id) => !readyTargetSet.has(id))
 
-      let completed = 0
-      let started = 0
+        let completed = 0
+        let started = 0
 
-      const bumpProgress = (label: string) => {
-        setQueueProgress({
-          current: Math.min(Math.max(started, completed), targets.length),
-          total: targets.length,
-          completed,
-          label,
-        })
-      }
-
-      // Los no listos (sin cuenta/medio de pago, proveedor pendiente, etc.)
-      // se resuelven de inmediato como fallidos CON razón — no ocupan un
-      // turno del stagger de envíos reales ni pasan por "En proceso" (nunca
-      // se intentó nada con ellos).
-      const notReadyResults: SendAttemptResult[] = []
-
-      for (const documentId of notReadyIds) {
-        const result = await attemptSend(documentId)
-        notReadyResults.push(result)
-        completed += 1
-        onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
-      }
-
-      bumpProgress(`Enviando… ${completed} de ${targets.length} listos`)
-
-      const initialResults = await Promise.all(
-        readyTargets.map(async (documentId, index) => {
-          if (index > 0) {
-            await wait(index * SEND_STAGGER_MS)
-          }
-
-          started += 1
-          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
-          bumpProgress(
-            `Enviando… ${completed} de ${targets.length} listos`,
-          )
-
-          const result = await attemptSend(documentId)
-          completed += 1
-
-          onDocumentStatusChange?.(
-            documentId,
-            result.success ? IMPORT_ROW_STATUS.LISTA : IMPORT_ROW_STATUS.ERROR,
-          )
-
-          bumpProgress(
-            completed === targets.length
-              ? `Completado ${completed} de ${targets.length}`
-              : `Enviando… ${completed} de ${targets.length} listos`,
-          )
-
-          return result
-        }),
-      )
-
-      const finalResults = new Map<string, SendAttemptResult>(
-        [...notReadyResults, ...initialResults].map((result) => [
-          result.documentId,
-          result,
-        ]),
-      )
-
-      // Los que quedaron en error esperan al final: se reintentan hasta
-      // MAX_RETRY_ROUNDS veces, con RETRY_PAUSE_MS entre cada envío. Solo se
-      // reintentan los que SÍ se llegaron a intentar (attempted=true) — los
-      // descartados antes de intentar (sin cuenta, etc.) no cambian solos
-      // con un reintento.
-      let pendingRetryIds = initialResults
-        .filter((result) => !result.success && result.attempted)
-        .map((result) => result.documentId)
-
-      for (
-        let retryRound = 0;
-        retryRound < MAX_RETRY_ROUNDS && pendingRetryIds.length > 0;
-        retryRound += 1
-      ) {
-        const nextRoundIds: string[] = []
-
-        for (let index = 0; index < pendingRetryIds.length; index += 1) {
-          await wait(RETRY_PAUSE_MS)
-
-          const documentId = pendingRetryIds[index]
-          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
-          bumpProgress(
-            `Reintento ${retryRound + 1} de ${MAX_RETRY_ROUNDS} — documento ${
-              index + 1
-            } de ${pendingRetryIds.length}…`,
-          )
-
-          const result = await attemptSend(documentId)
-          finalResults.set(documentId, result)
-
-          if (result.success) {
-            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.LISTA)
-            continue
-          }
-
-          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
-          nextRoundIds.push(documentId)
+        const bumpProgress = (label: string) => {
+          setQueueProgress({
+            current: Math.min(Math.max(started, completed), targets.length),
+            total: targets.length,
+            completed,
+            label,
+          })
         }
 
-        pendingRetryIds = nextRoundIds
-      }
+        // Los no listos (sin cuenta/medio de pago, proveedor pendiente, etc.)
+        // se resuelven de inmediato como fallidos CON razón — no ocupan un
+        // turno del stagger de envíos reales ni pasan por "En proceso" (nunca
+        // se intentó nada con ellos).
+        const notReadyResults: SendAttemptResult[] = []
 
-      const results = targets.map(
-        (documentId) =>
-          finalResults.get(documentId) ?? {
-            documentId,
-            success: false,
-            attempted: false,
-            error: 'No se pudo enviar el documento a SIIGO.',
-          },
-      )
+        for (const documentId of notReadyIds) {
+          const result = await attemptSend(documentId)
+          notReadyResults.push(result)
+          completed += 1
+          onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+        }
 
-      const sentCount = results.filter((result) => result.success).length
-      const failedCount = results.length - sentCount
-      const lastError =
-        results.find((result) => !result.success)?.error ?? null
+        bumpProgress(`Enviando… ${completed} de ${targets.length} listos`)
 
-      setIsSending(false)
-      setQueueProgress(null)
+        const initialResults = await Promise.all(
+          readyTargets.map(async (documentId, index) => {
+            if (index > 0) {
+              await wait(index * SEND_STAGGER_MS)
+            }
 
-      // Se avisa SIEMPRE que el lote tuvo al menos un documento (incluido
-      // el caso "todos fallaron") — a diferencia del feedbackMessage de
-      // abajo, que solo se arma cuando hubo al menos un éxito, este resumen
-      // es lo que Factura de compra SIIGO usa para armar el aviso con los 3
-      // conteos (enviadas/creadas/error) y la auto-selección de la tanda,
-      // sin importar el resultado.
-      if (results.length > 0) {
-        onCompleted({
-          documentIds: targets,
-          successCount: sentCount,
-          errorCount: failedCount,
-        })
-      }
+            started += 1
+            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+            bumpProgress(
+              `Enviando… ${completed} de ${targets.length} listos`,
+            )
 
-      if (sentCount > 0) {
-        setFeedbackMessage(workspace.sendSuccessFeedback(sentCount, failedCount))
-      }
+            const result = await attemptSend(documentId)
+            completed += 1
 
-      if (failedCount > 0 && sentCount === 0) {
-        setErrorMessage(
-          lastError ?? 'No se pudieron enviar los documentos seleccionados.',
+            onDocumentStatusChange?.(
+              documentId,
+              result.success ? IMPORT_ROW_STATUS.LISTA : IMPORT_ROW_STATUS.ERROR,
+            )
+
+            bumpProgress(
+              completed === targets.length
+                ? `Completado ${completed} de ${targets.length}`
+                : `Enviando… ${completed} de ${targets.length} listos`,
+            )
+
+            return result
+          }),
         )
+
+        const finalResults = new Map<string, SendAttemptResult>(
+          [...notReadyResults, ...initialResults].map((result) => [
+            result.documentId,
+            result,
+          ]),
+        )
+
+        // Los que quedaron en error esperan al final: se reintentan hasta
+        // MAX_RETRY_ROUNDS veces, con RETRY_PAUSE_MS entre cada envío. Solo se
+        // reintentan los que SÍ se llegaron a intentar (attempted=true) — los
+        // descartados antes de intentar (sin cuenta, etc.) no cambian solos
+        // con un reintento.
+        let pendingRetryIds = initialResults
+          .filter((result) => !result.success && result.attempted)
+          .map((result) => result.documentId)
+
+        for (
+          let retryRound = 0;
+          retryRound < MAX_RETRY_ROUNDS && pendingRetryIds.length > 0;
+          retryRound += 1
+        ) {
+          const nextRoundIds: string[] = []
+
+          for (let index = 0; index < pendingRetryIds.length; index += 1) {
+            await wait(RETRY_PAUSE_MS)
+
+            const documentId = pendingRetryIds[index]
+            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.EN_PROCESO)
+            bumpProgress(
+              `Reintento ${retryRound + 1} de ${MAX_RETRY_ROUNDS} — documento ${
+                index + 1
+              } de ${pendingRetryIds.length}…`,
+            )
+
+            const result = await attemptSend(documentId)
+            finalResults.set(documentId, result)
+
+            if (result.success) {
+              onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.LISTA)
+              continue
+            }
+
+            onDocumentStatusChange?.(documentId, IMPORT_ROW_STATUS.ERROR)
+            nextRoundIds.push(documentId)
+          }
+
+          pendingRetryIds = nextRoundIds
+        }
+
+        const results = targets.map(
+          (documentId) =>
+            finalResults.get(documentId) ?? {
+              documentId,
+              success: false,
+              attempted: false,
+              error: 'No se pudo enviar el documento a SIIGO.',
+            },
+        )
+
+        const sentCount = results.filter((result) => result.success).length
+        const failedCount = results.length - sentCount
+        const lastError =
+          results.find((result) => !result.success)?.error ?? null
+
+        // Se avisa SIEMPRE que el lote tuvo al menos un documento (incluido
+        // el caso "todos fallaron") — a diferencia del feedbackMessage de
+        // abajo, que solo se arma cuando hubo al menos un éxito, este resumen
+        // es lo que Factura de compra SIIGO usa para armar el aviso con los 3
+        // conteos (enviadas/creadas/error) y la auto-selección de la tanda,
+        // sin importar el resultado.
+        if (results.length > 0) {
+          onCompleted({
+            documentIds: targets,
+            successCount: sentCount,
+            errorCount: failedCount,
+          })
+        }
+
+        if (sentCount > 0) {
+          setFeedbackMessage(workspace.sendSuccessFeedback(sentCount, failedCount))
+        }
+
+        if (failedCount > 0 && sentCount === 0) {
+          setErrorMessage(
+            lastError ?? 'No se pudieron enviar los documentos seleccionados.',
+          )
+        }
+      }
+
+      // Red de seguridad: attemptSend ya atrapa los errores esperables (ver
+      // comentario ahí sobre buildRequest), pero este try/catch/finally
+      // general evita que CUALQUIER excepción no prevista en el resto del
+      // lote deje "Enviando..." pegado para siempre y sin ningún aviso —
+      // mejor un mensaje de error genérico que un silencio total (bug real
+      // reportado: a veces no aparece nada tras enviar).
+      try {
+        await runBatch()
+      } catch (error) {
+        setErrorMessage(
+          getApiErrorMessage(
+            error,
+            'Ocurrió un error inesperado al enviar los documentos.',
+          ),
+        )
+      } finally {
+        setIsSending(false)
+        setQueueProgress(null)
       }
     },
     [

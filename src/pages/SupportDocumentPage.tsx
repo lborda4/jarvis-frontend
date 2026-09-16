@@ -123,6 +123,7 @@ import {
   getTodayLocalDate,
 } from '../utils/supportDocumentDate'
 import {
+  buildNotSendableReason,
   canSendDocument,
   countDeletableDocuments,
   countSendableDocuments,
@@ -729,15 +730,24 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
               )
             : buildInitialRowAccounts(response.items, [], current),
         )
-        setRowPaymentMethods((current) =>
-          isPurchaseInvoiceWorkspace
+        // Se captura acá para reusarla al calcular rowDueDates más abajo
+        // (default a hoy cuando el medio de pago resuelto es a crédito) sin
+        // depender del timing async de setState.
+        let resolvedPaymentMethods: Record<
+          string,
+          SiigoPaymentMethodOption | null
+        > = {}
+        setRowPaymentMethods((current) => {
+          resolvedPaymentMethods = isPurchaseInvoiceWorkspace
             ? buildInitialPurchaseInvoiceRowPaymentMethods(
                 response.items,
                 current,
                 paymentMethodOptions,
               )
-            : buildInitialRowPaymentMethods(response.items, current),
-        )
+            : buildInitialRowPaymentMethods(response.items, current)
+
+          return resolvedPaymentMethods
+        })
         setRowCostCenters((current) =>
           isPurchaseInvoiceWorkspace
             ? buildBlankRow(response.items, null, current)
@@ -760,22 +770,33 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         setRowDocumentDiscounts((current) =>
           buildInitialRowDocumentDiscounts(response.items, current),
         )
-        setRowDates((current) =>
-          buildInitialRowDates(response.items, current, {
+        // Se captura acá para reusarla al calcular rowDueDates más abajo (el
+        // vencimiento por defecto de un medio de pago a crédito debe ser la
+        // MISMA fecha del documento, no una fecha aparte calculada distinto).
+        let resolvedRowDates: Record<string, string> = {}
+        setRowDates((current) => {
+          resolvedRowDates = buildInitialRowDates(response.items, current, {
             // La ventana de 5 días hacia atrás era una restricción propia de
             // la app (no de SIIGO) para Documento soporte — se quitó a
             // pedido explícito, se permite cualquier fecha para cualquier
             // proveedor/tipo de documento.
             allowAnyDate: true,
-          }),
-        )
+          })
+
+          return resolvedRowDates
+        })
         setRowObservations((current) =>
           isPurchaseInvoiceWorkspace
             ? buildInitialPurchaseInvoiceRowObservations(response.items, current)
             : buildInitialRowObservations(response.items, current),
         )
         setRowDueDates((current) =>
-          buildInitialRowDueDates(response.items, current),
+          buildInitialRowDueDates(
+            response.items,
+            current,
+            (documentId) => isCreditPaymentMethod(resolvedPaymentMethods[documentId]),
+            (documentId) => resolvedRowDates[documentId],
+          ),
         )
       }
 
@@ -1395,8 +1416,27 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     (paymentMethod: SiigoPaymentMethodOption | null) => {
       setSelectedPaymentMethod(paymentMethod)
       applySelectionToCheckedRows(paymentMethod, setRowPaymentMethods)
+
+      // Si el medio elegido es a crédito, se completa de una vez el
+      // vencimiento con la MISMA fecha del documento (la del Excel/
+      // importación) para las filas marcadas que todavía no tuvieran una —
+      // pedido explícito: que no quede bloqueado "Enviar" esperando un
+      // campo que antes no tenía dónde completarse.
+      if (paymentMethod && isCreditPaymentMethod(paymentMethod)) {
+        setRowDueDates((current) => {
+          const next = { ...current }
+
+          for (const documentId of selectedDocumentIds) {
+            if (!next[documentId]?.trim()) {
+              next[documentId] = rowDates[documentId] || getTodayLocalDate()
+            }
+          }
+
+          return next
+        })
+      }
     },
-    [applySelectionToCheckedRows],
+    [applySelectionToCheckedRows, selectedDocumentIds, rowDates],
   )
 
   const handleConfigCostCenterChange = useCallback(
@@ -1602,6 +1642,40 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       }
 
       return canSendDocument(
+        document,
+        rowId,
+        importStatuses[rowId],
+        rowAccounts,
+        rowPaymentMethods,
+        rowDueDates,
+        effectiveRowItems,
+        {
+          requiresAccount: config.requiresAccount,
+          requiresPaymentMethod: config.requiresPaymentMethod,
+        },
+      )
+    },
+    [
+      documentsById,
+      importStatuses,
+      rowAccounts,
+      rowPaymentMethods,
+      rowDueDates,
+      effectiveRowItems,
+      config.requiresAccount,
+      config.requiresPaymentMethod,
+    ],
+  )
+
+  const getRowNotSendableReason = useCallback(
+    (rowId: string) => {
+      const document = documentsById[rowId]
+
+      if (!document) {
+        return null
+      }
+
+      return buildNotSendableReason(
         document,
         rowId,
         importStatuses[rowId],
@@ -2645,6 +2719,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         }
         canSendRow={canSendRow}
         canDeleteRow={canDeleteRow}
+        getNotSendableReason={getRowNotSendableReason}
         documentsById={documentsById}
         sendProcessingLabel={
           queueProgress?.label ?? config.sendProcessingLabel

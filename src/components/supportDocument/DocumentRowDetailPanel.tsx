@@ -7,7 +7,9 @@ import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import { ELECTRONIC_DOCUMENT_TYPE } from '../../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
+import { formatSupportDocumentTableDate } from '../../utils/formatSupportDocumentTableDisplay'
 import { formatCurrency } from '../../utils/formatters'
+import { isCreditPaymentMethod } from '../../utils/siigoPaymentMethods'
 import PurchaseInvoiceDetailEditor, {
   type PurchaseInvoiceDetailEditorSave,
 } from './PurchaseInvoiceDetailEditor'
@@ -44,6 +46,12 @@ interface DocumentRowDetailPanelProps {
   costCenter?: SiigoCostCenterOption | null
   onCostCenterChange?: (costCenter: SiigoCostCenterOption) => void
   costCenterDisabled?: boolean
+  /** Documento soporte (no editable): medio de pago de la fila — si es a
+   * crédito, se muestra la fecha de vencimiento (solo lectura: se edita
+   * desde la barra de selección masiva de arriba, no desde acá — pedido
+   * explícito para no tener dos lugares editando el mismo dato). */
+  paymentMethod?: SiigoPaymentMethodOption | null
+  dueDate?: string | null
 }
 
 function formatDocumentReference(document: ElectronicDocumentListItem): string {
@@ -62,6 +70,8 @@ export default function DocumentRowDetailPanel({
   costCenter,
   onCostCenterChange,
   costCenterDisabled = false,
+  paymentMethod,
+  dueDate,
 }: DocumentRowDetailPanelProps) {
   const cufe = document.cufe?.trim()
   const dianNotes = document.observations?.trim() || ''
@@ -138,6 +148,15 @@ export default function DocumentRowDetailPanel({
               disabled={costCenterDisabled}
               placeholder="Ninguno"
             />
+          </div>
+        )}
+
+        {isCreditPaymentMethod(paymentMethod) && (
+          <div className="support-table__detail-field">
+            <span className="support-table__detail-label">
+              Fecha de vencimiento
+            </span>
+            <span>{formatSupportDocumentTableDate(dueDate ?? undefined)}</span>
           </div>
         )}
 
