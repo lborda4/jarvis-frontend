@@ -3,7 +3,6 @@ import LoadingIndicator from './LoadingIndicator'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import SupportDocumentIndividualPage from '../pages/SupportDocumentIndividualPage'
 import SupportDocumentPage from '../pages/SupportDocumentPage'
-import SupportDocumentStart from '../pages/SupportDocumentStart'
 import {
   JARVIS_SUPPORT_DOCUMENT_WORKSPACE,
   SUPPORT_DOCUMENT_WORKSPACE,
@@ -45,11 +44,7 @@ function SupportDocumentRoute({ view = 'start' }: SupportDocumentRouteProps) {
     )
   }
 
-  if (hasJarvisIntegration && view === 'start') {
-    return <SupportDocumentStart />
-  }
-
-  if (hasJarvisIntegration && view === 'individual') {
+  if (hasJarvisIntegration && (view === 'start' || view === 'individual')) {
     return <SupportDocumentIndividualPage />
   }
 
