@@ -44,7 +44,7 @@ function App() {
                 />
                 <Route
                   path="/documento-soporte/masivo"
-                  element={<SupportDocumentRoute view="workspace" />}
+                  element={<Navigate to="/documento-soporte/nuevo" replace />}
                 />
                 <Route
                   path="/documento-soporte/nuevo"
