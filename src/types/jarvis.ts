@@ -324,3 +324,80 @@ export const JARVIS_DOCUMENT_TYPE_OPTIONS: Array<{
   { value: JARVIS_DOCUMENT_TYPE.CE, label: 'Cédula de extranjería' },
   { value: JARVIS_DOCUMENT_TYPE.PA, label: 'Pasaporte' },
 ]
+
+export const JARVIS_TAX_CATEGORY = {
+  IMPUESTO: 'IMPUESTO',
+  RETENCION: 'RETENCION',
+} as const
+
+export type JarvisTaxCategory =
+  (typeof JARVIS_TAX_CATEGORY)[keyof typeof JARVIS_TAX_CATEGORY]
+
+/** Sugerencias para el campo "Tipo de impuesto" — texto libre, el usuario
+ * puede escribir uno propio (no es un enum cerrado). */
+export const JARVIS_TAX_TYPE_SUGGESTIONS = [
+  'IVA',
+  'Retefuente',
+  'ReteICA',
+  'ReteIVA',
+  'Imconsumo',
+  'Bebidas azucaradas',
+  'Comestibles ultraprocesados',
+] as const
+
+/** ReteICA no lleva tarifa manual (por defecto se divide en mil, pedido
+ * explícito) — el formulario oculta el campo Tarifa cuando el "Tipo de
+ * impuesto" tipeado coincide con este valor, sin distinguir mayúsculas. */
+export function isReteIcaTaxType(taxType: string): boolean {
+  return taxType.trim().toLowerCase() === 'reteica'
+}
+
+export interface JarvisTax {
+  id: string
+  category: JarvisTaxCategory
+  code: string
+  name: string
+  tax_type: string
+  rate: number | null
+  is_active: boolean
+  is_in_use: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface JarvisTaxesListResponse {
+  items: JarvisTax[]
+  total: number
+}
+
+/** El código NO lo elige el cliente (pedido explícito) — lo asigna el
+ * backend como numeración interna, y el impuesto nace siempre Activo. */
+export interface CreateJarvisTaxRequest {
+  category: JarvisTaxCategory
+  name: string
+  tax_type: string
+  rate?: number | null
+}
+
+export interface UpdateJarvisTaxRequest {
+  category?: JarvisTaxCategory
+  code?: string
+  name?: string
+  tax_type?: string
+  rate?: number | null
+  is_active?: boolean
+}
+
+export interface CreateJarvisTaxResponse {
+  success: boolean
+  tax: JarvisTax
+}
+
+export interface UpdateJarvisTaxResponse {
+  success: boolean
+  tax: JarvisTax
+}
+
+export interface DeleteJarvisTaxResponse {
+  success: boolean
+}

@@ -35,21 +35,19 @@ export interface CreateProductRequest {
   unit: string
   categoryId?: string | null
   description?: string | null
-  applyIva: boolean
-  taxClassification?: string | null
-  ivaRate?: number | null
-  priceIncludesIva: boolean
-  retefuenteEnabled: boolean
-  retefuenteConcept?: string | null
-  retefuenteRate?: number | null
-  retefuenteMinBase?: number | null
-  reteicaEnabled: boolean
-  reteicaMunicipality?: string | null
-  reteicaRate?: number | null
-  reteicaMinBase?: number | null
-  reteivaEnabled: boolean
-  reteivaRate?: number | null
+  /** Ids de jarvis_taxes (Impuestos y retenciones) elegidos para el producto. */
+  taxIds?: string[]
+  /** Si el precio de venta cargado ya incluye el IVA. */
+  priceIncludesIva?: boolean
   priceLists: ProductPriceListInput[]
+}
+
+export interface ProductTax {
+  id: string
+  code: string
+  name: string
+  tax_type: string
+  rate: number | null
 }
 
 export interface ProductResponse {
@@ -61,20 +59,8 @@ export interface ProductResponse {
   categoryId: string | null
   categoryName: string | null
   description: string | null
-  applyIva: boolean
-  taxClassification: string | null
-  ivaRate: number | null
+  taxes: ProductTax[]
   priceIncludesIva: boolean
-  retefuenteEnabled: boolean
-  retefuenteConcept: string | null
-  retefuenteRate: number | null
-  retefuenteMinBase: number | null
-  reteicaEnabled: boolean
-  reteicaMunicipality: string | null
-  reteicaRate: number | null
-  reteicaMinBase: number | null
-  reteivaEnabled: boolean
-  reteivaRate: number | null
   priceLists: Array<{
     id: string
     position: number

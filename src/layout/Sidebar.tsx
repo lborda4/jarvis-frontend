@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
+  AccountsIcon,
   AdminIcon,
   ChevronDownIcon,
   ChevronsLeftIcon,
@@ -140,6 +141,16 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
+    // Impuestos y retenciones: mismo criterio que Productos/Terceros.
+    ...(!isAdminRole(user?.role) && isJarvisCompany
+      ? [
+          {
+            label: 'Impuestos y retenciones',
+            to: '/impuestos-retenciones',
+            icon: AccountsIcon,
+          },
+        ]
+      : []),
     // Terceros: mismo criterio que Productos (menú de cliente con
     // integración Jarvis) — ya existía la ruta y la página completas, pero
     // nunca se agregó acá, así que solo se veía entrando directo por URL o
@@ -154,17 +165,19 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         ]
       : []),
     // Extractos bancarios oculto temporalmente a pedido explícito — la ruta
-    // y la página siguen intactas, solo se saca el ítem del menú.
-    // ...(isJarvisCompany
-    //   ? []
-    //   : [
-    //       {
-    //         label: 'Extractos bancarios',
-    //         to: BANK_STATEMENTS_ROOT,
-    //         icon: PulseIcon,
-    //         children: BANK_STATEMENT_CHILDREN,
-    //       },
-    //     ]),
+    // y la página siguen intactas, solo se saca el ítem del menú (rama
+    // muerta a propósito, en vez de comentada del todo, para no perder el
+    // tipado de "children" que usa renderNavItems más abajo).
+    ...(true
+      ? []
+      : [
+          {
+            label: 'Extractos bancarios',
+            to: BANK_STATEMENTS_ROOT,
+            icon: PulseIcon,
+            children: BANK_STATEMENT_CHILDREN,
+          },
+        ]),
     ...(isAdminRole(user?.role)
       ? [
           {
