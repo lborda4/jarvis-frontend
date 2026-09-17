@@ -26,6 +26,38 @@ export interface PurchaseInvoiceItemDraft {
   retefuenteTax: SiigoTaxOption | null
 }
 
+/** Reconstruye los ítems desde el borrador guardado (electronic_documents.draft),
+ * en vez de recalcular las sugerencias — así lo que el contador dejó
+ * guardado sigue viéndose igual después de recargar, incluso si el
+ * historial del proveedor o la clasificación de IA cambiaron entre tanto.
+ * El borrador solo trae ids de impuesto (no el objeto completo, ver
+ * ElectronicDocumentDraft), así que se resuelven contra el catálogo VIGENTE
+ * — si un impuesto ya no existe en el catálogo, el ítem queda sin ese
+ * impuesto en vez de mostrar uno inventado. */
+export function buildPurchaseInvoiceItemDraftsFromDraft(
+  draftItems: NonNullable<ElectronicDocumentListItem['draft']>['items'],
+  ivaOptions: SiigoTaxOption[] = [],
+  retefuenteOptions: SiigoTaxOption[] = [],
+): PurchaseInvoiceItemDraft[] {
+  const findTax = (
+    options: SiigoTaxOption[],
+    id: number | null | undefined,
+  ): SiigoTaxOption | null =>
+    id == null ? null : (options.find((tax) => tax.id === id) ?? null)
+
+  return (draftItems ?? []).map((item) => ({
+    localId: createLocalId(),
+    tipo: item.tipo,
+    producto: item.producto,
+    description: item.description,
+    quantity: item.quantity,
+    unitValue: item.unitValue,
+    discount: item.discount,
+    ivaTax: findTax(ivaOptions, item.ivaTaxId),
+    retefuenteTax: findTax(retefuenteOptions, item.retefuenteTaxId),
+  }))
+}
+
 /** Devuelve el primer candidato que exista LITERALMENTE en el catálogo real
  * de cuentas transaccionales — nunca un código que "parezca" válido. El
  * código que trae la factura DIAN original (item.code) es SIEMPRE un
@@ -269,6 +301,20 @@ export function hasUnresolvedProductItem(
   return items.some(
     (item) => item.tipo === 'Product' && item.producto.trim().length === 0,
   )
+}
+
+/** true si algún ítem quedó sin descripción — a diferencia de
+ * hasUnresolvedProductItem (que solo mira el código de ítems Producto), esto
+ * aplica a CUALQUIER tipo de ítem: si el usuario borra la descripción, no
+ * hay ningún valor por defecto al que caer y "Enviar" debe bloquearse. */
+export function hasEmptyItemDescription(
+  items: PurchaseInvoiceItemDraft[] | undefined,
+): boolean {
+  if (!items || items.length === 0) {
+    return false
+  }
+
+  return items.some((item) => item.description.trim().length === 0)
 }
 
 export function purchaseInvoiceItemDraftBase(item: PurchaseInvoiceItemDraft): number {

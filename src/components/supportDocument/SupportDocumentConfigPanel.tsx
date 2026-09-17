@@ -44,10 +44,6 @@ interface SupportDocumentConfigPanelProps {
   hasConfigurableSelection: boolean
   /** true si todos los documentos que se van a enviar quedaron en ERROR. */
   isRetry?: boolean
-  /** true si hay exactamente un documento seleccionado (la IA sugiere por documento). */
-  canSuggestAi?: boolean
-  isSuggestingAi?: boolean
-  onSuggestAi?: () => void
   isSending: boolean
   isDeleting: boolean
   progressLabel?: string | null
@@ -103,9 +99,6 @@ function SupportDocumentConfigPanel({
   canDelete,
   hasConfigurableSelection,
   isRetry = false,
-  canSuggestAi = false,
-  isSuggestingAi = false,
-  onSuggestAi,
   isSending,
   isDeleting,
   progressLabel = null,
@@ -236,31 +229,20 @@ function SupportDocumentConfigPanel({
               {showAccountField && (
                 <div className="support-config-panel__field">
                   <label htmlFor="support-config-account">Cuenta contable</label>
-                  <div className="support-config-panel__account-row">
-                    <AccountAutocomplete
-                      id="support-config-account"
-                      value={selectedAccount}
-                      onChange={onAccountChange}
-                      options={accountOptions}
-                      disabled={controlsDisabled}
-                      placeholder="Buscar cuenta (código o nombre)..."
-                    />
-                    {onSuggestAi && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={onSuggestAi}
-                        disabled={controlsDisabled || !canSuggestAi || isSuggestingAi}
-                        title={
-                          canSuggestAi
-                            ? 'Sugerir cuenta contable e IVA con IA para el documento seleccionado'
-                            : 'Selecciona exactamente un documento para pedir una sugerencia de IA'
-                        }
-                      >
-                        {isSuggestingAi ? 'Sugiriendo...' : 'Sugerir con IA'}
-                      </Button>
-                    )}
-                  </div>
+                  {/* Ya no hay botón manual "Sugerir con IA": la cuenta se
+                      autocompleta sola (historial del proveedor, o IA en
+                      segundo plano si no hay historial — ver
+                      SiigoPurchaseAiClassificationService /
+                      classifyItemTypeAndAccount en el backend), así que este
+                      campo ya llega con un valor cuando hay uno disponible. */}
+                  <AccountAutocomplete
+                    id="support-config-account"
+                    value={selectedAccount}
+                    onChange={onAccountChange}
+                    options={accountOptions}
+                    disabled={controlsDisabled}
+                    placeholder="Buscar cuenta (código o nombre)..."
+                  />
                 </div>
               )}
 

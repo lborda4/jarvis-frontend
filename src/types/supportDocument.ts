@@ -44,6 +44,24 @@ export interface PurchaseInvoiceValidationReport {
   errors: PurchaseInvoiceValidationRowError[]
 }
 
+export interface SupportDocumentValidationRowError {
+  groupKey: string
+  /** "Prefijo+Consecutivo (NIT proveedor)" — lo que el usuario puede buscar
+   * en el Excel para encontrar el documento con el error. */
+  reference: string
+  reason: string
+}
+
+/** Reporte de la pasada de validación rápida (tipo de documento inválido,
+ * centro de costos que no existe en SIIGO) que corre ANTES de confirmar la
+ * importación de Documento Soporte. */
+export interface SupportDocumentValidationReport {
+  totalGroups: number
+  validGroups: number
+  invalidGroups: number
+  errors: SupportDocumentValidationRowError[]
+}
+
 export interface PurchaseInvoiceImportFailedRowDetail {
   rowIndex: number
   cufe: string
@@ -63,6 +81,8 @@ export interface PurchaseInvoiceImportStatus {
   progressPercent: number | null
   itemsTotal: number | null
   documentsCreated: number | null
+  /** Filas que reusaron un documento ya existente (mismo CUFE de un import anterior) en vez de crear uno nuevo — explica por qué documentsCreated puede ser menor que successCount. */
+  documentsReused: number | null
   documentIds: string[] | null
   records: InvoicePreview[] | null
   /** Detalle de filas fallidas (hasta 200) — se llena incrementalmente por lote, no solo al terminar. */

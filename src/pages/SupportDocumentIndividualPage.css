@@ -1,3 +1,4 @@
+/* ─── Contenedor principal ─── */
 .ds-individual {
   width: 100%;
   max-width: var(--app-content-max-width, 1280px);
@@ -5,6 +6,7 @@
   padding: 1.25rem 1.5rem 2.5rem;
 }
 
+/* ─── Breadcrumb ─── */
 .ds-individual__breadcrumb {
   margin: 0 0 1rem;
   color: var(--jarvis-text-muted);
@@ -21,68 +23,50 @@
   text-decoration: underline;
 }
 
-.ds-individual__sheet {
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
+/* ─── Cabecera de página ─── */
 .ds-individual__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
-  padding: 1.35rem 1.45rem;
-  border: 1px solid rgba(215, 222, 231, 0.95);
-  border-radius: 14px;
-  background: #ffffff;
 }
 
-.ds-individual__header-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-}
-
-.ds-individual__doc-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.85rem;
-  height: 2.85rem;
-  border-radius: 10px;
-  background: var(--jarvis-primary-soft);
-  color: var(--jarvis-primary);
-  flex-shrink: 0;
-}
-
-.ds-individual__doc-icon svg {
-  width: 1.4rem;
-  height: 1.4rem;
-}
-
-.ds-individual__header h1 {
-  margin: 0 0 0.25rem;
+.ds-individual__title {
+  margin: 0;
   color: var(--jarvis-navy);
   font-size: var(--text-h1);
   font-weight: 700;
 }
 
-.ds-individual__header p {
-  margin: 0;
+.ds-individual__config-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: 8px;
+  background: #fff;
   color: var(--jarvis-text-muted);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
+.ds-individual__config-btn:hover {
+  border-color: var(--jarvis-primary);
+  color: var(--jarvis-primary);
+}
+
+/* ─── Formulario ─── */
 .ds-individual__form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
+/* ─── Secciones (tarjetas) ─── */
 .ds-individual__section {
   padding: 1.35rem 1.45rem 1.5rem;
   border: 1px solid rgba(215, 222, 231, 0.95);
@@ -101,7 +85,7 @@
 
 .ds-individual__section-head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
@@ -112,13 +96,20 @@
   margin: 0;
 }
 
-.ds-individual__grid {
+/* ─── Grilla info general (2 columnas) ─── */
+.ds-individual__info-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem 1.4rem;
-  align-items: start;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem 2rem;
 }
 
+.ds-individual__col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ─── Campo genérico ─── */
 .ds-individual__field {
   display: flex;
   flex-direction: column;
@@ -130,19 +121,59 @@
   grid-column: 1 / -1;
 }
 
-.ds-individual__field > span:first-child {
+.ds-individual__field--grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-individual__field--amount {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.ds-individual__field > span:first-child,
+.ds-individual__field > label > span:first-child {
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
   font-weight: 600;
 }
 
-.ds-individual__field input,
+.ds-individual__required {
+  color: var(--jarvis-danger);
+}
+
+/* ─── Checkbox ─── */
+.ds-individual__field--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.ds-individual__field--checkbox input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--jarvis-primary);
+}
+
+.ds-individual__field--checkbox span {
+  color: var(--jarvis-text);
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+/* ─── Inputs / selects / textarea ─── */
+.ds-individual__field input:not([type='checkbox']),
 .ds-individual__field select,
 .ds-individual__field textarea,
 .ds-individual__search input,
-.ds-individual__receipt input,
+.ds-individual__prefix-input,
+.ds-individual__consecutive-input,
 .ds-individual__table input,
-.ds-individual__table select {
+.ds-individual__table select,
+.ds-individual__field--amount input {
   width: 100%;
   min-width: 0;
   padding: 0.68rem 0.8rem;
@@ -151,75 +182,30 @@
   background: #fff;
   color: var(--jarvis-text);
   font-size: var(--text-md);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.ds-individual__field input:not([type='checkbox']):focus,
+.ds-individual__field select:focus,
+.ds-individual__field textarea:focus,
+.ds-individual__search input:focus,
+.ds-individual__prefix-input:focus,
+.ds-individual__consecutive-input:focus,
+.ds-individual__table input:focus-visible,
+.ds-individual__table select:focus-visible,
+.ds-individual__field--amount input:focus {
+  outline: none;
+  border-color: var(--jarvis-primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
 }
 
 .ds-individual__field textarea {
   resize: vertical;
-  min-height: 4.2rem;
+  min-height: 120px;
 }
 
-.ds-individual__field input:focus,
-.ds-individual__field select:focus,
-.ds-individual__field textarea:focus,
-.ds-individual__search input:focus,
-.ds-individual__receipt input:focus,
-.ds-individual__table input:focus-visible,
-.ds-individual__table select:focus-visible {
-  border-color: var(--jarvis-primary);
-}
-
-.ds-individual__field select:disabled {
-  background: var(--jarvis-gray-50);
-  color: var(--jarvis-text-muted);
-}
-
-.ds-individual__term {
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--jarvis-border-strong);
-  border-radius: 8px;
-  background-color: #fff;
-  overflow: hidden;
-}
-
-.ds-individual__term input {
-  flex: 1;
-  min-width: 0;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0.68rem 0.8rem;
-  color: var(--jarvis-text);
-  font-size: var(--text-md);
-  background: transparent;
-}
-
-.ds-individual__term input:focus-visible {
-  outline: none;
-}
-
-.ds-individual__term:focus-within {
-  border-color: var(--jarvis-primary);
-}
-
-.ds-individual__term-suffix {
-  display: flex;
-  align-items: center;
-  padding: 0 0.8rem;
-  border-left: 1px solid var(--jarvis-border);
-  background-color: var(--jarvis-gray-50);
-  color: var(--jarvis-text-muted);
-  font-size: var(--text-sm);
-  white-space: nowrap;
-}
-
-.ds-individual__term--disabled {
-  background-color: var(--jarvis-gray-50);
-}
-
-.ds-individual__term--disabled .ds-individual__term-suffix {
-  background-color: var(--jarvis-gray-100);
-}
-
+/* ─── Campo de solo lectura (Número) ─── */
 .ds-individual__readonly {
   margin: 0;
   padding: 0.68rem 0.8rem;
@@ -230,31 +216,44 @@
   font-size: var(--text-md);
 }
 
-.ds-individual__receipt {
+/* ─── Prefijo + Consecutivo ─── */
+.ds-individual__prefix-row {
   display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: 0.5rem;
+  grid-template-columns: 100px 1fr;
+  gap: 0.75rem;
 }
 
+.ds-individual__prefix-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ds-individual__prefix-label {
+  color: var(--jarvis-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ─── Buscador de proveedor ─── */
 .ds-individual__search {
   position: relative;
 }
 
-.ds-individual__search input {
-  padding-left: 2.35rem;
+.ds-individual__search-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--jarvis-text-muted);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
 }
 
-.ds-individual__search::before {
-  content: '';
-  position: absolute;
-  left: 0.85rem;
-  top: 0.85rem;
-  width: 0.95rem;
-  height: 0.95rem;
-  background: no-repeat center / contain
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1;
+.ds-individual__search-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .ds-individual__supplier-list {
@@ -310,6 +309,7 @@
   font-size: var(--text-base);
 }
 
+/* ─── Hint / nota ─── */
 .ds-individual__hint {
   margin: 0;
   color: var(--jarvis-text-muted);
@@ -332,6 +332,20 @@
   text-decoration: underline;
 }
 
+.ds-individual__hint--info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--jarvis-surface);
+  border: 1px solid var(--jarvis-border);
+  border-radius: 6px;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ─── Mensajes de error de campo ─── */
 .ds-individual__error {
   display: block;
   margin: 0.15rem 0 0;
@@ -340,6 +354,7 @@
   font-style: normal;
 }
 
+/* ─── Botón agregar fila ─── */
 .ds-individual__add-line {
   border: 1px solid var(--jarvis-border);
   border-radius: 8px;
@@ -357,6 +372,7 @@
   background: var(--jarvis-primary-soft);
 }
 
+/* ─── Tabla de ítems ─── */
 .ds-individual__table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -367,7 +383,7 @@
 .ds-individual__table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1180px;
+  min-width: 1060px;
 }
 
 .ds-individual__table th {
@@ -431,59 +447,277 @@
   height: 18px;
 }
 
-/* Mismo cuadro de totales que el detalle de Factura de compra (ver
- * .purchase-invoice-editor__summary): tarjeta blanca con una fila por
- * concepto, rótulo a la izquierda y monto a la derecha. Antes era una fila
- * horizontal de bloques apilados, que al lado de la otra pantalla se leía
- * como otro producto. */
-.ds-individual__totals {
+.ds-individual__delete--payment {
+  align-self: flex-end;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+/* ─── Grid pago + totales ─── */
+.ds-individual__payment-totals-grid {
   display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem 2rem;
+  align-items: start;
+}
+
+.ds-individual__payment-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ds-individual__payment-col h2 {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 2px solid var(--jarvis-primary);
+  color: var(--jarvis-navy);
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+/* ─── Fila de forma de pago ─── */
+.ds-individual__payment-row {
+  display: flex;
+  align-items: flex-end;
   gap: 0.6rem;
-  width: min(100%, 22rem);
-  margin: 1rem 0 0 auto;
+}
+
+.ds-individual__add-payment {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--jarvis-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ds-individual__add-payment:hover {
+  text-decoration: underline;
+}
+
+/* ─── Plazo (días) ─── */
+.ds-individual__term {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: 8px;
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.ds-individual__term input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0.68rem 0.8rem;
+  color: var(--jarvis-text);
+  font-size: var(--text-md);
+  background: transparent;
+  box-shadow: none !important;
+}
+
+.ds-individual__term:focus-within {
+  border-color: var(--jarvis-primary);
+}
+
+.ds-individual__term-suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.8rem;
+  border-left: 1px solid var(--jarvis-border);
+  background-color: var(--jarvis-gray-50);
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* ─── Columna de totales ─── */
+.ds-individual__totals-col {
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.ds-individual__totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: 1rem 1.1rem;
   border: 1px solid var(--jarvis-gray-200);
   border-radius: var(--r-md);
   background: #ffffff;
-  align-content: start;
 }
 
-.ds-individual__totals > div {
+.ds-individual__totals-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--jarvis-gray-100);
 }
 
-.ds-individual__totals span {
+.ds-individual__totals-row:last-child {
+  border-bottom: none;
+}
+
+.ds-individual__totals-row span {
   color: var(--jarvis-text);
   font-size: var(--text-base);
+  white-space: nowrap;
 }
 
-.ds-individual__totals strong {
+.ds-individual__totals-row strong {
   color: var(--jarvis-text);
   font-size: var(--text-base);
   font-weight: 600;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.ds-individual__totals-payable {
-  margin-top: 0.25rem;
+.ds-individual__totals-row--reteica {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ds-individual__reteica-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.ds-individual__reteica-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--jarvis-text);
+  font-size: 0.8rem;
+  min-width: 0;
+  max-width: 140px;
+}
+
+.ds-individual__totals-row--net {
   padding-top: 0.75rem;
-  border-top: 1px solid var(--jarvis-gray-100);
+  margin-top: 0.15rem;
 }
 
-.ds-individual__totals-payable span,
-.ds-individual__totals-payable strong {
+.ds-individual__totals-row--net span,
+.ds-individual__totals-row--net strong {
   color: var(--jarvis-primary);
   font-size: var(--text-md);
   font-weight: 700;
 }
 
+/* ─── Comentarios y anexos ─── */
+.ds-individual__comments-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.ds-individual__char-count {
+  display: block;
+  text-align: right;
+  color: var(--jarvis-text-muted);
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+/* ─── Zona de adjunto ─── */
+.ds-individual__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 150px;
+  padding: 1.5rem 1rem;
+  border: 2px dashed var(--jarvis-border-strong);
+  border-radius: 12px;
+  background: var(--jarvis-gray-50);
+  color: var(--jarvis-text-muted);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ds-individual__dropzone:hover,
+.ds-individual__dropzone.is-dragging {
+  border-color: var(--jarvis-primary);
+  background: var(--jarvis-primary-soft);
+  color: var(--jarvis-primary);
+}
+
+.ds-individual__dropzone svg {
+  flex-shrink: 0;
+}
+
+.ds-individual__file-input {
+  display: none;
+}
+
+.ds-individual__dropzone-text {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.ds-individual__dropzone-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.ds-individual__file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ds-individual__file-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--jarvis-primary);
+  word-break: break-all;
+  max-width: 200px;
+  text-align: center;
+}
+
+.ds-individual__file-size {
+  font-size: 0.78rem;
+  color: var(--jarvis-text-muted);
+}
+
+.ds-individual__file-remove {
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--jarvis-danger);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.ds-individual__file-remove:hover {
+  background: var(--jarvis-danger-soft);
+}
+
+/* ─── Footer de acciones ─── */
 .ds-individual__actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 0.75rem;
   padding: 0.35rem 0 0.15rem;
 }
@@ -493,11 +727,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  min-width: 150px;
+  min-width: 140px;
   padding: 0.78rem 1.2rem;
   border-radius: 8px;
   font-size: var(--text-md);
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
 }
 
@@ -506,8 +741,6 @@
   cursor: not-allowed;
 }
 
-/* Tres pesos visuales distintos para tres consecuencias distintas:
-   ghost (guardar borrador) < outline (guardar y continuar) < primary (enviar). */
 .ds-individual__btn--ghost {
   border: 1px solid var(--jarvis-border-strong);
   background: #fff;
@@ -541,22 +774,38 @@
   border-color: var(--jarvis-primary-hover);
 }
 
-@media (max-width: 900px) {
+/* ─── Responsive ─── */
+@media (max-width: 960px) {
+  .ds-individual__info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-individual__payment-totals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-individual__totals-col {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .ds-individual__totals {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
   .ds-individual {
     padding: 1rem 0.85rem 2rem;
   }
 
-  .ds-individual__header,
   .ds-individual__section {
     padding: 1.15rem 1rem 1.25rem;
   }
 
-  .ds-individual__grid {
+  .ds-individual__comments-grid {
     grid-template-columns: 1fr;
-  }
-
-  .ds-individual__field--wide {
-    grid-column: auto;
   }
 
   .ds-individual__actions {

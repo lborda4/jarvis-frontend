@@ -135,6 +135,7 @@ export const purchaseInvoiceExcelSource: DocumentSourceAdapter = {
         jobId,
         errorCount: finalStatus.errorCount,
         successCount: finalStatus.successCount,
+        documentsReused: finalStatus.documentsReused ?? 0,
         failedRows: finalStatus.failedRows.map((row) => ({
           cufe: row.cufe,
           issuerNit: row.issuerNit,

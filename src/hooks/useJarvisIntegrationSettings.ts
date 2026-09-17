@@ -54,6 +54,11 @@ type ResolutionDraft = {
   technicalKey: string
   dateFrom: string
   dateTo: string
+  /** type_document_id que NextPyme reportó para la resolución elegida (ver
+   * handleSelectResolution) — se envía tal cual al guardar en vez de dejar
+   * que el backend lo adivine por kind, que puede no coincidir con lo que
+   * NextPyme tiene registrado para ese prefijo puntual. */
+  typeDocumentId: number | null
 }
 
 const EMPTY_RESOLUTION: ResolutionDraft = {
@@ -72,6 +77,7 @@ const EMPTY_RESOLUTION: ResolutionDraft = {
   technicalKey: '',
   dateFrom: '',
   dateTo: '',
+  typeDocumentId: null,
 }
 
 function isJarvisTaxRegime(value: string | null | undefined): value is JarvisTaxRegime {
@@ -122,6 +128,10 @@ function resolutionToDraft(
     technicalKey: resolution.technicalKey ?? '',
     dateFrom: resolution.dateFrom ?? resolution.authorizedAt ?? '',
     dateTo: resolution.dateTo ?? '',
+    // JarvisDianResolution (lo ya guardado) no persiste typeDocumentId —
+    // si el usuario reedita sin volver a elegir de la lista, el backend cae
+    // al id fijo por kind, igual que antes de este fix.
+    typeDocumentId: null,
   }
 }
 
@@ -155,6 +165,9 @@ function patchResolutionDraft(
       resolution.authorizedAt ??
       current.dateFrom,
     dateTo: resolution.dateTo ?? current.dateTo,
+    // JarvisDianResolution no trae typeDocumentId (ver resolutionToDraft) —
+    // se conserva lo que ya hubiera en el borrador.
+    typeDocumentId: current.typeDocumentId,
   }
 }
 
@@ -653,6 +666,7 @@ export function useJarvisIntegrationSettings() {
         technicalKey: resolution.technicalKey ?? '',
         dateFrom: resolution.dateFrom ?? resolution.authorizedAt ?? '',
         dateTo: resolution.dateTo ?? '',
+        typeDocumentId: resolution.typeDocumentId ?? null,
       }))
     },
     [availableResolutions],
@@ -717,6 +731,7 @@ export function useJarvisIntegrationSettings() {
         technicalKey: draft.technicalKey.trim() || undefined,
         dateFrom: draft.dateFrom.trim(),
         dateTo: draft.dateTo.trim(),
+        typeDocumentId: draft.typeDocumentId ?? undefined,
       })
 
       if (kind === 'SUPPORT_DOCUMENT') {

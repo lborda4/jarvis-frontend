@@ -21,6 +21,7 @@ import {
   JARVIS_FISCAL_REGIME_OPTIONS,
   JARVIS_VAT_REGIME,
   JARVIS_VAT_REGIME_OPTIONS,
+  JARVIS_ENTITY_TYPE_OPTIONS,
   type CreateJarvisTerceroRequest,
   type JarvisCatalogOption,
   type JarvisClientType,
@@ -151,6 +152,23 @@ function CreateJarvisTerceroModal({
     }
 
     openedKeyRef.current = openKey
+  const handleLookupDocument = useCallback(
+    async (documentType: JarvisDocumentType, rawDocumentValue: string) => {
+      const [rawDocumentNumber, rawCheckDigit] = rawDocumentValue.split('-')
+      const documentNumber = rawDocumentNumber.replace(/\D/g, '')
+      const typedCheckDigit = rawCheckDigit?.replace(/\D/g, '') ?? ''
+
+      if (documentNumber.length < 5) {
+        setLookupError(
+          'El número de documento debe tener al menos 5 dígitos para poder buscarlo.',
+        )
+        setLookupMessage(null)
+        return
+      }
+
+      if (isLookingUpNit) {
+        return
+      }
 
     if (terceroToEdit) {
       setForm({
@@ -187,6 +205,37 @@ function CreateJarvisTerceroModal({
     resumeDocumentId,
     terceroToEdit,
   ])
+  useEffect(() => {
+    if (!isOpen) {
+      openedKeyRef.current = null
+      return
+    }
+
+    const openKey = `${initialDocumentType ?? ''}|${initialDocumentNumber ?? ''}|${resumeDocumentId ?? ''}`
+    if (openedKeyRef.current === openKey) {
+      return
+    }
+
+    openedKeyRef.current = openKey
+    const documentType = resolveDocumentType(initialDocumentType)
+    const documentNumber = initialDocumentNumber?.trim() || ''
+    setForm({
+      ...EMPTY_FORM,
+      document_type: documentType,
+      document_number: documentNumber,
+    })
+    setErrorMessage(null)
+    setLookupMessage(null)
+    setLookupError(null)
+
+    // Ya no hay botón "Autocompletar": la consulta a NextPyme (vía
+    // lookup-nit) se dispara sola apenas se abre el modal, para que el
+    // usuario vea los datos ya llenos en vez de tener que pedirlos a mano.
+    if (documentNumber) {
+      void handleLookupDocument(documentType, documentNumber)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId])
 
   const handleClose = () => {
     if (isSaving) return

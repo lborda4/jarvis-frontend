@@ -6,10 +6,10 @@ import SupportDocumentRoute from './components/SupportDocumentRoute'
 import PurchaseInvoiceRoute from './components/PurchaseInvoiceRoute'
 import BankStatementClosingPage from './pages/BankStatementClosingPage'
 import BankStatementHistoryPage from './pages/BankStatementHistoryPage'
-import CreateProductPage from './pages/CreateProductPage'
 import ProductListPage from './pages/ProductListPage'
 import ClientProductsRoute from './components/ClientProductsRoute'
 import TercerosRoute from './components/TercerosRoute'
+import JarvisTaxesRoute from './components/JarvisTaxesRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
 import { AuthProvider } from './context/AuthContext'
@@ -44,7 +44,7 @@ function App() {
                 />
                 <Route
                   path="/documento-soporte/masivo"
-                  element={<SupportDocumentRoute view="workspace" />}
+                  element={<Navigate to="/documento-soporte/nuevo" replace />}
                 />
                 <Route
                   path="/documento-soporte/nuevo"
@@ -63,13 +63,20 @@ function App() {
                 <Route path="/factura-venta" element={<SalesInvoicePage />} />
 
                 <Route path="/terceros" element={<TercerosRoute />} />
+                <Route
+                  path="/impuestos-retenciones"
+                  element={<JarvisTaxesRoute />}
+                />
 
                 <Route element={<ClientProductsRoute />}>
                   <Route
                     path="/productos"
-                    element={<Navigate to="/productos/crear" replace />}
+                    element={<Navigate to="/productos/listar" replace />}
                   />
-                  <Route path="/productos/crear" element={<CreateProductPage />} />
+                  <Route
+                    path="/productos/crear"
+                    element={<Navigate to="/productos/listar" replace />}
+                  />
                   <Route path="/productos/listar" element={<ProductListPage />} />
                 </Route>
 

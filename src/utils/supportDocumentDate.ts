@@ -165,25 +165,57 @@ export function buildInitialRowDates(
 
 /** Vencimiento importado (ej. de NextPyme/DIAN) — a diferencia de la fecha
  * del documento, puede ser una fecha futura, así que no se valida contra el
- * rango de fechas seleccionables, solo el formato. */
+ * rango de fechas seleccionables, solo el formato.
+ *
+ * `isCreditPaymentMethodByDocumentId` + `resolveFallbackDueDate` (opcionales):
+ * cuando el medio de pago resuelto para un documento es a crédito y no vino
+ * ningún vencimiento importado ni de un borrador, se completa con la MISMA
+ * fecha del documento (la del Excel/importación, resuelta por
+ * `resolveFallbackDueDate`) en vez de dejarlo en blanco — pedido explícito:
+ * un vencimiento vacío bloqueaba "Enviar" sin que hubiera ningún campo
+ * visible en la tabla para completarlo (ver isDocumentReadyToSend). Si no se
+ * pasa `resolveFallbackDueDate`, cae a hoy. */
 export function buildInitialRowDueDates(
-  documents: Array<{ id: string; dueDate?: string | null }>,
+  documents: Array<{
+    id: string
+    dueDate?: string | null
+    draft?: { dueDate?: string | null } | null
+  }>,
   current: Record<string, string | null> = {},
+  isCreditPaymentMethodByDocumentId?: (documentId: string) => boolean,
+  resolveFallbackDueDate?: (documentId: string) => string | null | undefined,
 ): Record<string, string | null> {
+  const today = getTodayLocalDate()
+
   return Object.fromEntries(
     documents.map((document) => {
       if (current[document.id] !== undefined) {
         return [document.id, current[document.id]]
       }
 
+      // Borrador guardado por el contador tiene prioridad sobre el
+      // importado — es el que puede haber editado a mano.
+      const draftDueDate = document.draft?.dueDate?.trim()
+      if (draftDueDate && /^\d{4}-\d{2}-\d{2}$/.test(draftDueDate)) {
+        return [document.id, draftDueDate]
+      }
+
       const importedDueDate = document.dueDate?.trim()
 
-      return [
-        document.id,
-        importedDueDate && /^\d{4}-\d{2}-\d{2}$/.test(importedDueDate)
-          ? importedDueDate
-          : null,
-      ]
+      if (importedDueDate && /^\d{4}-\d{2}-\d{2}$/.test(importedDueDate)) {
+        return [document.id, importedDueDate]
+      }
+
+      if (isCreditPaymentMethodByDocumentId?.(document.id)) {
+        const fallback = resolveFallbackDueDate?.(document.id)?.trim()
+
+        return [
+          document.id,
+          fallback && /^\d{4}-\d{2}-\d{2}$/.test(fallback) ? fallback : today,
+        ]
+      }
+
+      return [document.id, null]
     }),
   )
 }

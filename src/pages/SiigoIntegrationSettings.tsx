@@ -58,7 +58,7 @@ function SiigoIntegrationSettings() {
     setSelectedSupportDocumentTypeId,
     setSelectedPurchaseDocumentTypeId,
     handleSaveCredentials,
-    handleSyncSuppliers,
+    handleImportAccountsExcel,
     handleSaveDocumentTypes,
   } = useSiigoIntegrationSettings()
 
@@ -151,7 +151,7 @@ function SiigoIntegrationSettings() {
           {!isSiigoConfigured
             ? 'Paso 1 pendiente: guarde las credenciales de SIIGO.'
             : !hasSiigoAccounts
-              ? 'Paso 2 pendiente: sincronice las cuentas contables desde SIIGO.'
+              ? 'Paso 2 pendiente: importe el archivo de cuentas contables.'
               : 'Paso 3 pendiente: seleccione y guarde los comprobantes de cargue.'}
         </div>
       )}
@@ -303,7 +303,7 @@ function SiigoIntegrationSettings() {
           {renderAccordionTrigger(
             'accounts',
             '2. Cuentas contables',
-            'Sincronizar desde el Balance de Prueba',
+            'Importar el plan de cuentas desde Excel',
           )}
           <div
             id="siigo-step-body-accounts"
@@ -314,10 +314,22 @@ function SiigoIntegrationSettings() {
             <div className="settings-accordion__body-inner">
               <div className="settings-accordion__content">
                 <p className="settings-card__description">
-                  Sincronice las cuentas contables desde el Balance de Prueba
-                  general de SIIGO (últimos 2 años). Este paso es obligatorio
-                  para habilitar los documentos de su plan. Puede tardar unos
-                  minutos.
+                  Suba el archivo de Excel con el plan de cuentas contables.
+                  Este paso es obligatorio para habilitar los documentos de su
+                  plan.
+                </p>
+                <p className="settings-card__hint">
+                  Consulta la guía oficial de SIIGO con el paso a paso para
+                  generar este archivo en{' '}
+                  <a
+                    href="https://siigonube.portaldeclientes.siigo.com/buscar-cuentas-contables/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="settings-card__hint-link"
+                  >
+                    Buscar cuentas contables
+                  </a>
+                  .
                 </p>
 
                 {!isStepUnlocked('accounts') ? (
@@ -329,26 +341,34 @@ function SiigoIntegrationSettings() {
                   <>
                     {isSiigoConfigured && hasSiigoAccounts && (
                       <p className="settings-card__hint">
-                        Cuentas contables ya sincronizadas. Puede volver a
-                        actualizarlas cuando lo necesite.
+                        Cuentas contables ya cargadas. Puede volver a subir el
+                        archivo cuando lo necesite.
                       </p>
                     )}
 
-                    <div className="settings-card__actions">
-                      <button
-                        type="button"
-                        className="import-siigo-button"
-                        onClick={() => void handleSyncSuppliers()}
+                    <div className="settings-form__field settings-form__field--wide">
+                      <label htmlFor="siigo-accounts-excel">
+                        Archivo de cuentas contables (Excel)
+                      </label>
+                      <input
+                        id="siigo-accounts-excel"
+                        type="file"
+                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                         disabled={!canSyncSuppliers}
-                      >
-                        {isSyncingSuppliers
-                          ? 'Sincronizando cuentas...'
-                          : 'Sincronizar y continuar'}
-                      </button>
+                        onChange={(event) => {
+                          void handleImportAccountsExcel(
+                            event.target.files?.[0],
+                          )
+                          // Se limpia el input para que volver a elegir el
+                          // MISMO archivo dispare el change de nuevo (por
+                          // ejemplo, tras corregirlo y guardarlo otra vez).
+                          event.currentTarget.value = ''
+                        }}
+                      />
                     </div>
 
                     {isSyncingSuppliers && (
-                      <LoadingIndicator message="Sincronizando cuentas contables desde SIIGO (últimos 2 años)..." />
+                      <LoadingIndicator message="Importando cuentas contables desde el archivo..." />
                     )}
                     {suppliersSuccessMessage && (
                       <SuccessMessage message={suppliersSuccessMessage} />

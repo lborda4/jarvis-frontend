@@ -198,14 +198,14 @@ function AdminPage() {
   const [jarvisCredentials, setJarvisCredentials] =
     useState<JarvisCredentialsSeed | undefined>()
   const [idSoftware, setIdSoftware] = useState('')
-  const [tokenNextPyme, setTokenNextPyme] = useState('')
   const [selectedCity, setSelectedCity] = useState<AdminCityOption | null>(
     null,
   )
-  // Token NextPyme de la empresa (independiente de jarvisCredentials.tokenNextPyme
-  // de arriba) — el que usa la consulta de Factura de compra por CUFE, para
-  // cualquier proveedor (SIIGO o Jarvis). Antes solo se podía configurar
-  // después de crear la empresa, desde la columna de la tabla.
+  // Único campo de Token NextPyme del formulario — se manda tanto a
+  // jarvisCredentials.tokenNextPyme (si se incluye Jarvis) como a
+  // companies.next_pyme_token (para la consulta de Factura de compra por
+  // CUFE, de cualquier proveedor). Antes eran dos inputs separados que
+  // pedían literalmente el mismo dato dos veces en la misma pantalla.
   const [companyNextPymeToken, setCompanyNextPymeToken] = useState('')
   // Llave de identidad (x-api-key) de Bold para esta empresa — igual que el
   // resto del panel de Bold, no se persiste en BD todavía (ver
@@ -382,7 +382,7 @@ function AdminPage() {
         INTEGRATION_PROVIDER.JARVIS,
       )
       const trimmedIdSoftware = idSoftware.trim()
-      const trimmedTokenNextPyme = tokenNextPyme.trim()
+      const trimmedTokenNextPyme = companyNextPymeToken.trim()
       const mergedJarvisCredentials: JarvisCredentialsSeed | undefined =
         includesJarvis
           ? {
@@ -464,7 +464,6 @@ function AdminPage() {
       setRutWarnings([])
       setJarvisCredentials(undefined)
       setIdSoftware('')
-      setTokenNextPyme('')
       setCompanyNextPymeToken('')
       setCompanyBoldApiKey('')
       setSelectedCity(null)
@@ -1143,35 +1142,18 @@ function AdminPage() {
               )}
 
               {includesJarvis && (
-                <>
-                  <div className="admin-form__field">
-                    <label htmlFor="admin-company-id-software">IDSoftware</label>
-                    <input
-                      id="admin-company-id-software"
-                      type="text"
-                      value={idSoftware}
-                      onChange={(event) => setIdSoftware(event.target.value)}
-                      placeholder="Identificador de software NextPyme/DIAN"
-                      disabled={isSubmitting}
-                      autoComplete="off"
-                    />
-                  </div>
-
-                  <div className="admin-form__field">
-                    <label htmlFor="admin-company-token-nextpyme">
-                      tokenNextPyme
-                    </label>
-                    <input
-                      id="admin-company-token-nextpyme"
-                      type="password"
-                      value={tokenNextPyme}
-                      onChange={(event) => setTokenNextPyme(event.target.value)}
-                      placeholder="Token de autenticación NextPyme"
-                      disabled={isSubmitting}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                </>
+                <div className="admin-form__field">
+                  <label htmlFor="admin-company-id-software">IDSoftware</label>
+                  <input
+                    id="admin-company-id-software"
+                    type="text"
+                    value={idSoftware}
+                    onChange={(event) => setIdSoftware(event.target.value)}
+                    placeholder="Identificador de software NextPyme/DIAN"
+                    disabled={isSubmitting}
+                    autoComplete="off"
+                  />
+                </div>
               )}
 
               {(includesSiigo || includesJarvis) && (
@@ -1301,6 +1283,7 @@ function AdminPage() {
         </form>
 
         {successMessage && <SuccessMessage message={successMessage} />}
+        {errorMessage && <ErrorMessage message={errorMessage} />}
       </section>
 
       <section className="admin-card">

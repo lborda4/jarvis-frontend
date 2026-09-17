@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
+  AccountsIcon,
   AdminIcon,
   ChevronDownIcon,
   ChevronsLeftIcon,
@@ -24,10 +25,6 @@ const BANK_STATEMENT_CHILDREN = [
 ]
 
 const PRODUCTS_ROOT = '/productos'
-const PRODUCT_CHILDREN = [
-  { label: 'Crear producto', to: '/productos/crear' },
-  { label: 'Listar productos', to: '/productos/listar' },
-]
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
 
@@ -131,14 +128,16 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Productos y Terceros son menú de cliente (rol user), no de administrador.
-    ...(!isAdminRole(user?.role)
+    // Productos es menú de cliente (rol user) con integración Jarvis — SIIGO
+    // maneja su propio catálogo de productos allá, no tiene nada que hacer
+    // acá. Es un solo ítem (no un grupo desplegable): lleva directo al
+    // listado, que ya tiene su propio botón "Crear producto" para el otro caso.
+    ...(!isAdminRole(user?.role) && isJarvisCompany
       ? [
           {
             label: 'Productos',
-            to: PRODUCTS_ROOT,
+            to: '/productos/listar',
             icon: PackageIcon,
-            children: PRODUCT_CHILDREN,
           },
           {
             label: 'Terceros',
@@ -147,9 +146,34 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Jarvis, por ahora, solo cubre Documento soporte y Factura de venta: el
-    // resto de secciones no tiene nada que hacer con esta integración.
-    ...(isJarvisCompany
+    // Impuestos y retenciones: mismo criterio que Productos/Terceros.
+    ...(!isAdminRole(user?.role) && isJarvisCompany
+      ? [
+          {
+            label: 'Impuestos y retenciones',
+            to: '/impuestos-retenciones',
+            icon: AccountsIcon,
+          },
+        ]
+      : []),
+    // Terceros: mismo criterio que Productos (menú de cliente con
+    // integración Jarvis) — ya existía la ruta y la página completas, pero
+    // nunca se agregó acá, así que solo se veía entrando directo por URL o
+    // desde el panel de admin (bug real reportado).
+    ...(!isAdminRole(user?.role) && isJarvisCompany
+      ? [
+          {
+            label: 'Terceros',
+            to: '/terceros',
+            icon: SuppliersIcon,
+          },
+        ]
+      : []),
+    // Extractos bancarios oculto temporalmente a pedido explícito — la ruta
+    // y la página siguen intactas, solo se saca el ítem del menú (rama
+    // muerta a propósito, en vez de comentada del todo, para no perder el
+    // tipado de "children" que usa renderNavItems más abajo).
+    ...(true
       ? []
       : [
           {
@@ -198,7 +222,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       return location.pathname.startsWith('/terceros')
     }
 
-    if (to === PRODUCTS_ROOT) {
+    if (to === '/productos/listar') {
+      // También queda activo en "Crear producto" (accesible desde el botón
+      // del listado, ya no desde un submenú acá) — sigue siendo la misma
+      // sección para el usuario.
       return location.pathname.startsWith(PRODUCTS_ROOT)
     }
 

@@ -59,6 +59,12 @@ export interface DocumentWorkspaceImportResult {
    * consultar el estado del job desde cero. */
   jobId?: string
   errorCount?: number
+  /** Filas que reusaron un documento ya existente (mismo CUFE de un import
+   * anterior) en vez de crear uno nuevo — explica por qué documentCount
+   * puede ser menor que el total de filas del Excel, sin que nada haya
+   * fallado (bug real reportado: 46 filas, banner decía "7 documentos" sin
+   * ninguna explicación de qué pasó con las otras 39). */
+  documentsReused?: number
 }
 
 export type DocumentWorkspaceProvider = 'SIIGO' | 'JARVIS'
@@ -209,7 +215,12 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   showTemplateDownload: true,
   supplierMissingLabel: 'Crear tercero',
   downloadTemplate: () => downloadSupportDocumentTemplate('SIIGO'),
-  importFile: importSupportDocumentExcel,
+  // La ventana de 5 días hacia atrás era una restricción propia de la app
+  // (no una validación real de SIIGO) — se quitó a pedido explícito: se
+  // permite subir/editar cualquier fecha, igual que ya hacía JARVIS acá
+  // abajo (ver JARVIS_SUPPORT_DOCUMENT_WORKSPACE.importFile).
+  importFile: (file) =>
+    importSupportDocumentExcel(file, { enforceDateRange: false }),
   buildSendRequest: (
     document,
     account,
@@ -286,6 +297,7 @@ async function importPurchaseInvoiceExcel(
   })
   const response = rawResponse as {
     documentsCreated?: number
+    documentsReused?: number
     documentIds?: string[]
     failedRows?: DocumentWorkspaceImportFailedRow[]
     jobId?: string
@@ -301,6 +313,7 @@ async function importPurchaseInvoiceExcel(
     failedRows: response.failedRows,
     jobId: response.jobId,
     errorCount: response.errorCount,
+    documentsReused: response.documentsReused,
   }
 }
 

@@ -77,6 +77,35 @@ export interface AutoCreatedSupplier {
   createdAt: string
 }
 
+/** Proveedor distinto (NIT + tipo de documento) pendiente de crear en SIIGO
+ * — ya viene enriquecido con RUT/RUES de NextPyme del lado del backend (ver
+ * GET suppliers/pending). `document_id` identifica un documento pendiente
+ * de ese proveedor: createSupplier resuelve el resto (tipo de persona,
+ * dirección, teléfono, etc.) solo con eso. */
+export interface PendingSiigoSupplier {
+  document_id: string
+  document_type: string
+  document_number: string
+  name: string | null
+  email: string | null
+}
+
+export interface ListPendingSiigoSuppliersResponse {
+  items: PendingSiigoSupplier[]
+}
+
+export interface CreateSiigoSuppliersBulkResultItem {
+  documentId: string
+  success: boolean
+  errorMessage: string | null
+}
+
+export interface CreateSiigoSuppliersBulkResponse {
+  created: number
+  failed: number
+  results: CreateSiigoSuppliersBulkResultItem[]
+}
+
 export interface ListAutoCreatedSuppliersResponse {
   suppliers: AutoCreatedSupplier[]
 }
@@ -334,12 +363,12 @@ export function isAccountMappingResolvedStatus(
   )
 }
 
-export interface ImportBalanceTrialResponse {
+/** Resultado de importar el plan de cuentas desde un Excel. */
+export interface ImportSiigoAccountsResponse {
   processedRows: number
   accountsCreated: number
   accountsUpdated: number
   skippedRows: number
-  yearsProcessed: number
 }
 
 export interface SaveSiigoCredentialsRequest {

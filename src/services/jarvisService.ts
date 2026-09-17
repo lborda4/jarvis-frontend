@@ -1,18 +1,27 @@
 import type {
+  CreateJarvisTaxRequest,
+  CreateJarvisTaxResponse,
   CreateJarvisTerceroRequest,
   CreateJarvisTerceroResponse,
   JarvisCatalogListResponse,
   JarvisCatalogOption,
+  CreateJarvisTercerosBulkRequestItem,
+  CreateJarvisTercerosBulkResponse,
+  DeleteJarvisTaxResponse,
   JarvisCredentialsStatusResponse,
   JarvisDianResolution,
   JarvisDocumentType,
+  JarvisTaxesListResponse,
   JarvisTercerosListResponse,
   ListJarvisAvailableResolutionsResponse,
+  ListPendingJarvisSuppliersResponse,
   LookupJarvisTerceroNitResponse,
   SaveJarvisCredentialsRequest,
   SaveJarvisCredentialsResponse,
   UpdateJarvisTerceroRequest,
   UpdateJarvisTerceroResponse,
+  UpdateJarvisTaxRequest,
+  UpdateJarvisTaxResponse,
 } from '../types/jarvis'
 import { apiClient } from './apiClient'
 import {
@@ -29,6 +38,7 @@ const JARVIS_RESOLUTIONS_ENDPOINT = '/integrations/jarvis/resolutions'
 const JARVIS_RESOLUTIONS_PARSE_ENDPOINT =
   '/integrations/jarvis/resolutions/parse'
 const JARVIS_TERCEROS_ENDPOINT = '/integrations/jarvis/terceros'
+const JARVIS_TAXES_ENDPOINT = '/integrations/jarvis/taxes'
 const JARVIS_CATALOGS_ENDPOINT = '/integrations/jarvis/catalogs'
 const JARVIS_SUPPORT_DOCUMENTS_ENDPOINT =
   '/integrations/jarvis/support-documents'
@@ -189,6 +199,12 @@ export type SaveJarvisResolutionRequest = Omit<
   technicalKey?: string
   dateFrom: string
   dateTo: string
+  /** type_document_id que NextPyme reportó para ESTA resolución puntual (ver
+   * JarvisAvailableResolution.typeDocumentId) — si se omite, el backend cae
+   * a un id fijo por kind que puede no coincidir con el real (bug real
+   * reportado: NextPyme rechazaba la clave técnica de una resolución de
+   * factura de venta porque ese id fijo no era el que tenía registrado). */
+  typeDocumentId?: number | null
 }
 
 export interface SaveJarvisResolutionResponse {
@@ -339,6 +355,87 @@ export async function lookupJarvisTerceroByNit(
       identification_number: identificationNumber,
     },
   )
+
+  return response.data
+}
+
+/** Proveedores distintos que aparecen en documentos "Requiere proveedor" y no
+ * existen todavía como tercero Jarvis — ya vienen enriquecidos con la
+ * consulta a NextPyme del lado del backend (mismo autocompletado que el
+ * modal uno por uno), para el modal de creación masiva. */
+export async function fetchPendingJarvisTerceros(): Promise<ListPendingJarvisSuppliersResponse> {
+  const response = await apiClient.get<ListPendingJarvisSuppliersResponse>(
+    `${JARVIS_TERCEROS_ENDPOINT}/pending`,
+  )
+
+  return response.data
+}
+
+export async function createJarvisTercerosBulk(
+  suppliers: CreateJarvisTercerosBulkRequestItem[],
+): Promise<CreateJarvisTercerosBulkResponse> {
+  const response = await apiClient.post<CreateJarvisTercerosBulkResponse>(
+    `${JARVIS_TERCEROS_ENDPOINT}/bulk`,
+    { suppliers },
+  )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
+
+  return response.data
+}
+
+/** Se trae SIEMPRE la lista completa (sin filtros) y se cachea — los
+ * filtros de categoría/búsqueda/estado de la pantalla se aplican del lado
+ * cliente sobre este mismo resultado (catálogo chico, no vale la pena un
+ * roundtrip por cada cambio de filtro). */
+export async function fetchJarvisTaxes(): Promise<JarvisTaxesListResponse> {
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'taxes']),
+    QUERY_STALE_MS.taxes,
+    async () => {
+      const response = await apiClient.get<JarvisTaxesListResponse>(
+        JARVIS_TAXES_ENDPOINT,
+      )
+      return response.data
+    },
+  )
+}
+
+export async function createJarvisTax(
+  request: CreateJarvisTaxRequest,
+): Promise<CreateJarvisTaxResponse> {
+  const response = await apiClient.post<CreateJarvisTaxResponse>(
+    JARVIS_TAXES_ENDPOINT,
+    request,
+  )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'taxes']))
+
+  return response.data
+}
+
+export async function updateJarvisTax(
+  id: string,
+  request: UpdateJarvisTaxRequest,
+): Promise<UpdateJarvisTaxResponse> {
+  const response = await apiClient.patch<UpdateJarvisTaxResponse>(
+    `${JARVIS_TAXES_ENDPOINT}/${id}`,
+    request,
+  )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'taxes']))
+
+  return response.data
+}
+
+export async function deleteJarvisTax(
+  id: string,
+): Promise<DeleteJarvisTaxResponse> {
+  const response = await apiClient.delete<DeleteJarvisTaxResponse>(
+    `${JARVIS_TAXES_ENDPOINT}/${id}`,
+  )
+
+  invalidateQueryCache(companyQueryKey(['jarvis', 'taxes']))
 
   return response.data
 }

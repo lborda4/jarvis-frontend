@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
+import type { SiigoProductOption } from '../constants/siigoProductCatalog'
 import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import { NONE_COST_CENTER_OPTION } from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
+import { SUPPORT_DOCUMENT_RETEFUENTE_TAX_TYPE } from '../constants/siigoTaxCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import {
   normalizeRetentionsForTypes,
@@ -18,6 +20,9 @@ import AccountMappingModal from '../components/AccountMappingModal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
+import CreateTercerosBulkModal, {
+  type PendingSupplierRow,
+} from '../components/CreateTercerosBulkModal'
 import ErrorMessage from '../components/ErrorMessage'
 import PageHeader from '../components/PageHeader'
 import ImportLoadingOverlay from '../components/supportDocument/ImportLoadingOverlay'
@@ -55,10 +60,19 @@ import {
   fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
   peekElectronicDocuments,
+  saveElectronicDocumentDraft,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
-import { requestAiPurchaseSuggestion } from '../services/aiSuggestionService'
-import { fetchAutoCreatedSuppliers } from '../services/siigoService'
+import {
+  createSiigoSuppliersBulk,
+  fetchAutoCreatedSuppliers,
+  fetchPendingSiigoSuppliers,
+} from '../services/siigoService'
+import {
+  createJarvisTercerosBulk,
+  fetchPendingJarvisTerceros,
+} from '../services/jarvisService'
+import type { JarvisDocumentType } from '../types/jarvis'
 import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListItem,
@@ -68,7 +82,10 @@ import type {
   SupportDocumentSendNotice,
 } from '../types/supportDocumentPage'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
-import { buildPurchaseInvoiceItemDrafts } from '../types/purchaseInvoiceItemDraft'
+import {
+  buildPurchaseInvoiceItemDrafts,
+  buildPurchaseInvoiceItemDraftsFromDraft,
+} from '../types/purchaseInvoiceItemDraft'
 import type { PurchaseInvoiceDetailEditorSave } from '../components/supportDocument/PurchaseInvoiceDetailEditor'
 import {
   EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS,
@@ -106,13 +123,13 @@ import {
   getTodayLocalDate,
 } from '../utils/supportDocumentDate'
 import {
+  buildNotSendableReason,
   canSendDocument,
   countDeletableDocuments,
   countSendableDocuments,
   isDocumentDeletable,
   isDocumentDeletableFromSiigo,
   isDocumentRemovableFromDatabase,
-  needsPurchaseInvoiceReview,
 } from '../utils/supportDocumentSend'
 import {
   sortSupportDocumentRows,
@@ -254,7 +271,7 @@ function buildInitialRowDocumentDiscounts(
       document.id,
       current[document.id] !== undefined
         ? current[document.id]
-        : (document.documentDiscount ?? 0),
+        : (document.draft?.documentDiscount ?? document.documentDiscount ?? 0),
     ]),
   )
 }
@@ -295,11 +312,29 @@ function buildBlankRow<T>(
 function buildInitialPurchaseInvoiceRowAccounts(
   documents: ElectronicDocumentListItem[],
   current: Record<string, SiigoAccountOption | null> = {},
+  accountOptions: SiigoAccountOption[] = [],
 ): Record<string, SiigoAccountOption | null> {
   return Object.fromEntries(
     documents.map((document) => {
       if (current[document.id] !== undefined) {
         return [document.id, current[document.id]]
+      }
+
+      // Borrador guardado por el contador: prioridad sobre la sugerencia,
+      // aunque el historial/IA hayan cambiado de opinión desde entonces.
+      if (document.draft?.accountCode) {
+        const draftAccountCode = document.draft.accountCode
+        const catalogAccount = accountOptions.find(
+          (account) => account.code === draftAccountCode,
+        )
+
+        return [
+          document.id,
+          {
+            code: draftAccountCode,
+            description: catalogAccount?.description ?? draftAccountCode,
+          },
+        ]
       }
 
       const accountCode =
@@ -342,11 +377,25 @@ function buildInitialPurchaseInvoiceRowAccounts(
 function buildInitialPurchaseInvoiceRowPaymentMethods(
   documents: ElectronicDocumentListItem[],
   current: Record<string, SiigoPaymentMethodOption | null> = {},
+  paymentMethodOptions: SiigoPaymentMethodOption[] = [],
 ): Record<string, SiigoPaymentMethodOption | null> {
   return Object.fromEntries(
     documents.map((document) => {
       if (current[document.id] !== undefined) {
         return [document.id, current[document.id]]
+      }
+
+      // Borrador guardado: prioridad sobre la sugerencia. Se resuelve
+      // contra el catálogo VIGENTE de medios de pago — si el guardado ya no
+      // existe, el campo queda vacío en vez de mostrar un id sin nombre.
+      if (document.draft?.paymentMethodId != null) {
+        const draftPaymentMethod = paymentMethodOptions.find(
+          (option) => option.id === document.draft?.paymentMethodId,
+        )
+
+        if (draftPaymentMethod) {
+          return [document.id, draftPaymentMethod]
+        }
       }
 
       const paymentMethod =
@@ -374,6 +423,37 @@ function buildInitialPurchaseInvoiceRowPaymentMethods(
  * anterior) pero no incluye el CUFE, se lo antepone igual — el CUFE nunca
  * debe desaparecer en un recargo, ni siquiera si algo dejó guardado solo
  * las notas en algún momento anterior. */
+/** Factura de compra: retenciones a nivel de documento (Rete ICA, Rete IVA)
+ * guardadas en el borrador. Sin borrador queda en blanco — a diferencia de
+ * cuenta contable y medio de pago, este campo nunca se autorrellenó desde
+ * el historial del proveedor. */
+function buildInitialPurchaseInvoiceRowRetentions(
+  documents: ElectronicDocumentListItem[],
+  retentionOptionsByType: Record<string, SiigoTaxOption[]>,
+  current: Record<string, SiigoTaxOption[]> = {},
+): Record<string, SiigoTaxOption[]> {
+  const allRetentionOptions = Object.values(retentionOptionsByType).flat()
+
+  return Object.fromEntries(
+    documents.map((document) => {
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
+      }
+
+      const draftTaxIds = document.draft?.retentionTaxIds ?? []
+
+      return [
+        document.id,
+        draftTaxIds
+          .map((taxId) =>
+            allRetentionOptions.find((option) => option.id === taxId),
+          )
+          .filter((option): option is SiigoTaxOption => Boolean(option)),
+      ]
+    }),
+  )
+}
+
 function buildInitialPurchaseInvoiceRowObservations(
   documents: ElectronicDocumentListItem[],
   current: Record<string, string> = {},
@@ -386,6 +466,18 @@ function buildInitialPurchaseInvoiceRowObservations(
 
       const existing = current[document.id]
       if (existing === undefined) {
+        // Borrador guardado: se respeta lo que el contador escribió, con el
+        // mismo resguardo de "el CUFE nunca desaparece" que aplica abajo.
+        const draftObservations = document.draft?.observations?.trim()
+        if (draftObservations) {
+          return [
+            document.id,
+            cufe && !draftObservations.includes(cufe)
+              ? `CUFE: ${cufe} - ${draftObservations}`
+              : draftObservations,
+          ]
+        }
+
         return [document.id, withCufe]
       }
 
@@ -396,6 +488,30 @@ function buildInitialPurchaseInvoiceRowObservations(
       return [document.id, existing]
     }),
   )
+}
+
+/** Ítems de un documento de Factura de compra: si ya hay un borrador
+ * guardado (electronic_documents.draft), se reconstruye desde ahí en vez de
+ * recalcular las sugerencias — es lo que hace que lo que el contador dejó
+ * guardado no desaparezca al recargar o al cambiar de sección. Sin
+ * borrador, cae al comportamiento de siempre (regla del proveedor,
+ * historial o IA, ver buildPurchaseInvoiceItemDrafts). */
+function resolvePurchaseInvoiceItemsFallback(
+  document: ElectronicDocumentListItem,
+  accountOptions: SiigoAccountOption[],
+  productOptions: SiigoProductOption[],
+  ivaOptions: SiigoTaxOption[],
+  retefuenteOptions: SiigoTaxOption[],
+): PurchaseInvoiceItemDraft[] {
+  if (document.draft?.items?.length) {
+    return buildPurchaseInvoiceItemDraftsFromDraft(
+      document.draft.items,
+      ivaOptions,
+      retefuenteOptions,
+    )
+  }
+
+  return buildPurchaseInvoiceItemDrafts(document, accountOptions, productOptions)
 }
 
 function resolveSharedSelectionValue<T>(
@@ -447,12 +563,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     useAutoDismissMessage(AUTO_DISMISS_CONFIRMATION_MS)
   const [autoCreatedSuppliersMessage, setAutoCreatedSuppliersMessage] =
     useAutoDismissMessage()
-  const [isSuggestingAi, setIsSuggestingAi] = useState(false)
-  const [aiSuggestionMessage, setAiSuggestionMessage] = useAutoDismissMessage()
-  const [aiSuggestionError, setAiSuggestionError] = useAutoDismissMessage(
-    AUTO_DISMISS_ERROR_MS,
-  )
+  const [bulkTercerosMessage, setBulkTercerosMessage] = useAutoDismissMessage()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [savingDraftDocumentId, setSavingDraftDocumentId] = useState<
+    string | null
+  >(null)
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
     null,
   )
@@ -480,6 +595,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
   const [terceroModalDocument, setTerceroModalDocument] =
     useState<ElectronicDocumentListItem | null>(null)
+  const [pendingSuppliers, setPendingSuppliers] = useState<
+    PendingSupplierRow[]
+  >([])
+  const [isBulkTerceroModalOpen, setIsBulkTerceroModalOpen] = useState(false)
+  const [isLoadingPendingSuppliers, setIsLoadingPendingSuppliers] =
+    useState(false)
   const [selectedSupplierNits, setSelectedSupplierNits] = useState<string[]>([])
   const [columnFilters, setColumnFilters] =
     useState<SupportDocumentColumnFilters>(EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS)
@@ -505,6 +626,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     costCentersError,
     retentionsError,
   } = useSiigoWorkspaceCatalog(config)
+  // Solo para reconstruir ítems desde un borrador guardado (ver
+  // resolvePurchaseInvoiceItemsFallback) — la Retefuente por ítem usa este
+  // mismo catálogo, ver retefuenteOptions en PurchaseInvoiceDetailEditor.
+  const retefuenteOptions =
+    retentionOptionsByType[SUPPORT_DOCUMENT_RETEFUENTE_TAX_TYPE] ?? []
   const [rowAccounts, setRowAccounts] = useState<
     Record<string, SiigoAccountOption | null>
   >({})
@@ -575,25 +701,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             : undefined,
         importStatuses:
           columnFilters.statuses.length > 0
-            ? // "Requiere revisión" y "Existente en SIIGO" no existen como
-              // estado en el backend (se derivan en el frontend, ver
-              // pageTableRows más abajo) — se traducen a su estado real de
-              // backend (Pendiente/Lista) para el filtro server-side, y el
-              // recorte fino a solo las filas que de verdad matchean se hace
-              // en el cliente (ver tableRows).
-              Array.from(
-                new Set(
-                  columnFilters.statuses.map((status) => {
-                    if (status === IMPORT_ROW_STATUS.REQUIERE_REVISION) {
-                      return IMPORT_ROW_STATUS.PENDIENTE
-                    }
-                    if (status === IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO) {
-                      return IMPORT_ROW_STATUS.LISTA
-                    }
-                    return status
-                  }),
-                ),
-              )
+            ? // El backend ya entiende nativamente "Requiere revisión" y
+              // "Existente en SIIGO" y filtra con precisión sobre TODA la
+              // empresa, no solo la página cargada (ver
+              // needsPurchaseInvoiceReviewNarrowing en
+              // electronic-document.service.ts y la columna real
+              // alreadyInSiigo) — se envían los valores seleccionados tal
+              // cual, sin traducirlos.
+              columnFilters.statuses
             : undefined,
       }
 
@@ -608,17 +723,31 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
         setRowAccounts((current) =>
           isPurchaseInvoiceWorkspace
-            ? buildInitialPurchaseInvoiceRowAccounts(response.items, current)
+            ? buildInitialPurchaseInvoiceRowAccounts(
+                response.items,
+                current,
+                accountOptions,
+              )
             : buildInitialRowAccounts(response.items, [], current),
         )
-        setRowPaymentMethods((current) =>
-          isPurchaseInvoiceWorkspace
+        // Se captura acá para reusarla al calcular rowDueDates más abajo
+        // (default a hoy cuando el medio de pago resuelto es a crédito) sin
+        // depender del timing async de setState.
+        let resolvedPaymentMethods: Record<
+          string,
+          SiigoPaymentMethodOption | null
+        > = {}
+        setRowPaymentMethods((current) => {
+          resolvedPaymentMethods = isPurchaseInvoiceWorkspace
             ? buildInitialPurchaseInvoiceRowPaymentMethods(
                 response.items,
                 current,
+                paymentMethodOptions,
               )
-            : buildInitialRowPaymentMethods(response.items, current),
-        )
+            : buildInitialRowPaymentMethods(response.items, current)
+
+          return resolvedPaymentMethods
+        })
         setRowCostCenters((current) =>
           isPurchaseInvoiceWorkspace
             ? buildBlankRow(response.items, null, current)
@@ -626,7 +755,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         )
         setRowRetentions((current) =>
           isPurchaseInvoiceWorkspace
-            ? buildBlankRow<SiigoTaxOption[]>(response.items, [], current)
+            ? buildInitialPurchaseInvoiceRowRetentions(
+                response.items,
+                retentionOptionsByType,
+                current,
+              )
             : buildInitialRowRetentions(
                 response.items,
                 config.retentionCatalogTypes,
@@ -637,23 +770,33 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         setRowDocumentDiscounts((current) =>
           buildInitialRowDocumentDiscounts(response.items, current),
         )
-        setRowDates((current) =>
-          buildInitialRowDates(response.items, current, {
-            // La ventana de 5 días hacia atrás es una restricción de SIIGO
-            // para CREAR un Documento Soporte nuevo — no aplica a Factura de
-            // compra, donde la fecha es la de una factura de tercero ya
-            // emitida (puede ser de hace meses).
-            allowAnyDate:
-              config.provider === 'JARVIS' || config.key === 'purchaseInvoice',
-          }),
-        )
+        // Se captura acá para reusarla al calcular rowDueDates más abajo (el
+        // vencimiento por defecto de un medio de pago a crédito debe ser la
+        // MISMA fecha del documento, no una fecha aparte calculada distinto).
+        let resolvedRowDates: Record<string, string> = {}
+        setRowDates((current) => {
+          resolvedRowDates = buildInitialRowDates(response.items, current, {
+            // La ventana de 5 días hacia atrás era una restricción propia de
+            // la app (no de SIIGO) para Documento soporte — se quitó a
+            // pedido explícito, se permite cualquier fecha para cualquier
+            // proveedor/tipo de documento.
+            allowAnyDate: true,
+          })
+
+          return resolvedRowDates
+        })
         setRowObservations((current) =>
           isPurchaseInvoiceWorkspace
             ? buildInitialPurchaseInvoiceRowObservations(response.items, current)
             : buildInitialRowObservations(response.items, current),
         )
         setRowDueDates((current) =>
-          buildInitialRowDueDates(response.items, current),
+          buildInitialRowDueDates(
+            response.items,
+            current,
+            (documentId) => isCreditPaymentMethod(resolvedPaymentMethods[documentId]),
+            (documentId) => resolvedRowDates[documentId],
+          ),
         )
       }
 
@@ -922,10 +1065,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
     for (const document of documents) {
       if (merged[document.id] === undefined) {
-        merged[document.id] = buildPurchaseInvoiceItemDrafts(
+        merged[document.id] = resolvePurchaseInvoiceItemsFallback(
           document,
           accountOptions,
           productOptions,
+          ivaOptions,
+          retefuenteOptions,
         )
       }
     }
@@ -938,6 +1083,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     rowItems,
     accountOptions,
     productOptions,
+    ivaOptions,
+    retefuenteOptions,
   ])
 
   const pageTableRows = useMemo(
@@ -948,81 +1095,45 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           importStatuses[document.id],
         )
 
-        if (
-          config.provider === 'JARVIS' &&
-          row.action === 'delete' &&
-          importStatuses[document.id] === IMPORT_ROW_STATUS.LISTA
-        ) {
-          return { ...row, action: 'none' as const }
-        }
-
-        // Factura de compra SIIGO: si ni la regla exacta del proveedor, ni
-        // el historial, ni la IA lograron resolver una cuenta/producto para
-        // algún ítem (ni tampoco hay una cuenta de respaldo a nivel de
-        // documento), el estado pasa a "Requiere revisión" en vez de
-        // "Pendiente" — "Pendiente" sugiere que todo está listo y solo
-        // falta un clic, lo cual sería engañoso acá (caso real reportado:
-        // proveedor nuevo donde la IA no encontró nada para ningún ítem, y
-        // el documento seguía viéndose "Pendiente" como cualquier otro).
-        // Vuelve a Pendiente solo(a) al recalcularse sin nada pendiente por
-        // resolver (ver needsPurchaseInvoiceReview), típicamente después de
-        // que el usuario completa el dato a mano y guarda ("Guardar
-        // cambios" actualiza rowItems/rowAccounts, lo que dispara este
-        // mismo recálculo).
+        // Factura de compra SIIGO: si al documento le falta algo por
+        // resolver (cuenta/producto, medio de pago, o confianza de IA
+        // baja), el estado pasa a "Requiere revisión" en vez de "Pendiente"
+        // — "Pendiente" sugiere que todo está listo y solo falta un clic,
+        // lo cual sería engañoso acá. `requiresReview` lo calcula el
+        // backend (ver resolvePurchaseInvoiceRequiresReview) a partir de lo
+        // último GUARDADO — el borrador si existe, o si no las sugerencias
+        // — así que solo cambia cuando se presiona "Guardar cambios" en el
+        // panel de detalle, no mientras se está escribiendo sin guardar.
         if (
           config.key === 'purchaseInvoice' &&
           config.provider === 'SIIGO' &&
-          row.importStatus === IMPORT_ROW_STATUS.PENDIENTE
+          row.importStatus === IMPORT_ROW_STATUS.PENDIENTE &&
+          document.requiresReview
         ) {
-          const items =
-            rowItems[document.id] ??
-            buildPurchaseInvoiceItemDrafts(document, accountOptions, productOptions)
+          const importStatus = IMPORT_ROW_STATUS.REQUIERE_REVISION
 
-          if (
-            needsPurchaseInvoiceReview(
-              document.id,
-              rowAccounts,
-              rowPaymentMethods,
-              { [document.id]: items },
-              {
-                requiresAccount: config.requiresAccount,
-                requiresPaymentMethod: config.requiresPaymentMethod,
-              },
-            )
-          ) {
-            const importStatus = IMPORT_ROW_STATUS.REQUIERE_REVISION
-
-            return {
-              ...row,
-              importStatus,
-              action: getSupportDocumentActionFromImportStatus(importStatus),
-            }
+          return {
+            ...row,
+            importStatus,
+            action: getSupportDocumentActionFromImportStatus(importStatus),
           }
         }
 
         return row
       }),
-    [
-      filteredDocuments,
-      importStatuses,
-      config.provider,
-      config.key,
-      config.requiresAccount,
-      config.requiresPaymentMethod,
-      rowItems,
-      rowAccounts,
-      rowPaymentMethods,
-      accountOptions,
-      productOptions,
-    ],
+    [filteredDocuments, importStatuses, config.provider, config.key],
   )
 
   // Estados que de verdad muestra alguna fila cargada — con esto se arma el
-  // desplegable de Estado. No alcanza con filterOptions.importStatuses del
-  // backend: ese trae el estado GUARDADO, y la tabla muestra uno DERIVADO
-  // (ver pageTableRows). Un documento guardado como "Lista" que ya existe en
-  // SIIGO se muestra como "Existente en SIIGO", así que ofrecer "Lista"
-  // llevaba a marcar un filtro que no devolvía ni una fila (bug reportado).
+  // desplegable de Estado. filterOptions.importStatuses del backend ya
+  // distingue Lista/Existente en SIIGO correctamente para toda la empresa
+  // (alreadyInSiigo es una columna real), pero "Requiere revisión" sigue sin
+  // estar ahí: es DERIVADO (ver pageTableRows) y depende de datos resueltos
+  // por proveedor que no viven en una columna, así que el backend no lo
+  // computa para cada documento de la empresa solo para armar el
+  // desplegable — pageStatuses sigue siendo la única forma de ofrecerlo, y
+  // solo ve lo que ya se cargó en esta página (limitación conocida y
+  // aceptada, a diferencia de Existente en SIIGO que sí quedó exacto).
   // Se calcula sobre pageTableRows, o sea antes del recorte por el propio
   // filtro de Estado, para no depender de lo que ese filtro ya descartó.
   const pageStatuses = useMemo(() => {
@@ -1093,15 +1204,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   }, [columnFilters.statuses, pageStatuses])
 
   const tableRows = useMemo(() => {
-    // "Requiere revisión" y "Existente en SIIGO" se piden al backend como su
-    // estado real (Pendiente/Lista, ver requestFilters más arriba) — el
-    // backend siempre devuelve el superconjunto de ambos (ej. pedir
-    // "Pendiente" trae tanto lo que sigue Pendiente como lo que ya se
-    // recalculó a "Requiere revisión"). El recorte final a EXACTAMENTE los
-    // checkboxes marcados se hace acá, sin importar cuál de los dos (o
-    // ninguno) haya seleccionado el usuario — bug real reportado: marcar
-    // solo "Pendiente" seguía mostrando filas en "Requiere revisión" porque
-    // antes solo se recortaba en el caso contrario (derivado sin su proxy).
+    // El backend ya filtra con precisión por Pendiente/Requiere revisión y
+    // Lista/Existente en SIIGO sobre TODA la empresa (ver
+    // needsPurchaseInvoiceReviewNarrowing en electronic-document.service.ts),
+    // así que esto ya no corrige un bug de recorte — es una red de seguridad
+    // barata por si `document.requiresReview` cambia entre el momento en que
+    // se pidió la página y el de renderizarla (ej. se guardó un borrador).
     const selectedStatuses = columnFilters.statuses
 
     const rows =
@@ -1304,64 +1412,31 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [selectedDocumentIds],
   )
 
-  const canSuggestAi = selectedDocumentIds.size === 1
-
-  const handleSuggestAccountWithAi = useCallback(async () => {
-    if (selectedDocumentIds.size !== 1) {
-      return
-    }
-
-    const [documentId] = selectedDocumentIds
-
-    setIsSuggestingAi(true)
-    setAiSuggestionError(null)
-    setAiSuggestionMessage(null)
-
-    try {
-      const suggestion = await requestAiPurchaseSuggestion(documentId)
-
-      if (suggestion.accountCode) {
-        handleConfigAccountChange({
-          code: suggestion.accountCode,
-          description: suggestion.accountName ?? suggestion.accountCode,
-        })
-      }
-
-      const messageParts: string[] = [
-        suggestion.accountCode
-          ? `Cuenta sugerida aplicada: ${suggestion.accountCode} — ${
-              suggestion.accountName ?? ''
-            }`.trim()
-          : 'La IA no encontró una cuenta contable segura para este documento.',
-      ]
-
-      if (suggestion.taxId && suggestion.taxName) {
-        messageParts.push(
-          `IVA sugerido (revisar y aplicar manualmente si corresponde): ${suggestion.taxName} (${suggestion.taxPercentage}%).`,
-        )
-      }
-
-      setAiSuggestionMessage(messageParts.join(' '))
-    } catch (error) {
-      setAiSuggestionError(
-        getApiErrorMessage(error, 'No se pudo obtener la sugerencia de IA.'),
-      )
-    } finally {
-      setIsSuggestingAi(false)
-    }
-  }, [
-    selectedDocumentIds,
-    handleConfigAccountChange,
-    setAiSuggestionError,
-    setAiSuggestionMessage,
-  ])
-
   const handleConfigPaymentMethodChange = useCallback(
     (paymentMethod: SiigoPaymentMethodOption | null) => {
       setSelectedPaymentMethod(paymentMethod)
       applySelectionToCheckedRows(paymentMethod, setRowPaymentMethods)
+
+      // Si el medio elegido es a crédito, se completa de una vez el
+      // vencimiento con la MISMA fecha del documento (la del Excel/
+      // importación) para las filas marcadas que todavía no tuvieran una —
+      // pedido explícito: que no quede bloqueado "Enviar" esperando un
+      // campo que antes no tenía dónde completarse.
+      if (paymentMethod && isCreditPaymentMethod(paymentMethod)) {
+        setRowDueDates((current) => {
+          const next = { ...current }
+
+          for (const documentId of selectedDocumentIds) {
+            if (!next[documentId]?.trim()) {
+              next[documentId] = rowDates[documentId] || getTodayLocalDate()
+            }
+          }
+
+          return next
+        })
+      }
     },
-    [applySelectionToCheckedRows],
+    [applySelectionToCheckedRows, selectedDocumentIds, rowDates],
   )
 
   const handleConfigCostCenterChange = useCallback(
@@ -1370,6 +1445,17 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       applySelectionToCheckedRows(costCenter, setRowCostCenters)
     },
     [applySelectionToCheckedRows],
+  )
+
+  // Centro de costos editable desde el detalle desplegado de CADA fila
+  // (Documento soporte) — a diferencia de handleConfigCostCenterChange, que
+  // solo aplica a los documentos marcados con el checkbox, este cambia uno
+  // solo sin necesidad de seleccionarlo primero.
+  const handleRowCostCenterChange = useCallback(
+    (documentId: string, costCenter: SiigoCostCenterOption) => {
+      setRowCostCenters((current) => ({ ...current, [documentId]: costCenter }))
+    },
+    [],
   )
 
   const handleConfigIvaChange = useCallback(
@@ -1556,6 +1642,40 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       }
 
       return canSendDocument(
+        document,
+        rowId,
+        importStatuses[rowId],
+        rowAccounts,
+        rowPaymentMethods,
+        rowDueDates,
+        effectiveRowItems,
+        {
+          requiresAccount: config.requiresAccount,
+          requiresPaymentMethod: config.requiresPaymentMethod,
+        },
+      )
+    },
+    [
+      documentsById,
+      importStatuses,
+      rowAccounts,
+      rowPaymentMethods,
+      rowDueDates,
+      effectiveRowItems,
+      config.requiresAccount,
+      config.requiresPaymentMethod,
+    ],
+  )
+
+  const getRowNotSendableReason = useCallback(
+    (rowId: string) => {
+      const document = documentsById[rowId]
+
+      if (!document) {
+        return null
+      }
+
+      return buildNotSendableReason(
         document,
         rowId,
         importStatuses[rowId],
@@ -2040,8 +2160,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       const importStartedAt = new Date().toISOString()
 
       try {
-        const { documentIds, documentCount, failedRows, jobId, errorCount } =
-          await config.importFile(file)
+        const {
+          documentIds,
+          documentCount,
+          failedRows,
+          jobId,
+          errorCount,
+          documentsReused,
+        } = await config.importFile(file)
 
         if (config.key === 'purchaseInvoice' && jobId && errorCount) {
           setPurchaseInvoiceRetryInfo({ jobId, errorCount })
@@ -2066,7 +2192,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
         setSendNotice(null)
         setShowSendOnly(false)
-        setImportNotice({ documentCount, documentIds })
+        setImportNotice({ documentCount, documentIds, documentsReused })
         setShowImportOnly(true)
         reloadDocuments({ resetPage: true })
         await watchImportedDocuments(documentIds, () =>
@@ -2132,6 +2258,65 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [],
   )
 
+  /** Persiste lo ajustado en el panel de detalle. Hasta ahora esos cambios
+   * vivían solo en memoria y se perdían al recargar o cambiar de sección: lo
+   * único que los persistía era el envío a SIIGO. */
+  const handleSaveDraft = useCallback(
+    async (documentId: string) => {
+      setSavingDraftDocumentId(documentId)
+      setErrorMessage(null)
+
+      try {
+        await saveElectronicDocumentDraft(documentId, {
+          items: (rowItems[documentId] ?? []).map((item) => ({
+            tipo: item.tipo,
+            producto: item.producto,
+            description: item.description,
+            quantity: item.quantity,
+            unitValue: item.unitValue,
+            discount: item.discount,
+            ivaTaxId: item.ivaTax?.id ?? null,
+            retefuenteTaxId: item.retefuenteTax?.id ?? null,
+          })),
+          accountCode: rowAccounts[documentId]?.code ?? null,
+          paymentMethodId: rowPaymentMethods[documentId]?.id ?? null,
+          dueDate: rowDueDates[documentId] ?? null,
+          observations: rowObservations[documentId] ?? null,
+          retentionTaxIds: (rowRetentions[documentId] ?? []).map(
+            (retention) => retention.id,
+          ),
+          documentDiscount: rowDocumentDiscounts[documentId] ?? null,
+        })
+
+        setDeleteFeedbackMessage('Cambios guardados.')
+        // El estado del documento puede cambiar al guardar (lo que faltaba
+        // por completar deja de faltar), así que se recarga el listado.
+        reloadDocuments({ resetPage: false })
+      } catch (error) {
+        setErrorMessage(
+          getApiErrorMessage(
+            error,
+            'No se pudieron guardar los cambios. Intenta nuevamente.',
+          ),
+        )
+      } finally {
+        setSavingDraftDocumentId(null)
+      }
+    },
+    [
+      reloadDocuments,
+      rowAccounts,
+      rowDocumentDiscounts,
+      rowDueDates,
+      rowItems,
+      rowObservations,
+      rowPaymentMethods,
+      rowRetentions,
+      setDeleteFeedbackMessage,
+      setErrorMessage,
+    ],
+  )
+
   const handleCreateJarvisTercero = useCallback(
     (document: ElectronicDocumentListItem) => {
       setTerceroModalDocument(document)
@@ -2143,6 +2328,88 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     setTerceroModalDocument(null)
     reloadDocuments({ resetPage: false })
   }, [reloadDocuments])
+
+  // Botón "Crear terceros pendientes": la consulta a NextPyme para
+  // enriquecer cada proveedor ya la hace el backend (JARVIS: GET
+  // terceros/pending; SIIGO: GET suppliers/pending), así que al hacer click
+  // se busca la lista completa — cruzando TODA la empresa, no solo la
+  // página cargada — y el modal se abre ya con nombre/correo resueltos,
+  // igual que el modal uno por uno.
+  const handleOpenBulkTerceroModal = useCallback(async () => {
+    setIsLoadingPendingSuppliers(true)
+    setErrorMessage(null)
+
+    try {
+      const response =
+        config.provider === 'JARVIS'
+          ? await fetchPendingJarvisTerceros()
+          : await fetchPendingSiigoSuppliers()
+      setPendingSuppliers(response.items)
+      setIsBulkTerceroModalOpen(true)
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(
+          error,
+          'No se pudieron cargar los proveedores pendientes.',
+        ),
+      )
+    } finally {
+      setIsLoadingPendingSuppliers(false)
+    }
+  }, [config.provider, setErrorMessage])
+
+  // "Crear" del modal masivo: JARVIS guarda en jarvis_terceros (no lanza
+  // por proveedores repetidos, los cuenta como "skipped"); SIIGO crea
+  // directo en SIIGO, EN PARALELO para todos los seleccionados (no uno por
+  // uno) — cada createSupplier ya resuelve todo (RUT/RUES, tipo de persona)
+  // solo con el documentId, así que el request es mínimo. Un fallo puntual
+  // en SIIGO no bloquea al resto del lote; se resume en el mensaje final.
+  const handleSubmitBulkTerceros = useCallback(
+    async (selected: PendingSupplierRow[]) => {
+      if (config.provider === 'JARVIS') {
+        const result = await createJarvisTercerosBulk(
+          selected.map((supplier) => ({
+            document_id: supplier.document_id,
+            document_type: supplier.document_type as JarvisDocumentType,
+            document_number: supplier.document_number,
+            name: supplier.name?.trim() || supplier.document_number,
+            ...(supplier.email?.trim()
+              ? { email: supplier.email.trim() }
+              : {}),
+          })),
+        )
+        setBulkTercerosMessage(
+          result.skipped > 0
+            ? `${result.created} tercero(s) creados, ${result.skipped} ya existían.`
+            : `${result.created} tercero(s) creados.`,
+        )
+      } else {
+        const result = await createSiigoSuppliersBulk(
+          selected.map((supplier) => ({
+            documentId: supplier.document_id,
+            ...(supplier.name?.trim() ? { name: supplier.name.trim() } : {}),
+            ...(supplier.email?.trim()
+              ? { email: supplier.email.trim() }
+              : {}),
+          })),
+        )
+        setBulkTercerosMessage(
+          result.failed > 0
+            ? `${result.created} tercero(s) creados en SIIGO, ${result.failed} fallaron.`
+            : `${result.created} tercero(s) creados en SIIGO.`,
+        )
+      }
+
+      setIsBulkTerceroModalOpen(false)
+      reloadDocuments({ resetPage: false })
+    },
+    [config.provider, reloadDocuments, setBulkTercerosMessage],
+  )
+
+  const hasPendingSupplierDocuments =
+    filterOptions?.importStatuses.includes(
+      IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR,
+    ) ?? false
 
   return (
     <main className="support-document-page" ref={pageRef}>
@@ -2160,6 +2427,18 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 {isDownloadingTemplate
                   ? config.downloadingTemplateLabel
                   : config.templateButtonLabel}
+              </Button>
+            )}
+
+            {hasPendingSupplierDocuments && (
+              <Button
+                variant="secondary"
+                onClick={handleOpenBulkTerceroModal}
+                disabled={isLoadingPendingSuppliers || isImporting}
+              >
+                {isLoadingPendingSuppliers
+                  ? 'Buscando proveedores...'
+                  : 'Crear terceros pendientes'}
               </Button>
             )}
 
@@ -2254,6 +2533,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             {autoCreatedSuppliersMessage}
           </p>
         )}
+        {bulkTercerosMessage && (
+          <p className="support-document-page__feedback" role="status">
+            {bulkTercerosMessage}
+          </p>
+        )}
 
         {purchaseInvoiceRetryInfo && (
           <p className="support-document-page__feedback" role="status">
@@ -2307,12 +2591,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         {paymentMethodsError && <ErrorMessage message={paymentMethodsError} />}
         {costCentersError && <ErrorMessage message={costCentersError} />}
         {retentionsError && <ErrorMessage message={retentionsError} />}
-        {aiSuggestionMessage && (
-          <p className="support-document-page__feedback" role="status">
-            {aiSuggestionMessage}
-          </p>
-        )}
-        {aiSuggestionError && <ErrorMessage message={aiSuggestionError} />}
       </div>
 
       <SupportDocumentFilterBar
@@ -2374,9 +2652,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           canDelete={canDeleteSelected}
           hasConfigurableSelection={hasConfigurableSelection}
           isRetry={isRetrySelected}
-          canSuggestAi={canSuggestAi}
-          isSuggestingAi={isSuggestingAi}
-          onSuggestAi={handleSuggestAccountWithAi}
           isSending={isSending}
           isDeleting={isDeleting}
           progressLabel={queueProgress?.label ?? null}
@@ -2402,6 +2677,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowPaymentMethods={rowPaymentMethods}
         rowRetentions={rowRetentions}
         rowIva={rowIva}
+        rowCostCenters={rowCostCenters}
+        costCenterOptions={costCenterOptions}
+        onRowCostCenterChange={handleRowCostCenterChange}
         rowDocumentDiscounts={rowDocumentDiscounts}
         showIvaColumn={config.showIvaField || config.key === 'purchaseInvoice'}
         showSummaryColumns={config.key === 'purchaseInvoice'}
@@ -2414,6 +2692,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         retentionCatalogTypes={config.retentionCatalogTypes}
         retentionOptionsByType={retentionOptionsByType}
         onSaveRowEdits={handleSaveRowEdits}
+        onSaveDraft={handleSaveDraft}
+        savingDraftDocumentId={savingDraftDocumentId}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         isLoading={isLoading}
@@ -2439,6 +2719,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         }
         canSendRow={canSendRow}
         canDeleteRow={canDeleteRow}
+        getNotSendableReason={getRowNotSendableReason}
         documentsById={documentsById}
         sendProcessingLabel={
           queueProgress?.label ?? config.sendProcessingLabel
@@ -2476,6 +2757,29 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         resumeDocumentId={terceroModalDocument?.id}
         provider={config.provider === 'JARVIS' ? 'JARVIS' : 'SIIGO'}
         onCreated={handleTerceroCreated}
+      />
+
+      <CreateTercerosBulkModal
+        isOpen={isBulkTerceroModalOpen}
+        onClose={() => setIsBulkTerceroModalOpen(false)}
+        suppliers={pendingSuppliers}
+        onSubmit={handleSubmitBulkTerceros}
+        title={
+          config.provider === 'JARVIS'
+            ? 'Crear terceros pendientes'
+            : 'Crear terceros pendientes en SIIGO'
+        }
+        descriptionLines={
+          config.provider === 'JARVIS'
+            ? [
+                'Estos terceros aparecen en los documentos recibidos y no existen en Jarvis.',
+                'Selecciona los que quieres crear. Podrás completar teléfono y dirección después desde Terceros.',
+              ]
+            : [
+                'Estos terceros aparecen en los documentos recibidos y no existen todavía en SIIGO.',
+                'Selecciona los que quieres crear — se enviarán todos al mismo tiempo, no uno por uno.',
+              ]
+        }
       />
 
       <ConfirmDialog

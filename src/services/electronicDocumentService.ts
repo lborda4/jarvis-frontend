@@ -1,4 +1,5 @@
 import type {
+  ElectronicDocumentDraftItem,
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListFilters,
   ElectronicDocumentListResponse,
@@ -45,46 +46,61 @@ function documentsCacheKey(
 
 export async function fetchElectronicDocuments(
   filters: Partial<ElectronicDocumentListFilters> = {},
+  options?: {
+    /** Ignora la caché de 10 minutos y siempre pega contra el server —
+     * necesario para watchImportedDocuments: sondea con la MISMA clave de
+     * filtros en cada intento (mismo page/tipo), así que sin esto cada
+     * intento del polling devolvía la respuesta cacheada del primero en vez
+     * de reflejar lo que el backend ya validó, y el aviso de "tardando más
+     * de lo esperado" salía aunque el server ya hubiera terminado. */
+    force?: boolean
+  },
 ): Promise<ElectronicDocumentListResponse> {
   const key = documentsCacheKey(filters)
 
-  return cachedQuery(key, QUERY_STALE_MS.documents, async () => {
-    const response = await apiClient.get<ElectronicDocumentListResponse>(
-      ELECTRONIC_DOCUMENTS_ENDPOINT,
-      {
-        params: {
-          status: filters.status || undefined,
-          dateFrom: filters.dateFrom || undefined,
-          dateTo: filters.dateTo || undefined,
-          search: filters.search || undefined,
-          electronicDocumentType: filters.electronicDocumentType || undefined,
-          page: filters.page || undefined,
-          limit: filters.limit || undefined,
-          supplierNits:
-            filters.supplierNits && filters.supplierNits.length > 0
-              ? filters.supplierNits.join(',')
-              : undefined,
-          issueDates:
-            filters.issueDates && filters.issueDates.length > 0
-              ? filters.issueDates.join(',')
-              : undefined,
-          issueDateFrom: filters.issueDateFrom || undefined,
-          issueDateTo: filters.issueDateTo || undefined,
-          siigoDocumentNumbers:
-            filters.siigoDocumentNumbers &&
-            filters.siigoDocumentNumbers.length > 0
-              ? filters.siigoDocumentNumbers.join(',')
-              : undefined,
-          importStatuses:
-            filters.importStatuses && filters.importStatuses.length > 0
-              ? filters.importStatuses.join(',')
-              : undefined,
+  return cachedQuery(
+    key,
+    QUERY_STALE_MS.documents,
+    async () => {
+      const response = await apiClient.get<ElectronicDocumentListResponse>(
+        ELECTRONIC_DOCUMENTS_ENDPOINT,
+        {
+          params: {
+            status: filters.status || undefined,
+            dateFrom: filters.dateFrom || undefined,
+            dateTo: filters.dateTo || undefined,
+            search: filters.search || undefined,
+            electronicDocumentType:
+              filters.electronicDocumentType || undefined,
+            page: filters.page || undefined,
+            limit: filters.limit || undefined,
+            supplierNits:
+              filters.supplierNits && filters.supplierNits.length > 0
+                ? filters.supplierNits.join(',')
+                : undefined,
+            issueDates:
+              filters.issueDates && filters.issueDates.length > 0
+                ? filters.issueDates.join(',')
+                : undefined,
+            issueDateFrom: filters.issueDateFrom || undefined,
+            issueDateTo: filters.issueDateTo || undefined,
+            siigoDocumentNumbers:
+              filters.siigoDocumentNumbers &&
+              filters.siigoDocumentNumbers.length > 0
+                ? filters.siigoDocumentNumbers.join(',')
+                : undefined,
+            importStatuses:
+              filters.importStatuses && filters.importStatuses.length > 0
+                ? filters.importStatuses.join(',')
+                : undefined,
+          },
         },
-      },
-    )
+      )
 
-    return response.data
-  })
+      return response.data
+    },
+    { force: options?.force },
+  )
 }
 
 export function peekElectronicDocuments(
@@ -139,8 +155,12 @@ export async function resumeElectronicDocument(
   return response.data
 }
 
+/** El backend solo confirma que encoló el lote — ya no espera a que
+ * termine (ver SiigoDocumentResumeService.resumeBatchInBackground). El
+ * progreso real se sigue leyendo con fetchElectronicDocuments (forzando
+ * bypass de caché — ver watchImportedDocuments), no con esta respuesta. */
 export interface ResumeElectronicDocumentsBatchResponse {
-  items: ResumeElectronicDocumentResponse[]
+  accepted: boolean
 }
 
 export async function resumeElectronicDocumentsBatch(
@@ -162,6 +182,39 @@ export function patchElectronicDocumentsCache(
   response: ElectronicDocumentListResponse,
 ): void {
   setCachedQuery(documentsCacheKey(filters), response)
+}
+
+export interface SaveElectronicDocumentDraftRequest {
+  items?: ElectronicDocumentDraftItem[]
+  accountCode?: string | null
+  paymentMethodId?: number | null
+  dueDate?: string | null
+  observations?: string | null
+  retentionTaxIds?: number[]
+  documentDiscount?: number | null
+}
+
+export interface SaveElectronicDocumentDraftResponse {
+  success: boolean
+  status: string
+  savedAt: string
+}
+
+/** Guarda el borrador de contabilización del documento. Invalida la caché
+ * del listado porque el estado del documento puede cambiar al guardarlo (lo
+ * que faltaba por completar deja de faltar). */
+export async function saveElectronicDocumentDraft(
+  documentId: string,
+  request: SaveElectronicDocumentDraftRequest,
+): Promise<SaveElectronicDocumentDraftResponse> {
+  const response = await apiClient.put<SaveElectronicDocumentDraftResponse>(
+    `${ELECTRONIC_DOCUMENTS_ENDPOINT}/${documentId}/draft`,
+    request,
+  )
+
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+
+  return response.data
 }
 
 /** Elimina un documento local que aún no está en estado lista. */

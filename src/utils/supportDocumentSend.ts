@@ -2,22 +2,25 @@ import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
-import { hasUnresolvedProductItem } from '../types/purchaseInvoiceItemDraft'
+import {
+  hasEmptyItemDescription,
+  hasUnresolvedProductItem,
+} from '../types/purchaseInvoiceItemDraft'
 import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
 import { isCreditPaymentMethod } from './siigoPaymentMethods'
 import { isSupplierCheckPending, isSupplierMissingInSiigo } from './supplierSiigoStatus'
 
-/** Un ítem tipo 'Account' con su propio código (`producto`) ya llenado trae
- * la cuenta que necesita — en el editor de Factura de compra por ítem, la
- * cuenta a nivel de documento (rowAccounts) es solo un FALLBACK para ítems
- * que se dejan en blanco (ver buildSiigoPurchaseSendRequest en
- * buildSiigoDocumentRequest.ts: `code: isAccountItem ? editedCode ||
- * account.code : editedCode`). Si TODOS los ítems editados ya tienen su
- * propio código, el documento está listo para enviar aunque
- * rowAccounts[documentId] nunca se haya llenado — bug real reportado:
- * cuenta asignada a mano en cada ítem ("gastos de representación"), pero
- * "Enviar" seguía deshabilitado porque el chequeo solo miraba el estado a
- * nivel de documento, no lo que el usuario ya había resuelto por ítem. */
+/** Un ítem tipo 'Account'/'FixedAsset' con su propio código (`producto`) ya
+ * llenado trae la cuenta/activo que necesita ('Product' se valida aparte,
+ * ver hasUnresolvedProductItem). rowAccounts[documentId] (la cuenta a nivel
+ * de documento) solo se usa como fallback cuando NO hay ítems editados
+ * (ver buildSiigoPurchaseSendRequest en buildSiigoDocumentRequest.ts: `code:
+ * isAccountItem ? editedCode || account.code : editedCode`) — apenas hay
+ * ítems, cada uno debe traer su propio código sin excepción: dejarlo en
+ * blanco ya NO cae calladamente a la cuenta del documento (bug real
+ * reportado: el contador borraba el código del ítem para corregirlo y
+ * "Enviar" seguía habilitado porque una cuenta vieja seguía puesta a nivel
+ * de documento, invisible en este editor). */
 function itemsSatisfyAccountRequirement(
   items: PurchaseInvoiceItemDraft[] | undefined,
 ): boolean {
@@ -26,55 +29,8 @@ function itemsSatisfyAccountRequirement(
   }
 
   return items.every((item) =>
-    item.tipo === 'Account' ? item.producto.trim().length > 0 : true,
+    item.tipo === 'Product' ? true : item.producto.trim().length > 0,
   )
-}
-
-/**
- * true si el documento quedó sin resolución automática para al menos un
- * ítem o para el medio de pago — ni la regla exacta del proveedor, ni el
- * historial, ni la IA encontraron algo que exista en el catálogo real. Se
- * usa para mostrar "Requiere revisión" en vez de "Pendiente" (que sugiere
- * que todo ya está listo y solo falta hacer clic en Enviar).
- *
- * Tres casos:
- * - Producto sin código: SIEMPRE requiere revisión (no existe un
- *   "producto por defecto" a nivel de documento en SIIGO).
- * - Cuenta sin código: solo requiere revisión si TAMPOCO hay una cuenta a
- *   nivel de documento (rowAccounts) que sirva de respaldo — caso real
- *   reportado: proveedor nuevo (D1 SAS) donde ni la IA ni el historial
- *   encontraron cuenta para ningún ítem, y el documento seguía marcado
- *   "Pendiente" como si solo faltara un clic.
- * - Medio de pago sin resolver: no se puede enviar vacío — caso real
- *   reportado: aunque la IA/historial ya resolvieron la cuenta, el medio de
- *   pago seguía en blanco y el documento igual se veía "Pendiente".
- */
-export function needsPurchaseInvoiceReview(
-  documentId: string,
-  rowAccounts: Record<string, SiigoAccountOption | null>,
-  rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
-  rowItems: Record<string, PurchaseInvoiceItemDraft[]> | undefined,
-  options: { requiresAccount: boolean; requiresPaymentMethod: boolean },
-): boolean {
-  const items = rowItems?.[documentId]
-
-  if (hasUnresolvedProductItem(items)) {
-    return true
-  }
-
-  if (
-    options.requiresAccount &&
-    !rowAccounts[documentId] &&
-    !itemsSatisfyAccountRequirement(items)
-  ) {
-    return true
-  }
-
-  if (options.requiresPaymentMethod && !rowPaymentMethods[documentId]) {
-    return true
-  }
-
-  return false
 }
 
 export function isDocumentReadyToSend(
@@ -95,16 +51,25 @@ export function isDocumentReadyToSend(
     return false
   }
 
+  // Una descripción vacía en cualquier ítem bloquea el envío igual que un
+  // código vacío — no hay un texto por defecto al que caer.
+  if (hasEmptyItemDescription(rowItems?.[documentId])) {
+    return false
+  }
+
   const requiresAccount = options?.requiresAccount ?? true
   const requiresPaymentMethod = options?.requiresPaymentMethod ?? true
   const paymentMethod = rowPaymentMethods[documentId]
+  const items = rowItems?.[documentId]
+  const hasItems = Boolean(items && items.length > 0)
 
-  if (
-    requiresAccount &&
-    !rowAccounts[documentId] &&
-    !itemsSatisfyAccountRequirement(rowItems?.[documentId])
-  ) {
-    return false
+  if (requiresAccount) {
+    // Con ítems editados, la cuenta a nivel de documento deja de contar como
+    // fallback válido (ver itemsSatisfyAccountRequirement) — sin ítems, sigue
+    // siendo la única fuente posible.
+    if (hasItems ? !itemsSatisfyAccountRequirement(items) : !rowAccounts[documentId]) {
+      return false
+    }
   }
 
   if (requiresPaymentMethod && !paymentMethod) {
@@ -162,14 +127,19 @@ export function buildNotSendableReason(
     return 'Hay un ítem de producto sin código asignado — requiere revisión.'
   }
 
+  if (hasEmptyItemDescription(rowItems?.[documentId])) {
+    return 'Falta la descripción de un ítem.'
+  }
+
   const requiresAccount = options?.requiresAccount ?? true
   const requiresPaymentMethod = options?.requiresPaymentMethod ?? true
   const paymentMethod = rowPaymentMethods[documentId]
+  const items = rowItems?.[documentId]
+  const hasItems = Boolean(items && items.length > 0)
 
   if (
     requiresAccount &&
-    !rowAccounts[documentId] &&
-    !itemsSatisfyAccountRequirement(rowItems?.[documentId])
+    (hasItems ? !itemsSatisfyAccountRequirement(items) : !rowAccounts[documentId])
   ) {
     return 'Falta asignar la cuenta contable.'
   }
@@ -262,7 +232,9 @@ export function countSendableDocuments(
  * EXISTENTE EN SIIGO): se pueden borrar de la BD. EXISTENTE EN SIIGO queda
  * afuera a propósito — esa factura ya existía en SIIGO antes de este import
  * (no la creamos nosotros), así que no debe poder borrarse ni de la BD ni de
- * SIIGO (ver isDocumentDeletableFromSiigo, que tampoco la incluye). */
+ * SIIGO (ver isDocumentDeletableFromSiigo, que tampoco la incluye). LISTA
+ * también queda afuera: ya se envió y SIIGO confirmó — caso real pedido: que
+ * un documento correctamente enviado ya no muestre botón de eliminar. */
 export function isDocumentRemovableFromDatabase(
   importStatus: ImportRowStatus | undefined,
 ): boolean {
@@ -277,14 +249,17 @@ export function isDocumentRemovableFromDatabase(
   )
 }
 
-/** LISTA en Siigo: se elimina en SIIGO y se revierte el estado local. */
+/** Ya no se permite revertir un envío confirmado en SIIGO borrándolo desde
+ * acá (antes LISTA sí se podía, para corregir un envío hecho por error) —
+ * caso real pedido: los documentos que se enviaron correctamente a SIIGO no
+ * deben mostrar botón de eliminar. Queda la función (en vez de borrarla del
+ * todo) para no tener que tocar cada lugar que la llama si esto cambia de
+ * nuevo más adelante. */
 export function isDocumentDeletableFromSiigo(
-  importStatus: ImportRowStatus | undefined,
-  provider: 'SIIGO' | 'JARVIS',
+  _importStatus: ImportRowStatus | undefined,
+  _provider: 'SIIGO' | 'JARVIS',
 ): boolean {
-  return (
-    provider === 'SIIGO' && importStatus === IMPORT_ROW_STATUS.LISTA
-  )
+  return false
 }
 
 export function isDocumentDeletable(

@@ -55,18 +55,14 @@ const DERIVED_STATUSES = [
 
 export function buildSupportDocumentFilterOptions(
   filterOptions: ElectronicDocumentFilterOptions | null,
-  /** Estados que de verdad se ven en alguna fila cargada. El desplegable de
-   * Estado se arma con ESTE set, no con filterOptions.importStatuses a secas,
-   * porque los dos no son lo mismo: el backend reporta el estado GUARDADO de
-   * cada documento, mientras que la tabla muestra un estado DERIVADO (ver
-   * mapDocumentToImportRowStatus y pageTableRows en SupportDocumentPage.tsx).
-   * Un documento guardado como "Lista" puede mostrarse como "Existente en
-   * SIIGO", y uno "Pendiente" como "Requiere revisión" — así que ofrecer el
-   * estado guardado llevaba a filtros que no devolvían ni una fila (bug real
-   * reportado: "Lista" marcada, tabla vacía). Los dos estados derivados
-   * tampoco existen en el backend, así que se agregan desde acá.
+  /** Estados que se ven en alguna fila de la página cargada. Solo decide si
+   * se ofrecen los DOS estados derivados ("Requiere revisión", "Existente en
+   * SIIGO"), que no existen en el backend porque se calculan en el frontend
+   * a partir de los datos del documento (ver pageTableRows en
+   * SupportDocumentPage.tsx) y por eso no se pueden conocer más allá de la
+   * página cargada.
    *
-   * `null` desactiva el recorte y deja pasar lo que reporte el backend. */
+   * `null` los deja fuera del desplegable. */
   visibleStatuses: ReadonlySet<ImportRowStatus> | null = null,
   /** Un estado ya marcado siempre se ofrece, aunque no quede ninguna fila
    * con él: si no, la selección vigente desaparecería del desplegable y no
@@ -90,11 +86,15 @@ export function buildSupportDocumentFilterOptions(
     visibleStatuses.has(status) ||
     selectedStatuses.includes(status)
 
+  // Los estados del backend salen de un DISTINCT sobre TODOS los documentos
+  // de la empresa, así que se ofrecen tal cual: recortarlos con lo que se ve
+  // en la página actual escondía, por ejemplo, un "Pendiente" que solo
+  // existía en la página 2 (bug reportado).
   const statuses: ColumnCheckboxFilterOption<ImportRowStatus>[] =
-    filterOptions.importStatuses
-      .map((status) => status as ImportRowStatus)
-      .filter(isOfferable)
-      .map((status) => ({ value: status, label: status }))
+    filterOptions.importStatuses.map((status) => ({
+      value: status as ImportRowStatus,
+      label: status,
+    }))
 
   for (const derivedStatus of DERIVED_STATUSES) {
     if (

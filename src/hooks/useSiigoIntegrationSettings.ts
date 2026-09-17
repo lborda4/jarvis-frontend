@@ -5,10 +5,10 @@ import { getApiErrorMessage } from '../services/apiClient'
 import {
   fetchSiigoCredentialsStatus,
   fetchSiigoDocumentTypes,
-  runSiigoPurchaseHistorySyncToCompletion,
+  startSiigoPurchaseHistorySync,
   saveSiigoCredentials,
+  importSiigoAccountsExcel,
   saveSiigoDocumentTypes,
-  syncSiigoSuppliers,
 } from '../services/siigoService'
 import type {
   SaveSiigoCredentialsResponse,
@@ -16,9 +16,9 @@ import type {
   SiigoSubscriptionStatus,
 } from '../types/siigo'
 import {
-  formatBalanceTrialSuccessMessage,
-  BALANCE_TRIAL_IMPORT_ERROR_MESSAGE,
-} from '../utils/formatBalanceTrialSuccess'
+  ACCOUNTS_IMPORT_ERROR_MESSAGE,
+  formatAccountsImportSuccessMessage,
+} from '../utils/formatAccountsImportSuccess'
 import { formatSiigoCredentialsSuccessMessage } from '../utils/formatSiigoCredentialsSuccess'
 
 export type SiigoSetupStepId = 'credentials' | 'accounts' | 'document_types'
@@ -112,7 +112,7 @@ export function useSiigoIntegrationSettings() {
       {
         id: 'accounts',
         label: 'Cuentas contables',
-        description: 'Sincronizar desde el Balance de Prueba',
+        description: 'Importar el plan de cuentas desde Excel',
       },
     ]
 
@@ -285,9 +285,31 @@ export function useSiigoIntegrationSettings() {
     setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
     markConfigured()
     await refreshSetupStatus()
+
+    // Arranca el historial de compras apenas quedan guardadas las
+    // credenciales, en vez de esperar al paso de "Cuentas contables" — corre
+    // en segundo plano (no se espera acá, no bloquea este paso ni los que
+    // siguen) mientras el usuario sube el Excel de cuentas y elige la
+    // resolución. startSync es idempotente (ver
+    // siigo-purchase-history-sync.service.ts): si ya hay un job corriendo
+    // para la empresa, lo reusa en vez de duplicarlo, así que no pasa nada
+    // si este paso se reintenta. Si falla acá (ej. hipo de red), no ensucia
+    // el mensaje de éxito de credenciales — la detección de "ya existe en
+    // SIIGO" en prepareSupplierAndAccounts sigue funcionando igual aunque
+    // este sync arranque más tarde o nunca.
+    if (hasPurchaseInvoiceAccess) {
+      void startSiigoPurchaseHistorySync().catch((error) => {
+        console.error(
+          'No se pudo iniciar el sync de historial de compras SIIGO en segundo plano.',
+          error,
+        )
+      })
+    }
+
     return response
   }, [
     accessKey,
+    hasPurchaseInvoiceAccess,
     markConfigured,
     partnerId,
     refreshSetupStatus,
@@ -335,8 +357,12 @@ export function useSiigoIntegrationSettings() {
     ],
   )
 
-  const handleSyncSuppliers = useCallback(async () => {
+  const handleImportAccountsExcel = useCallback(async (file?: File) => {
     if (isSyncingSuppliers || isSavingCredentials) {
+      return
+    }
+
+    if (!file) {
       return
     }
 
@@ -349,7 +375,7 @@ export function useSiigoIntegrationSettings() {
 
     if (!isSiigoConfigured) {
       setErrorMessage(
-        'Primero guarde las credenciales de SIIGO para poder sincronizar las cuentas.',
+        'Primero guarde las credenciales de SIIGO para poder importar las cuentas.',
       )
       return
     }
@@ -358,27 +384,12 @@ export function useSiigoIntegrationSettings() {
     clearMessages()
 
     try {
-      // Cuentas contables (Balance de Prueba) e historial de Factura de
-      // compra arrancan juntos y corren de forma independiente — si uno
-      // falla, el otro sigue su curso igual — para que el cliente no tenga
-      // que esperar dos sincronizaciones separadas (una ahora y otra más
-      // adelante al entrar a Factura de compra). Este paso no se da por
-      // terminado hasta que ambos terminan. Solo se corre el de facturas si
-      // el plan incluye Factura de compra; si ese falla, no bloquea ni
-      // ensucia el mensaje de éxito de este paso.
-      const [accountsResult] = await Promise.allSettled([
-        syncSiigoSuppliers(),
-        hasPurchaseInvoiceAccess
-          ? runSiigoPurchaseHistorySyncToCompletion()
-          : Promise.resolve(null),
-      ])
-
-      if (accountsResult.status === 'rejected') {
-        throw accountsResult.reason
-      }
-
-      const response = accountsResult.value
-      setSuppliersSuccessMessage(formatBalanceTrialSuccessMessage(response))
+      // El historial de Factura de compra ya arrancó en segundo plano al
+      // guardar las credenciales (ver saveCredentialsRequest) y sigue su
+      // curso de forma independiente — este paso ya no espera a que
+      // termine, solo se ocupa de la importación del plan de cuentas.
+      const response = await importSiigoAccountsExcel(file)
+      setSuppliersSuccessMessage(formatAccountsImportSuccessMessage(response))
       await refreshSetupStatus()
 
       const status = await fetchSiigoCredentialsStatus({ force: true })
@@ -390,14 +401,14 @@ export function useSiigoIntegrationSettings() {
 
       if (!accountsSaved) {
         setErrorMessage(
-          'La sincronización terminó, pero no se encontraron cuentas contables transaccionales. Verifique el Balance de Prueba en SIIGO.',
+          'El archivo se procesó, pero no se guardó ninguna cuenta contable. Revise que el Excel tenga las columnas esperadas.',
         )
       } else {
         goToNextStep('accounts')
       }
     } catch (error) {
       setErrorMessage(
-        getApiErrorMessage(error, BALANCE_TRIAL_IMPORT_ERROR_MESSAGE),
+        getApiErrorMessage(error, ACCOUNTS_IMPORT_ERROR_MESSAGE),
       )
     } finally {
       setIsSyncingSuppliers(false)
@@ -406,7 +417,6 @@ export function useSiigoIntegrationSettings() {
   }, [
     clearMessages,
     goToNextStep,
-    hasPurchaseInvoiceAccess,
     isSavingCredentials,
     isSiigoConfigured,
     isSyncingSuppliers,
@@ -579,7 +589,7 @@ export function useSiigoIntegrationSettings() {
     setSelectedSupportDocumentTypeId,
     setSelectedPurchaseDocumentTypeId,
     handleSaveCredentials,
-    handleSyncSuppliers,
+    handleImportAccountsExcel,
     handleSaveDocumentTypes,
   }
 }

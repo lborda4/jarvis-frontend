@@ -1,11 +1,15 @@
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
+import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
+import CostCenterAutocomplete from '../CostCenterAutocomplete'
 import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import { ELECTRONIC_DOCUMENT_TYPE } from '../../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
+import { formatSupportDocumentTableDate } from '../../utils/formatSupportDocumentTableDisplay'
 import { formatCurrency } from '../../utils/formatters'
+import { isCreditPaymentMethod } from '../../utils/siigoPaymentMethods'
 import PurchaseInvoiceDetailEditor, {
   type PurchaseInvoiceDetailEditorSave,
 } from './PurchaseInvoiceDetailEditor'
@@ -24,6 +28,8 @@ export interface DocumentRowDetailEditableProps {
   retentionOptionsByType: Record<string, SiigoTaxOption[]>
   documentDiscount: number
   disabled?: boolean
+  onSaveDraft?: () => void | Promise<void>
+  isSavingDraft?: boolean
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
 }
 
@@ -33,6 +39,19 @@ interface DocumentRowDetailPanelProps {
   /** Solo Factura de compra: convierte el panel en un editor completo
    * (ítems, forma de pago, plazo, retenciones/IVA, observaciones). */
   editable?: DocumentRowDetailEditableProps
+  /** Documento soporte (no editable): centro de costos editable desde este
+   * mismo detalle desplegado, sin necesidad de seleccionar la fila primero
+   * (a diferencia del centro de costos de la barra de selección masiva). */
+  costCenterOptions?: SiigoCostCenterOption[]
+  costCenter?: SiigoCostCenterOption | null
+  onCostCenterChange?: (costCenter: SiigoCostCenterOption) => void
+  costCenterDisabled?: boolean
+  /** Documento soporte (no editable): medio de pago de la fila — si es a
+   * crédito, se muestra la fecha de vencimiento (solo lectura: se edita
+   * desde la barra de selección masiva de arriba, no desde acá — pedido
+   * explícito para no tener dos lugares editando el mismo dato). */
+  paymentMethod?: SiigoPaymentMethodOption | null
+  dueDate?: string | null
 }
 
 function formatDocumentReference(document: ElectronicDocumentListItem): string {
@@ -47,6 +66,12 @@ export default function DocumentRowDetailPanel({
   document,
   observations,
   editable,
+  costCenterOptions,
+  costCenter,
+  onCostCenterChange,
+  costCenterDisabled = false,
+  paymentMethod,
+  dueDate,
 }: DocumentRowDetailPanelProps) {
   const cufe = document.cufe?.trim()
   const dianNotes = document.observations?.trim() || ''
@@ -79,6 +104,8 @@ export default function DocumentRowDetailPanel({
           retentionOptionsByType={editable.retentionOptionsByType}
           documentDiscount={editable.documentDiscount}
           disabled={editable.disabled}
+          onSaveDraft={editable.onSaveDraft}
+          isSavingDraft={editable.isSavingDraft}
           onChange={editable.onChange}
         />
       </div>
@@ -108,6 +135,30 @@ export default function DocumentRowDetailPanel({
           <span className="support-table__detail-label">Total</span>
           <span>{formatCurrency(document.total)}</span>
         </div>
+
+        {onCostCenterChange && (
+          <div className="support-table__detail-field">
+            <span className="support-table__detail-label">
+              Centro de costos
+            </span>
+            <CostCenterAutocomplete
+              value={costCenter ?? null}
+              onChange={onCostCenterChange}
+              options={costCenterOptions}
+              disabled={costCenterDisabled}
+              placeholder="Ninguno"
+            />
+          </div>
+        )}
+
+        {isCreditPaymentMethod(paymentMethod) && (
+          <div className="support-table__detail-field">
+            <span className="support-table__detail-label">
+              Fecha de vencimiento
+            </span>
+            <span>{formatSupportDocumentTableDate(dueDate ?? undefined)}</span>
+          </div>
+        )}
 
         {resolvedObservations && (
           <div className="support-table__detail-field support-table__detail-field--wide">

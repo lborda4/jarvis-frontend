@@ -40,7 +40,7 @@ function buildSupplierReceiptNumber(
 
 import {
   getTodayLocalDate,
-  isSupportDocumentDateInRange,
+  isValidLocalDateFormat,
 } from './supportDocumentDate'
 import { isSupportDocumentRetentionTaxType } from '../constants/siigoTaxCatalog'
 import { calculateSiigoSupportDocumentPaymentValue } from './siigoSupportDocumentTotal'
@@ -103,7 +103,11 @@ export function buildSiigoSupportDocumentRequest(
       .map((retention) => retentions.find((tax) => tax.id === retention.id))
       .filter((retention): retention is SiigoTaxOption => Boolean(retention)),
   )
-  const documentDate = isSupportDocumentDateInRange(selectedDate)
+  // Antes caía a hoy si selectedDate quedaba fuera de la ventana de 5 días
+  // hacia atrás — eso pisaba en silencio la fecha que el usuario acababa de
+  // editar a mano. Ahora solo se valida el formato (igual que Factura de
+  // compra, ver isValidLocalDateFormat): se permite cualquier fecha.
+  const documentDate = isValidLocalDateFormat(selectedDate)
     ? selectedDate
     : getTodayLocalDate()
   const resolvedObservations =

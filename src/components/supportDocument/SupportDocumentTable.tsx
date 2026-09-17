@@ -3,6 +3,7 @@ import Button from '../Button'
 import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
 import SupportDocumentColumnHeader from './SupportDocumentColumnHeader'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
+import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
 import type { SiigoProductOption } from '../../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../../constants/siigoTaxCatalog'
@@ -77,6 +78,14 @@ interface SupportDocumentTableProps {
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowIva: Record<string, SiigoTaxOption | null>
+  /** Documento soporte: centro de costos editable desde el detalle
+   * desplegado de cada fila (no solo desde la barra de selección masiva). */
+  rowCostCenters?: Record<string, SiigoCostCenterOption | null>
+  costCenterOptions?: SiigoCostCenterOption[]
+  onRowCostCenterChange?: (
+    documentId: string,
+    costCenter: SiigoCostCenterOption,
+  ) => void
   /** Solo aplica a Factura de compra SIIGO. */
   showIvaColumn?: boolean
   /** Factura de compra: cambia Cuenta contable/Medio de pago por
@@ -92,6 +101,9 @@ interface SupportDocumentTableProps {
   retentionCatalogTypes?: readonly string[]
   retentionOptionsByType?: Record<string, SiigoTaxOption[]>
   onSaveRowEdits?: (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => void
+  /** Persiste el borrador del documento (electronic_documents.draft). */
+  onSaveDraft?: (documentId: string) => void | Promise<void>
+  savingDraftDocumentId?: string | null
   sortColumn: SupportDocumentSortColumn | null
   sortDirection: SupportDocumentSortDirection
   isLoading?: boolean
@@ -103,6 +115,11 @@ interface SupportDocumentTableProps {
   sortDisabled?: boolean
   canSendRow: (rowId: string) => boolean
   canDeleteRow: (rowId: string) => boolean
+  /** Explica por qué "Enviar" está deshabilitado en esta fila (tooltip) —
+   * caso real reportado: filas con todo lleno a simple vista pero sin poder
+   * enviar (p.ej. medio de pago a crédito sin fecha de vencimiento, un campo
+   * que no es columna de la tabla), sin ninguna pista de qué faltaba. */
+  getNotSendableReason?: (rowId: string) => string | null
   sendProcessingLabel?: string
   supplierMissingLabel?: string
   onToggleRow: (id: string) => void
@@ -116,12 +133,15 @@ interface SupportDocumentTableProps {
 
 function ImportStatusBadge({
   status,
+  aiConfidence,
 }: {
   status: SupportDocumentRow['importStatus']
+  aiConfidence?: number | null
 }) {
   return (
     <span
       className={`status-badge status-badge--${normalizeStatusClass(status)}`}
+      title={aiConfidence != null ? `Confianza IA: ${aiConfidence}%` : undefined}
     >
       {status}
     </span>
@@ -136,6 +156,8 @@ function ActionCell({
   isDeletingDocument = false,
   sendProcessingLabel = 'Enviando documento a SIIGO...',
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
+  sendLabel = 'Enviar',
+  title,
 }: {
   action: SupportDocumentAction
   disabled?: boolean
@@ -144,6 +166,8 @@ function ActionCell({
   isDeletingDocument?: boolean
   sendProcessingLabel?: string
   supplierMissingLabel?: string
+  sendLabel?: string
+  title?: string
 }) {
   if (action === 'supplier_missing') {
     if (onClick) {
@@ -188,6 +212,10 @@ function ActionCell({
     )
   }
 
+  if (action === 'empty') {
+    return null
+  }
+
   if (action === 'delete') {
     return (
       <Button
@@ -209,8 +237,9 @@ function ActionCell({
       className="support-table__action"
       disabled={disabled}
       onClick={onClick}
+      title={disabled ? title : undefined}
     >
-      Enviar
+      {sendLabel}
     </Button>
   )
 }
@@ -225,6 +254,9 @@ function SupportDocumentTable({
   rowPaymentMethods,
   rowRetentions,
   rowIva,
+  rowCostCenters = {},
+  costCenterOptions = [],
+  onRowCostCenterChange,
   showIvaColumn = false,
   showSummaryColumns = false,
   rowDueDates = {},
@@ -236,6 +268,8 @@ function SupportDocumentTable({
   retentionCatalogTypes = [],
   retentionOptionsByType = {},
   onSaveRowEdits,
+  onSaveDraft,
+  savingDraftDocumentId = null,
   sortColumn,
   sortDirection,
   isLoading = false,
@@ -247,6 +281,7 @@ function SupportDocumentTable({
   sortDisabled = false,
   canSendRow,
   canDeleteRow,
+  getNotSendableReason,
   sendProcessingLabel,
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
   onToggleRow,
@@ -696,7 +731,10 @@ function SupportDocumentTable({
                   )}
                   <td>
                     <div className="support-table__status-cell">
-                      <ImportStatusBadge status={row.importStatus} />
+                      <ImportStatusBadge
+                        status={row.importStatus}
+                        aiConfidence={documentsById[row.id]?.aiConfidence}
+                      />
                       {row.siigoDocumentNumber && (
                         <span className="support-table__status-consecutivo">
                           Consecutivo:{' '}
@@ -720,6 +758,16 @@ function SupportDocumentTable({
                       isDeletingDocument={isRowDeleting}
                       sendProcessingLabel={sendProcessingLabel}
                       supplierMissingLabel={supplierMissingLabel}
+                      sendLabel={
+                        row.importStatus === IMPORT_ROW_STATUS.ERROR
+                          ? 'Reintentar'
+                          : undefined
+                      }
+                      title={
+                        isSendAction
+                          ? (getNotSendableReason?.(row.id) ?? undefined)
+                          : undefined
+                      }
                     />
                   </td>
                 </tr>,
@@ -732,6 +780,17 @@ function SupportDocumentTable({
                       <DocumentRowDetailPanel
                         document={document}
                         observations={rowObservations[row.id]}
+                        costCenterOptions={costCenterOptions}
+                        costCenter={rowCostCenters[row.id] ?? null}
+                        onCostCenterChange={
+                          onRowCostCenterChange
+                            ? (costCenter) =>
+                                onRowCostCenterChange(row.id, costCenter)
+                            : undefined
+                        }
+                        costCenterDisabled={isSending || isDeleting || isRowLocked}
+                        paymentMethod={rowPaymentMethods[row.id] ?? null}
+                        dueDate={rowDueDates[row.id] ?? null}
                         editable={
                           showSummaryColumns
                             ? {
@@ -757,13 +816,19 @@ function SupportDocumentTable({
                                   document.documentDiscount ??
                                   0,
                                 disabled: isSending || isDeleting || isRowLocked,
-                                // No hay un paso de "guardar" aparte: cada
-                                // cambio actualiza directo rowItems/
+                                onSaveDraft: onSaveDraft
+                                  ? () => onSaveDraft(row.id)
+                                  : undefined,
+                                isSavingDraft: savingDraftDocumentId === row.id,
+                                // Cada cambio actualiza directo rowItems/
                                 // rowPaymentMethods/etc. (el mismo estado que
-                                // ya usa "Enviar") — lo único que persiste de
-                                // verdad todo esto es el envío a SIIGO, así
-                                // que en cuanto los campos requeridos quedan
-                                // completos, "Enviar" se habilita solo.
+                                // usa "Enviar"), así que en cuanto los campos
+                                // requeridos quedan completos "Enviar" se
+                                // habilita solo — sin esperar a que se
+                                // presione "Guardar cambios". Ese botón solo
+                                // PERSISTE el borrador (electronic_documents
+                                // .draft) para que no se pierda al recargar;
+                                // no es lo que habilita nada.
                                 onChange: (edits) =>
                                   onSaveRowEdits?.(row.id, edits),
                               }

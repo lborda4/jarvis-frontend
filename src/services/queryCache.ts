@@ -11,6 +11,7 @@ let activeCompanyId: string | null = null
 export const QUERY_STALE_MS = {
   catalogs: 5 * 60_000,
   terceros: 60_000,
+  taxes: 60_000,
   credentials: 60_000,
   providers: 60_000,
   filterOptions: 30_000,

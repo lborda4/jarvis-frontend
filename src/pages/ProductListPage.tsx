@@ -1,9 +1,10 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
+import CreateProductModal from '../components/CreateProductModal'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
+import SuccessMessage from '../components/SuccessMessage'
 import { PackageIcon } from '../components/icons/SidebarIcons'
 import { getApiErrorMessage } from '../services/apiClient'
 import { fetchProducts, type ProductResponse } from '../services/productService'
@@ -36,14 +37,12 @@ function resolveMainPrice(product: ProductResponse): number | null {
   return (firstEnabled ?? lists[0]).price
 }
 
-function formatIva(product: ProductResponse): string {
-  if (!product.applyIva) return 'Sin IVA'
-  if (product.ivaRate === null) return 'IVA'
-  return `IVA ${product.ivaRate}%`
+function formatTaxes(product: ProductResponse): string {
+  if (product.taxes.length === 0) return '—'
+  return product.taxes.map((tax) => tax.name).join(', ')
 }
 
 function ProductListPage() {
-  const navigate = useNavigate()
   // Semilla desde la caché de empresa (si existe) para mostrar algo al instante
   // sin parpadeo mientras el efecto revalida contra el backend.
   const cachedList = peekCachedQuery<ProductsListResponse>(
@@ -58,6 +57,8 @@ function ProductListPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [isLoading, setIsLoading] = useState(!cachedList)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   const loadProducts = useCallback(async (query?: string) => {
     const trimmed = query?.trim()
@@ -79,6 +80,11 @@ function ProductListPage() {
   useEffect(() => {
     void loadProducts()
   }, [loadProducts])
+
+  const handleProductCreated = (product: ProductResponse) => {
+    setSuccessMessage(`Producto "${product.name}" creado correctamente.`)
+    void loadProducts(search)
+  }
 
   const runSearch = (query?: string) => {
     setIsLoading(true)
@@ -129,7 +135,7 @@ function ProductListPage() {
         actions={
           <Button
             variant="primary"
-            onClick={() => navigate('/productos/crear')}
+            onClick={() => setIsCreateOpen(true)}
           >
             Crear producto
           </Button>
@@ -137,6 +143,7 @@ function ProductListPage() {
       />
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
+      {successMessage && <SuccessMessage message={successMessage} />}
 
       <form className="product-filters" onSubmit={handleSearch}>
         <div className="product-filters__field product-filters__field--grow">
@@ -217,7 +224,7 @@ function ProductListPage() {
             <p>Crea tu primer producto para verlo en este listado.</p>
             <Button
               variant="primary"
-              onClick={() => navigate('/productos/crear')}
+              onClick={() => setIsCreateOpen(true)}
             >
               Crear producto
             </Button>
@@ -240,7 +247,7 @@ function ProductListPage() {
                   <th>Nombre</th>
                   <th>Tipo</th>
                   <th>Categoría</th>
-                  <th>IVA</th>
+                  <th>Impuestos</th>
                   <th className="product-list__num">Precio</th>
                 </tr>
               </thead>
@@ -262,7 +269,7 @@ function ProductListPage() {
                       </td>
                       <td>{formatKind(item.kind)}</td>
                       <td>{item.categoryName ?? '—'}</td>
-                      <td>{formatIva(item)}</td>
+                      <td>{formatTaxes(item)}</td>
                       <td className="product-list__num">
                         {price === null ? '—' : formatMoney(price)}
                       </td>
@@ -274,6 +281,12 @@ function ProductListPage() {
           </div>
         )}
       </section>
+
+      <CreateProductModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={handleProductCreated}
+      />
     </main>
   )
 }
