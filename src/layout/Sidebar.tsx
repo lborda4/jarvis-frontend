@@ -11,21 +11,34 @@ import {
   DocumentIcon,
   HelpIcon,
   PackageIcon,
-  PulseIcon,
+  // PulseIcon,
   SettingsIcon,
   SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
 
-const BANK_STATEMENTS_ROOT = '/extractos-bancarios'
-const BANK_STATEMENT_CHILDREN = [
-  { label: 'Cargar extracto', to: '/extractos-bancarios/cargar' },
-  { label: 'Historial de cierres', to: '/extractos-bancarios/historial' },
-]
+// const BANK_STATEMENTS_ROOT = '/extractos-bancarios'
+// const BANK_STATEMENT_CHILDREN = [
+//   { label: 'Cargar extracto', to: '/extractos-bancarios/cargar' },
+//   { label: 'Historial de cierres', to: '/extractos-bancarios/historial' },
+// ]
 
 const PRODUCTS_ROOT = '/productos'
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
+
+interface NavItemChild {
+  label: string
+  to: string
+}
+
+interface NavItem {
+  label: string
+  to: string
+  icon: (props: { className?: string }) => React.JSX.Element
+  featureEnabled?: boolean
+  children?: NavItemChild[]
+}
 
 interface SidebarProps {
   isOpen: boolean
@@ -88,7 +101,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         ? 'warning'
         : 'normal'
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       label: settingsLabel,
       to: setupPath,
