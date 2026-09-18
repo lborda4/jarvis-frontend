@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import DatePicker from '../components/DatePicker'
 import ErrorMessage from '../components/ErrorMessage'
+import JarvisProductSearch from '../components/JarvisProductSearch'
 import SuccessMessage from '../components/SuccessMessage'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
@@ -19,6 +20,7 @@ import {
   fetchJarvisTerceros,
   type JarvisCatalogItem,
 } from '../services/jarvisService'
+import { fetchProducts, type ProductResponse } from '../services/productService'
 import type { JarvisTercero } from '../types/jarvis'
 import {
   addDaysToLocalDate,
@@ -42,6 +44,7 @@ const CURRENCY_LABELS: Record<string, string> = {
 interface LineItem {
   id: string
   productSearch: string
+  code?: string
   description: string
   quantity: string
   unitValue: string
@@ -57,6 +60,13 @@ interface PaymentEntry {
   amount: string
 }
 
+function resolveProductPrice(product: ProductResponse): number | null {
+  const lists = [...(product.priceLists ?? [])].sort((a, b) => a.position - b.position)
+  if (lists.length === 0) return null
+  const firstEnabled = lists.find((list) => list.enabled)
+  return (firstEnabled ?? lists[0]).price
+}
+
 function todayLocalDate(): string {
   const now = new Date()
   const year = now.getFullYear()
@@ -69,6 +79,7 @@ function createEmptyLine(): LineItem {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     productSearch: '',
+    code: '',
     description: '',
     quantity: '1',
     unitValue: '0',
@@ -158,6 +169,8 @@ function SupportDocumentIndividualPage() {
   const [isCreateSupplierOpen, setIsCreateSupplierOpen] = useState(false)
   const supplierBlurTimeoutRef = useRef<number | null>(null)
 
+  const [allProducts, setAllProducts] = useState<ProductResponse[]>([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
   const [lines, setLines] = useState<LineItem[]>([createEmptyLine()])
   const [taxes, setTaxes] = useState<JarvisCatalogItem[]>([])
   const [paymentMethods, setPaymentMethods] = useState<JarvisCatalogItem[]>([])
@@ -242,6 +255,23 @@ function SupportDocumentIndividualPage() {
 
   useEffect(() => {
     let cancelled = false
+    async function loadProducts() {
+      setIsLoadingProducts(true)
+      try {
+        const response = await fetchProducts()
+        if (!cancelled) setAllProducts(response.items ?? [])
+      } catch {
+        if (!cancelled) setAllProducts([])
+      } finally {
+        if (!cancelled) setIsLoadingProducts(false)
+      }
+    }
+    void loadProducts()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
     async function loadCatalogs() {
       try {
         const [catalogs, status] = await Promise.all([fetchJarvisCatalogs(), fetchJarvisCredentialsStatus()])
@@ -298,6 +328,94 @@ function SupportDocumentIndividualPage() {
     setIsSupplierMenuOpen(false)
     setFieldErrors((current) => { const next = { ...current }; delete next.supplier; return next })
   }, [])
+
+  const handleSelectProduct = useCallback(
+    (lineId: string, product: ProductResponse) => {
+      const rawPrice = resolveProductPrice(product)
+      let unitValue: string | undefined
+      if (rawPrice != null) {
+        if (product.priceIncludesIva && product.applyIva && product.ivaRate) {
+          const base =
+            Math.round((rawPrice / (1 + product.ivaRate / 100)) * 100) / 100
+          unitValue = String(base)
+        } else {
+          unitValue = String(rawPrice)
+        }
+      }
+
+      let taxChargeId: string | undefined
+      let taxPercent: string | undefined
+      if (product.applyIva) {
+        const matchedIva =
+          chargeTaxes.find(
+            (tax) =>
+              isIvaTax(tax) &&
+              (product.ivaRate == null || tax.percentage === product.ivaRate),
+          ) ?? chargeTaxes.find((tax) => isIvaTax(tax))
+        if (matchedIva) {
+          taxChargeId = String(matchedIva.id)
+          taxPercent = String(
+            product.ivaRate ?? matchedIva.percentage ?? DEFAULT_IVA_PERCENT,
+          )
+        }
+      } else {
+        taxChargeId = ''
+        taxPercent = '0'
+      }
+
+      let taxRetentionId: string | undefined
+      if (product.retefuenteEnabled) {
+        const matchedRete =
+          retentionTaxes.find((tax) => {
+            const label = `${tax.name ?? ''} ${tax.type ?? ''}`.toUpperCase()
+            return (
+              (label.includes('RETE') || label.includes('RENTA')) &&
+              (product.retefuenteRate == null ||
+                tax.percentage === product.retefuenteRate)
+            )
+          }) ??
+          retentionTaxes.find((tax) => {
+            const label = `${tax.name ?? ''} ${tax.type ?? ''}`.toUpperCase()
+            return label.includes('RETE') || label.includes('RENTA')
+          })
+        if (matchedRete) {
+          taxRetentionId = String(matchedRete.id)
+        }
+      }
+
+      setLines((current) =>
+        current.map((line) => {
+          if (line.id !== lineId) return line
+          return {
+            ...line,
+            productSearch: product.sku
+              ? `${product.sku} — ${product.name}`
+              : product.name,
+            code: product.sku || '',
+            description: product.description?.trim() || product.name,
+            ...(unitValue !== undefined ? { unitValue } : {}),
+            ...(taxChargeId !== undefined
+              ? {
+                  taxChargeId,
+                  taxPercent: taxPercent ?? line.taxPercent,
+                }
+              : {}),
+            ...(taxRetentionId !== undefined ? { taxRetentionId } : {}),
+          }
+        }),
+      )
+
+      setFieldErrors((current) => {
+        const next = { ...current }
+        const lineIndex = lines.findIndex((l) => l.id === lineId)
+        if (lineIndex >= 0) {
+          delete next[`line-${lineIndex}-description`]
+        }
+        return next
+      })
+    },
+    [chargeTaxes, lines, retentionTaxes],
+  )
 
   const addPayment = useCallback(() => setPayments((current) => [...current, createEmptyPayment()]), [])
   const removePayment = useCallback((id: string) => setPayments((current) => { if (current.length <= 1) return current; return current.filter((p) => p.id !== id) }), [])
@@ -370,7 +488,9 @@ function SupportDocumentIndividualPage() {
         unitValue: parseAmount(line.unitValue),
         discount: lineDiscountAmount(line, discountIsPercent),
         taxAmount: lineTaxAmount(line, discountIsPercent),
-        ...(line.productSearch.trim() ? { code: line.productSearch.trim() } : {}),
+        ...((line.code?.trim() || line.productSearch.trim())
+          ? { code: line.code?.trim() || line.productSearch.trim() }
+          : {}),
       })),
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
@@ -543,40 +663,63 @@ function SupportDocumentIndividualPage() {
             <table className="ds-individual__table">
               <thead>
                 <tr>
-                  <th>#</th><th>Producto / Servicio</th><th>Descripción</th><th>Cant.</th>
-                  <th>Valor unitario</th><th>Descuento{discountIsPercent ? ' (%)' : ''}</th>
-                  <th>Impuesto cargo</th><th>Impuesto retención</th><th>Valor total</th><th aria-label="Eliminar" />
+                  <th className="ds-individual__th-num">#</th>
+                  <th className="ds-individual__th-product">Producto / Servicio</th>
+                  <th className="ds-individual__th-desc">Descripción</th>
+                  <th className="ds-individual__th-qty">Cant.</th>
+                  <th className="ds-individual__th-unit-price">Valor unitario</th>
+                  <th className="ds-individual__th-discount">Descuento{discountIsPercent ? ' (%)' : ''}</th>
+                  <th className="ds-individual__th-tax">Impuesto cargo</th>
+                  <th className="ds-individual__th-tax">Impuesto retención</th>
+                  <th className="ds-individual__th-total">Valor total</th>
+                  <th className="ds-individual__th-actions" aria-label="Eliminar" />
                 </tr>
               </thead>
               <tbody>
                 {lines.map((line, index) => (
                   <tr key={line.id}>
-                    <td>{index + 1}</td>
-                    <td><input type="text" value={line.productSearch} placeholder="Buscar..." onChange={(e) => updateLine(line.id, { productSearch: e.target.value })} /></td>
-                    <td>
+                    <td className="ds-individual__td-num">{index + 1}</td>
+                    <td className="ds-individual__td-product">
+                      <JarvisProductSearch
+                        value={line.productSearch}
+                        placeholder="Buscar..."
+                        products={allProducts}
+                        isLoading={isLoadingProducts}
+                        onChange={(val) =>
+                          updateLine(line.id, {
+                            productSearch: val,
+                            code: val,
+                          })
+                        }
+                        onSelectProduct={(prod) =>
+                          handleSelectProduct(line.id, prod)
+                        }
+                      />
+                    </td>
+                    <td className="ds-individual__td-desc">
                       <input type="text" value={line.description} placeholder="Descripción" onChange={(e) => updateLine(line.id, { description: e.target.value })} />
                       {fieldErrors[`line-${index}-description`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-description`]}</em>}
                     </td>
-                    <td>
+                    <td className="ds-individual__td-qty">
                       <input type="text" inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.id, { quantity: e.target.value })} />
                       {fieldErrors[`line-${index}-quantity`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-quantity`]}</em>}
                     </td>
-                    <td><input type="text" inputMode="decimal" value={line.unitValue} onChange={(e) => updateLine(line.id, { unitValue: e.target.value })} /></td>
-                    <td><input type="text" inputMode="decimal" value={line.discount} onChange={(e) => updateLine(line.id, { discount: e.target.value })} /></td>
-                    <td>
+                    <td className="ds-individual__td-unit-price"><input type="text" inputMode="decimal" value={line.unitValue} onChange={(e) => updateLine(line.id, { unitValue: e.target.value })} /></td>
+                    <td className="ds-individual__td-discount"><input type="text" inputMode="decimal" value={line.discount} onChange={(e) => updateLine(line.id, { discount: e.target.value })} /></td>
+                    <td className="ds-individual__td-tax">
                       <select value={line.taxChargeId} onChange={(e) => updateLine(line.id, { taxChargeId: e.target.value, taxPercent: e.target.value ? line.taxPercent || String(DEFAULT_IVA_PERCENT) : '0' })}>
                         <option value="">Seleccionar</option>
                         {chargeTaxes.map((tax) => <option key={tax.id} value={tax.id}>{tax.name}</option>)}
                       </select>
                     </td>
-                    <td>
+                    <td className="ds-individual__td-tax">
                       <select value={line.taxRetentionId} onChange={(e) => updateLine(line.id, { taxRetentionId: e.target.value })}>
                         <option value="">Seleccionar</option>
                         {retentionTaxes.map((tax) => <option key={tax.id} value={tax.id}>{tax.name}</option>)}
                       </select>
                     </td>
-                    <td className="ds-individual__total-cell">{formatMoney(lineTotal(line, discountIsPercent))}</td>
-                    <td>
+                    <td className="ds-individual__td-total ds-individual__total-cell">{formatMoney(lineTotal(line, discountIsPercent))}</td>
+                    <td className="ds-individual__td-actions">
                       <button type="button" className="ds-individual__delete" aria-label="Eliminar línea" disabled={lines.length <= 1} onClick={() => removeLine(line.id)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       </button>

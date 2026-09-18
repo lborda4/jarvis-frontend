@@ -171,8 +171,6 @@
 .ds-individual__search input,
 .ds-individual__prefix-input,
 .ds-individual__consecutive-input,
-.ds-individual__table input,
-.ds-individual__table select,
 .ds-individual__field--amount input {
   width: 100%;
   min-width: 0;
@@ -309,6 +307,70 @@
   font-size: var(--text-base);
 }
 
+/* ─── Opciones del buscador de productos y servicios ─── */
+.ds-individual__product-option {
+  gap: 0.25rem;
+}
+
+.ds-individual__product-option-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.ds-individual__product-option-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-individual__product-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.ds-individual__product-badge--product {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.ds-individual__product-badge--service {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.ds-individual__product-option-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--jarvis-text-muted);
+}
+
+.ds-individual__product-sku {
+  font-weight: 600;
+  color: var(--jarvis-navy);
+}
+
+.ds-individual__product-price {
+  font-weight: 500;
+  color: #0d9488;
+}
+
+.ds-individual__product-tax {
+  color: var(--jarvis-text-muted);
+}
+
 /* ─── Hint / nota ─── */
 .ds-individual__hint {
   margin: 0;
@@ -378,54 +440,144 @@
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--jarvis-gray-200);
   border-radius: 10px;
+  background: #fff;
 }
 
 .ds-individual__table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1060px;
+}
+
+.ds-individual__table input,
+.ds-individual__table select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--jarvis-text);
+  font-size: 0.82rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.ds-individual__table input:focus-visible,
+.ds-individual__table select:focus-visible {
+  outline: none;
+  border-color: var(--jarvis-primary);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
 }
 
 .ds-individual__table th {
-  padding: 0.7rem 0.45rem;
+  padding: 0.55rem 0.35rem;
   border-bottom: 1px solid var(--jarvis-border);
   background: var(--jarvis-gray-50);
   color: var(--jarvis-text-muted);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 650;
   text-align: left;
   white-space: nowrap;
 }
 
 .ds-individual__table td {
-  padding: 0.55rem 0.35rem;
+  padding: 0.4rem 0.22rem;
   vertical-align: top;
   border-bottom: 1px solid var(--jarvis-gray-100);
 }
 
-.ds-individual__table td:first-child {
-  width: 2rem;
-  padding-top: 0.95rem;
-  padding-left: 0.65rem;
+/* ─── Columnas específicas de la tabla ─── */
+.ds-individual__th-num,
+.ds-individual__td-num {
+  width: 26px;
+  padding-top: 0.65rem !important;
+  text-align: center;
   color: var(--jarvis-text-muted);
-  font-size: var(--text-base);
+  font-size: 0.8rem;
+}
+
+.ds-individual__th-product,
+.ds-individual__td-product {
+  min-width: 135px;
+}
+
+.ds-individual__th-desc,
+.ds-individual__td-desc {
+  min-width: 125px;
+}
+
+.ds-individual__th-qty,
+.ds-individual__td-qty {
+  width: 52px;
+}
+.ds-individual__td-qty input {
+  text-align: right;
+}
+
+.ds-individual__th-unit-price,
+.ds-individual__td-unit-price {
+  width: 95px;
+}
+.ds-individual__td-unit-price input {
+  text-align: right;
+}
+
+.ds-individual__th-discount,
+.ds-individual__td-discount {
+  width: 68px;
+}
+.ds-individual__td-discount input {
+  text-align: right;
+}
+
+.ds-individual__th-tax,
+.ds-individual__td-tax {
+  width: 108px;
+}
+
+.ds-individual__th-total,
+.ds-individual__td-total {
+  width: 92px;
+  text-align: right;
+}
+
+.ds-individual__th-actions,
+.ds-individual__td-actions {
+  width: 32px;
+  text-align: center;
+}
+
+.ds-individual__td-product .ds-individual__search-icon {
+  right: 0.45rem;
+}
+
+.ds-individual__td-product .ds-individual__search-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ds-individual__td-product .ds-individual__search input {
+  padding-right: 1.5rem;
 }
 
 .ds-individual__total-cell {
-  padding-top: 0.95rem !important;
+  padding-top: 0.65rem !important;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   color: var(--jarvis-text);
   font-weight: 600;
+  font-size: 0.82rem;
+  text-align: right;
 }
 
 .ds-individual__delete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  margin-top: 0.25rem;
+  width: 30px;
+  height: 30px;
+  margin-top: 0.15rem;
   border: none;
   border-radius: var(--r-sm);
   background: transparent;
