@@ -858,9 +858,12 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
     void (async () => {
       try {
-        const options = await fetchElectronicDocumentFilterOptions({
-          electronicDocumentType: config.electronicDocumentType,
-        })
+        const options = await fetchElectronicDocumentFilterOptions(
+          {
+            electronicDocumentType: config.electronicDocumentType,
+          },
+          { force: true },
+        )
 
         if (!cancelled) {
           setFilterOptions(options)
@@ -1125,17 +1128,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
 
   // Estados que de verdad muestra alguna fila cargada — con esto se arma el
-  // desplegable de Estado. filterOptions.importStatuses del backend ya
-  // distingue Lista/Existente en SIIGO correctamente para toda la empresa
-  // (alreadyInSiigo es una columna real), pero "Requiere revisión" sigue sin
-  // estar ahí: es DERIVADO (ver pageTableRows) y depende de datos resueltos
-  // por proveedor que no viven en una columna, así que el backend no lo
-  // computa para cada documento de la empresa solo para armar el
-  // desplegable — pageStatuses sigue siendo la única forma de ofrecerlo, y
-  // solo ve lo que ya se cargó en esta página (limitación conocida y
-  // aceptada, a diferencia de Existente en SIIGO que sí quedó exacto).
-  // Se calcula sobre pageTableRows, o sea antes del recorte por el propio
-  // filtro de Estado, para no depender de lo que ese filtro ya descartó.
+  // desplegable de Estado para los estados derivados que el backend aún no
+  // haya incluido. filterOptions.importStatuses ya distingue Pendiente vs
+  // Requiere revisión y Lista vs Existente en SIIGO para toda la empresa.
   const pageStatuses = useMemo(() => {
     const set = new Set<ImportRowStatus>()
 

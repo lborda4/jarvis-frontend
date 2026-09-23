@@ -170,6 +170,10 @@
   font-size: var(--text-md);
 }
 
+.terceros-page__field .account-autocomplete {
+  width: 100%;
+}
+
 .terceros-page__document-row {
   display: flex;
   gap: 0.55rem;

@@ -55,14 +55,9 @@ const DERIVED_STATUSES = [
 
 export function buildSupportDocumentFilterOptions(
   filterOptions: ElectronicDocumentFilterOptions | null,
-  /** Estados que se ven en alguna fila de la página cargada. Solo decide si
-   * se ofrecen los DOS estados derivados ("Requiere revisión", "Existente en
-   * SIIGO"), que no existen en el backend porque se calculan en el frontend
-   * a partir de los datos del documento (ver pageTableRows en
-   * SupportDocumentPage.tsx) y por eso no se pueden conocer más allá de la
-   * página cargada.
-   *
-   * `null` los deja fuera del desplegable. */
+  /** Estados visibles en la página cargada. Sirve como respaldo para
+   * ofrecer un estado derivado si el backend todavía no lo mandó en
+   * filterOptions.importStatuses. */
   visibleStatuses: ReadonlySet<ImportRowStatus> | null = null,
   /** Un estado ya marcado siempre se ofrece, aunque no quede ninguna fila
    * con él: si no, la selección vigente desaparecería del desplegable y no
@@ -86,10 +81,10 @@ export function buildSupportDocumentFilterOptions(
     visibleStatuses.has(status) ||
     selectedStatuses.includes(status)
 
-  // Los estados del backend salen de un DISTINCT sobre TODOS los documentos
-  // de la empresa, así que se ofrecen tal cual: recortarlos con lo que se ve
-  // en la página actual escondía, por ejemplo, un "Pendiente" que solo
-  // existía en la página 2 (bug reportado).
+  // Los estados del backend salen de todos los documentos de la empresa
+  // (con Pendiente vs Requiere revisión ya separado). Recortarlos a la
+  // página actual escondería, por ejemplo, un estado que solo está en la
+  // página 2.
   const statuses: ColumnCheckboxFilterOption<ImportRowStatus>[] =
     filterOptions.importStatuses.map((status) => ({
       value: status as ImportRowStatus,

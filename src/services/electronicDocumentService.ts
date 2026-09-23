@@ -114,13 +114,20 @@ export async function fetchElectronicDocumentFilterOptions(
     ElectronicDocumentListFilters,
     'electronicDocumentType'
   > = {},
+  options?: { force?: boolean },
 ): Promise<ElectronicDocumentFilterOptions> {
+  const key = companyQueryKey([
+    'electronic-documents',
+    'filter-options',
+    filters.electronicDocumentType ?? '',
+  ])
+
+  if (options?.force) {
+    invalidateQueryCache(key)
+  }
+
   return cachedQuery(
-    companyQueryKey([
-      'electronic-documents',
-      'filter-options',
-      filters.electronicDocumentType ?? '',
-    ]),
+    key,
     QUERY_STALE_MS.filterOptions,
     async () => {
       const response = await apiClient.get<ElectronicDocumentFilterOptions>(
@@ -133,6 +140,7 @@ export async function fetchElectronicDocumentFilterOptions(
       )
       return response.data
     },
+    options,
   )
 }
 

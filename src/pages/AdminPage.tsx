@@ -238,10 +238,10 @@ function AdminPage() {
     try {
       const [companiesResponse, plansResponse, citiesResponse] =
         await Promise.all([
-          fetchAdminCompanies(),
-          fetchAdminPlans(),
+        fetchAdminCompanies(),
+        fetchAdminPlans(),
           fetchAdminCities(),
-        ])
+      ])
 
       setCompanies(companiesResponse.items)
       setPlans(plansResponse.items)
@@ -407,11 +407,11 @@ function AdminPage() {
         responsiblePhone.trim() ||
         responsibleEmail.trim()
           ? {
-              responsible: {
-                name: responsibleName.trim(),
-                phone: responsiblePhone.trim(),
-                email: responsibleEmail.trim(),
-              },
+        responsible: {
+          name: responsibleName.trim(),
+          phone: responsiblePhone.trim(),
+          email: responsibleEmail.trim(),
+        },
             }
           : {}),
         integrations: selectedIntegrations,
@@ -933,9 +933,9 @@ function AdminPage() {
         description="Gestione empresas, integraciones, planes y suscripciones."
         actions={
           <div className="admin-page__header-actions">
-            <Link to="/inicio" className="admin-page__back-link">
-              Volver a la aplicación
-            </Link>
+        <Link to="/inicio" className="admin-page__back-link">
+          Volver a la aplicación
+        </Link>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               Cerrar sesión
             </Button>
@@ -999,7 +999,7 @@ function AdminPage() {
                 <option value="">Seleccione una opción</option>
                 <option value={COMPANY_PERSON_TYPE.NATURAL_PERSON}>
                   Persona natural
-                </option>
+                    </option>
                 <option value={COMPANY_PERSON_TYPE.LEGAL_ENTITY}>
                   Persona jurídica
                 </option>
@@ -1336,7 +1336,7 @@ function AdminPage() {
                     hasBold && expandedBoldCompanyId === company.id
 
                   return [
-                    <tr key={company.id}>
+                  <tr key={company.id}>
                       <td>
                         {hasBold && (
                           <button
@@ -1378,10 +1378,10 @@ function AdminPage() {
                           </button>
                         </div>
                       </td>
-                      <td>{company.nit}</td>
-                      <td>{company.name}</td>
+                    <td>{company.nit}</td>
+                    <td>{company.name}</td>
                       <td>{formatPersonType(company.personType)}</td>
-                      <td>{formatResponsible(company.responsible)}</td>
+                    <td>{formatResponsible(company.responsible)}</td>
                       <td>{formatIntegrations(company)}</td>
                       <td>
                         {company.integrations.length === 0 ? (
@@ -1431,7 +1431,7 @@ function AdminPage() {
                             })}
                           </div>
                         )}
-                      </td>
+                    </td>
                       <td>
                         {company.integrations.length === 0 ? (
                           '—'
@@ -1574,9 +1574,9 @@ function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td>
-                        {new Date(company.createdAt).toLocaleDateString('es-CO')}
-                      </td>
+                    <td>
+                      {new Date(company.createdAt).toLocaleDateString('es-CO')}
+                    </td>
                       <td>
                         {editingTokenCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
@@ -1735,7 +1735,7 @@ function AdminPage() {
                                 <tr>
                                   <th>Caja</th>
                                   <th>Datáfonos</th>
-                                </tr>
+                  </tr>
                               </thead>
                               <tbody>
                                 {loadingBoldCashRegistersCompanyId ===

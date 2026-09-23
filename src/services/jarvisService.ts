@@ -12,6 +12,9 @@ import type {
   JarvisTaxesListResponse,
   JarvisTercerosListResponse,
   ListJarvisAvailableResolutionsResponse,
+  ListJarvisMunicipalitiesResponse,
+  ListJarvisTypeLiabilitiesResponse,
+  ListJarvisTypeRegimesResponse,
   ListPendingJarvisSuppliersResponse,
   LookupJarvisTerceroNitResponse,
   SaveJarvisCredentialsRequest,
@@ -274,6 +277,45 @@ export async function fetchJarvisTerceros(
     async () => {
       const response = await apiClient.get<JarvisTercerosListResponse>(
         JARVIS_TERCEROS_ENDPOINT,
+      )
+      return response.data
+    },
+  )
+}
+
+export async function fetchJarvisTypeLiabilities(): Promise<ListJarvisTypeLiabilitiesResponse> {
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'type-liabilities']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const response = await apiClient.get<ListJarvisTypeLiabilitiesResponse>(
+        `${JARVIS_TERCEROS_ENDPOINT}/type-liabilities`,
+      )
+      return response.data
+    },
+  )
+}
+
+export async function fetchJarvisMunicipalities(): Promise<ListJarvisMunicipalitiesResponse> {
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'municipalities']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const response = await apiClient.get<ListJarvisMunicipalitiesResponse>(
+        `${JARVIS_TERCEROS_ENDPOINT}/municipalities`,
+      )
+      return response.data
+    },
+  )
+}
+
+export async function fetchJarvisTypeRegimes(): Promise<ListJarvisTypeRegimesResponse> {
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'type-regimes']),
+    QUERY_STALE_MS.catalogs,
+    async () => {
+      const response = await apiClient.get<ListJarvisTypeRegimesResponse>(
+        `${JARVIS_TERCEROS_ENDPOINT}/type-regimes`,
       )
       return response.data
     },

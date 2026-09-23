@@ -220,6 +220,64 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     expect(draft.producto).toBe('PROD-001')
   })
 
+  it('usa el tipo y producto elegidos por IA cuando el historial no resolvió el tipo', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'Bota Titán',
+          quantity: 1,
+          unitValue: 100000,
+          total: 100000,
+        },
+      ],
+      suggestedItemConfig: null,
+      aiSuggestedItemType: 'Product',
+      suggestedProduct: {
+        code: 'BOTATITAN235209042',
+        name: 'Bota Titán',
+      },
+      aiConfidence: 30,
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [], [
+      {
+        code: 'BOTATITAN235209042',
+        description: 'Bota Titán',
+      },
+    ])
+
+    expect(draft.tipo).toBe('Product')
+    expect(draft.producto).toBe('BOTATITAN235209042')
+  })
+
+  it('infiere Product desde suggestedProduct para sugerencias antiguas sin aiSuggestedItemType', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'Bota Titán',
+          quantity: 1,
+          unitValue: 100000,
+          total: 100000,
+        },
+      ],
+      suggestedItemConfig: null,
+      suggestedProduct: {
+        code: 'BOTATITAN235209042',
+        name: 'Bota Titán',
+      },
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [], [
+      {
+        code: 'BOTATITAN235209042',
+        description: 'Bota Titán',
+      },
+    ])
+
+    expect(draft.tipo).toBe('Product')
+    expect(draft.producto).toBe('BOTATITAN235209042')
+  })
+
   it('proveedor repetido con itemType=Product: descarta el código aprendido si ya no existe en el catálogo real de productos', () => {
     const document = buildDocument({
       items: [

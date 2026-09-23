@@ -156,7 +156,17 @@ export function buildPurchaseInvoiceItemDrafts(
 ): PurchaseInvoiceItemDraft[] {
   const items = document.items ?? []
   const supplierConfig = document.suggestedItemConfig ?? null
-  const effectiveTipo = supplierConfig?.itemType ?? 'Account'
+  // El historial confirmado tiene prioridad. Si no resolvió el tipo, se usa
+  // el paso 1 de IA; suggestedProduct/suggestedAccount cubren documentos
+  // clasificados antes de que aiSuggestedItemType se empezara a exponer.
+  const effectiveTipo =
+    supplierConfig?.itemType ??
+    document.aiSuggestedItemType ??
+    (document.suggestedProduct
+      ? 'Product'
+      : document.suggestedAccount
+        ? 'Account'
+        : 'Account')
   // Cuenta sugerida por IA (SiigoPurchaseAiClassificationService, ver
   // document.payload.aiSuggestion en el backend) — solo se calcula/guarda
   // justo cuando supplierConfig.accountCode NO es confiable (proveedor sin

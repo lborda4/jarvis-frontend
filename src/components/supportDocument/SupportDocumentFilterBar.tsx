@@ -36,11 +36,10 @@ interface SupportDocumentFilterBarProps {
    * compra cada factura trae su propia fecha de emisión, así que un rango es
    * mucho más usable que tildar fecha por fecha. */
   dateRangeFilter?: boolean
-  /** Estados que de verdad muestra al menos una fila cargada (ver
-   * visibleStatuses en SupportDocumentPage.tsx). El filtro de Estado se arma
-   * con este set en vez de con filterOptions.importStatuses, que trae el
-   * estado GUARDADO en el backend y no siempre coincide con el que se ve en
-   * la tabla. Sin él, se ofrecían estados que no devolvían ninguna fila. */
+  /** Estados que de verdad muestra al menos una fila cargada. Respaldo para
+   * estados derivados; el desplegable de Estado se arma primero con
+   * filterOptions.importStatuses (toda la empresa, ya separado Pendiente vs
+   * Requiere revisión). */
   visibleStatuses?: ReadonlySet<ImportRowStatus>
   onSupplierNitsChange: (nits: string[]) => void
   onColumnFiltersChange: (

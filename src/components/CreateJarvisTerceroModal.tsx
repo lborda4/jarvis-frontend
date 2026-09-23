@@ -1,4 +1,5 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Autocomplete from './Autocomplete'
 import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 import Modal from './Modal'
@@ -6,6 +7,9 @@ import { getApiErrorMessage } from '../services/apiClient'
 import { resumeElectronicDocument } from '../services/electronicDocumentService'
 import {
   createJarvisTercero,
+  fetchJarvisMunicipalities,
+  fetchJarvisTypeLiabilities,
+  fetchJarvisTypeRegimes,
   lookupJarvisTerceroByNit,
 } from '../services/jarvisService'
 import { createSiigoSupplier } from '../services/siigoService'
@@ -14,24 +18,113 @@ import {
   JARVIS_DOCUMENT_TYPE_OPTIONS,
   JARVIS_ENTITY_TYPE,
   JARVIS_ENTITY_TYPE_OPTIONS,
+  JARVIS_TAX_RESPONSIBILITY,
   type CreateJarvisTerceroRequest,
   type JarvisDocumentType,
   type JarvisEntityType,
+  type JarvisMunicipality,
   type JarvisTercero,
+  type JarvisTypeLiability,
+  type JarvisTypeRegime,
 } from '../types/jarvis'
 import type { SiigoSupplierPersonType } from '../types/siigo'
 import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
 import '../pages/TercerosPage.css'
 import '../pages/InvoiceUpload.css'
 
+const DEFAULT_TAX_RESPONSIBILITY_CODE = JARVIS_TAX_RESPONSIBILITY.NOT_APPLICABLE
+const DEFAULT_TAX_RESPONSIBILITY_ID = 117
+const DEFAULT_MUNICIPALITY_ID = 149
+const DEFAULT_TYPE_REGIME_ID = 2
+
 const EMPTY_FORM: CreateJarvisTerceroRequest = {
   document_type: JARVIS_DOCUMENT_TYPE.NIT,
   document_number: '',
   name: '',
   check_digit: '',
+  tax_responsibility: DEFAULT_TAX_RESPONSIBILITY_CODE,
+  municipality_id: DEFAULT_MUNICIPALITY_ID,
+  type_regime_id: DEFAULT_TYPE_REGIME_ID,
   email: '',
   phone: '',
   address: '',
+}
+
+function resolveDefaultTaxResponsibilityCode(
+  items: JarvisTypeLiability[],
+): string {
+  const byId = items.find((item) => item.id === DEFAULT_TAX_RESPONSIBILITY_ID)
+  if (byId?.code) {
+    return byId.code
+  }
+
+  const byCode = items.find(
+    (item) =>
+      item.code.trim().toUpperCase() === DEFAULT_TAX_RESPONSIBILITY_CODE,
+  )
+  return byCode?.code ?? DEFAULT_TAX_RESPONSIBILITY_CODE
+}
+
+function formatTypeLiabilityLabel(item: JarvisTypeLiability): string {
+  const name = item.name?.trim()
+  if (name && name.toUpperCase() !== item.code.trim().toUpperCase()) {
+    return `${item.code} — ${name}`
+  }
+
+  return item.code
+}
+
+function formatTypeRegimeLabel(item: JarvisTypeRegime): string {
+  const name = item.name?.trim()
+  const code = item.code?.trim()
+  if (name && code && code !== String(item.id) && name.toUpperCase() !== code.toUpperCase()) {
+    return `${code} — ${name}`
+  }
+  if (name) {
+    return name
+  }
+  return code || String(item.id)
+}
+
+function formatMunicipalityLabel(item: JarvisMunicipality): string {
+  const code = item.code?.trim()
+  if (code) {
+    return `${item.name} (${code})`
+  }
+
+  return item.name
+}
+
+function matchMunicipalityId(
+  items: JarvisMunicipality[],
+  cityCode?: string | null,
+  cityName?: string | null,
+): number | undefined {
+  const code = cityCode?.replace(/\D/g, '')
+  if (code) {
+    const byCode = items.find(
+      (item) => (item.code ?? '').replace(/\D/g, '') === code,
+    )
+    if (byCode) {
+      return byCode.id
+    }
+  }
+
+  const needle = cityName?.trim().toLowerCase()
+  if (!needle) {
+    return undefined
+  }
+
+  const exact = items.find(
+    (item) => item.name.trim().toLowerCase() === needle,
+  )
+  if (exact) {
+    return exact.id
+  }
+
+  return items.find((item) =>
+    item.name.trim().toLowerCase().includes(needle),
+  )?.id
 }
 
 export type CreateTerceroModalProvider = 'JARVIS' | 'SIIGO'
@@ -79,6 +172,19 @@ function CreateJarvisTerceroModal({
   onCreated,
 }: CreateJarvisTerceroModalProps) {
   const [form, setForm] = useState<CreateJarvisTerceroRequest>(EMPTY_FORM)
+  const [typeLiabilities, setTypeLiabilities] = useState<JarvisTypeLiability[]>(
+    [],
+  )
+  const [typeRegimes, setTypeRegimes] = useState<JarvisTypeRegime[]>([])
+  const [municipalities, setMunicipalities] = useState<JarvisMunicipality[]>([])
+  const municipalitiesRef = useRef(municipalities)
+  municipalitiesRef.current = municipalities
+  const [lookupCity, setLookupCity] = useState<{
+    cityCode: string | null
+    cityName: string | null
+  }>({ cityCode: null, cityName: null })
+  const lookupCityRef = useRef(lookupCity)
+  lookupCityRef.current = lookupCity
   const [isSaving, setIsSaving] = useState(false)
   const [isLookingUpNit, setIsLookingUpNit] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -121,7 +227,19 @@ function CreateJarvisTerceroModal({
           email: response.email ?? '',
           phone: response.phone ?? '',
           address: response.address ?? '',
+          municipality_id:
+            matchMunicipalityId(
+              municipalitiesRef.current,
+              response.cityCode,
+              response.cityName,
+            ) ??
+            current.municipality_id ??
+            DEFAULT_MUNICIPALITY_ID,
         }))
+        setLookupCity({
+          cityCode: response.cityCode ?? null,
+          cityName: response.cityName ?? null,
+        })
         setLookupMessage(
           response.found
             ? 'Datos encontrados. Puedes revisarlos y modificarlos antes de guardar.'
@@ -163,6 +281,7 @@ function CreateJarvisTerceroModal({
     setErrorMessage(null)
     setLookupMessage(null)
     setLookupError(null)
+    setLookupCity({ cityCode: null, cityName: null })
 
     // Ya no hay botón "Autocompletar": la consulta a NextPyme (vía
     // lookup-nit) se dispara sola apenas se abre el modal, para que el
@@ -173,10 +292,69 @@ function CreateJarvisTerceroModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId])
 
+  useEffect(() => {
+    if (!isOpen || provider !== 'JARVIS') {
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const [liabilitiesResponse, municipalitiesResponse, regimesResponse] =
+          await Promise.all([
+            fetchJarvisTypeLiabilities(),
+            fetchJarvisMunicipalities(),
+            fetchJarvisTypeRegimes(),
+          ])
+        if (cancelled) {
+          return
+        }
+
+        const items = liabilitiesResponse.items ?? []
+        const municipalityItems = municipalitiesResponse.items ?? []
+        const regimeItems = regimesResponse.items ?? []
+        setTypeLiabilities(items)
+        setMunicipalities(municipalityItems)
+        setTypeRegimes(regimeItems)
+        const defaultCode = resolveDefaultTaxResponsibilityCode(items)
+        setForm((current) => ({
+          ...current,
+          tax_responsibility: current.tax_responsibility || defaultCode,
+          municipality_id:
+            matchMunicipalityId(
+              municipalityItems,
+              lookupCityRef.current.cityCode,
+              lookupCityRef.current.cityName,
+            ) ??
+            current.municipality_id ??
+            DEFAULT_MUNICIPALITY_ID,
+          type_regime_id: current.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
+        }))
+      } catch {
+        if (!cancelled) {
+          setTypeLiabilities([])
+          setMunicipalities([])
+          setTypeRegimes([])
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, provider])
+
   const handleClose = () => {
     if (isSaving || isLookingUpNit) return
     onClose()
   }
+
+  const selectedMunicipality = useMemo(
+    () =>
+      municipalities.find((item) => item.id === form.municipality_id) ?? null,
+    [municipalities, form.municipality_id],
+  )
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -193,6 +371,17 @@ function CreateJarvisTerceroModal({
           : {}),
         ...(form.entity_type ? { entity_type: form.entity_type } : {}),
         ...(form.tax_regime ? { tax_regime: form.tax_regime } : {}),
+        ...(provider === 'JARVIS'
+          ? {
+              tax_responsibility:
+                form.tax_responsibility?.trim() ||
+                DEFAULT_TAX_RESPONSIBILITY_CODE,
+              municipality_id:
+                form.municipality_id ?? DEFAULT_MUNICIPALITY_ID,
+              type_regime_id:
+                form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
+            }
+          : {}),
         ...(form.email?.trim() ? { email: form.email.trim() } : {}),
         ...(form.phone?.trim() ? { phone: form.phone.trim() } : {}),
         ...(form.address?.trim() ? { address: form.address.trim() } : {}),
@@ -245,9 +434,13 @@ function CreateJarvisTerceroModal({
           name: payload.name,
           entity_type: payload.entity_type ?? null,
           tax_regime: payload.tax_regime ?? null,
+          tax_responsibility:
+            payload.tax_responsibility ?? DEFAULT_TAX_RESPONSIBILITY_CODE,
           email: payload.email ?? null,
           phone: payload.phone ?? null,
           address: payload.address ?? null,
+          municipality_id: payload.municipality_id ?? null,
+          type_regime_id: payload.type_regime_id ?? null,
           created_at: now,
           updated_at: now,
         })
@@ -423,6 +616,126 @@ function CreateJarvisTerceroModal({
                 ))}
               </select>
             </div>
+
+            {provider === 'JARVIS' && (
+              <div className="terceros-page__field">
+                <label htmlFor="tercero-tax-responsibility">
+                  Tipo de responsabilidad
+                </label>
+                <select
+                  id="tercero-tax-responsibility"
+                  value={
+                    form.tax_responsibility ?? DEFAULT_TAX_RESPONSIBILITY_CODE
+                  }
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      tax_responsibility: event.target.value,
+                    }))
+                  }
+                  disabled={isSaving || isLookingUpNit}
+                >
+                  {typeLiabilities.length === 0 && (
+                    <option value={DEFAULT_TAX_RESPONSIBILITY_CODE}>
+                      R-99-PN
+                    </option>
+                  )}
+                  {typeLiabilities.length > 0 &&
+                    !typeLiabilities.some(
+                      (item) =>
+                        item.code ===
+                        (form.tax_responsibility ??
+                          DEFAULT_TAX_RESPONSIBILITY_CODE),
+                    ) && (
+                      <option
+                        value={
+                          form.tax_responsibility ??
+                          DEFAULT_TAX_RESPONSIBILITY_CODE
+                        }
+                      >
+                        {form.tax_responsibility ??
+                          DEFAULT_TAX_RESPONSIBILITY_CODE}
+                      </option>
+                    )}
+                  {typeLiabilities.map((item) => (
+                    <option key={item.id} value={item.code}>
+                      {formatTypeLiabilityLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {provider === 'JARVIS' && (
+              <div className="terceros-page__field">
+                <label htmlFor="tercero-type-regime">Tipo de régimen</label>
+                <select
+                  id="tercero-type-regime"
+                  value={form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      type_regime_id: Number(event.target.value),
+                    }))
+                  }
+                  disabled={isSaving || isLookingUpNit}
+                >
+                  {typeRegimes.length === 0 && (
+                    <option value={DEFAULT_TYPE_REGIME_ID}>
+                      No Responsable de IVA
+                    </option>
+                  )}
+                  {typeRegimes.length > 0 &&
+                    !typeRegimes.some(
+                      (item) =>
+                        item.id ===
+                        (form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID),
+                    ) && (
+                      <option
+                        value={form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
+                      >
+                        {form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
+                      </option>
+                    )}
+                  {typeRegimes.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {formatTypeRegimeLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {provider === 'JARVIS' && (
+              <div className="terceros-page__field">
+                <label htmlFor="tercero-municipality">Municipio</label>
+                <Autocomplete
+                  id="tercero-municipality"
+                  value={selectedMunicipality}
+                  onChange={(municipality) =>
+                    setForm((current) => ({
+                      ...current,
+                      municipality_id:
+                        municipality?.id ?? DEFAULT_MUNICIPALITY_ID,
+                    }))
+                  }
+                  options={municipalities}
+                  disabled={isSaving || isLookingUpNit}
+                  placeholder="Buscar municipio"
+                  emptyMessage="No se encontraron municipios."
+                  getOptionKey={(municipality) => municipality.id}
+                  getOptionLabel={formatMunicipalityLabel}
+                  isOptionMatch={(municipality, query) => {
+                    const label = formatMunicipalityLabel(municipality).toLowerCase()
+                    return (
+                      label.includes(query) ||
+                      String(municipality.id).includes(query) ||
+                      (municipality.code ?? '').toLowerCase().includes(query)
+                    )
+                  }}
+                />
+              </div>
+            )}
 
             <div className="terceros-page__field">
               <label htmlFor="tercero-email">Correo</label>

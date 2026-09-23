@@ -19,7 +19,6 @@ import {
   JARVIS_TAX_REGIME_OPTIONS,
   type JarvisDocumentType,
   type JarvisEntityType,
-  type JarvisTaxRegime,
   type JarvisTercero,
   type JarvisTercerosListResponse,
 } from '../types/jarvis'
@@ -34,11 +33,19 @@ function formatEntityType(value: JarvisEntityType | null): string {
   )
 }
 
-function formatTaxRegime(value: JarvisTaxRegime | null): string {
-  if (!value) return '—'
+function formatTaxRegime(item: JarvisTercero): string {
+  if (item.type_regime_name?.trim()) {
+    return item.type_regime_name
+  }
+
+  if (item.type_regime_id === 2) {
+    return 'No Responsable de IVA'
+  }
+
+  if (!item.tax_regime) return '—'
   return (
-    JARVIS_TAX_REGIME_OPTIONS.find((option) => option.value === value)?.label ??
-    value
+    JARVIS_TAX_REGIME_OPTIONS.find((option) => option.value === item.tax_regime)
+      ?.label ?? item.tax_regime
   )
 }
 
@@ -219,7 +226,7 @@ function TercerosPage() {
                       {item.check_digit ? `-${item.check_digit}` : ''}
                     </td>
                     <td>{formatEntityType(item.entity_type)}</td>
-                    <td>{formatTaxRegime(item.tax_regime)}</td>
+                    <td>{formatTaxRegime(item)}</td>
                     <td>
                       {item.email || item.phone ? (
                         <>

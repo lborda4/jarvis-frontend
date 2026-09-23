@@ -178,6 +178,8 @@ export interface ElectronicDocumentListItem {
   draft?: ElectronicDocumentDraft | null
   suggestedAccount?: SuggestedAccount | null
   suggestedProduct?: SuggestedProduct | null
+  /** Tipo elegido en el paso 1 de la clasificación automática. */
+  aiSuggestedItemType?: 'Account' | 'Product' | null
   suggestedPaymentMethod?: SuggestedPaymentMethod | null
   suggestedRetentions?: SuggestedRetention[]
   suggestedCostCenter?: SuggestedCostCenter | null

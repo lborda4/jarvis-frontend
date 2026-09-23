@@ -52,6 +52,7 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .ds-individual__config-btn:hover {
@@ -64,6 +65,321 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Factura de venta: ocupa el ancho del panel, letra un poco más chica y bloques más compactos. */
+.ds-individual--sales {
+  max-width: none;
+  padding: 0.85rem 1.25rem 1.5rem;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.75rem;
+  --text-base: 0.8125rem;
+  --text-md: 0.8125rem;
+  --text-lg: 0.875rem;
+  --text-h1: 1.28rem;
+}
+
+.ds-individual--sales .ds-individual__breadcrumb {
+  margin-bottom: 0.55rem;
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__header {
+  margin-bottom: 0.7rem;
+}
+
+.ds-individual--sales .ds-individual__config-btn {
+  padding: 0.35rem 0.7rem;
+  font-size: var(--text-sm);
+  border-radius: 7px;
+}
+
+/* Las secciones forman una sola tarjeta continua, separadas por una línea sutil. */
+.ds-individual--sales .ds-individual__form {
+  gap: 0;
+  border: 1px solid rgba(215, 222, 231, 0.95);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ds-individual--sales .ds-individual__section {
+  padding: 1.15rem 1.1rem 1.3rem;
+  border: none;
+  border-bottom: 1px solid #e4eaf0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ds-individual--sales .ds-individual__section:last-of-type {
+  border-bottom: none;
+}
+
+.ds-individual--sales .ds-individual__actions {
+  padding: 0.8rem 1.1rem;
+}
+
+.ds-individual--sales .ds-individual__section h2,
+.ds-individual--sales .ds-individual__payment-col h2 {
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.4rem;
+  font-size: 0.92rem;
+}
+
+.ds-individual--sales .ds-individual__section-head {
+  margin-bottom: 0.7rem;
+}
+
+.ds-individual--sales .ds-individual__add-line {
+  padding: 0.3rem 0.65rem;
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem 2.25rem;
+  align-items: start;
+}
+
+.ds-individual--sales .ds-individual__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ds-individual--sales .ds-individual__info-grid .ds-individual__field {
+  display: grid;
+  grid-template-columns: 10.75rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
+
+.ds-individual--sales .ds-individual__info-grid .ds-individual__field > span:first-child {
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.ds-individual--sales .ds-individual__field--customer {
+  align-items: start;
+}
+
+.ds-individual--sales .ds-individual__field--customer > span:first-child {
+  padding-top: 0.5rem;
+}
+
+.ds-individual--sales .ds-individual__info-grid .ds-individual__error,
+.ds-individual--sales .ds-individual__info-grid .ds-individual__hint {
+  grid-column: 2;
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.ds-individual--sales .ds-individual__field--checkbox {
+  cursor: pointer;
+}
+
+.ds-individual--sales .ds-individual__field--checkbox span {
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.ds-individual--sales .ds-individual__field--checkbox input[type='checkbox'] {
+  justify-self: start;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.ds-individual--sales .ds-individual__prefix-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.ds-individual--sales .ds-individual__prefix-inline .ds-individual__prefix-input {
+  width: 4.75rem;
+  flex: 0 0 4.75rem;
+}
+
+.ds-individual--sales .ds-individual__consecutive-label {
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ds-individual--sales .ds-individual__prefix-inline .ds-individual__consecutive-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-individual--sales .ds-individual__field input:not([type='checkbox']),
+.ds-individual--sales .ds-individual__field select,
+.ds-individual--sales .ds-individual__field textarea,
+.ds-individual--sales .ds-individual__search input,
+.ds-individual--sales .ds-individual__prefix-input,
+.ds-individual--sales .ds-individual__consecutive-input,
+.ds-individual--sales .ds-individual__field--amount input,
+.ds-individual--sales .ds-individual__readonly {
+  padding: 0.42rem 0.65rem;
+  font-size: var(--text-sm);
+  border-radius: 7px;
+}
+
+.ds-individual--sales .ds-individual__field textarea {
+  min-height: 92px;
+}
+
+.ds-individual--sales .ds-individual__table input,
+.ds-individual--sales .ds-individual__table select {
+  height: 30px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+.ds-individual--sales .ds-individual__table th {
+  padding: 0.4rem 0.3rem;
+  font-size: 0.68rem;
+}
+
+.ds-individual--sales .ds-individual__table td {
+  padding: 0.28rem 0.18rem;
+}
+
+.ds-individual--sales .ds-individual__payment-totals-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.95fr);
+  gap: 1rem 2rem;
+  align-items: start;
+}
+
+.ds-individual--sales .ds-individual__payment-col {
+  gap: 0.55rem;
+  max-width: 600px;
+}
+
+.ds-individual--sales .ds-individual__payment-col .ds-individual__field {
+  display: grid;
+  grid-template-columns: 10.75rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.3rem;
+}
+
+.ds-individual--sales .ds-individual__payment-col .ds-individual__field > span:first-child {
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.ds-individual--sales .ds-individual__payment-col .ds-individual__error {
+  grid-column: 2;
+}
+
+/* La nota de vencimiento va a lo ancho de la columna, sin recuadro. */
+.ds-individual--sales .ds-individual__payment-col .ds-individual__hint--info {
+  grid-column: 1 / -1;
+  margin-top: 0.3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__add-payment {
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__payment-col .ds-individual__field--due .date-picker {
+  max-width: 14rem;
+}
+
+.ds-individual--sales .ds-individual__payment-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ds-individual--sales .ds-individual__payment-controls select {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-individual--sales .ds-individual__payment-controls input {
+  width: 7rem;
+  flex: 0 0 7rem;
+  text-align: right;
+}
+
+.ds-individual--sales .ds-individual__delete--payment {
+  align-self: center;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ds-individual--sales .ds-individual__totals-col {
+  min-width: 340px;
+  max-width: 480px;
+  width: 100%;
+}
+
+/* Totales sin recuadro: solo las filas y la franja del total neto. */
+.ds-individual--sales .ds-individual__totals {
+  padding: 0.15rem 0 0;
+  border: none;
+  background: none;
+  overflow: hidden;
+}
+
+.ds-individual--sales .ds-individual__totals-row {
+  padding: 0.3rem 0;
+  border-bottom: none;
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__totals-row--net {
+  margin-top: 0.35rem;
+  padding: 0.6rem 0.85rem;
+  background: #e6fbf7;
+  border-bottom: none;
+  border-radius: 8px;
+}
+
+.ds-individual--sales .ds-individual__actions {
+  justify-content: space-between;
+}
+
+.ds-individual--sales .ds-individual__actions .ds-individual__btn--ghost {
+  margin-right: auto;
+}
+
+.ds-individual--sales .ds-individual__totals-row--net span,
+.ds-individual--sales .ds-individual__totals-row--net strong {
+  font-size: var(--text-base);
+}
+
+.ds-individual--sales .ds-individual__dropzone {
+  min-height: 96px;
+  padding: 1rem 0.75rem;
+  gap: 0.35rem;
+}
+
+.ds-individual--sales .ds-individual__btn {
+  min-width: 118px;
+  padding: 0.52rem 0.95rem;
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__actions {
+  gap: 0.55rem;
 }
 
 /* ─── Secciones (tarjetas) ─── */
@@ -927,6 +1243,12 @@
 }
 
 /* ─── Responsive ─── */
+@media (max-width: 1100px) {
+  .ds-individual--sales .ds-individual__info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 960px) {
   .ds-individual__info-grid {
     grid-template-columns: 1fr;
@@ -936,7 +1258,12 @@
     grid-template-columns: 1fr;
   }
 
-  .ds-individual__totals-col {
+  .ds-individual--sales .ds-individual__payment-col {
+    max-width: none;
+  }
+
+  .ds-individual__totals-col,
+  .ds-individual--sales .ds-individual__totals-col {
     min-width: 0;
     max-width: 100%;
     width: 100%;
@@ -950,6 +1277,19 @@
 @media (max-width: 768px) {
   .ds-individual {
     padding: 1rem 0.85rem 2rem;
+  }
+
+  .ds-individual--sales .ds-individual__info-grid .ds-individual__field,
+  .ds-individual--sales .ds-individual__payment-col .ds-individual__field {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-individual--sales .ds-individual__add-payment {
+    margin-left: 0;
+  }
+
+  .ds-individual--sales .ds-individual__field--customer > span:first-child {
+    padding-top: 0;
   }
 
   .ds-individual__section {

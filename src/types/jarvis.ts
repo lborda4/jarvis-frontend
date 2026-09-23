@@ -193,9 +193,13 @@ export interface JarvisTercero {
   name: string
   entity_type: JarvisEntityType | null
   tax_regime: JarvisTaxRegime | null
+  tax_responsibility: string
   email: string | null
   phone: string | null
   address: string | null
+  municipality_id: number | null
+  type_regime_id: number | null
+  type_regime_name?: string | null
   created_at: string
   updated_at: string
 }
@@ -212,9 +216,12 @@ export interface CreateJarvisTerceroRequest {
   check_digit?: string
   entity_type?: JarvisEntityType
   tax_regime?: JarvisTaxRegime
+  tax_responsibility?: string
   email?: string
   phone?: string
   address?: string
+  municipality_id?: number
+  type_regime_id?: number
 }
 
 export interface CreateJarvisTerceroResponse {
@@ -230,6 +237,8 @@ export interface LookupJarvisTerceroNitResponse {
   email: string | null
   phone: string | null
   address: string | null
+  cityCode?: string | null
+  cityName?: string | null
 }
 
 /** Proveedor distinto (NIT + tipo de documento) pendiente de crear como
@@ -246,6 +255,36 @@ export interface PendingJarvisSupplier {
 
 export interface ListPendingJarvisSuppliersResponse {
   items: PendingJarvisSupplier[]
+}
+
+export interface JarvisTypeLiability {
+  id: number
+  code: string
+  name: string
+}
+
+export interface ListJarvisTypeLiabilitiesResponse {
+  items: JarvisTypeLiability[]
+}
+
+export interface JarvisMunicipality {
+  id: number
+  code: string | null
+  name: string
+}
+
+export interface ListJarvisMunicipalitiesResponse {
+  items: JarvisMunicipality[]
+}
+
+export interface JarvisTypeRegime {
+  id: number
+  code: string | null
+  name: string
+}
+
+export interface ListJarvisTypeRegimesResponse {
+  items: JarvisTypeRegime[]
 }
 
 export interface CreateJarvisTercerosBulkRequestItem {
