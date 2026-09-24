@@ -248,6 +248,26 @@
   font-size: 0.68rem;
 }
 
+/* Los desplegables de búsqueda (cliente y producto) usan el mismo tamaño de
+   letra que los campos del formulario, no el del resto de la app. */
+.ds-individual--sales .ds-individual__supplier-option {
+  padding: 0.45rem 0.6rem;
+}
+
+.ds-individual--sales .ds-individual__supplier-option strong {
+  font-size: var(--text-sm);
+}
+
+.ds-individual--sales .ds-individual__supplier-option span,
+.ds-individual--sales .ds-individual__supplier-empty,
+.ds-individual--sales .ds-individual__product-option-meta {
+  font-size: var(--text-xs);
+}
+
+.ds-individual--sales .ds-individual__product-badge {
+  font-size: 0.62rem;
+}
+
 .ds-individual--sales .ds-individual__table td {
   padding: 0.28rem 0.18rem;
 }

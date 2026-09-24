@@ -38,6 +38,12 @@ interface SupportDocumentConfigPanelProps {
   actionsOnly?: boolean
   canSend: boolean
   canDelete: boolean
+  /** true si entre los documentos seleccionados hay alguno en "Requiere
+   * proveedor" — habilita "Crear terceros" junto a Enviar/Eliminar. */
+  canCreateTerceros?: boolean
+  /** Proveedores distintos por crear entre los seleccionados. */
+  pendingTercerosCount?: number
+  isCreatingTerceros?: boolean
   /** true si al menos un documento seleccionado todavía no queda en LISTA
    * (incluye ERROR: un fallo puede necesitar reconfigurarse) y por lo tanto
    * se puede configurar. */
@@ -57,6 +63,7 @@ interface SupportDocumentConfigPanelProps {
   onDueDateChange: (date: string) => void
   onSend: () => void
   onDelete: () => void
+  onCreateTerceros?: () => void
   /** Solo se usa en modo actionsOnly (Factura de compra) — deselecciona
    * todos los documentos de una vez ("Quitar selección"). */
   onClearSelection?: () => void
@@ -97,6 +104,9 @@ function SupportDocumentConfigPanel({
   actionsOnly = false,
   canSend,
   canDelete,
+  canCreateTerceros = false,
+  pendingTercerosCount = 0,
+  isCreatingTerceros = false,
   hasConfigurableSelection,
   isRetry = false,
   isSending,
@@ -112,12 +122,23 @@ function SupportDocumentConfigPanel({
   onDueDateChange,
   onSend,
   onDelete,
+  onCreateTerceros,
   onClearSelection,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const isBusy = isSending || isDeleting
   const controlsDisabled = disabled || isBusy
   const isDeleteMode = canDelete && !hasConfigurableSelection
+  const showCreateTerceros = canCreateTerceros && onCreateTerceros != null
+  const createTercerosButton = showCreateTerceros ? (
+    <Button
+      variant="secondary"
+      onClick={onCreateTerceros}
+      disabled={controlsDisabled || isCreatingTerceros}
+    >
+      {isCreatingTerceros ? 'Buscando proveedores...' : 'Crear terceros'}
+    </Button>
+  ) : null
 
   if (selectedCount === 0) {
     return null
@@ -129,14 +150,14 @@ function SupportDocumentConfigPanel({
   // colapsar/expandir que en este modo no tenía nada que hacer (los botones
   // Enviar/Eliminar quedaban escondidos si el usuario lo colapsaba).
   if (actionsOnly) {
-    const metaText =
-      canDelete && canSend
-        ? `${sendableCount} listo(s) para enviar · ${deletableCount} para eliminar`
-        : canDelete
-          ? `${deletableCount} listo(s) para eliminar`
-          : sendableCount > 0
-            ? `${sendableCount} listo(s) para enviar`
-            : null
+    const metaParts = [
+      sendableCount > 0 ? `${sendableCount} listo(s) para enviar` : null,
+      canDelete ? `${deletableCount} para eliminar` : null,
+      showCreateTerceros
+        ? `${pendingTercerosCount} sin tercero creado`
+        : null,
+    ].filter(Boolean)
+    const metaText = metaParts.length > 0 ? metaParts.join(' · ') : null
 
     return (
       <section
@@ -172,6 +193,7 @@ function SupportDocumentConfigPanel({
               {isDeleting ? (progressLabel ?? 'Eliminando...') : 'Eliminar'}
             </Button>
           )}
+          {createTercerosButton}
           {canSend && (
             <Button
               variant="primary"
@@ -368,6 +390,7 @@ function SupportDocumentConfigPanel({
                   : 'Eliminar'}
               </Button>
             )}
+            {createTercerosButton}
             {canSend && (
               <Button
                 variant="primary"

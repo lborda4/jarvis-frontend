@@ -28,7 +28,7 @@ export interface DocumentRowDetailEditableProps {
   retentionOptionsByType: Record<string, SiigoTaxOption[]>
   documentDiscount: number
   disabled?: boolean
-  onSaveDraft?: () => void | Promise<void>
+  onSaveDraft?: (edits: PurchaseInvoiceDetailEditorSave) => void | Promise<void>
   isSavingDraft?: boolean
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
 }

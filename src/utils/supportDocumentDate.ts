@@ -189,15 +189,13 @@ export function buildInitialRowDueDates(
 
   return Object.fromEntries(
     documents.map((document) => {
-      if (current[document.id] !== undefined) {
-        return [document.id, current[document.id]]
-      }
-
-      // Borrador guardado por el contador tiene prioridad sobre el
-      // importado — es el que puede haber editado a mano.
       const draftDueDate = document.draft?.dueDate?.trim()
       if (draftDueDate && /^\d{4}-\d{2}-\d{2}$/.test(draftDueDate)) {
         return [document.id, draftDueDate]
+      }
+
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
       }
 
       const importedDueDate = document.dueDate?.trim()

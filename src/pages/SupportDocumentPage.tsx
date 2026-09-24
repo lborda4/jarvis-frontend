@@ -316,12 +316,10 @@ function buildInitialPurchaseInvoiceRowAccounts(
 ): Record<string, SiigoAccountOption | null> {
   return Object.fromEntries(
     documents.map((document) => {
-      if (current[document.id] !== undefined) {
-        return [document.id, current[document.id]]
-      }
-
-      // Borrador guardado por el contador: prioridad sobre la sugerencia,
-      // aunque el historial/IA hayan cambiado de opinión desde entonces.
+      // Borrador guardado por el contador: prioridad sobre la sugerencia
+      // y sobre el estado en memoria. Si se aplicara primero la caché
+      // (sin draft) y luego el fetch fresco, `current` ya tendría la
+      // cuenta original y se ignoraría lo guardado.
       if (document.draft?.accountCode) {
         const draftAccountCode = document.draft.accountCode
         const catalogAccount = accountOptions.find(
@@ -335,6 +333,10 @@ function buildInitialPurchaseInvoiceRowAccounts(
             description: catalogAccount?.description ?? draftAccountCode,
           },
         ]
+      }
+
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
       }
 
       const accountCode =
@@ -381,13 +383,8 @@ function buildInitialPurchaseInvoiceRowPaymentMethods(
 ): Record<string, SiigoPaymentMethodOption | null> {
   return Object.fromEntries(
     documents.map((document) => {
-      if (current[document.id] !== undefined) {
-        return [document.id, current[document.id]]
-      }
-
-      // Borrador guardado: prioridad sobre la sugerencia. Se resuelve
-      // contra el catálogo VIGENTE de medios de pago — si el guardado ya no
-      // existe, el campo queda vacío en vez de mostrar un id sin nombre.
+      // Borrador guardado: prioridad sobre la sugerencia y sobre el
+      // estado en memoria (ver buildInitialPurchaseInvoiceRowAccounts).
       if (document.draft?.paymentMethodId != null) {
         const draftPaymentMethod = paymentMethodOptions.find(
           (option) => option.id === document.draft?.paymentMethodId,
@@ -396,6 +393,10 @@ function buildInitialPurchaseInvoiceRowPaymentMethods(
         if (draftPaymentMethod) {
           return [document.id, draftPaymentMethod]
         }
+      }
+
+      if (current[document.id] !== undefined) {
+        return [document.id, current[document.id]]
       }
 
       const paymentMethod =
@@ -436,20 +437,24 @@ function buildInitialPurchaseInvoiceRowRetentions(
 
   return Object.fromEntries(
     documents.map((document) => {
+      if (document.draft) {
+        const draftTaxIds = document.draft.retentionTaxIds ?? []
+
+        return [
+          document.id,
+          draftTaxIds
+            .map((taxId) =>
+              allRetentionOptions.find((option) => option.id === taxId),
+            )
+            .filter((option): option is SiigoTaxOption => Boolean(option)),
+        ]
+      }
+
       if (current[document.id] !== undefined) {
         return [document.id, current[document.id]]
       }
 
-      const draftTaxIds = document.draft?.retentionTaxIds ?? []
-
-      return [
-        document.id,
-        draftTaxIds
-          .map((taxId) =>
-            allRetentionOptions.find((option) => option.id === taxId),
-          )
-          .filter((option): option is SiigoTaxOption => Boolean(option)),
-      ]
+      return [document.id, []]
     }),
   )
 }
@@ -464,20 +469,18 @@ function buildInitialPurchaseInvoiceRowObservations(
       const notes = document.observations?.trim() || ''
       const withCufe = cufe ? `CUFE: ${cufe}${notes ? ` - ${notes}` : ''}` : notes
 
+      const draftObservations = document.draft?.observations?.trim()
+      if (draftObservations) {
+        return [
+          document.id,
+          cufe && !draftObservations.includes(cufe)
+            ? `CUFE: ${cufe} - ${draftObservations}`
+            : draftObservations,
+        ]
+      }
+
       const existing = current[document.id]
       if (existing === undefined) {
-        // Borrador guardado: se respeta lo que el contador escribió, con el
-        // mismo resguardo de "el CUFE nunca desaparece" que aplica abajo.
-        const draftObservations = document.draft?.observations?.trim()
-        if (draftObservations) {
-          return [
-            document.id,
-            cufe && !draftObservations.includes(cufe)
-              ? `CUFE: ${cufe} - ${draftObservations}`
-              : draftObservations,
-          ]
-        }
-
         return [document.id, withCufe]
       }
 
@@ -512,6 +515,13 @@ function resolvePurchaseInvoiceItemsFallback(
   }
 
   return buildPurchaseInvoiceItemDrafts(document, accountOptions, productOptions)
+}
+
+/** Misma normalización que aplica el backend al NIT de los proveedores
+ * pendientes (sin puntos, guiones ni espacios), para poder cruzar la lista
+ * que devuelve con los proveedores de las filas seleccionadas. */
+function normalizePendingSupplierNit(value?: string | null): string {
+  return (value ?? '').replace(/[^\dA-Za-z]/g, '').toUpperCase()
 }
 
 function resolveSharedSelectionValue<T>(
@@ -2257,13 +2267,21 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
    * vivían solo en memoria y se perdían al recargar o cambiar de sección: lo
    * único que los persistía era el envío a SIIGO. */
   const handleSaveDraft = useCallback(
-    async (documentId: string) => {
+    async (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => {
       setSavingDraftDocumentId(documentId)
       setErrorMessage(null)
+      handleSaveRowEdits(documentId, edits)
+
+      const accountCode =
+        edits.items.find(
+          (item) => item.tipo === 'Account' && item.producto.trim(),
+        )?.producto.trim() ??
+        rowAccounts[documentId]?.code ??
+        null
 
       try {
         await saveElectronicDocumentDraft(documentId, {
-          items: (rowItems[documentId] ?? []).map((item) => ({
+          items: edits.items.map((item) => ({
             tipo: item.tipo,
             producto: item.producto,
             description: item.description,
@@ -2273,15 +2291,54 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             ivaTaxId: item.ivaTax?.id ?? null,
             retefuenteTaxId: item.retefuenteTax?.id ?? null,
           })),
-          accountCode: rowAccounts[documentId]?.code ?? null,
-          paymentMethodId: rowPaymentMethods[documentId]?.id ?? null,
-          dueDate: rowDueDates[documentId] ?? null,
-          observations: rowObservations[documentId] ?? null,
-          retentionTaxIds: (rowRetentions[documentId] ?? []).map(
-            (retention) => retention.id,
-          ),
-          documentDiscount: rowDocumentDiscounts[documentId] ?? null,
+          accountCode,
+          paymentMethodId: edits.paymentMethod?.id ?? null,
+          dueDate: edits.dueDate ?? null,
+          observations: edits.observations || null,
+          retentionTaxIds: edits.retentions.map((retention) => retention.id),
+          documentDiscount: edits.documentDiscount ?? null,
         })
+
+        if (accountCode) {
+          setRowAccounts((current) => ({
+            ...current,
+            [documentId]: {
+              code: accountCode,
+              description: current[documentId]?.description ?? accountCode,
+            },
+          }))
+        }
+
+        setDocuments((current) =>
+          current.map((document) =>
+            document.id === documentId
+              ? {
+                  ...document,
+                  draft: {
+                    items: edits.items.map((item) => ({
+                      tipo: item.tipo,
+                      producto: item.producto,
+                      description: item.description,
+                      quantity: item.quantity,
+                      unitValue: item.unitValue,
+                      discount: item.discount,
+                      ivaTaxId: item.ivaTax?.id ?? null,
+                      retefuenteTaxId: item.retefuenteTax?.id ?? null,
+                    })),
+                    accountCode,
+                    paymentMethodId: edits.paymentMethod?.id ?? null,
+                    dueDate: edits.dueDate ?? null,
+                    observations: edits.observations || null,
+                    retentionTaxIds: edits.retentions.map(
+                      (retention) => retention.id,
+                    ),
+                    documentDiscount: edits.documentDiscount ?? null,
+                    savedAt: new Date().toISOString(),
+                  },
+                }
+              : document,
+          ),
+        )
 
         setDeleteFeedbackMessage('Cambios guardados.')
         // El estado del documento puede cambiar al guardar (lo que faltaba
@@ -2299,14 +2356,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       }
     },
     [
+      handleSaveRowEdits,
       reloadDocuments,
       rowAccounts,
-      rowDocumentDiscounts,
-      rowDueDates,
-      rowItems,
-      rowObservations,
-      rowPaymentMethods,
-      rowRetentions,
       setDeleteFeedbackMessage,
       setErrorMessage,
     ],
@@ -2324,12 +2376,36 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     reloadDocuments({ resetPage: false })
   }, [reloadDocuments])
 
-  // Botón "Crear terceros pendientes": la consulta a NextPyme para
-  // enriquecer cada proveedor ya la hace el backend (JARVIS: GET
+  /** Proveedores distintos (por NIT) entre los documentos seleccionados que
+   * están en "Requiere proveedor" — es lo que ofrece crear el botón "Crear
+   * terceros" de la barra de selección. */
+  const selectedPendingSupplierNits = useMemo(() => {
+    const nits = new Set<string>()
+
+    for (const documentId of selectedDocumentIds) {
+      if (importStatuses[documentId] !== IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR) {
+        continue
+      }
+
+      const nit = normalizePendingSupplierNit(
+        documentsById[documentId]?.supplierNit,
+      )
+      if (nit) {
+        nits.add(nit)
+      }
+    }
+
+    return nits
+  }, [selectedDocumentIds, importStatuses, documentsById])
+
+  // Botón "Crear terceros" de la barra de selección: la consulta a NextPyme
+  // para enriquecer cada proveedor ya la hace el backend (JARVIS: GET
   // terceros/pending; SIIGO: GET suppliers/pending), así que al hacer click
-  // se busca la lista completa — cruzando TODA la empresa, no solo la
-  // página cargada — y el modal se abre ya con nombre/correo resueltos,
-  // igual que el modal uno por uno.
+  // se busca la lista de pendientes de la empresa y se recorta a los
+  // proveedores de las filas seleccionadas — el candidato que devuelve el
+  // backend es uno por NIT (no por documento), así que el filtro va por NIT
+  // y no por id de documento. El modal se abre ya con nombre/correo
+  // resueltos, igual que el modal uno por uno.
   const handleOpenBulkTerceroModal = useCallback(async () => {
     setIsLoadingPendingSuppliers(true)
     setErrorMessage(null)
@@ -2339,7 +2415,20 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         config.provider === 'JARVIS'
           ? await fetchPendingJarvisTerceros()
           : await fetchPendingSiigoSuppliers()
-      setPendingSuppliers(response.items)
+      const items = response.items.filter((item) =>
+        selectedPendingSupplierNits.has(
+          normalizePendingSupplierNit(item.document_number),
+        ),
+      )
+
+      if (items.length === 0) {
+        setErrorMessage(
+          'Los documentos seleccionados ya no tienen proveedores pendientes por crear.',
+        )
+        return
+      }
+
+      setPendingSuppliers(items)
       setIsBulkTerceroModalOpen(true)
     } catch (error) {
       setErrorMessage(
@@ -2351,7 +2440,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     } finally {
       setIsLoadingPendingSuppliers(false)
     }
-  }, [config.provider, setErrorMessage])
+  }, [config.provider, selectedPendingSupplierNits, setErrorMessage])
 
   // "Crear" del modal masivo: JARVIS guarda en jarvis_terceros (no lanza
   // por proveedores repetidos, los cuenta como "skipped"); SIIGO crea
@@ -2401,11 +2490,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     [config.provider, reloadDocuments, setBulkTercerosMessage],
   )
 
-  const hasPendingSupplierDocuments =
-    filterOptions?.importStatuses.includes(
-      IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR,
-    ) ?? false
-
   return (
     <main className="support-document-page" ref={pageRef}>
       <PageHeader
@@ -2422,18 +2506,6 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 {isDownloadingTemplate
                   ? config.downloadingTemplateLabel
                   : config.templateButtonLabel}
-              </Button>
-            )}
-
-            {hasPendingSupplierDocuments && (
-              <Button
-                variant="secondary"
-                onClick={handleOpenBulkTerceroModal}
-                disabled={isLoadingPendingSuppliers || isImporting}
-              >
-                {isLoadingPendingSuppliers
-                  ? 'Buscando proveedores...'
-                  : 'Crear terceros pendientes'}
               </Button>
             )}
 
@@ -2645,6 +2717,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           showAccountField={config.requiresAccount}
           canSend={canSendSelected}
           canDelete={canDeleteSelected}
+          canCreateTerceros={selectedPendingSupplierNits.size > 0}
+          pendingTercerosCount={selectedPendingSupplierNits.size}
+          isCreatingTerceros={isLoadingPendingSuppliers}
           hasConfigurableSelection={hasConfigurableSelection}
           isRetry={isRetrySelected}
           isSending={isSending}
@@ -2659,6 +2734,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           onDueDateChange={handleConfigDueDateChange}
           onSend={handleSendSelected}
           onDelete={requestDeleteSelected}
+          onCreateTerceros={() => void handleOpenBulkTerceroModal()}
           onClearSelection={() => setSelectedDocumentIds(new Set())}
         />
       </div>

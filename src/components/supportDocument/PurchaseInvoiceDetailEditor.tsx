@@ -75,8 +75,10 @@ interface PurchaseInvoiceDetailEditorProps {
    * certificado por la DIAN) mientras el contador no lo haya tocado. */
   documentDiscount: number
   disabled?: boolean
-  /** Persiste el borrador. Sin este callback no se muestra el botón. */
-  onSaveDraft?: () => void | Promise<void>
+  /** Persiste el borrador. Recibe los valores actuales del editor — no los
+   * del padre — para no guardar la sugerencia original si el setState del
+   * onChange todavía no había llegado. */
+  onSaveDraft?: (edits: PurchaseInvoiceDetailEditorSave) => void | Promise<void>
   isSavingDraft?: boolean
   /** Se dispara con CADA cambio del borrador para mantener sincronizada la
    * fila del listado (el Total de la fila colapsada sigue al "Total neto" de
@@ -416,7 +418,16 @@ function PurchaseInvoiceDetailEditor({
           <Button
             type="button"
             variant="primary"
-            onClick={() => void onSaveDraft()}
+            onClick={() =>
+              void onSaveDraft({
+                items: draftItems,
+                paymentMethod: draftPaymentMethod,
+                dueDate: draftDueDate,
+                observations: draftObservations,
+                retentions: draftRetentions,
+                documentDiscount: draftDocumentDiscount,
+              })
+            }
             disabled={isSavingDraft}
           >
             {isSavingDraft ? 'Guardando...' : 'Guardar cambios'}

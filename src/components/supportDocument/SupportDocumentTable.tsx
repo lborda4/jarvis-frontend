@@ -102,7 +102,10 @@ interface SupportDocumentTableProps {
   retentionOptionsByType?: Record<string, SiigoTaxOption[]>
   onSaveRowEdits?: (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => void
   /** Persiste el borrador del documento (electronic_documents.draft). */
-  onSaveDraft?: (documentId: string) => void | Promise<void>
+  onSaveDraft?: (
+    documentId: string,
+    edits: PurchaseInvoiceDetailEditorSave,
+  ) => void | Promise<void>
   savingDraftDocumentId?: string | null
   sortColumn: SupportDocumentSortColumn | null
   sortDirection: SupportDocumentSortDirection
@@ -817,7 +820,7 @@ function SupportDocumentTable({
                                   0,
                                 disabled: isSending || isDeleting || isRowLocked,
                                 onSaveDraft: onSaveDraft
-                                  ? () => onSaveDraft(row.id)
+                                  ? (edits) => onSaveDraft(row.id, edits)
                                   : undefined,
                                 isSavingDraft: savingDraftDocumentId === row.id,
                                 // Cada cambio actualiza directo rowItems/
