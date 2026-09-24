@@ -23,6 +23,10 @@ import {
 import { fetchProducts, type ProductResponse } from '../services/productService'
 import type { JarvisTercero } from '../types/jarvis'
 import {
+  findProductIvaTax,
+  findProductRetefuenteTax,
+} from '../utils/productTaxes'
+import {
   addDaysToLocalDate,
   daysBetweenLocalDates,
 } from '../utils/supportDocumentDate'
@@ -332,12 +336,15 @@ function SalesInvoicePage() {
 
   const handleSelectProduct = useCallback(
     (lineId: string, product: ProductResponse) => {
+      const productIvaTax = findProductIvaTax(product)
+      const ivaRate = productIvaTax?.rate ?? null
+      const productRetefuenteTax = findProductRetefuenteTax(product)
+
       const rawPrice = resolveProductPrice(product)
       let unitValue: string | undefined
       if (rawPrice != null) {
-        if (product.priceIncludesIva && product.applyIva && product.ivaRate) {
-          const base =
-            Math.round((rawPrice / (1 + product.ivaRate / 100)) * 100) / 100
+        if (product.priceIncludesIva && ivaRate) {
+          const base = Math.round((rawPrice / (1 + ivaRate / 100)) * 100) / 100
           unitValue = String(base)
         } else {
           unitValue = String(rawPrice)
@@ -346,17 +353,16 @@ function SalesInvoicePage() {
 
       let taxChargeId: string | undefined
       let taxPercent: string | undefined
-      if (product.applyIva) {
+      if (productIvaTax) {
         const matchedIva =
           chargeTaxes.find(
             (tax) =>
-              isIvaTax(tax) &&
-              (product.ivaRate == null || tax.percentage === product.ivaRate),
+              isIvaTax(tax) && (ivaRate == null || tax.percentage === ivaRate),
           ) ?? chargeTaxes.find((tax) => isIvaTax(tax))
         if (matchedIva) {
           taxChargeId = String(matchedIva.id)
           taxPercent = String(
-            product.ivaRate ?? matchedIva.percentage ?? DEFAULT_IVA_PERCENT,
+            ivaRate ?? matchedIva.percentage ?? DEFAULT_IVA_PERCENT,
           )
         }
       } else {
@@ -365,14 +371,14 @@ function SalesInvoicePage() {
       }
 
       let taxRetentionId: string | undefined
-      if (product.retefuenteEnabled) {
+      if (productRetefuenteTax) {
         const matchedRete =
           retentionTaxes.find((tax) => {
             const label = `${tax.name ?? ''} ${tax.type ?? ''}`.toUpperCase()
             return (
               (label.includes('RETE') || label.includes('RENTA')) &&
-              (product.retefuenteRate == null ||
-                tax.percentage === product.retefuenteRate)
+              (productRetefuenteTax.rate == null ||
+                tax.percentage === productRetefuenteTax.rate)
             )
           }) ??
           retentionTaxes.find((tax) => {

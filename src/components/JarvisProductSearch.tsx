@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import type { ProductResponse } from '../services/productService'
+import { findProductIvaTax } from '../utils/productTaxes'
 
 export interface JarvisProductSearchProps {
   id?: string
@@ -237,6 +238,7 @@ export default function JarvisProductSearch({
           ) : (
             filteredProducts.slice(0, 50).map((product, idx) => {
               const mainPrice = resolveProductMainPrice(product)
+              const ivaTax = findProductIvaTax(product)
               const isSelected = idx === highlightedIndex
 
               return (
@@ -267,9 +269,9 @@ export default function JarvisProductSearch({
                           · ${mainPrice.toLocaleString('es-CO')}
                         </span>
                       )}
-                      {product.applyIva && (
+                      {ivaTax && (
                         <span className="ds-individual__product-tax">
-                          · IVA {product.ivaRate ?? 19}%
+                          · IVA {ivaTax.rate ?? 19}%
                         </span>
                       )}
                     </div>

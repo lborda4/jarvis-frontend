@@ -177,20 +177,9 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Extractos bancarios oculto temporalmente a pedido explícito — la ruta
-    // y la página siguen intactas, solo se saca el ítem del menú (rama
-    // muerta a propósito, en vez de comentada del todo, para no perder el
-    // tipado de "children" que usa renderNavItems más abajo).
-    ...(true
-      ? []
-      : [
-          {
-            label: 'Extractos bancarios',
-            to: BANK_STATEMENTS_ROOT,
-            icon: PulseIcon,
-            children: BANK_STATEMENT_CHILDREN,
-          },
-        ]),
+    // Extractos bancarios oculto temporalmente a pedido explícito — la ruta y
+    // la página siguen intactas, solo se saca el ítem del menú (ver las
+    // constantes comentadas arriba para volver a habilitarlo).
     ...(isAdminRole(user?.role)
       ? [
           {
