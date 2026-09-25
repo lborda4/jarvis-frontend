@@ -554,6 +554,44 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     expect(draft.producto).toBe('51356002')
   })
 
+  it('asigna una cuenta distinta a cada línea cuando la IA clasificó ítem por ítem', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'Resma de papel',
+          quantity: 1,
+          unitValue: 10000,
+          total: 10000,
+          suggestedAccount: {
+            code: '51953001',
+            name: 'Papelería',
+            source: 'fallback',
+          },
+        },
+        {
+          description: 'Jabón líquido',
+          quantity: 1,
+          unitValue: 8000,
+          total: 8000,
+          suggestedAccount: {
+            code: '51050601',
+            name: 'Aseo',
+            source: 'fallback',
+          },
+        },
+      ],
+      suggestedItemConfig: null,
+      suggestedAccount: null,
+    })
+
+    const drafts = buildPurchaseInvoiceItemDrafts(
+      document,
+      accountCatalogWith('51953001', '51050601'),
+    )
+
+    expect(drafts.map((item) => item.producto)).toEqual(['51953001', '51050601'])
+  })
+
   it('la cuenta aprendida del historial del proveedor tiene prioridad sobre la sugerida por IA', () => {
     const document = buildDocument({
       items: [

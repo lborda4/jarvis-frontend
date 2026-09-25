@@ -292,7 +292,12 @@ export function buildPurchaseInvoiceItemDrafts(
           ) ?? '')
         : itemTipo === 'Product'
           ? (resolveValidatedProductCode(
-              [supplierConfig?.productCode, rawItemCode, aiSuggestedProductCode],
+              [
+                supplierConfig?.productCode,
+                item.suggestedProduct?.code,
+                rawItemCode,
+                aiSuggestedProductCode,
+              ],
               productOptions,
             ) ?? '')
           : (supplierConfig?.accountCode ?? rawItemCode ?? ''))

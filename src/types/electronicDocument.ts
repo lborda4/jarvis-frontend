@@ -146,6 +146,7 @@ export interface ElectronicDocumentListItemItem {
   discount?: number
   suggestedTax?: SuggestedItemTax | null
   suggestedAccount?: SuggestedItemAccount | null
+  suggestedProduct?: { code: string; name: string } | null
 }
 
 export interface ElectronicDocumentListItem {
