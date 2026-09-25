@@ -10,6 +10,7 @@ import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft'
 import type {
   CreateSiigoPurchaseSendRequest,
+  CreateSiigoSupportDocumentItem,
   CreateSiigoSupportDocumentRequest,
 } from '../types/siigo'
 import { buildSiigoSupportDocumentRequest as buildSupportDocumentRequest } from './buildSiigoSupportDocumentRequest'
@@ -136,7 +137,7 @@ export function buildSiigoPurchaseSendRequest(
   const documentLevelIvaTax =
     ivaTax && Number.isFinite(ivaTax.id) && ivaTax.id > 0 ? ivaTax : null
 
-  const items = hasEditedItems
+  const items: CreateSiigoSupportDocumentItem[] = hasEditedItems
     ? editedItems!.map((item, index) => {
         const isAccountItem = item.tipo === 'Account'
         const editedCode = item.producto.trim()
@@ -168,6 +169,9 @@ export function buildSiigoPurchaseSendRequest(
           description: item.description,
           quantity: item.quantity > 0 ? item.quantity : 1,
           price: item.unitValue > 0 ? item.unitValue : item.total,
+          ...(item.discount && item.discount > 0
+            ? { discount: item.discount }
+            : {}),
           ...(itemTax ? { taxes: [{ id: itemTax.id }] } : {}),
         }
       })
