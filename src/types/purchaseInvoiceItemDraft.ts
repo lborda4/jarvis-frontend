@@ -2,6 +2,7 @@ import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoProductOption } from '../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
+import { resolvePreferredInvoiceIvaTax } from '../utils/siigoTaxes'
 import { roundMoney } from '../utils/siigoSupportDocumentTotal'
 
 /** Valores que SIIGO acepta en items[].type — campo obligatorio del lado de
@@ -38,6 +39,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
   draftItems: NonNullable<ElectronicDocumentListItem['draft']>['items'],
   ivaOptions: SiigoTaxOption[] = [],
   retefuenteOptions: SiigoTaxOption[] = [],
+  fallbackIvaTax: SiigoTaxOption | null = null,
 ): PurchaseInvoiceItemDraft[] {
   const findTax = (
     options: SiigoTaxOption[],
@@ -53,7 +55,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
     quantity: item.quantity,
     unitValue: item.unitValue,
     discount: item.discount,
-    ivaTax: findTax(ivaOptions, item.ivaTaxId),
+    ivaTax: findTax(ivaOptions, item.ivaTaxId) ?? fallbackIvaTax,
     retefuenteTax: findTax(retefuenteOptions, item.retefuenteTaxId),
   }))
 }
@@ -162,6 +164,7 @@ export function buildPurchaseInvoiceItemDrafts(
   document: ElectronicDocumentListItem,
   accountOptions: SiigoAccountOption[] = [],
   productOptions: SiigoProductOption[] = [],
+  ivaOptions: SiigoTaxOption[] = [],
 ): PurchaseInvoiceItemDraft[] {
   const items = document.items ?? []
   const supplierConfig = document.suggestedItemConfig ?? null
@@ -198,6 +201,10 @@ export function buildPurchaseInvoiceItemDrafts(
         percentage: supplierConfig.ivaTax.percentage,
       }
     : null
+  const preferredInvoiceIvaTax = resolvePreferredInvoiceIvaTax(
+    document,
+    ivaOptions,
+  )
 
   const retefuenteTaxFromSupplierConfig = supplierConfig?.retefuenteTax
     ? {
@@ -229,7 +236,7 @@ export function buildPurchaseInvoiceItemDrafts(
         unitValue: document.total,
         tipo: effectiveTipo,
         producto,
-        ivaTax: ivaTaxFromSupplierConfig,
+        ivaTax: ivaTaxFromSupplierConfig ?? preferredInvoiceIvaTax,
         retefuenteTax: retefuenteTaxFromSupplierConfig,
       },
     ]
@@ -310,7 +317,7 @@ export function buildPurchaseInvoiceItemDrafts(
               type: 'IVA',
               percentage: item.suggestedTax.percentage,
             }
-          : null),
+          : preferredInvoiceIvaTax),
       retefuenteTax: retefuenteTaxFromSupplierConfig,
     }
   })
@@ -340,18 +347,18 @@ export function mergeLateItemSuggestions(
   return stored.map((item, index) => {
     const suggestion = fresh[index]
 
-    if (
-      !suggestion ||
-      item.producto?.trim() ||
-      !suggestion.producto?.trim()
-    ) {
+    if (!suggestion) {
       return item
     }
 
+    const keepStoredCode = Boolean(item.producto?.trim())
+
     return {
       ...item,
-      tipo: suggestion.tipo,
-      producto: suggestion.producto,
+      tipo: keepStoredCode ? item.tipo : suggestion.tipo,
+      producto: keepStoredCode ? item.producto : suggestion.producto,
+      ivaTax: item.ivaTax ?? suggestion.ivaTax,
+      retefuenteTax: item.retefuenteTax ?? suggestion.retefuenteTax,
     }
   })
 }

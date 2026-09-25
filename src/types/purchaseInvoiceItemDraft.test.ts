@@ -497,6 +497,30 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     expect(draft.retefuenteTax?.id).toBe(4)
   })
 
+  it('si la factura trae IVA 19% y el catálogo tiene Activo Fijo, precarga el IVA de compras no el de activo', () => {
+    const document = buildDocument({
+      documentSubtotal: 85714,
+      documentIva: 16286,
+      items: [
+        {
+          description: 'CANDADO MARINO 60MM ISEO',
+          quantity: 1,
+          unitValue: 100000,
+          total: 100000,
+        },
+      ],
+      suggestedItemConfig: null,
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [], [], [
+      { id: 6, name: 'IVA Activo Fijo', type: 'IVA', percentage: 19 },
+      { id: 1, name: 'IVA 19%', type: 'IVA', percentage: 19 },
+    ])
+
+    expect(draft.ivaTax?.id).toBe(1)
+    expect(draft.ivaTax?.name).toBe('IVA 19%')
+  })
+
   it('sin ítems y sin config del proveedor: arranca vacío como antes', () => {
     const document = buildDocument({ items: [], suggestedItemConfig: null })
 
@@ -776,6 +800,19 @@ describe('mergeLateItemSuggestions', () => {
     const fresh = [buildDraft({ tipo: 'Account', producto: '51959501' })]
 
     expect(mergeLateItemSuggestions([], fresh)[0].producto).toBe('51959501')
+  })
+
+  it('copia el IVA que llega después aunque la cuenta ya estuviera llena', () => {
+    const stored = [buildDraft({ tipo: 'Account', producto: '51452501', ivaTax: null })]
+    const fresh = [
+      buildDraft({
+        tipo: 'Account',
+        producto: '51452501',
+        ivaTax: { id: 1, name: 'IVA 19%', type: 'IVA', percentage: 19 },
+      }),
+    ]
+
+    expect(mergeLateItemSuggestions(stored, fresh)[0].ivaTax?.id).toBe(1)
   })
 })
 

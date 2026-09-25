@@ -116,6 +116,7 @@ import {
 } from '../utils/siigoCostCenters'
 import {
   mapSuggestedRetentionsToTaxOptions,
+  resolvePreferredInvoiceIvaTax,
 } from '../utils/siigoTaxes'
 import {
   addDaysToLocalDate,
@@ -528,10 +529,16 @@ function resolvePurchaseInvoiceItemsFallback(
       document.draft?.items,
       ivaOptions,
       retefuenteOptions,
+      resolvePreferredInvoiceIvaTax(document, ivaOptions),
     )
   }
 
-  return buildPurchaseInvoiceItemDrafts(document, accountOptions, productOptions)
+  return buildPurchaseInvoiceItemDrafts(
+    document,
+    accountOptions,
+    productOptions,
+    ivaOptions,
+  )
 }
 
 /** Misma normalización que aplica el backend al NIT de los proveedores
@@ -809,6 +816,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
               document.draft?.items,
               ivaOptions,
               retefuenteOptions,
+              resolvePreferredInvoiceIvaTax(document, ivaOptions),
             )
           }
 

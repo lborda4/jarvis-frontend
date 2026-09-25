@@ -24,6 +24,7 @@ import {
   draftItemsHaveAssignedCodes,
   mergeLateItemSuggestions,
 } from '../../types/purchaseInvoiceItemDraft'
+import { resolvePreferredInvoiceIvaTax } from '../../utils/siigoTaxes'
 import type { PurchaseInvoiceDetailEditorSave } from './PurchaseInvoiceDetailEditor'
 import {
   formatSupportDocumentTableAccount,
@@ -572,15 +573,17 @@ function SupportDocumentTable({
               const retefuenteOptions = retentionOptionsByType.Retefuente ?? []
               const suggestedPurchaseInvoiceItems = document
                 ? draftItemsHaveAssignedCodes(document.draft?.items)
-                  ?                     buildPurchaseInvoiceItemDraftsFromDraft(
+                  ? buildPurchaseInvoiceItemDraftsFromDraft(
                       document.draft?.items,
                       ivaOptions,
                       retefuenteOptions,
+                      resolvePreferredInvoiceIvaTax(document, ivaOptions),
                     )
                   : buildPurchaseInvoiceItemDrafts(
                       document,
                       accountOptions,
                       productOptions,
+                      ivaOptions,
                     )
                 : undefined
               const effectivePurchaseInvoiceItems = suggestedPurchaseInvoiceItems
@@ -820,6 +823,7 @@ function SupportDocumentTable({
                                     document,
                                     accountOptions,
                                     productOptions,
+                                    ivaOptions,
                                   ),
                                 paymentMethod: rowPaymentMethods[row.id] ?? null,
                                 paymentMethodOptions,
