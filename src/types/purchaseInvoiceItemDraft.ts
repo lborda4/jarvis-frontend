@@ -48,7 +48,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
   return (draftItems ?? []).map((item) => ({
     localId: createLocalId(),
     tipo: item.tipo,
-    producto: item.producto,
+    producto: item.producto?.trim() ?? '',
     description: item.description,
     quantity: item.quantity,
     unitValue: item.unitValue,
@@ -56,6 +56,15 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
     ivaTax: findTax(ivaOptions, item.ivaTaxId),
     retefuenteTax: findTax(retefuenteOptions, item.retefuenteTaxId),
   }))
+}
+
+/** true si el borrador trae al menos un código de cuenta/producto — un
+ * `draft.items` de solo líneas vacías no sirve para reconstruir y se ignora
+ * (cae a las sugerencias / accountMapping del payload). */
+export function draftItemsHaveAssignedCodes(
+  items: NonNullable<ElectronicDocumentListItem['draft']>['items'] | null | undefined,
+): boolean {
+  return Boolean(items?.some((item) => Boolean(item.producto?.trim())))
 }
 
 /** Devuelve el primer candidato que exista LITERALMENTE en el catálogo real
@@ -238,9 +247,23 @@ export function buildPurchaseInvoiceItemDrafts(
     // source: 'exact' — 'fallback' es apenas una sugerencia de proveedor sin
     // confirmar para esta descripción y no alcanza para cambiar el tipo.
     const hasExactItemAccountRule = item.suggestedAccount?.source === 'exact'
-    const itemTipo: PurchaseInvoiceItemType = hasExactItemAccountRule
-      ? 'Account'
-      : effectiveTipo
+    const savedAccountCode = item.accountMapping?.code?.trim() || null
+    const savedItemType = item.itemType ?? null
+    const itemTipo: PurchaseInvoiceItemType =
+      savedItemType ??
+      (hasExactItemAccountRule ? 'Account' : effectiveTipo)
+    // accountMapping / itemType los escribe saveDraft: son la cuenta o el
+    // producto que el contador YA eligió, no un SKU del vendedor. Se usan
+    // tal cual — sin exigir que el catálogo esté cargado todavía — para que
+    // recargar no deje el campo en "Buscar cuenta contable...".
+    const savedProducto =
+      itemTipo === 'Account'
+        ? savedAccountCode
+        : itemTipo === 'Product' && savedItemType
+          ? rawItemCode
+          : itemTipo === 'FixedAsset' && savedItemType
+            ? rawItemCode
+            : null
     // El código de la factura importada (item.code) es SIEMPRE del VENDEDOR
     // (su SKU o código de barras), no un código del comprador — cuando el
     // tipo es 'Account' o 'Product', solo se usa si coincide LITERALMENTE
@@ -249,7 +272,8 @@ export function buildPurchaseInvoiceItemDrafts(
     // sugerencia de IA. Solo 'FixedAsset' queda como código libre — SIIGO no
     // expone un catálogo de activos fijos por esta vía.
     const producto =
-      itemTipo === 'Account'
+      savedProducto ??
+      (itemTipo === 'Account'
         ? (resolveValidatedAccountCode(
             [
               item.suggestedAccount?.code,
@@ -264,7 +288,7 @@ export function buildPurchaseInvoiceItemDrafts(
               [supplierConfig?.productCode, rawItemCode, aiSuggestedProductCode],
               productOptions,
             ) ?? '')
-          : (supplierConfig?.accountCode ?? rawItemCode ?? '')
+          : (supplierConfig?.accountCode ?? rawItemCode ?? ''))
 
     return {
       localId: createLocalId(),
@@ -301,6 +325,37 @@ export function buildPurchaseInvoiceItemDrafts(
  * Producto sin código SIEMPRE requiere completarlo a mano — SIIGO exige un
  * código de producto real por línea, no existe un "producto por defecto" a
  * nivel de documento. */
+/** El detalle publica el paso 1 (tipo Cuenta/Producto, código vacío) y lo
+ * congela en rowItems. Cuando el paso 2 escribe la cuenta o el producto, esa
+ * foto vacía tapaba la recomendación. Si la línea sigue sin código, se copia
+ * el que acaba de llegar. Un código que el contador ya eligió no se pisa. */
+export function mergeLateItemSuggestions(
+  stored: PurchaseInvoiceItemDraft[] | undefined,
+  fresh: PurchaseInvoiceItemDraft[],
+): PurchaseInvoiceItemDraft[] {
+  if (!stored?.length) {
+    return fresh
+  }
+
+  return stored.map((item, index) => {
+    const suggestion = fresh[index]
+
+    if (
+      !suggestion ||
+      item.producto?.trim() ||
+      !suggestion.producto?.trim()
+    ) {
+      return item
+    }
+
+    return {
+      ...item,
+      tipo: suggestion.tipo,
+      producto: suggestion.producto,
+    }
+  })
+}
+
 export function hasUnresolvedProductItem(
   items: PurchaseInvoiceItemDraft[] | undefined,
 ): boolean {

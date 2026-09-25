@@ -44,3 +44,50 @@ export function mapCatalogToPaymentMethodOptions(
 ): SiigoPaymentMethodOption[] {
   return items.map(mapCatalogItemToPaymentMethodOption)
 }
+
+const CREDIT_SUPPLIER_NAME_ALIASES = [
+  'credito proveedores',
+  'credito a proveedores',
+] as const
+
+const OTHER_PAYABLES_NAME_ALIASES = ['otras cuentas por pagar'] as const
+
+/** Sin historial: crédito. Cuenta 5 → Otras cuentas por pagar; 1/6/7 u
+ * otra/sin cuenta → Crédito proveedores. El id sale del catálogo SIIGO
+ * de la empresa (no es un código fijo). */
+export function resolvePurchaseCreditFallbackPaymentMethod(
+  accountCode: string | null | undefined,
+  paymentMethodOptions: SiigoPaymentMethodOption[],
+): SiigoPaymentMethodOption | null {
+  const accountClass = accountCode?.replace(/[^\d]/g, '')[0] ?? null
+  const aliases =
+    accountClass === '5'
+      ? OTHER_PAYABLES_NAME_ALIASES
+      : CREDIT_SUPPLIER_NAME_ALIASES
+
+  return (
+    findPaymentMethodByName(paymentMethodOptions, aliases) ??
+    paymentMethodOptions.find((option) => option.dueDate === true) ??
+    null
+  )
+}
+
+function findPaymentMethodByName(
+  paymentMethodOptions: SiigoPaymentMethodOption[],
+  aliases: readonly string[],
+): SiigoPaymentMethodOption | null {
+  return (
+    paymentMethodOptions.find((option) => {
+      const normalized = option.name
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+
+      return aliases.some(
+        (alias) => normalized === alias || normalized.includes(alias),
+      )
+    }) ?? null
+  )
+}

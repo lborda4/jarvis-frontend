@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import DateRangePicker, { type DateRangePickerValue } from '../DateRangePicker'
-import { ChevronDownIcon } from '../icons/SidebarIcons'
+import { ChevronDownIcon, CloseIcon } from '../icons/SidebarIcons'
 import SupplierMultiSelect from '../SupplierMultiSelect'
 import ColumnCheckboxFilter, {
   buildSupportDocumentFilterOptions,
@@ -71,6 +71,7 @@ function FilterDropdown({
   bare = false,
   onToggle,
   onClose,
+  onClear,
   children,
 }: {
   label: string
@@ -82,6 +83,7 @@ function FilterDropdown({
   bare?: boolean
   onToggle: () => void
   onClose: () => void
+  onClear?: () => void
   children: React.ReactNode
 }) {
   const popoverId = useId()
@@ -186,19 +188,32 @@ function FilterDropdown({
         .join(' ')}
     >
       <span className="support-filter-bar__label">{label}</span>
-      <button
-        type="button"
-        className="support-filter-bar__trigger"
-        onClick={onToggle}
-        disabled={disabled}
-        aria-expanded={isOpen}
-        aria-controls={popoverId}
-      >
-        <span className="support-filter-bar__trigger-text">{summary}</span>
-        <span className="support-filter-bar__chevron" aria-hidden="true">
-          <ChevronDownIcon />
-        </span>
-      </button>
+      <div className="support-filter-bar__trigger-row">
+        <button
+          type="button"
+          className="support-filter-bar__trigger"
+          onClick={onToggle}
+          disabled={disabled}
+          aria-expanded={isOpen}
+          aria-controls={popoverId}
+        >
+          <span className="support-filter-bar__trigger-text">{summary}</span>
+          <span className="support-filter-bar__chevron" aria-hidden="true">
+            <ChevronDownIcon />
+          </span>
+        </button>
+        {isActive && onClear ? (
+          <button
+            type="button"
+            className="support-filter-bar__clear-one"
+            onClick={onClear}
+            disabled={disabled}
+            aria-label={`Quitar filtro de ${label}`}
+          >
+            <CloseIcon />
+          </button>
+        ) : null}
+      </div>
       {panel && (portal ? createPortal(panel, document.body) : panel)}
     </div>
   )
@@ -314,6 +329,28 @@ function SupportDocumentFilterBar({
     setOpenFilter(null)
   }
 
+  const clearDateFilter = () => {
+    onColumnFiltersChange((current) => ({
+      ...current,
+      dates: [],
+      dateFrom: null,
+      dateTo: null,
+    }))
+    setOpenFilter((current) => (current === 'date' ? null : current))
+  }
+
+  const clearSupplierFilter = () => {
+    onSupplierNitsChange([])
+  }
+
+  const clearStatusFilter = () => {
+    onColumnFiltersChange((current) => ({
+      ...current,
+      statuses: [],
+    }))
+    setOpenFilter((current) => (current === 'status' ? null : current))
+  }
+
   return (
     <section className="support-filter-bar" aria-label="Filtros de documentos">
       <div className="support-filter-bar__fields">
@@ -333,6 +370,7 @@ function SupportDocumentFilterBar({
             setOpenFilter((current) => (current === 'date' ? null : 'date'))
           }
           onClose={() => setOpenFilter(null)}
+          onClear={clearDateFilter}
         >
           {dateRangeFilter ? (
             <DateRangePicker
@@ -361,13 +399,26 @@ function SupportDocumentFilterBar({
             .join(' ')}
         >
           <span className="support-filter-bar__label">Proveedor</span>
-          <SupplierMultiSelect
-            options={supplierOptions}
-            selectedNits={selectedSupplierNits}
-            onChange={onSupplierNitsChange}
-            disabled={disabled}
-            placeholder="Todos los proveedores"
-          />
+          <div className="support-filter-bar__trigger-row">
+            <SupplierMultiSelect
+              options={supplierOptions}
+              selectedNits={selectedSupplierNits}
+              onChange={onSupplierNitsChange}
+              disabled={disabled}
+              placeholder="Todos los proveedores"
+            />
+            {selectedSupplierNits.length > 0 ? (
+              <button
+                type="button"
+                className="support-filter-bar__clear-one"
+                onClick={clearSupplierFilter}
+                disabled={disabled}
+                aria-label="Quitar filtro de proveedor"
+              >
+                <CloseIcon />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <FilterDropdown
@@ -381,6 +432,7 @@ function SupportDocumentFilterBar({
             setOpenFilter((current) => (current === 'status' ? null : 'status'))
           }
           onClose={() => setOpenFilter(null)}
+          onClear={clearStatusFilter}
         >
           <ColumnCheckboxFilter
             options={columnFilterOptions.statuses}

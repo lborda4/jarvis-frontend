@@ -19,6 +19,7 @@ import {
   type ImportRowStatus,
 } from '../types/import'
 import {
+  isPurchaseAiClassificationPending,
   mapDocumentToImportRowStatus,
   mapResumeNextStepToImportStatus,
 } from '../utils/mapImportRowStatus'
@@ -237,7 +238,12 @@ export function useSupportDocumentResume({
 
           if (
             imported.length === uniqueIds.length &&
-            imported.every((document) => !isSupplierCheckPending(document))
+            imported.every(
+              (document) =>
+                !isSupplierCheckPending(document) &&
+                (electronicDocumentType !== 'PURCHASE_INVOICE' ||
+                  !isPurchaseAiClassificationPending(document)),
+            )
           ) {
             setImportStatuses((current) => {
               const next = { ...current }

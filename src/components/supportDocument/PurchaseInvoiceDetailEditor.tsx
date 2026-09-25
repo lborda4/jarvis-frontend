@@ -122,6 +122,7 @@ function PurchaseInvoiceDetailEditor({
     disabled ? '' : placeholder
 
   const [draftItems, setDraftItems] = useState(items)
+  const userEditedItemsRef = useRef(false)
   const [draftPaymentMethod, setDraftPaymentMethod] = useState(paymentMethod)
   const [draftDueDate, setDraftDueDate] = useState(initialDueDate)
   const [draftObservations, setDraftObservations] = useState(observations)
@@ -193,6 +194,40 @@ function PurchaseInvoiceDetailEditor({
   onChangeRef.current = onChange
 
   useEffect(() => {
+    setDraftItems((current) => {
+      if (current.length === 0 && items.length > 0) {
+        return items
+      }
+
+      const incomingFilledEmptyLines = items.some(
+        (item, index) =>
+          Boolean(item.producto?.trim()) &&
+          !current[index]?.producto?.trim(),
+      )
+
+      if (!incomingFilledEmptyLines) {
+        return current
+      }
+
+      if (userEditedItemsRef.current) {
+        return current.map((item, index) => {
+          if (item.producto?.trim() || !items[index]?.producto?.trim()) {
+            return item
+          }
+
+          return {
+            ...item,
+            tipo: items[index].tipo,
+            producto: items[index].producto,
+          }
+        })
+      }
+
+      return items
+    })
+  }, [items])
+
+  useEffect(() => {
     onChangeRef.current?.({
       items: draftItems,
       paymentMethod: draftPaymentMethod,
@@ -215,7 +250,10 @@ function PurchaseInvoiceDetailEditor({
     <div className="purchase-invoice-editor">
       <PurchaseInvoiceItemsEditor
         items={draftItems}
-        onChange={setDraftItems}
+        onChange={(next) => {
+          userEditedItemsRef.current = true
+          setDraftItems(next)
+        }}
         ivaOptions={ivaOptions}
         retefuenteOptions={retentionOptionsByType[RETEFUENTE_TAX_TYPE] ?? []}
         accountOptions={accountOptions}

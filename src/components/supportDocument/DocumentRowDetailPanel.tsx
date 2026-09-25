@@ -89,6 +89,7 @@ export default function DocumentRowDetailPanel({
     return (
       <div className="support-table__detail-panel">
         <PurchaseInvoiceDetailEditor
+          key={`${document.id}:${document.draft?.savedAt ?? 'unsaved'}`}
           document={document}
           items={editable.items}
           paymentMethod={editable.paymentMethod}

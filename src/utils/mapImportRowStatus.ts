@@ -26,6 +26,46 @@ export function mapResumeNextStepToImportStatus(
   }
 }
 
+/** La clasificación automática publica primero el tipo (Cuenta/Producto) y
+ * unos segundos después el código. Mientras no haya cuenta, producto ni
+ * confianza, el listado tiene que seguir refrescándose: si el sondeo para
+ * cuando el proveedor ya está validado, el código nunca llega a la pantalla. */
+export function isPurchaseAiClassificationPending(
+  document: ElectronicDocumentListItem,
+): boolean {
+  if (
+    document.electronicDocumentType &&
+    document.electronicDocumentType !== 'PURCHASE_INVOICE'
+  ) {
+    return false
+  }
+
+  if (document.aiConfidence != null) {
+    return false
+  }
+
+  if (
+    document.suggestedAccount?.code?.trim() ||
+    document.suggestedProduct?.code?.trim() ||
+    document.suggestedItemConfig?.accountCode?.trim() ||
+    document.suggestedItemConfig?.productCode?.trim()
+  ) {
+    return false
+  }
+
+  if (
+    document.items?.some(
+      (item) =>
+        item.suggestedAccount?.source === 'exact' &&
+        Boolean(item.suggestedAccount.code?.trim()),
+    )
+  ) {
+    return false
+  }
+
+  return true
+}
+
 export function mapDocumentToImportRowStatus(
   document: ElectronicDocumentListItem,
 ): ImportRowStatus {

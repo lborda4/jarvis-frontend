@@ -18,7 +18,12 @@ import type {
 } from '../../types/supportDocumentPage'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
-import { buildPurchaseInvoiceItemDrafts } from '../../types/purchaseInvoiceItemDraft'
+import {
+  buildPurchaseInvoiceItemDrafts,
+  buildPurchaseInvoiceItemDraftsFromDraft,
+  draftItemsHaveAssignedCodes,
+  mergeLateItemSuggestions,
+} from '../../types/purchaseInvoiceItemDraft'
 import type { PurchaseInvoiceDetailEditorSave } from './PurchaseInvoiceDetailEditor'
 import {
   formatSupportDocumentTableAccount,
@@ -564,13 +569,25 @@ function SupportDocumentTable({
               // `rowItems`/`rowRetentions`/etc. ya reflejan cada cambio en
               // vivo (ver onChange más abajo, no hay un paso de "guardar"
               // aparte), así que no hace falta un borrador paralelo acá.
-              const effectivePurchaseInvoiceItems = document
-                ? (rowItems[row.id] ??
-                  buildPurchaseInvoiceItemDrafts(
-                    document,
-                    accountOptions,
-                    productOptions,
-                  ))
+              const retefuenteOptions = retentionOptionsByType.Retefuente ?? []
+              const suggestedPurchaseInvoiceItems = document
+                ? draftItemsHaveAssignedCodes(document.draft?.items)
+                  ?                     buildPurchaseInvoiceItemDraftsFromDraft(
+                      document.draft?.items,
+                      ivaOptions,
+                      retefuenteOptions,
+                    )
+                  : buildPurchaseInvoiceItemDrafts(
+                      document,
+                      accountOptions,
+                      productOptions,
+                    )
+                : undefined
+              const effectivePurchaseInvoiceItems = suggestedPurchaseInvoiceItems
+                ? mergeLateItemSuggestions(
+                    rowItems[row.id],
+                    suggestedPurchaseInvoiceItems,
+                  )
                 : undefined
               const effectiveRetentions = rowRetentions[row.id] ?? []
               const effectiveDocumentDiscount =

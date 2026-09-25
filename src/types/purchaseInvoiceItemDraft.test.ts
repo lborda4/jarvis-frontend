@@ -3,7 +3,9 @@ import {
   buildPurchaseInvoiceItemDrafts,
   calculatePurchaseInvoiceItemLineTotals,
   createEmptyPurchaseInvoiceItemDraft,
+  draftItemsHaveAssignedCodes,
   hasUnresolvedProductItem,
+  mergeLateItemSuggestions,
   type PurchaseInvoiceItemDraft,
 } from './purchaseInvoiceItemDraft'
 import type { ElectronicDocumentListItem } from './electronicDocument'
@@ -730,6 +732,68 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     )
 
     expect(draft.producto).toBe('51356002')
+  })
+
+  it('la cuenta guardada en accountMapping se muestra aunque el catálogo todavía no haya cargado', () => {
+    const document = buildDocument({
+      items: [
+        {
+          description: 'BOLSA RECICLADA',
+          quantity: 1,
+          unitValue: 500,
+          total: 500,
+          accountMapping: { code: '51959501' },
+          itemType: 'Account',
+        },
+      ],
+      suggestedItemConfig: null,
+      suggestedAccount: null,
+    })
+
+    const [draft] = buildPurchaseInvoiceItemDrafts(document, [])
+
+    expect(draft.tipo).toBe('Account')
+    expect(draft.producto).toBe('51959501')
+  })
+})
+
+describe('mergeLateItemSuggestions', () => {
+  it('copia la cuenta que llega después en una línea que el paso 1 dejó vacía', () => {
+    const stored = [buildDraft({ tipo: 'Account', producto: '', description: 'BOLSA RECICLADA' })]
+    const fresh = [buildDraft({ tipo: 'Account', producto: '51959501', description: 'BOLSA RECICLADA' })]
+
+    expect(mergeLateItemSuggestions(stored, fresh)[0].producto).toBe('51959501')
+  })
+
+  it('no pisa un código que el contador ya eligió', () => {
+    const stored = [buildDraft({ tipo: 'Account', producto: '51050601' })]
+    const fresh = [buildDraft({ tipo: 'Account', producto: '51959501' })]
+
+    expect(mergeLateItemSuggestions(stored, fresh)[0].producto).toBe('51050601')
+  })
+
+  it('un array vacío no tapa las cuentas del borrador ([] es truthy y devolvía cero líneas)', () => {
+    const fresh = [buildDraft({ tipo: 'Account', producto: '51959501' })]
+
+    expect(mergeLateItemSuggestions([], fresh)[0].producto).toBe('51959501')
+  })
+})
+
+describe('draftItemsHaveAssignedCodes', () => {
+  it('ignora un borrador que solo trae líneas sin cuenta', () => {
+    expect(
+      draftItemsHaveAssignedCodes([
+        { tipo: 'Account', producto: '', description: 'BOLSA', quantity: 1, unitValue: 500, discount: 0 },
+      ]),
+    ).toBe(false)
+  })
+
+  it('acepta un borrador con al menos una cuenta guardada', () => {
+    expect(
+      draftItemsHaveAssignedCodes([
+        { tipo: 'Account', producto: '51959501', description: 'BOLSA', quantity: 1, unitValue: 500, discount: 0 },
+      ]),
+    ).toBe(true)
   })
 })
 

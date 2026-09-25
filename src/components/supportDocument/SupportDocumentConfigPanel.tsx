@@ -132,11 +132,13 @@ function SupportDocumentConfigPanel({
   const showCreateTerceros = canCreateTerceros && onCreateTerceros != null
   const createTercerosButton = showCreateTerceros ? (
     <Button
-      variant="secondary"
+      variant="primary"
       onClick={onCreateTerceros}
       disabled={controlsDisabled || isCreatingTerceros}
     >
-      {isCreatingTerceros ? 'Buscando proveedores...' : 'Crear terceros'}
+      {isCreatingTerceros
+        ? 'Buscando proveedores...'
+        : `Crear ${pendingTercerosCount} tercero${pendingTercerosCount === 1 ? '' : 's'}`}
     </Button>
   ) : null
 

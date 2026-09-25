@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolvePlazoDays } from './supportDocumentDate'
+import { resolveInvoiceDueDate, resolvePlazoDays } from './supportDocumentDate'
 
 describe('resolvePlazoDays', () => {
   it('usa durationMeasure directo cuando viene válido, sin importar las fechas', () => {
@@ -21,5 +21,17 @@ describe('resolvePlazoDays', () => {
 
   it('ignora durationMeasure <= 0 y cae al cálculo por fechas', () => {
     expect(resolvePlazoDays('2026-03-30', '2026-04-29', 0)).toBe(30)
+  })
+})
+
+describe('resolveInvoiceDueDate', () => {
+  it('conserva el vencimiento real de NextPyme', () => {
+    expect(resolveInvoiceDueDate('2026-09-18', '2026-10-18', 30)).toBe(
+      '2026-10-18',
+    )
+  })
+
+  it('calcula el vencimiento con el plazo de NextPyme si no hay fecha', () => {
+    expect(resolveInvoiceDueDate('2026-09-18', null, 30)).toBe('2026-10-18')
   })
 })

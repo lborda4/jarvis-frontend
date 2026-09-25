@@ -115,6 +115,36 @@ export function resolvePlazoDays(
   return daysBetweenUtcDates(issueDate, paymentDueDate)
 }
 
+export function resolveInvoiceDueDate(
+  issueDate: string | null | undefined,
+  paymentDueDate: string | null | undefined,
+  durationMeasure: number | null | undefined,
+): string | null {
+  const trimmedDueDate = paymentDueDate?.trim()
+
+  if (
+    trimmedDueDate &&
+    isValidLocalDateFormat(trimmedDueDate) &&
+    Number(trimmedDueDate.slice(0, 4)) >= 1900
+  ) {
+    return trimmedDueDate
+  }
+
+  const plazoDays = resolvePlazoDays(issueDate, paymentDueDate, durationMeasure)
+  const trimmedIssueDate = issueDate?.trim()
+
+  if (
+    trimmedIssueDate &&
+    isValidLocalDateFormat(trimmedIssueDate) &&
+    plazoDays != null &&
+    plazoDays > 0
+  ) {
+    return addDaysToLocalDate(trimmedIssueDate, plazoDays)
+  }
+
+  return null
+}
+
 /** Solo valida el formato, sin restringir el rango — para Factura de compra,
  * donde la fecha es la de una factura de tercero ya emitida (puede ser de
  * hace meses, no aplica la ventana de 5 días de Documento Soporte). */
@@ -179,6 +209,8 @@ export function buildInitialRowDueDates(
   documents: Array<{
     id: string
     dueDate?: string | null
+    issueDate?: string | null
+    paymentDurationMeasure?: number | null
     draft?: { dueDate?: string | null } | null
   }>,
   current: Record<string, string | null> = {},
@@ -198,9 +230,13 @@ export function buildInitialRowDueDates(
         return [document.id, current[document.id]]
       }
 
-      const importedDueDate = document.dueDate?.trim()
+      const importedDueDate = resolveInvoiceDueDate(
+        document.issueDate,
+        document.dueDate,
+        document.paymentDurationMeasure,
+      )
 
-      if (importedDueDate && /^\d{4}-\d{2}-\d{2}$/.test(importedDueDate)) {
+      if (importedDueDate) {
         return [document.id, importedDueDate]
       }
 

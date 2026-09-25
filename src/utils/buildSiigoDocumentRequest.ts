@@ -13,7 +13,11 @@ import type {
   CreateSiigoSupportDocumentRequest,
 } from '../types/siigo'
 import { buildSiigoSupportDocumentRequest as buildSupportDocumentRequest } from './buildSiigoSupportDocumentRequest'
-import { calculateSiigoSupportDocumentPaymentValue } from './siigoSupportDocumentTotal'
+import {
+  areItemPricesTaxInclusive,
+  calculateSiigoSupportDocumentPaymentValue,
+  convertTaxInclusiveUnitPrice,
+} from './siigoSupportDocumentTotal'
 import { isCreditPaymentMethod } from './siigoPaymentMethods'
 import { getTodayLocalDate, isValidLocalDateFormat } from './supportDocumentDate'
 
@@ -124,43 +128,39 @@ export function buildSiigoPurchaseSendRequest(
     .filter((tax) => isPurchaseInvoiceRetentionTaxType(tax.type))
     .map((tax) => ({ id: tax.id, type: tax.type }))
 
-  // El IVA elegido manualmente en la columna de IVA tiene prioridad sobre el
-  // sugerido por ítem (IA) — es una elección explícita del usuario para todo
-  // el documento, igual que las retenciones. No aplica si el documento tiene
-  // ítems editados a mano desde el panel de detalle: ahí cada línea ya trae
-  // su propio IVA elegido.
-  const resolvedIvaTax =
-    !hasEditedItems && ivaTax && Number.isFinite(ivaTax.id) && ivaTax.id > 0
-      ? ivaTax
-      : null
+  // IVA de documento (columna del listado) o, si no hay, el sugerido por
+  // los ítems importados. Sirve tanto al enviar la fila colapsada como
+  // fallback cuando el panel de detalle dejó la celda de IVA vacía — si no,
+  // el backend aplicaba el primer IVA del catálogo (a menudo 5%) y SIIGO
+  // recibía un impuesto distinto al que Jarvis muestra (el de la DIAN).
+  const documentLevelIvaTax =
+    ivaTax && Number.isFinite(ivaTax.id) && ivaTax.id > 0 ? ivaTax : null
 
   const items = hasEditedItems
-    ? editedItems!.map((item) => {
-        // SIIGO exige type: 'Product' | 'FixedAsset' | 'Account'. Para
-        // Product/FixedAsset el code es el código propio del ítem (y sí va
-        // description). Para Account, el campo "Producto" también es
-        // editable: si el usuario lo llenó/corrigió a mano (o vino
-        // precargado de la config del proveedor), se usa ese código; si lo
-        // deja vacío, cae a la cuenta contable elegida arriba (sin
-        // description, igual que en el body de ejemplo de SIIGO para ese
-        // tipo).
+    ? editedItems!.map((item, index) => {
         const isAccountItem = item.tipo === 'Account'
         const editedCode = item.producto.trim()
+        const itemTax =
+          item.ivaTax && item.ivaTax.id > 0
+            ? item.ivaTax
+            : (documentLevelIvaTax ?? sourceItems[index]?.suggestedTax)
+        const description =
+          item.description.trim() ||
+          sourceItems[index]?.description?.trim() ||
+          ''
 
         return {
           type: item.tipo,
           code: isAccountItem ? editedCode || account.code : editedCode,
-          ...(isAccountItem ? {} : { description: item.description }),
+          ...(description ? { description } : {}),
           quantity: item.quantity > 0 ? item.quantity : 1,
           price: item.unitValue,
           ...(item.discount > 0 ? { discount: item.discount } : {}),
-          ...(item.ivaTax && item.ivaTax.id > 0
-            ? { taxes: [{ id: item.ivaTax.id }] }
-            : {}),
+          ...(itemTax && itemTax.id > 0 ? { taxes: [{ id: itemTax.id }] } : {}),
         }
       })
     : sourceItems.map((item) => {
-        const itemTax = resolvedIvaTax ?? item.suggestedTax
+        const itemTax = documentLevelIvaTax ?? item.suggestedTax
 
         return {
           type: 'Account',
@@ -178,12 +178,24 @@ export function buildSiigoPurchaseSendRequest(
   // calcula del lado suyo al ver items[].taxes).
   const itemTaxesCatalog: SiigoTaxOption[] = hasEditedItems
     ? dedupeTaxOptionsById(
-        editedItems!
-          .map((item) => item.ivaTax)
-          .filter((tax): tax is SiigoTaxOption => Boolean(tax)),
+        [
+          ...editedItems!
+            .map((item) => item.ivaTax)
+            .filter((tax): tax is SiigoTaxOption => Boolean(tax)),
+          ...(documentLevelIvaTax ? [documentLevelIvaTax] : []),
+          ...sourceItems
+            .map((item) => item.suggestedTax)
+            .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
+            .map((tax) => ({
+              id: tax.id,
+              name: tax.name,
+              type: 'IVA',
+              percentage: tax.percentage,
+            })),
+        ],
       )
-    : resolvedIvaTax
-      ? [resolvedIvaTax]
+    : documentLevelIvaTax
+      ? [documentLevelIvaTax]
       : sourceItems
           .map((item) => item.suggestedTax)
           .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
@@ -193,6 +205,29 @@ export function buildSiigoPurchaseSendRequest(
             type: 'IVA',
             percentage: tax.percentage,
           }))
+
+  const itemsGross = items.reduce((sum, item) => {
+    const quantity = item.quantity > 0 ? item.quantity : 1
+    const discount = item.discount && item.discount > 0 ? item.discount : 0
+    return sum + quantity * item.price - discount
+  }, 0)
+  const fallbackIvaRate =
+    itemTaxesCatalog[0]?.percentage ??
+    (document.documentSubtotal > 0 && document.documentIva > 0
+      ? (document.documentIva / document.documentSubtotal) * 100
+      : 0)
+  if (
+    fallbackIvaRate > 0 &&
+    areItemPricesTaxInclusive({
+      itemsGross,
+      subtotal: document.documentSubtotal,
+      total: document.total,
+    })
+  ) {
+    for (const item of items) {
+      item.price = convertTaxInclusiveUnitPrice(item.price, fallbackIvaRate)
+    }
+  }
 
   const paymentValue = calculateSiigoSupportDocumentPaymentValue(
     items,

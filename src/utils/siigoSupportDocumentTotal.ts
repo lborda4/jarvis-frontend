@@ -14,6 +14,31 @@ export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+export function areItemPricesTaxInclusive(params: {
+  itemsGross: number
+  subtotal: number
+  total: number
+}): boolean {
+  const { itemsGross, subtotal, total } = params
+
+  if (!(itemsGross > 0) || !(subtotal > 0) || !(total > subtotal)) {
+    return false
+  }
+
+  return Math.abs(itemsGross - total) < Math.abs(itemsGross - subtotal)
+}
+
+export function convertTaxInclusiveUnitPrice(
+  price: number,
+  taxRate: number,
+): number {
+  if (!(price > 0) || !(taxRate > 0)) {
+    return price
+  }
+
+  return roundMoney(price / (1 + taxRate / 100))
+}
+
 function isRetentionTaxType(type?: string): boolean {
   const normalized = normalizeTaxType(type)
 

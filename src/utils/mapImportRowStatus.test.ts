@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { getSupportDocumentActionFromImportStatus } from './mapImportRowStatus'
+import {
+  getSupportDocumentActionFromImportStatus,
+  isPurchaseAiClassificationPending,
+} from './mapImportRowStatus'
+import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import { IMPORT_ROW_STATUS } from '../types/import'
 
 describe('getSupportDocumentActionFromImportStatus', () => {
@@ -46,5 +50,29 @@ describe('getSupportDocumentActionFromImportStatus', () => {
         IMPORT_ROW_STATUS.REQUIERE_REVISION,
       ),
     ).toBe('send')
+  })
+})
+
+describe('isPurchaseAiClassificationPending', () => {
+  it('sigue pendiente cuando el paso 1 ya puso Cuenta y el código todavía no llegó', () => {
+    const document = {
+      electronicDocumentType: 'PURCHASE_INVOICE',
+      aiSuggestedItemType: 'Account',
+      aiConfidence: null,
+      suggestedAccount: null,
+    } as ElectronicDocumentListItem
+
+    expect(isPurchaseAiClassificationPending(document)).toBe(true)
+  })
+
+  it('termina cuando la cuenta sugerida ya está en el documento', () => {
+    const document = {
+      electronicDocumentType: 'PURCHASE_INVOICE',
+      aiSuggestedItemType: 'Account',
+      aiConfidence: 90,
+      suggestedAccount: { code: '51959501', name: 'Elementos de aseo', uses: 1 },
+    } as ElectronicDocumentListItem
+
+    expect(isPurchaseAiClassificationPending(document)).toBe(false)
   })
 })

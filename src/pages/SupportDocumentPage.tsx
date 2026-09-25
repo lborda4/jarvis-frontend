@@ -85,6 +85,8 @@ import type { PurchaseInvoiceItemDraft } from '../types/purchaseInvoiceItemDraft
 import {
   buildPurchaseInvoiceItemDrafts,
   buildPurchaseInvoiceItemDraftsFromDraft,
+  draftItemsHaveAssignedCodes,
+  mergeLateItemSuggestions,
 } from '../types/purchaseInvoiceItemDraft'
 import type { PurchaseInvoiceDetailEditorSave } from '../components/supportDocument/PurchaseInvoiceDetailEditor'
 import {
@@ -107,6 +109,7 @@ import {
 import {
   isCreditPaymentMethod,
   mapSuggestedPaymentMethodToOption,
+  resolvePurchaseCreditFallbackPaymentMethod,
 } from '../utils/siigoPaymentMethods'
 import {
   mapSuggestedCostCenterToOption,
@@ -121,6 +124,7 @@ import {
   buildInitialRowObservations,
   daysBetweenLocalDates,
   getTodayLocalDate,
+  resolveInvoiceDueDate,
 } from '../utils/supportDocumentDate'
 import {
   buildNotSendableReason,
@@ -395,7 +399,7 @@ function buildInitialPurchaseInvoiceRowPaymentMethods(
         }
       }
 
-      if (current[document.id] !== undefined) {
+      if (current[document.id]) {
         return [document.id, current[document.id]]
       }
 
@@ -403,16 +407,29 @@ function buildInitialPurchaseInvoiceRowPaymentMethods(
         document.suggestedItemConfig?.paymentMethod ??
         document.suggestedPaymentMethod
 
+      if (paymentMethod) {
+        return [
+          document.id,
+          {
+            id: paymentMethod.id,
+            name: paymentMethod.name,
+            type: paymentMethod.type,
+            dueDate: paymentMethod.dueDate,
+          },
+        ]
+      }
+
+      const accountCode =
+        document.suggestedItemConfig?.accountCode ??
+        document.suggestedAccount?.code ??
+        null
+
       return [
         document.id,
-        paymentMethod
-          ? {
-              id: paymentMethod.id,
-              name: paymentMethod.name,
-              type: paymentMethod.type,
-              dueDate: paymentMethod.dueDate,
-            }
-          : null,
+        resolvePurchaseCreditFallbackPaymentMethod(
+          accountCode,
+          paymentMethodOptions,
+        ),
       ]
     }),
   )
@@ -506,9 +523,9 @@ function resolvePurchaseInvoiceItemsFallback(
   ivaOptions: SiigoTaxOption[],
   retefuenteOptions: SiigoTaxOption[],
 ): PurchaseInvoiceItemDraft[] {
-  if (document.draft?.items?.length) {
+  if (draftItemsHaveAssignedCodes(document.draft?.items)) {
     return buildPurchaseInvoiceItemDraftsFromDraft(
-      document.draft.items,
+      document.draft?.items,
       ivaOptions,
       retefuenteOptions,
     )
@@ -776,6 +793,27 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 current,
               ),
         )
+        setRowItems((current) => {
+          if (!isPurchaseInvoiceWorkspace) {
+            return current
+          }
+
+          const next = { ...current }
+
+          for (const document of response.items) {
+            if (!draftItemsHaveAssignedCodes(document.draft?.items)) {
+              continue
+            }
+
+            next[document.id] = buildPurchaseInvoiceItemDraftsFromDraft(
+              document.draft?.items,
+              ivaOptions,
+              retefuenteOptions,
+            )
+          }
+
+          return next
+        })
         setRowIva((current) => buildInitialRowIva(response.items, current))
         setRowDocumentDiscounts((current) =>
           buildInitialRowDocumentDiscounts(response.items, current),
@@ -1077,15 +1115,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     const merged: Record<string, PurchaseInvoiceItemDraft[]> = { ...rowItems }
 
     for (const document of documents) {
-      if (merged[document.id] === undefined) {
-        merged[document.id] = resolvePurchaseInvoiceItemsFallback(
-          document,
-          accountOptions,
-          productOptions,
-          ivaOptions,
-          retefuenteOptions,
-        )
-      }
+      const fresh = resolvePurchaseInvoiceItemsFallback(
+        document,
+        accountOptions,
+        productOptions,
+        ivaOptions,
+        retefuenteOptions,
+      )
+      merged[document.id] = mergeLateItemSuggestions(rowItems[document.id], fresh)
     }
 
     return merged
@@ -1413,8 +1450,51 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
         return next
       })
+
+      if (config.key !== 'purchaseInvoice') {
+        return
+      }
+
+      setRowPaymentMethods((current) => {
+        const next = { ...current }
+
+        for (const documentId of selectedDocumentIds) {
+          if (next[documentId]) {
+            continue
+          }
+
+          next[documentId] = resolvePurchaseCreditFallbackPaymentMethod(
+            account.code,
+            paymentMethodOptions,
+          )
+        }
+
+        return next
+      })
+
+      setRowDueDates((current) => {
+        const next = { ...current }
+
+        for (const documentId of selectedDocumentIds) {
+          if (next[documentId]?.trim()) {
+            continue
+          }
+
+          const document = documents.find((item) => item.id === documentId)
+          next[documentId] =
+            resolveInvoiceDueDate(
+              document?.issueDate,
+              document?.dueDate,
+              document?.paymentDurationMeasure,
+            ) ||
+            rowDates[documentId] ||
+            getTodayLocalDate()
+        }
+
+        return next
+      })
     },
-    [selectedDocumentIds],
+    [config.key, documents, paymentMethodOptions, rowDates, selectedDocumentIds],
   )
 
   const handleConfigPaymentMethodChange = useCallback(
@@ -2244,7 +2324,23 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
    * retenciones: solo queda en pantalla, listo para "Enviar". */
   const handleSaveRowEdits = useCallback(
     (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => {
-      setRowItems((current) => ({ ...current, [documentId]: edits.items }))
+      setRowItems((current) => {
+        const existing = current[documentId]
+        const incomingFilled = edits.items.filter((item) =>
+          item.producto?.trim(),
+        ).length
+        const existingFilled =
+          existing?.filter((item) => item.producto?.trim()).length ?? 0
+
+        // El editor dispara onChange al montar. Si montó con líneas vacías
+        // (catálogo/draft todavía no habían llegado), eso no puede borrar
+        // las cuentas que ya estaban en memoria o que trajo el borrador.
+        if (existing && incomingFilled === 0 && existingFilled > 0) {
+          return current
+        }
+
+        return { ...current, [documentId]: edits.items }
+      })
       setRowPaymentMethods((current) => ({
         ...current,
         [documentId]: edits.paymentMethod,
@@ -2376,9 +2472,24 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     reloadDocuments({ resetPage: false })
   }, [reloadDocuments])
 
-  /** Proveedores distintos (por NIT) entre los documentos seleccionados que
-   * están en "Requiere proveedor" — es lo que ofrece crear el botón "Crear
-   * terceros" de la barra de selección. */
+  /** Documentos seleccionados en "Requiere proveedor" — el botón de la
+   * barra cuenta estos, igual que "Enviar N documentos" cuenta los listos
+   * para enviar. El modal después agrupa por NIT para no crear el mismo
+   * tercero dos veces. */
+  const selectedRequiereProveedorCount = useMemo(() => {
+    let count = 0
+
+    for (const documentId of selectedDocumentIds) {
+      if (importStatuses[documentId] === IMPORT_ROW_STATUS.REQUIERE_PROVEEDOR) {
+        count += 1
+      }
+    }
+
+    return count
+  }, [selectedDocumentIds, importStatuses])
+
+  /** Proveedores distintos (por NIT) entre esos documentos — el backend
+   * devuelve un candidato por NIT, no por documento. */
   const selectedPendingSupplierNits = useMemo(() => {
     const nits = new Set<string>()
 
@@ -2717,8 +2828,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           showAccountField={config.requiresAccount}
           canSend={canSendSelected}
           canDelete={canDeleteSelected}
-          canCreateTerceros={selectedPendingSupplierNits.size > 0}
-          pendingTercerosCount={selectedPendingSupplierNits.size}
+          canCreateTerceros={selectedRequiereProveedorCount > 0}
+          pendingTercerosCount={selectedRequiereProveedorCount}
           isCreatingTerceros={isLoadingPendingSuppliers}
           hasConfigurableSelection={hasConfigurableSelection}
           isRetry={isRetrySelected}
@@ -2756,7 +2867,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         showSummaryColumns={config.key === 'purchaseInvoice'}
         rowDueDates={rowDueDates}
         rowObservations={rowObservations}
-        rowItems={rowItems}
+        rowItems={effectiveRowItems}
         paymentMethodOptions={paymentMethodOptions}
         productOptions={productOptions}
         ivaOptions={ivaOptions}
