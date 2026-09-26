@@ -11,6 +11,8 @@ import type {
   RegenerateCompanyInviteCodeResponse,
   UpdateCompanyCityRequest,
   UpdateCompanyCityResponse,
+  UpdateCompanyDescriptionRequest,
+  UpdateCompanyDescriptionResponse,
   UpdateCompanyNextPymeTokenRequest,
   UpdateCompanyNextPymeTokenResponse,
   UpdateIntegrationSubscriptionRequest,
@@ -103,6 +105,18 @@ export async function lookupAdminCompanyName(
 export async function fetchAdminCities(): Promise<ListAdminCitiesResponse> {
   const response = await apiClient.get<ListAdminCitiesResponse>(
     ADMIN_CITIES_ENDPOINT,
+  )
+
+  return response.data
+}
+
+export async function updateCompanyDescription(
+  companyId: string,
+  request: UpdateCompanyDescriptionRequest,
+): Promise<UpdateCompanyDescriptionResponse> {
+  const response = await apiClient.patch<UpdateCompanyDescriptionResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/description`,
+    request,
   )
 
   return response.data

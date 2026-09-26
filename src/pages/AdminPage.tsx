@@ -19,6 +19,7 @@ import {
   regenerateCompanyInviteCode,
   saveBoldCashRegister,
   updateCompanyCity,
+  updateCompanyDescription,
   updateCompanyNextPymeToken,
   updateIntegrationSubscription,
 } from '../services/adminService'
@@ -187,6 +188,12 @@ function AdminPage() {
     useState<string | null>(null)
   const [nit, setNit] = useState('')
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [editingDescriptionCompanyId, setEditingDescriptionCompanyId] =
+    useState<string | null>(null)
+  const [descriptionDraft, setDescriptionDraft] = useState('')
+  const [savingDescriptionCompanyId, setSavingDescriptionCompanyId] =
+    useState<string | null>(null)
   const [isLookingUpName, setIsLookingUpName] = useState(false)
   const [personType, setPersonType] = useState<CompanyPersonType | ''>('')
   const [responsibleName, setResponsibleName] = useState('')
@@ -402,6 +409,7 @@ function AdminPage() {
       const response = await createAdminCompany({
         nit: nit.trim(),
         name: name.trim(),
+        ...(description.trim() ? { description: description.trim() } : {}),
         personType: personType as CompanyPersonType,
         ...(responsibleName.trim() ||
         responsiblePhone.trim() ||
@@ -455,6 +463,7 @@ function AdminPage() {
 
       setNit('')
       setName('')
+      setDescription('')
       setPersonType('')
       setResponsibleName('')
       setResponsiblePhone('')
@@ -816,6 +825,47 @@ function AdminPage() {
     }
   }
 
+  const handleStartEditDescription = (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setEditingDescriptionCompanyId(company.id)
+    setDescriptionDraft(company.description ?? '')
+  }
+
+  const handleCancelEditDescription = () => {
+    setEditingDescriptionCompanyId(null)
+    setDescriptionDraft('')
+  }
+
+  const handleSaveDescription = async (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setSavingDescriptionCompanyId(company.id)
+
+    try {
+      const response = await updateCompanyDescription(company.id, {
+        description: descriptionDraft.trim() || null,
+      })
+
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === company.id
+            ? { ...item, description: response.company.description }
+            : item,
+        ),
+      )
+      setSuccessMessage(`Descripción actualizada para ${company.name}.`)
+      setEditingDescriptionCompanyId(null)
+      setDescriptionDraft('')
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo actualizar la descripción.'),
+      )
+    } finally {
+      setSavingDescriptionCompanyId(null)
+    }
+  }
+
   const handleStartEditCity = (company: AdminCompanyListItem) => {
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -981,6 +1031,26 @@ function AdminPage() {
                   isLookingUpName ? 'Buscando en el RUT/RUES...' : undefined
                 }
               />
+            </div>
+
+            <div className="admin-form__field admin-form__field--wide">
+              <label htmlFor="admin-company-description">
+                Descripción de la empresa
+              </label>
+              <textarea
+                id="admin-company-description"
+                value={description}
+                onChange={(event) =>
+                  setDescription(event.target.value.slice(0, 1000))
+                }
+                disabled={isSubmitting}
+                rows={3}
+                maxLength={1000}
+                placeholder="A qué se dedica: rubro, actividad, si maneja inventario, etc. La IA lo usa para sugerir cuenta o producto."
+              />
+              <span className="admin-form__hint">
+                {description.length} / 1000
+              </span>
             </div>
 
             <div className="admin-form__field">
@@ -1304,6 +1374,7 @@ function AdminPage() {
                   <th>Código de invitación</th>
                   <th>NIT</th>
                   <th>Empresa</th>
+                  <th>Descripción</th>
                   <th>Tipo</th>
                   <th>Persona a cargo</th>
                   <th>Integraciones</th>
@@ -1380,6 +1451,67 @@ function AdminPage() {
                       </td>
                     <td>{company.nit}</td>
                     <td>{company.name}</td>
+                      <td>
+                        {editingDescriptionCompanyId === company.id ? (
+                          <div className="admin-nextpyme-token admin-nextpyme-token--editing">
+                            <textarea
+                              value={descriptionDraft}
+                              onChange={(event) =>
+                                setDescriptionDraft(
+                                  event.target.value.slice(0, 1000),
+                                )
+                              }
+                              rows={3}
+                              maxLength={1000}
+                              disabled={
+                                savingDescriptionCompanyId === company.id
+                              }
+                              placeholder="A qué se dedica la empresa..."
+                            />
+                            <div className="admin-nextpyme-token__actions">
+                              <button
+                                type="button"
+                                disabled={
+                                  savingDescriptionCompanyId === company.id
+                                }
+                                onClick={() =>
+                                  void handleSaveDescription(company)
+                                }
+                              >
+                                {savingDescriptionCompanyId === company.id
+                                  ? 'Guardando...'
+                                  : 'Guardar'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  savingDescriptionCompanyId === company.id
+                                }
+                                onClick={handleCancelEditDescription}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="admin-nextpyme-token">
+                            <span
+                              className="admin-nextpyme-token__value"
+                              title={company.description ?? undefined}
+                            >
+                              {company.description?.trim() || 'Sin descripción'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleStartEditDescription(company)
+                              }
+                            >
+                              {company.description ? 'Editar' : 'Configurar'}
+                            </button>
+                          </div>
+                        )}
+                      </td>
                       <td>{formatPersonType(company.personType)}</td>
                     <td>{formatResponsible(company.responsible)}</td>
                       <td>{formatIntegrations(company)}</td>
@@ -1676,7 +1808,7 @@ function AdminPage() {
                     </tr>,
                     isBoldPanelOpen ? (
                       <tr key={`${company.id}-bold`} className="admin-bold-panel-row">
-                        <td colSpan={14}>
+                        <td colSpan={15}>
                           <div className="admin-bold-panel">
                             <h3 className="admin-bold-panel__title">
                               Bold — Cajas y datáfonos de {company.name}

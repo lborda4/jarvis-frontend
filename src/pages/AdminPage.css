@@ -61,6 +61,15 @@
   gap: 0.4rem;
 }
 
+.admin-form__field--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-form__hint {
+  color: var(--jarvis-gray-500);
+  font-size: var(--text-xs);
+}
+
 .admin-form__field label,
 .admin-form__integrations legend,
 .admin-form__responsible legend {
@@ -70,13 +79,19 @@
 }
 
 .admin-form__field input,
-.admin-form__field select {
+.admin-form__field select,
+.admin-form__field textarea {
   width: 100%;
   padding: 0.72rem 0.85rem;
   border: 1px solid var(--jarvis-gray-300);
   border-radius: var(--r-sm);
   font-size: var(--text-md);
   background: #ffffff;
+}
+
+.admin-form__field textarea {
+  min-height: 4.5rem;
+  resize: vertical;
 }
 
 .admin-form__integrations,
@@ -329,6 +344,10 @@
 }
 
 .admin-nextpyme-token__value {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   font-size: 0.85rem;
   color: var(--jarvis-text-muted);
   letter-spacing: 0.03em;
@@ -355,12 +374,18 @@
   min-width: 13rem;
 }
 
-.admin-nextpyme-token--editing input {
+.admin-nextpyme-token--editing input,
+.admin-nextpyme-token--editing textarea {
   border: 1px solid var(--jarvis-gray-300);
   border-radius: var(--r-sm);
   padding: 0.35rem 0.5rem;
   font-size: 0.8rem;
   width: 100%;
+}
+
+.admin-nextpyme-token--editing textarea {
+  min-height: 4rem;
+  resize: vertical;
 }
 
 .admin-nextpyme-token__actions {

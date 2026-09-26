@@ -61,6 +61,7 @@ export interface AdminCompanyListItem {
   id: string
   nit: string
   name: string
+  description: string | null
   personType: CompanyPersonType | null
   responsible: AdminCompanyResponsible | null
   createdAt: string
@@ -95,6 +96,7 @@ export interface ListAdminPlansResponse {
 export interface CreateAdminCompanyRequest {
   nit: string
   name: string
+  description?: string
   personType: CompanyPersonType
   responsible?: AdminCompanyResponsible
   integrations: IntegrationProvider[]
@@ -161,6 +163,14 @@ export interface UpdateCompanyCityRequest {
 }
 
 export interface UpdateCompanyCityResponse {
+  company: AdminCompanyListItem
+}
+
+export interface UpdateCompanyDescriptionRequest {
+  description: string | null
+}
+
+export interface UpdateCompanyDescriptionResponse {
   company: AdminCompanyListItem
 }
 
