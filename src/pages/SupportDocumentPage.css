@@ -2301,3 +2301,5 @@
     overflow-y: visible;
   }
 }
+
+.import-validation-notice { padding: 1rem; border: 1px solid #f0cf83; border-radius: 8px; background: #fffbeb; color: #854d0e; }

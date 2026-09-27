@@ -54,10 +54,12 @@ export function isPurchaseAiClassificationPending(
   }
 
   if (
-    document.items?.some(
-      (item) =>
-        item.suggestedAccount?.source === 'exact' &&
-        Boolean(item.suggestedAccount.code?.trim()),
+    Boolean(document.items?.length) && document.items!.every(
+      (item) => Boolean(
+        item.accountMapping?.code?.trim() ||
+        item.suggestedAccount?.code?.trim() ||
+        item.suggestedProduct?.code?.trim(),
+      ),
     )
   ) {
     return false

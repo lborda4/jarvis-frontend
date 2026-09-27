@@ -23,12 +23,18 @@ const SIIGO_RESUME_DOCUMENTS_BATCH_ENDPOINT =
   '/integrations/siigo/documents/resume-batch'
 const JARVIS_RESUME_DOCUMENT_ENDPOINT = '/integrations/jarvis/documents/resume'
 
+/** El servidor puede completar la clasificación después de cargar el listado. */
+export function invalidateElectronicDocumentsCache(): void {
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+}
+
 function documentsCacheKey(
   filters: Partial<ElectronicDocumentListFilters>,
 ): string {
   return companyQueryKey([
     'electronic-documents',
     filters.electronicDocumentType ?? '',
+    (filters.documentIds ?? []).join(','),
     filters.page ?? 1,
     filters.limit ?? '',
     filters.status ?? '',
@@ -66,6 +72,7 @@ export async function fetchElectronicDocuments(
         ELECTRONIC_DOCUMENTS_ENDPOINT,
         {
           params: {
+            documentIds: filters.documentIds?.join(',') || undefined,
             status: filters.status || undefined,
             dateFrom: filters.dateFrom || undefined,
             dateTo: filters.dateTo || undefined,
@@ -252,4 +259,25 @@ export async function deleteElectronicDocumentsBatch(
   invalidateQueryCache(companyQueryKey(['electronic-documents']))
 
   return response.data
+}
+
+
+/** Consulta únicamente el lote importado, incluidos documentos antiguos reutilizados. */
+export async function fetchImportedDocuments(
+  documentIds: string[],
+  electronicDocumentType: ElectronicDocumentListFilters['electronicDocumentType'],
+): Promise<import('../types/electronicDocument').ElectronicDocumentListItem[]> {
+  const ids = [...new Set(documentIds.map((id) => id.trim()).filter(Boolean))]
+  const found = new Map<string, import('../types/electronicDocument').ElectronicDocumentListItem>()
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const batch = ids.slice(offset, offset + 100)
+    const response = await fetchElectronicDocuments(
+      { electronicDocumentType, documentIds: batch, page: 1, limit: 100 },
+      { force: true },
+    )
+    for (const document of response.items) {
+      if (batch.includes(document.id)) found.set(document.id, document)
+    }
+  }
+  return [...found.values()]
 }

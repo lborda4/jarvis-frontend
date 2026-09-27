@@ -47,6 +47,33 @@ function buildDocument(
   }
 }
 
+describe('cuentas por ítem sin cuenta global', () => {
+  it('EFPE9690 conserva ambas cuentas aunque la confianza sea baja y el catálogo aún no cargue', () => {
+    const document = buildDocument({
+      invoiceNumber: 'EFPE9690',
+      aiConfidence: 25,
+      suggestedAccount: null,
+      suggestedItemConfig: null,
+      items: [
+        {
+          description: 'az carta papier', quantity: 1, unitValue: 5042, total: 5042,
+          itemType: 'Account', code: '30192700-8',
+          accountMapping: { code: '51953001', description: 'Útiles papelería y fotocopias' },
+        },
+        {
+          description: 'Perforadora 3 huecos eco', quantity: 1, unitValue: 25210, total: 25210,
+          itemType: 'Account', code: '30123500-2',
+          accountMapping: { code: '51601501', description: 'Equipo de oficina' },
+        },
+      ],
+    })
+    const drafts = buildPurchaseInvoiceItemDrafts(document)
+    const previous = drafts.map((item) => ({ ...item, producto: '' }))
+    expect(mergeLateItemSuggestions(previous, drafts).map((item) => item.producto))
+      .toEqual(['51953001', '51601501'])
+  })
+})
+
 describe('calculatePurchaseInvoiceItemLineTotals', () => {
   it('Lafayette — una sola línea: el Valor total de la línea es el Total neto del documento, no cantidad × V/U + IVA', () => {
     // invoiced_quantity: 1.5, price_amount: 29900, line_extension_amount: 0.00

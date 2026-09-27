@@ -1,3 +1,4 @@
+import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Autocomplete from '../components/Autocomplete'
@@ -192,6 +193,7 @@ function AdminPage() {
   const [editingDescriptionCompanyId, setEditingDescriptionCompanyId] =
     useState<string | null>(null)
   const [descriptionDraft, setDescriptionDraft] = useState('')
+  const [aiRulesDraft, setAiRulesDraft] = useState<string[]>([])
   const [savingDescriptionCompanyId, setSavingDescriptionCompanyId] =
     useState<string | null>(null)
   const [isLookingUpName, setIsLookingUpName] = useState(false)
@@ -830,6 +832,7 @@ function AdminPage() {
     setSuccessMessage(null)
     setEditingDescriptionCompanyId(company.id)
     setDescriptionDraft(company.description ?? '')
+    setAiRulesDraft(company.aiRules ?? [])
   }
 
   const handleCancelEditDescription = () => {
@@ -838,6 +841,10 @@ function AdminPage() {
   }
 
   const handleSaveDescription = async (company: AdminCompanyListItem) => {
+    if (aiRulesDraft.some((rule) => !rule.trim())) {
+      setErrorMessage('Complete o elimine las reglas vacías.')
+      return
+    }
     setErrorMessage(null)
     setSuccessMessage(null)
     setSavingDescriptionCompanyId(company.id)
@@ -845,16 +852,17 @@ function AdminPage() {
     try {
       const response = await updateCompanyDescription(company.id, {
         description: descriptionDraft.trim() || null,
+        aiRules: aiRulesDraft.map((rule) => rule.trim()),
       })
 
       setCompanies((current) =>
         current.map((item) =>
           item.id === company.id
-            ? { ...item, description: response.company.description }
+            ? { ...item, description: response.company.description, aiRules: response.company.aiRules }
             : item,
         ),
       )
-      setSuccessMessage(`Descripción actualizada para ${company.name}.`)
+      setSuccessMessage(`Descripción y reglas actualizadas para ${company.name}.`)
       setEditingDescriptionCompanyId(null)
       setDescriptionDraft('')
     } catch (error) {
@@ -1454,19 +1462,13 @@ function AdminPage() {
                       <td>
                         {editingDescriptionCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
-                            <textarea
-                              value={descriptionDraft}
-                              onChange={(event) =>
-                                setDescriptionDraft(
-                                  event.target.value.slice(0, 1000),
-                                )
-                              }
-                              rows={3}
-                              maxLength={1000}
-                              disabled={
-                                savingDescriptionCompanyId === company.id
-                              }
-                              placeholder="A qué se dedica la empresa..."
+                            <CompanyAiContextFields
+                              value={{ description: descriptionDraft, rules: aiRulesDraft }}
+                              onChange={(context) => {
+                                setDescriptionDraft(context.description)
+                                setAiRulesDraft(context.rules)
+                              }}
+                              disabled={savingDescriptionCompanyId === company.id}
                             />
                             <div className="admin-nextpyme-token__actions">
                               <button
@@ -1500,6 +1502,7 @@ function AdminPage() {
                               title={company.description ?? undefined}
                             >
                               {company.description?.trim() || 'Sin descripción'}
+                              {Boolean(company.aiRules?.length) && <small> · {company.aiRules?.length} regla(s)</small>}
                             </span>
                             <button
                               type="button"
