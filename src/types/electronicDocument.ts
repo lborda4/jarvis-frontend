@@ -265,3 +265,67 @@ export interface ResumeElectronicDocumentResponse {
   message?: string
   document: ElectronicDocumentListItem
 }
+
+export interface PurchaseInvoiceDownloadParty {
+  name: string | null
+  tradeName?: string | null
+  documentType: string | null
+  documentNumber: string | null
+  checkDigit: string | null
+  address: string | null
+  phone: string | null
+  email: string | null
+  countryName?: string | null
+  departmentName?: string | null
+  cityName: string | null
+}
+
+export interface PurchaseInvoiceDownloadItem {
+  description: string
+  code: string | null
+  quantity: number
+  unitValue: number
+  discount: number | null
+  surcharge?: number | null
+  ivaPercentage: number | null
+  ivaAmount?: number | null
+  total: number
+}
+
+export interface PurchaseInvoiceDownloadTax {
+  type: string
+  amount: number
+}
+
+export interface PurchaseInvoiceDownloadWithholding {
+  dianTaxCode: string
+  name: string
+  percentage: number
+  amount?: number | null
+}
+
+/** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
+export interface PurchaseInvoiceDownload {
+  id: string
+  cufe: string
+  invoiceNumber: string | null
+  prefix: string | null
+  issueDate: string | null
+  dueDate: string | null
+  isCreditPayment: boolean | null
+  paymentMethodName?: string | null
+  currency: string
+  observations: string | null
+  issuer: PurchaseInvoiceDownloadParty
+  buyer: PurchaseInvoiceDownloadParty
+  items: PurchaseInvoiceDownloadItem[]
+  taxes?: PurchaseInvoiceDownloadTax[]
+  subtotal: number
+  iva: number
+  discount: number | null
+  surcharge?: number | null
+  total: number
+  withholdings: PurchaseInvoiceDownloadWithholding[]
+  dianQrUrl: string
+  dianQrText: string
+}

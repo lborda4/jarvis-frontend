@@ -310,6 +310,26 @@ export function PulseIcon({ className }: IconProps) {
   )
 }
 
+export function DownloadIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M10 3.5v9.2M10 12.7 7.2 9.9M10 12.7l2.8-2.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.5 14.5v1a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export function CloudUploadIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">

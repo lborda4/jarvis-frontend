@@ -2023,6 +2023,42 @@
   border-top: 1px solid var(--jarvis-gray-100);
 }
 
+.support-table__download-col {
+  width: 2.75rem;
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+}
+
+.support-table__download-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--jarvis-gray-300);
+  border-radius: var(--r-sm);
+  background: #fff;
+  color: var(--jarvis-gray-700);
+  cursor: pointer;
+}
+
+.support-table__download-button:hover:not(:disabled) {
+  border-color: var(--jarvis-primary);
+  color: var(--jarvis-primary);
+  background: var(--jarvis-primary-soft);
+}
+
+.support-table__download-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.support-table__download-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 
 @media (max-width: 900px) {
   .purchase-invoice-editor__lower {

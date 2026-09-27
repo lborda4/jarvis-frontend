@@ -39,6 +39,7 @@ import { formatCurrency, normalizeStatusClass } from '../../utils/formatters'
 import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
 import { calculatePurchaseInvoiceRowSummary } from '../../utils/purchaseInvoiceRowSummary'
 import DocumentRowDetailPanel from './DocumentRowDetailPanel'
+import PurchaseInvoiceDownloadButton from './PurchaseInvoiceDownloadButton'
 
 const TABLE_COLUMN_COUNT = 9
 const SKELETON_LINE_COUNT = 8
@@ -308,7 +309,10 @@ function SupportDocumentTable({
   const [lastSelectedRowId, setLastSelectedRowId] = useState<string | null>(
     null,
   )
-  const columnCount = showIvaColumn ? TABLE_COLUMN_COUNT + 1 : TABLE_COLUMN_COUNT
+  const columnCount =
+    TABLE_COLUMN_COUNT +
+    (showIvaColumn ? 1 : 0) +
+    (showSummaryColumns ? 1 : 0)
 
   const selectableVisibleIds = rows
     .filter((row) => isSupportDocumentRowSelectable(row.importStatus))
@@ -549,6 +553,13 @@ function SupportDocumentTable({
             <th className="support-table__column-header support-table__column-header--plain">
               <span className="support-table__column-label-text">Acción</span>
             </th>
+
+            {showSummaryColumns && (
+              <th
+                className="support-table__download-col"
+                aria-label="Descargar factura"
+              />
+            )}
           </tr>
         </thead>
         <tbody>
@@ -793,6 +804,14 @@ function SupportDocumentTable({
                       }
                     />
                   </td>
+                  {showSummaryColumns && (
+                    <td className="support-table__download-col">
+                      <PurchaseInvoiceDownloadButton
+                        documentId={row.id}
+                        cufe={document?.cufe}
+                      />
+                    </td>
+                  )}
                 </tr>,
                 isExpanded && document ? (
                   <tr
