@@ -59,6 +59,7 @@ import {
   deleteElectronicDocumentsBatch,
   fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
+  invalidateElectronicDocumentsCache,
   peekElectronicDocuments,
   saveElectronicDocumentDraft,
 } from '../services/electronicDocumentService'
@@ -701,6 +702,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [selectedDueDate, setSelectedDueDate] = useState<string>('')
 
   const reloadDocuments = useCallback((options?: { resetPage?: boolean }) => {
+    invalidateElectronicDocumentsCache()
     if (options?.resetPage) {
       setPage((currentPage) => {
         if (currentPage === 1) {
@@ -1082,6 +1084,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     isResuming,
     isModalOpen,
     errorMessage: resumeErrorMessage,
+    noticeMessage: resumeNoticeMessage,
     accountModal,
     watchImportedDocuments,
     closeAccountModal,
@@ -2772,6 +2775,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
         {errorMessage && <ErrorMessage message={errorMessage} />}
         {resumeErrorMessage && <ErrorMessage message={resumeErrorMessage} />}
+        {resumeNoticeMessage && <div className="import-validation-notice" role="status">{resumeNoticeMessage}</div>}
         {sendErrorMessage && <ErrorMessage message={sendErrorMessage} />}
         {accountsError && <ErrorMessage message={accountsError} />}
         {paymentMethodsError && <ErrorMessage message={paymentMethodsError} />}

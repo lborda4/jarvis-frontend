@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AUTO_DISMISS_ERROR_MS,
   useAutoDismissMessage,
 } from './useAutoDismissMessage'
-import { pickSmallestPageSizeCovering } from '../constants/electronicDocuments'
+import { getImportValidationProgress, formatImportValidationNotice } from '../utils/importValidationProgress'
 import {
-  fetchElectronicDocuments,
+  fetchImportedDocuments,
   resumeElectronicDocument,
   resumeElectronicDocumentsBatch,
 } from '../services/electronicDocumentService'
@@ -19,11 +19,9 @@ import {
   type ImportRowStatus,
 } from '../types/import'
 import {
-  isPurchaseAiClassificationPending,
   mapDocumentToImportRowStatus,
   mapResumeNextStepToImportStatus,
 } from '../utils/mapImportRowStatus'
-import { isSupplierCheckPending } from '../utils/supplierSiigoStatus'
 import { useAccountMappingModal } from './useAccountMappingModal'
 
 const VALIDATION_POLL_INTERVAL_MS = 1000
@@ -93,6 +91,18 @@ export function useSupportDocumentResume({
     Record<string, ImportRowStatus>
   >({})
   const [isResuming, setIsResuming] = useState(false)
+  const [pendingWatch, setPendingWatch] = useState<{
+    ids: string[]
+    latest: ElectronicDocumentListItem[]
+  } | null>(null)
+  const noticeMessage = useMemo(() => pendingWatch
+    ? formatImportValidationNotice(getImportValidationProgress(
+        pendingWatch.ids,
+        [...pendingWatch.latest, ...documents],
+        electronicDocumentType,
+        provider,
+      ))
+    : null, [pendingWatch, documents, electronicDocumentType, provider])
   const [errorMessage, setErrorMessage] = useAutoDismissMessage(
     AUTO_DISMISS_ERROR_MS,
   )
@@ -175,6 +185,7 @@ export function useSupportDocumentResume({
 
       setIsResuming(true)
       setErrorMessage(null)
+      setPendingWatch(null)
 
       setImportStatuses((current) => {
         const next = { ...current }
@@ -216,35 +227,12 @@ export function useSupportDocumentResume({
 
       try {
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const response = await fetchElectronicDocuments(
-            {
-              electronicDocumentType,
-              page: 1,
-              limit: pickSmallestPageSizeCovering(uniqueIds.length + 10),
-            },
-            // Fuerza bypass de la caché de 10 minutos (ver
-            // fetchElectronicDocuments): sin esto, cada intento del loop
-            // devolvía la misma respuesta cacheada del primero en vez de
-            // reflejar lo que el backend ya validó de fondo.
-            { force: true },
-          )
-
-          const imported = response.items.filter((document) =>
-            uniqueIds.includes(document.id),
-          )
+          const imported = await fetchImportedDocuments(uniqueIds, electronicDocumentType)
           lastImported = imported
 
           setDocuments((current) => mergeImportedDocuments(current, imported))
 
-          if (
-            imported.length === uniqueIds.length &&
-            imported.every(
-              (document) =>
-                !isSupplierCheckPending(document) &&
-                (electronicDocumentType !== 'PURCHASE_INVOICE' ||
-                  !isPurchaseAiClassificationPending(document)),
-            )
-          ) {
+          if (getImportValidationProgress(uniqueIds, imported, electronicDocumentType, provider).complete) {
             setImportStatuses((current) => {
               const next = { ...current }
 
@@ -254,16 +242,13 @@ export function useSupportDocumentResume({
 
               return next
             })
-            onRefresh?.()
             return
           }
 
           await sleep(VALIDATION_POLL_INTERVAL_MS)
         }
 
-        setErrorMessage(
-          'La validación de proveedores está tardando más de lo esperado. Actualice la página en unos segundos.',
-        )
+        setPendingWatch({ ids: uniqueIds, latest: lastImported })
       } catch (error) {
         setErrorMessage(
           getApiErrorMessage(
@@ -371,6 +356,7 @@ export function useSupportDocumentResume({
     isResuming,
     isModalOpen,
     errorMessage,
+    noticeMessage,
     accountModal,
     watchImportedDocuments,
     continueAccount,

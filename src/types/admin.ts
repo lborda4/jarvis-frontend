@@ -62,6 +62,7 @@ export interface AdminCompanyListItem {
   nit: string
   name: string
   description: string | null
+  aiRules?: string[]
   personType: CompanyPersonType | null
   responsible: AdminCompanyResponsible | null
   createdAt: string
@@ -167,6 +168,7 @@ export interface UpdateCompanyCityResponse {
 }
 
 export interface UpdateCompanyDescriptionRequest {
+  aiRules?: string[]
   description: string | null
 }
 

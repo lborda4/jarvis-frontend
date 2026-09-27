@@ -1,3 +1,5 @@
+import CompanyAiSettings from '../components/CompanyAiSettings'
+import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
 import ErrorMessage from '../components/ErrorMessage'
@@ -13,6 +15,7 @@ import '../pages/InvoiceUpload.css'
 import './SiigoIntegrationSettings.css'
 
 function SiigoIntegrationSettings() {
+  const { user } = useAuth()
   const {
     username,
     accessKey,
@@ -532,6 +535,8 @@ function SiigoIntegrationSettings() {
           </section>
         )}
       </div>
+
+      {hasPurchaseInvoiceAccess && <CompanyAiSettings key={user?.company?.id} />}
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
     </main>

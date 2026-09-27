@@ -221,6 +221,7 @@ export interface ElectronicDocumentListResponse {
 }
 
 export interface ElectronicDocumentListFilters {
+  documentIds?: string[]
   status: string
   dateFrom: string
   dateTo: string
