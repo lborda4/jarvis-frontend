@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPurchaseInvoiceItemDrafts,
+  buildPurchaseInvoiceItemDraftsFromDraft,
   calculatePurchaseInvoiceItemLineTotals,
   createEmptyPurchaseInvoiceItemDraft,
   draftItemsHaveAssignedCodes,
@@ -144,6 +145,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       items: [
         {
           description: 'Servicio de aseo',
+          ivaPercentage: 19,
           quantity: 1,
           unitValue: 100000,
           total: 100000,
@@ -470,7 +472,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     expect(draft.retefuenteTax).toBeNull()
   })
 
-  it('la config del proveedor tiene prioridad sobre el match de IVA por % de la factura', () => {
+  it('el IVA de la línea tiene prioridad sobre una tarifa distinta del proveedor', () => {
     const document = buildDocument({
       items: [
         {
@@ -495,7 +497,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
 
     const [draft] = buildPurchaseInvoiceItemDrafts(document)
 
-    expect(draft.ivaTax?.id).toBe(1)
+    expect(draft.ivaTax?.id).toBe(7)
   })
 
   it('sin ítems: la línea de respaldo también toma la config del proveedor cuando existe, incluida la Retefuente', () => {
@@ -531,6 +533,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       items: [
         {
           description: 'CANDADO MARINO 60MM ISEO',
+          ivaPercentage: 19,
           quantity: 1,
           unitValue: 100000,
           total: 100000,
@@ -867,7 +870,7 @@ describe('mergeLateItemSuggestions', () => {
     expect(mergeLateItemSuggestions([], fresh)[0].producto).toBe('51959501')
   })
 
-  it('copia el IVA que llega después aunque la cuenta ya estuviera llena', () => {
+  it('conserva la selección sin IVA aunque llegue una sugerencia tardía', () => {
     const stored = [buildDraft({ tipo: 'Account', producto: '51452501', ivaTax: null })]
     const fresh = [
       buildDraft({
@@ -877,7 +880,7 @@ describe('mergeLateItemSuggestions', () => {
       }),
     ]
 
-    expect(mergeLateItemSuggestions(stored, fresh)[0].ivaTax?.id).toBe(1)
+    expect(mergeLateItemSuggestions(stored, fresh)[0].ivaTax).toBeNull()
   })
 })
 
@@ -924,5 +927,34 @@ describe('hasUnresolvedProductItem', () => {
   it('false sin ítems', () => {
     expect(hasUnresolvedProductItem([])).toBe(false)
     expect(hasUnresolvedProductItem(undefined)).toBe(false)
+  })
+})
+
+describe('IVA independiente por línea', () => {
+  const iva19 = { id: 1, name: 'IVA 19%', type: 'IVA', percentage: 19 }
+  const iva5 = { id: 2, name: 'IVA 5%', type: 'IVA', percentage: 5 }
+  it.each([undefined, 0])('no impone IVA al décimo ítem sin IVA (%s)', rate => {
+    const document = buildDocument({
+      items: Array.from({ length: 10 }, (_, i) => ({
+        description: 'Ítem ' + i, quantity: 1, unitValue: 100, total: 100,
+        ivaPercentage: i === 9 ? rate : i === 8 ? 5 : 19,
+      })),
+      suggestedItemConfig: {
+        itemType: 'Account', accountCode: null, accountName: null,
+        productCode: null, productName: null, ivaTax: iva19,
+        retefuenteTax: null, paymentMethod: null,
+      },
+    })
+    const drafts = buildPurchaseInvoiceItemDrafts(document, [], [], [iva19, iva5])
+    expect(drafts.slice(0, 8).every(item => item.ivaTax?.id === 1)).toBe(true)
+    expect(drafts[8].ivaTax?.id).toBe(2)
+    expect(drafts[9].ivaTax).toBeNull()
+  })
+  it.each([null, undefined, 999])('respeta borradores sin IVA resuelto (%s)', id => {
+    const [draft] = buildPurchaseInvoiceItemDraftsFromDraft([{
+      tipo: 'Account', producto: '5105', description: 'Sin IVA',
+      quantity: 1, unitValue: 100, discount: 0, ivaTaxId: id,
+    }], [iva19], [], iva19)
+    expect(draft.ivaTax).toBeNull()
   })
 })

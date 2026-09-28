@@ -2,7 +2,7 @@ import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoProductOption } from '../constants/siigoProductCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
-import { resolvePreferredInvoiceIvaTax } from '../utils/siigoTaxes'
+import { pickPreferredIvaTax, resolvePreferredInvoiceIvaTax } from '../utils/siigoTaxes'
 import { roundMoney } from '../utils/siigoSupportDocumentTotal'
 
 /** Valores que SIIGO acepta en items[].type — campo obligatorio del lado de
@@ -39,7 +39,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
   draftItems: NonNullable<ElectronicDocumentListItem['draft']>['items'],
   ivaOptions: SiigoTaxOption[] = [],
   retefuenteOptions: SiigoTaxOption[] = [],
-  fallbackIvaTax: SiigoTaxOption | null = null,
+  _fallbackIvaTax: SiigoTaxOption | null = null,
 ): PurchaseInvoiceItemDraft[] {
   const findTax = (
     options: SiigoTaxOption[],
@@ -55,7 +55,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
     quantity: item.quantity,
     unitValue: item.unitValue,
     discount: item.discount,
-    ivaTax: findTax(ivaOptions, item.ivaTaxId) ?? fallbackIvaTax,
+    ivaTax: findTax(ivaOptions, item.ivaTaxId),
     retefuenteTax: findTax(retefuenteOptions, item.retefuenteTaxId),
   }))
 }
@@ -310,19 +310,8 @@ export function buildPurchaseInvoiceItemDrafts(
       quantity: item.quantity > 0 ? item.quantity : 1,
       unitValue: item.unitValue > 0 ? item.unitValue : item.total,
       discount: item.discount && item.discount > 0 ? item.discount : 0,
-      // La config del proveedor (historial consistente) tiene prioridad sobre
-      // el match por % de IVA de esta factura puntual — es la señal más fuerte
-      // porque ya se confirmó que ese proveedor casi siempre usa ese IVA.
-      ivaTax:
-        ivaTaxFromSupplierConfig ??
-        (item.suggestedTax
-          ? {
-              id: item.suggestedTax.id,
-              name: item.suggestedTax.name,
-              type: 'IVA',
-              percentage: item.suggestedTax.percentage,
-            }
-          : preferredInvoiceIvaTax),
+      // Solo se usa el IVA de esta línea; el historial no puede cambiar su tarifa.
+      ivaTax: resolveItemIvaTax(item, ivaOptions, ivaTaxFromSupplierConfig),
       retefuenteTax: retefuenteTaxFromSupplierConfig,
     }
   })
@@ -362,7 +351,7 @@ export function mergeLateItemSuggestions(
       ...item,
       tipo: keepStoredCode ? item.tipo : suggestion.tipo,
       producto: keepStoredCode ? item.producto : suggestion.producto,
-      ivaTax: item.ivaTax ?? suggestion.ivaTax,
+      ivaTax: item.ivaTax,
       retefuenteTax: item.retefuenteTax ?? suggestion.retefuenteTax,
     }
   })
@@ -457,4 +446,20 @@ export function calculatePurchaseInvoiceItemLineTotals(
   grossShares[grossShares.length - 1] = roundMoney(documentTotal - roundedSum)
 
   return grossShares.map((share, index) => roundMoney(share - retefuenteAmounts[index]))
+}
+
+function resolveItemIvaTax(
+  item: NonNullable<ElectronicDocumentListItem['items']>[number],
+  ivaOptions: SiigoTaxOption[],
+  supplierTax: SiigoTaxOption | null,
+): SiigoTaxOption | null {
+  const rate = item.ivaPercentage ?? item.suggestedTax?.percentage
+  if (rate == null || !Number.isFinite(rate) || rate <= 0) return null
+  if (supplierTax && Math.abs(supplierTax.percentage - rate) < 0.01) return supplierTax
+  if (item.suggestedTax && Math.abs(item.suggestedTax.percentage - rate) < 0.01) {
+    return { ...item.suggestedTax, type: 'IVA' }
+  }
+  return pickPreferredIvaTax(ivaOptions.filter(tax =>
+    tax.type.toLowerCase() === 'iva' && Math.abs(tax.percentage - rate) < 0.01,
+  ))
 }

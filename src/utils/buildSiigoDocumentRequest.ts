@@ -129,11 +129,7 @@ export function buildSiigoPurchaseSendRequest(
     .filter((tax) => isPurchaseInvoiceRetentionTaxType(tax.type))
     .map((tax) => ({ id: tax.id, type: tax.type }))
 
-  // IVA de documento (columna del listado) o, si no hay, el sugerido por
-  // los ítems importados. Sirve tanto al enviar la fila colapsada como
-  // fallback cuando el panel de detalle dejó la celda de IVA vacía — si no,
-  // el backend aplicaba el primer IVA del catálogo (a menudo 5%) y SIIGO
-  // recibía un impuesto distinto al que Jarvis muestra (el de la DIAN).
+  // IVA general solo para el respaldo de documentos sin líneas.
   const documentLevelIvaTax =
     ivaTax && Number.isFinite(ivaTax.id) && ivaTax.id > 0 ? ivaTax : null
 
@@ -144,7 +140,7 @@ export function buildSiigoPurchaseSendRequest(
         const itemTax =
           item.ivaTax && item.ivaTax.id > 0
             ? item.ivaTax
-            : (documentLevelIvaTax ?? sourceItems[index]?.suggestedTax)
+            : null
         const description =
           item.description.trim() ||
           sourceItems[index]?.description?.trim() ||
@@ -161,7 +157,7 @@ export function buildSiigoPurchaseSendRequest(
         }
       })
     : sourceItems.map((item) => {
-        const itemTax = documentLevelIvaTax ?? item.suggestedTax
+        const itemTax = document.items?.length ? item.suggestedTax : documentLevelIvaTax
 
         return {
           type: 'Account',
@@ -180,56 +176,29 @@ export function buildSiigoPurchaseSendRequest(
   // para que el cálculo del total a pagar sí lo tenga en cuenta (si no, el
   // payments[].value quedaría sin el IVA y no cuadraría con lo que SIIGO
   // calcula del lado suyo al ver items[].taxes).
-  const itemTaxesCatalog: SiigoTaxOption[] = hasEditedItems
-    ? dedupeTaxOptionsById(
-        [
-          ...editedItems!
-            .map((item) => item.ivaTax)
-            .filter((tax): tax is SiigoTaxOption => Boolean(tax)),
-          ...(documentLevelIvaTax ? [documentLevelIvaTax] : []),
-          ...sourceItems
-            .map((item) => item.suggestedTax)
-            .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
-            .map((tax) => ({
-              id: tax.id,
-              name: tax.name,
-              type: 'IVA',
-              percentage: tax.percentage,
-            })),
-        ],
-      )
-    : documentLevelIvaTax
-      ? [documentLevelIvaTax]
-      : sourceItems
-          .map((item) => item.suggestedTax)
-          .filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
-          .map((tax) => ({
-            id: tax.id,
-            name: tax.name,
-            type: 'IVA',
-            percentage: tax.percentage,
-          }))
+  const itemTaxesCatalog = dedupeTaxOptionsById([
+    ...(editedItems ?? []).flatMap(item => item.ivaTax ? [item.ivaTax] : []),
+    ...(documentLevelIvaTax ? [documentLevelIvaTax] : []),
+    ...sourceItems.flatMap(item => item.suggestedTax
+      ? [{ ...item.suggestedTax, type: 'IVA' }]
+      : []),
+  ])
 
   const itemsGross = items.reduce((sum, item) => {
     const quantity = item.quantity > 0 ? item.quantity : 1
     const discount = item.discount && item.discount > 0 ? item.discount : 0
     return sum + quantity * item.price - discount
   }, 0)
-  const fallbackIvaRate =
-    itemTaxesCatalog[0]?.percentage ??
-    (document.documentSubtotal > 0 && document.documentIva > 0
-      ? (document.documentIva / document.documentSubtotal) * 100
-      : 0)
-  if (
-    fallbackIvaRate > 0 &&
-    areItemPricesTaxInclusive({
-      itemsGross,
-      subtotal: document.documentSubtotal,
-      total: document.total,
-    })
-  ) {
+  if (areItemPricesTaxInclusive({
+    itemsGross,
+    subtotal: document.documentSubtotal,
+    total: document.total,
+  })) {
     for (const item of items) {
-      item.price = convertTaxInclusiveUnitPrice(item.price, fallbackIvaRate)
+      const rate = itemTaxesCatalog.find(tax =>
+        tax.type === 'IVA' && item.taxes?.some(selected => selected.id === tax.id),
+      )?.percentage
+      if (rate && rate > 0) item.price = convertTaxInclusiveUnitPrice(item.price, rate)
     }
   }
 
