@@ -377,6 +377,13 @@ function PurchaseInvoiceDetailEditor({
             <span>{formatCurrency(summary.ivaAmount)}</span>
           </div>
 
+          {summary.consumptionTaxAmount > 0 && (
+            <div className="purchase-invoice-editor__summary-row">
+              <span>Impuesto al consumo</span>
+              <span>{formatCurrency(summary.consumptionTaxAmount)}</span>
+            </div>
+          )}
+
           <div className="purchase-invoice-editor__summary-row">
             <span>{formatRetentionTypeDisplayLabel(RETEFUENTE_TAX_TYPE)}</span>
             <span

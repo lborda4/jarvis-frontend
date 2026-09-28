@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
+import { useSiigoCatalog } from '../context/SiigoCatalogContext'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
   fetchSiigoCredentialsStatus,
@@ -44,6 +45,7 @@ function formatDocumentTypeOptionLabel(
 
 export function useSiigoIntegrationSettings() {
   const { user, isLoading: isAuthLoading } = useAuth()
+  const { refreshCatalogs, isLoadingCatalogs } = useSiigoCatalog()
   const {
     markConfigured,
     refreshSetupStatus,
@@ -74,6 +76,9 @@ export function useSiigoIntegrationSettings() {
   const [isSavingCredentials, setIsSavingCredentials] = useState(false)
   const [isSyncingSuppliers, setIsSyncingSuppliers] = useState(false)
   const [isSavingDocumentTypes, setIsSavingDocumentTypes] = useState(false)
+  const [isRefreshingSiigo, setIsRefreshingSiigo] = useState(false)
+  const [refreshSuccessMessage, setRefreshSuccessMessage] =
+    useState<string | null>(null)
   const [isLoadingDocumentTypes, setIsLoadingDocumentTypes] = useState(false)
   const [credentialsSuccessMessage, setCredentialsSuccessMessage] = useState<
     string | null
@@ -270,6 +275,7 @@ export function useSiigoIntegrationSettings() {
   ])
 
   const clearMessages = useCallback(() => {
+    setRefreshSuccessMessage(null)
     setErrorMessage(null)
     setCredentialsSuccessMessage(null)
     setSuppliersSuccessMessage(null)
@@ -507,11 +513,53 @@ export function useSiigoIntegrationSettings() {
 
   const isBusy =
     isAuthLoading ||
+    isRefreshingSiigo ||
     isSavingCredentials ||
     isSyncingSuppliers ||
     isSavingDocumentTypes
 
+  const canRefreshSiigo =
+    Boolean(user?.company) &&
+    isSiigoConfigured &&
+    !isBusy &&
+    !isLoadingCatalogs &&
+    !isLoadingDocumentTypes &&
+    !isCheckingSetup
+
+  const handleRefreshSiigo = async () => {
+    if (!canRefreshSiigo) return
+
+    setIsRefreshingSiigo(true)
+    clearMessages()
+    try {
+      await refreshCatalogs({ force: true })
+      const [supportTypes, purchaseTypes] = await Promise.all([
+        hasSupportDocumentAccess
+          ? fetchSiigoDocumentTypes('DS')
+          : Promise.resolve([]),
+        hasPurchaseInvoiceAccess
+          ? fetchSiigoDocumentTypes('FC')
+          : Promise.resolve([]),
+      ])
+      setSupportDocumentTypes(supportTypes)
+      setPurchaseDocumentTypes(purchaseTypes)
+      setRefreshSuccessMessage(
+        'Los catálogos y comprobantes de SIIGO se actualizaron correctamente.',
+      )
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(
+          error,
+          'No se pudo completar la actualización de SIIGO. Intente nuevamente.',
+        ),
+      )
+    } finally {
+      setIsRefreshingSiigo(false)
+    }
+  }
+
   const canSaveCredentials =
+    !isRefreshingSiigo &&
     Boolean(user?.company) &&
     username.trim().length > 0 &&
     accessKey.trim().length > 0 &&
@@ -520,6 +568,7 @@ export function useSiigoIntegrationSettings() {
     !isAuthLoading
 
   const canSyncSuppliers =
+    !isRefreshingSiigo &&
     Boolean(user?.company) &&
     isSiigoConfigured &&
     !isSyncingSuppliers &&
@@ -527,6 +576,7 @@ export function useSiigoIntegrationSettings() {
     !isSavingCredentials
 
   const canSaveDocumentTypes =
+    !isRefreshingSiigo &&
     Boolean(user?.company) &&
     isSiigoConfigured &&
     hasSiigoAccounts &&
@@ -543,6 +593,10 @@ export function useSiigoIntegrationSettings() {
   )
 
   return {
+    isRefreshingSiigo,
+    refreshSuccessMessage,
+    canRefreshSiigo,
+    handleRefreshSiigo,
     isAuthLoading,
     hasCompany: Boolean(user?.company),
     username,

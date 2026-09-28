@@ -74,8 +74,13 @@ const SIIGO_PURCHASE_HISTORY_SYNC_ENDPOINT =
 const SIIGO_PURCHASE_HISTORY_SYNC_STATUS_ENDPOINT =
   '/integrations/siigo/purchases-history/sync-status'
 
-export async function syncSiigoCatalogs(): Promise<void> {
-  await apiClient.post(SIIGO_CATALOG_SYNC_ENDPOINT)
+export async function syncSiigoCatalogs(options?: {
+  force?: boolean
+}): Promise<void> {
+  await apiClient.post(SIIGO_CATALOG_SYNC_ENDPOINT, undefined, {
+    params: options?.force ? { force: true } : undefined,
+    timeout: 5 * 60_000,
+  })
 }
 
 export interface StartPurchaseHistorySyncResponse {

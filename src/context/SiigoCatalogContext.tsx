@@ -105,7 +105,7 @@ interface SiigoCatalogContextValue {
   costCentersError: string | null
   retentionsError: string | null
   productsError: string | null
-  refreshCatalogs: () => Promise<void>
+  refreshCatalogs: (options?: { force?: boolean }) => Promise<void>
 }
 
 const SiigoCatalogContext = createContext<SiigoCatalogContextValue | null>(null)
@@ -309,10 +309,32 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
     setProductsError(catalogs.productsError)
   }, [])
 
-  const refreshCatalogs = useCallback(async () => {
+  const refreshCatalogs = useCallback(async (options?: { force?: boolean }) => {
     if (!isAuthenticated || !isSiigoConfigured) {
       applyCatalogState(EMPTY_CATALOGS)
       setIsLoadingCatalogs(false)
+      return
+    }
+
+    if (options?.force) {
+      setIsLoadingCatalogs(true)
+      try {
+        await syncSiigoCatalogs({ force: true })
+        const catalogs = await loadCatalogsCached(true)
+        applyCatalogState(catalogs)
+        const errors = [
+          catalogs.accountsError,
+          catalogs.paymentMethodsError,
+          catalogs.costCentersError,
+          catalogs.retentionsError,
+          catalogs.productsError,
+        ].filter(Boolean)
+        if (errors.length) {
+          throw new Error(errors.join(' '))
+        }
+      } finally {
+        setIsLoadingCatalogs(false)
+      }
       return
     }
 

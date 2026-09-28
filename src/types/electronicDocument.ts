@@ -167,6 +167,8 @@ export interface ElectronicDocumentListItem {
   documentSubtotal: number
   /** IVA certificado por la DIAN (suma de tax_totals de factura) — no recalcular desde items. */
   documentIva: number
+  /** INC certificado, ya incluido en total. */
+  documentConsumptionTax?: number
   total: number
   status: ElectronicDocumentStatus
   electronicDocumentType?: string | null

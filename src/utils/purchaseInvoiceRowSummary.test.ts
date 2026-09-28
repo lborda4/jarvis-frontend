@@ -44,6 +44,28 @@ function buildDocument(
   }
 }
 
+describe('impuesto al consumo', () => {
+  it('muestra INC separado sin duplicarlo en el total ni en la base de ReteIVA', () => {
+    const summary = calculatePurchaseInvoiceRowSummary(buildDocument({
+      documentSubtotal: 3201.75,
+      documentIva: 608.33,
+      documentConsumptionTax: 128.07,
+      total: 3938.15,
+    }), [{ id: 1, name: 'ReteIVA', type: 'ReteIVA', percentage: 15 }])
+    expect(summary.consumptionTaxAmount).toBe(128.07)
+    expect(summary.ivaAmount).toBe(608.33)
+    expect(summary.retentionLines[0].amount).toBe(91.25)
+    expect(summary.total).toBe(3846.9)
+  })
+
+  it.each([undefined, 0])('omite INC sin valor (%s)', (amount) => {
+    const summary = calculatePurchaseInvoiceRowSummary(buildDocument({
+      documentConsumptionTax: amount,
+    }), [])
+    expect(summary.consumptionTaxAmount).toBe(0)
+  })
+})
+
 describe('calculatePurchaseInvoiceRowSummary — Total neto = payable_amount, nunca Subtotal + IVA', () => {
   it('[CANARIO] Lafayette — factura de muestra sin valor comercial (el vendedor asume el IVA)', () => {
     // JSON real reportado: legal_monetary_totals: { tax_exclusive_amount:

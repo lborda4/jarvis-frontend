@@ -17,6 +17,7 @@ export interface PurchaseInvoiceRetentionLine {
 export interface PurchaseInvoiceRowSummary {
   subtotal: number
   ivaAmount: number
+  consumptionTaxAmount: number
   retentionLines: PurchaseInvoiceRetentionLine[]
   /** Descuento general del documento (DIAN allowance_total_amount). Ya viene
    * reflejado en `document.total` (payable_amount), solo se muestra como
@@ -136,6 +137,7 @@ export function calculatePurchaseInvoiceRowSummary(
   return {
     subtotal,
     ivaAmount,
+    consumptionTaxAmount: roundMoney(document.documentConsumptionTax ?? 0),
     retentionLines,
     documentDiscount,
     total: roundMoney(document.total - retentionTotal - documentDiscountDelta),

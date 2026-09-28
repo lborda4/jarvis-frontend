@@ -17,6 +17,10 @@ import './SiigoIntegrationSettings.css'
 function SiigoIntegrationSettings() {
   const { user } = useAuth()
   const {
+    isRefreshingSiigo,
+    refreshSuccessMessage,
+    canRefreshSiigo,
+    handleRefreshSiigo,
     username,
     accessKey,
     partnerId,
@@ -142,12 +146,28 @@ function SiigoIntegrationSettings() {
     <main className="settings-page">
       <PageHeader
         title="Configuración de integración SIIGO"
+        actions={
+          <button
+            type="button"
+            className="import-siigo-button"
+            onClick={() => void handleRefreshSiigo()}
+            disabled={!canRefreshSiigo}
+            aria-busy={isRefreshingSiigo}
+          >
+            {isRefreshingSiigo ? 'Refrescando SIIGO...' : 'Refrescar SIIGO'}
+          </button>
+        }
         description={
           allRequiredStepsComplete
             ? 'Su configuración ya está completa. Abra una sección solo si necesita actualizarla.'
             : 'Complete el paso a paso: 1) credenciales, 2) cuentas contables y 3) comprobantes de cargue. Con todo listo y un plan activo, se habilitan los documentos incluidos en su suscripción.'
         }
       />
+
+      {isRefreshingSiigo && (
+        <LoadingIndicator message="Actualizando catálogos y comprobantes desde SIIGO..." />
+      )}
+      {refreshSuccessMessage && <SuccessMessage message={refreshSuccessMessage} />}
 
       {showSetupRequiredNotice && !allRequiredStepsComplete && (
         <div className="settings-page__setup-notice" role="status">
