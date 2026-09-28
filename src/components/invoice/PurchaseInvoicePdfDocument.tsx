@@ -1,456 +1,269 @@
-import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
-import dianLogo from '../../assets/dian-logo.png'
+﻿import {
+  Document,
+  Image,
+  Page,
+  StyleSheet,
+  Text,
+  View,
+} from '@react-pdf/renderer'
 import type {
   PurchaseInvoiceDownload,
-  PurchaseInvoiceDownloadItem,
   PurchaseInvoiceDownloadParty,
 } from '../../types/electronicDocument'
 
-/**
- * Representación gráfica alineada a la plantilla HTML de la Solución
- * Gratuita DIAN y a la Res. 000165/2023 art. 11.
- */
-const colors = {
-  ink: '#001028',
-  muted: '#595959',
-  title: '#747474',
-  mint: '#99FFCC',
-  mintSoft: '#C3E6CB',
-  tableHead: '#BAF1D6',
-  tableLine: '#41D78C',
-  line: '#808080',
-  panel: '#DADADA',
-  thinLine: '#E9E8E8',
-  white: '#FFFFFF',
-}
-
-const COLS = {
-  nro: '4.1%',
-  code: '5.6%',
-  desc: '14%',
-  um: '5.6%',
-  qty: '7.3%',
-  price: '11.3%',
-  disc: '11.3%',
-  surch: '11.3%',
-  iva: '7.8%',
-  ivaPct: '4.2%',
-  inc: '7.1%',
-  incPct: '2.8%',
-  line: '7.6%',
-}
-
+// Layout adapted from FV1195-representacion-JARVIS.html supplied by the user.
+// React PDF keeps text selectable and paginates long invoices without rasterizing HTML.
+const mm = (value: number) => (value * 72) / 25.4
 const styles = StyleSheet.create({
   page: {
+    paddingTop: mm(14),
+    paddingHorizontal: mm(10),
+    paddingBottom: mm(16),
     fontFamily: 'Helvetica',
-    fontSize: 9,
-    color: colors.ink,
-    paddingTop: 40,
-    paddingBottom: 28,
-    paddingHorizontal: 28,
-    backgroundColor: colors.white,
+    fontSize: 8.7,
+    color: '#00132d',
   },
-  header: {
-    position: 'relative',
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 5.8,
-    borderBottomColor: colors.mint,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  logoLeft: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 72,
-    height: 24,
-  },
-  logoRight: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 72,
-    height: 24,
-  },
-  headerTitle: {
+  title: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 16,
-    color: colors.ink,
+    fontSize: 18,
     textAlign: 'center',
+    marginBottom: mm(8),
   },
-  headerSub: {
-    fontSize: 13,
-    marginTop: 12,
-    color: colors.ink,
+  subtitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 14,
     textAlign: 'center',
+    marginBottom: mm(3),
   },
   section: {
-    marginTop: 12,
+    marginTop: mm(3),
+    marginBottom: mm(2),
   },
+  sectionTopRule: { height: mm(2.2), backgroundColor: '#a5f5cf' },
+  sectionBottomRule: { height: mm(0.7), backgroundColor: '#92f0c4' },
   sectionTitle: {
+    paddingLeft: mm(14),
+    paddingTop: mm(0.7),
+    paddingBottom: mm(0.7),
+    color: '#707070',
+    fontSize: 12,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 11,
-    color: colors.title,
-    paddingBottom: 2,
-    paddingHorizontal: 8,
-    marginBottom: 6,
-    borderBottomWidth: 1.7,
-    borderBottomColor: colors.mint,
   },
-  stackedField: {
-    marginBottom: 6,
-    paddingHorizontal: 18,
+  details: { marginHorizontal: mm(16) },
+  columns: { flexDirection: 'row', marginHorizontal: mm(16), gap: mm(10) },
+  column: { flex: 1, minWidth: 0 },
+  field: { marginBottom: 1 },
+  label: { fontFamily: 'Helvetica-Bold', color: '#616161' },
+  cufe: { fontSize: 8, marginBottom: mm(1) },
+  tableRow: { flexDirection: 'row', alignItems: 'stretch' },
+  cell: {
+    borderWidth: mm(0.175),
+    borderColor: '#21d98a',
+    paddingVertical: mm(0.7),
+    paddingHorizontal: mm(0.35),
+    fontSize: 6.3,
+    textAlign: 'center',
+    justifyContent: 'center',
   },
-  columns: {
+  head: { backgroundColor: '#c5efd5', fontFamily: 'Helvetica-Bold' },
+  description: { fontSize: 6, textTransform: 'uppercase' },
+  code: { fontFamily: 'Courier', fontSize: 6.3 },
+  referenceRow: {
     flexDirection: 'row',
-    paddingHorizontal: 18,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#ddd',
   },
-  column: {
-    width: '50%',
-    paddingRight: 10,
+  referenceCell: {
+    width: '33.333%',
+    padding: mm(1),
+    textAlign: 'center',
+    fontSize: 8,
   },
-  field: {
-    flexDirection: 'row',
-    marginBottom: 2,
-  },
-  label: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8.5,
-    color: colors.muted,
-    marginRight: 6,
-  },
-  value: {
+  note: { fontSize: 8, lineHeight: 1.25 },
+  totals: { flexDirection: 'row', gap: mm(10), marginTop: mm(2) },
+  qrColumn: { width: mm(45) },
+  qr: { width: mm(36), height: mm(36) },
+  provenance: { fontSize: 8.2, lineHeight: 1.2, marginTop: mm(2) },
+  provenanceLabel: {
     fontSize: 9,
-    color: colors.ink,
-    flex: 1,
-  },
-  cufeValue: {
-    fontSize: 8,
-    color: colors.ink,
-  },
-  table: {
-    width: '100%',
-  },
-  tableGroup: {
-    flexDirection: 'row',
-  },
-  th: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 6.6,
-    color: colors.ink,
-    backgroundColor: colors.tableHead,
-    borderWidth: 0.6,
-    borderColor: colors.tableLine,
-    textAlign: 'center',
-    paddingVertical: 2,
-    paddingHorizontal: 1,
+    marginTop: mm(2),
   },
-  td: {
-    fontSize: 6.6,
-    borderWidth: 0.6,
-    borderColor: colors.tableLine,
-    paddingVertical: 2,
-    paddingHorizontal: 1.5,
-  },
-  tdCenter: {
-    textAlign: 'center',
-  },
-  tdRight: {
-    textAlign: 'right',
-  },
-  totalsWrap: {
-    flexDirection: 'row',
-    marginTop: 12,
-    alignItems: 'flex-start',
-  },
-  qrCol: {
-    width: '32%',
-    paddingRight: 12,
-  },
-  qr: {
-    width: 78,
-    height: 78,
-    marginBottom: 6,
-  },
-  qrHint: {
+  summaryColumn: { flex: 1, marginLeft: mm(15) },
+  currency: {
+    borderWidth: mm(0.7),
+    borderColor: '#888',
+    backgroundColor: '#c4efd5',
+    padding: mm(1.5),
     fontSize: 7,
-    color: colors.muted,
-    lineHeight: 1.3,
+    lineHeight: 1.4,
   },
-  totalsCol: {
-    width: '68%',
-    alignItems: 'flex-end',
-  },
-  currencyCard: {
-    width: 186,
-    backgroundColor: colors.mintSoft,
-    borderWidth: 1.2,
-    borderColor: colors.line,
-    marginBottom: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 5,
-  },
-  currencyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    fontSize: 8,
-    paddingVertical: 1,
-  },
-  totalsCard: {
-    width: 186,
-    borderWidth: 1.2,
-    borderColor: colors.line,
+  currencyRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  summary: {
+    marginTop: mm(4),
+    borderWidth: mm(0.7),
+    borderColor: '#888',
+    fontSize: 7,
   },
   totalRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: colors.thinLine,
-  },
-  totalLabel: {
-    width: '58%',
-    fontSize: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-  },
-  totalValue: {
-    width: '42%',
-    fontSize: 8,
-    textAlign: 'right',
-    paddingVertical: 2,
-    paddingHorizontal: 4,
+    borderBottomColor: '#ddd',
+    paddingVertical: mm(0.8),
+    paddingHorizontal: mm(1),
   },
   band: {
-    backgroundColor: colors.panel,
+    backgroundColor: '#dedede',
     fontFamily: 'Helvetica-Bold',
+    borderTopWidth: 1,
+    borderTopColor: '#888',
+    borderBottomWidth: 1,
+    borderBottomColor: '#888',
   },
-  infoTitle: {
-    width: 186,
-    marginTop: 10,
-    marginBottom: 6,
-    fontSize: 8,
+  totalLabel: { flex: 1 },
+  totalValue: { width: '35%', textAlign: 'right' },
+  infoTitle: { fontSize: 7.3, fontFamily: 'Helvetica-Bold', marginTop: mm(4) },
+  authorization: {
+    flexDirection: 'row',
+    gap: mm(8),
+    marginTop: mm(5),
+    fontSize: 7.2,
   },
-  infoCard: {
-    width: 186,
-    borderWidth: 1.2,
-    borderColor: colors.line,
-    marginBottom: 8,
-  },
-  infoHead: {
-    backgroundColor: colors.panel,
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1.2,
-    borderBottomColor: colors.line,
-  },
-  observations: {
-    minHeight: 24,
-    paddingHorizontal: 8,
-    fontSize: 9,
-  },
-  pageNumber: {
+  footer: {
     position: 'absolute',
-    bottom: 10,
-    left: 28,
-    right: 28,
+    left: mm(10),
+    right: mm(10),
+    bottom: mm(5),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
     fontSize: 8,
-    textAlign: 'right',
-    color: colors.ink,
+    color: '#444',
   },
+  folio: { fontSize: 12, color: '#111' },
 })
-
-function formatIsoDate(value: string | null): string {
-  if (!value) {
-    return ''
-  }
-
-  const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
-  if (isoDate) {
-    return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`
-  }
-
-  const colombianDate = /^(\d{2})-(\d{2})-(\d{4})$/.exec(value)
-  if (colombianDate) {
-    return `${colombianDate[1]}/${colombianDate[2]}/${colombianDate[3]}`
-  }
-
-  return value
-}
-
-function formatMoney(amount: number | null | undefined, currency: string): string {
-  if (amount == null || !Number.isFinite(amount)) {
-    return ''
-  }
-
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: currency || 'COP',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount)
-}
-
-function formatDecimal(amount: number | null | undefined): string {
-  if (amount == null || !Number.isFinite(amount)) {
-    return ''
-  }
-
-  return new Intl.NumberFormat('es-CO', {
-    maximumFractionDigits: 4,
-  }).format(amount)
-}
-
-function formatNit(number: string | null, checkDigit: string | null): string {
-  if (!number) {
-    return ''
-  }
-
-  const digits = number.replace(/\D/g, '') || number
-  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return checkDigit ? `${grouped}-${checkDigit}` : grouped
-}
-
-function formatPaymentForm(isCreditPayment: boolean | null): string {
-  if (isCreditPayment === true) {
-    return 'Crédito'
-  }
-
-  if (isCreditPayment === false) {
-    return 'Contado'
-  }
-
-  return ''
-}
-
-function lineIvaAmount(item: PurchaseInvoiceDownloadItem): number | null {
-  if (item.ivaAmount != null) {
-    return item.ivaAmount
-  }
-
-  if (item.ivaPercentage == null) {
-    return null
-  }
-
-  return item.total * (item.ivaPercentage / 100)
-}
-
-function taxAmount(
-  data: PurchaseInvoiceDownload,
-  aliases: string[],
-): number | null {
-  const match = (data.taxes ?? []).find((tax) =>
-    aliases.some((alias) => tax.type.toUpperCase().includes(alias)),
-  )
-
-  return match ? match.amount : null
-}
-
-function withholdingAmount(
-  data: PurchaseInvoiceDownload,
-  matchers: string[],
-): number | null {
-  const found = data.withholdings.find((item) => {
-    const haystack = `${item.name} ${item.dianTaxCode}`.toLowerCase()
-    return matchers.some((matcher) => haystack.includes(matcher))
-  })
-
-  if (!found) {
-    return null
-  }
-
-  if (found.amount != null) {
-    return found.amount
-  }
-
-  return data.subtotal * (found.percentage / 100)
-}
-
+const widths = [4, 6, 14, 5.5, 7.5, 11, 11, 11, 8, 4, 7, 3, 7.5]
+const headers = [
+  'Nro.',
+  'Código',
+  'Descripción',
+  'U/M',
+  'Cantidad',
+  'Precio unitario',
+  'Descuento detalle',
+  'Recargo detalle',
+  'IVA',
+  '%',
+  'INC',
+  '%',
+  'Precio unitario de venta',
+]
+const decimal = (n: number | null | undefined) =>
+  n == null
+    ? ''
+    : new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(n)
+const date = (s?: string | null) =>
+  s?.replace(/^(\d{4})-(\d{2})-(\d{2}).*$/, '$3/$2/$1') ?? ''
+const textBreaks = (word: string) =>
+  word.length > 18 ? (word.match(/.{1,12}/gu) ?? [word]) : [word]
+// Seven monospace characters fit the code column, including its borders and padding.
+// Explicit line breaks preserve the identifier without adding hyphens.
+const wrapItemCode = (code: string) => code.match(/.{1,7}/gu)?.join('\n') ?? ''
+const preserveCodeCharacters = (word: string) => [word]
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value || ''}</Text>
-    </View>
+    <Text style={styles.field} hyphenationCallback={textBreaks}>
+      <Text style={styles.label}>{label} </Text>
+      {value ?? ''}
+    </Text>
   )
 }
-
-function TotalRow({
-  label,
-  value,
-  band = false,
-}: {
-  label: string
-  value: string
-  band?: boolean
-}) {
+function Section({ children, topRule = false }: { children: string; topRule?: boolean }) {
   return (
-    <View style={styles.totalRow}>
-      <Text style={band ? [styles.totalLabel, styles.band] : styles.totalLabel}>
-        {label}
-      </Text>
-      <Text style={band ? [styles.totalValue, styles.band] : styles.totalValue}>
-        {value}
-      </Text>
+    <View style={styles.section} wrap={false} minPresenceAhead={18}>
+      {topRule && <View style={styles.sectionTopRule} />}
+      <Text style={styles.sectionTitle}>{children}</Text>
+      <View style={styles.sectionBottomRule} />
     </View>
   )
 }
-
-function PartyBlock({
-  party,
+function Footer() {
+  return (
+    <View style={styles.footer} fixed>
+      <Text>PDF generado por JARVIS a partir del XML de la factura</Text>
+      <Text
+        style={styles.folio}
+        render={({ pageNumber, totalPages }) =>
+          `Hoja ${pageNumber} de ${totalPages}`
+        }
+      />
+    </View>
+  )
+}
+function Party({
+  party: p,
   issuer,
 }: {
   party: PurchaseInvoiceDownloadParty
-  issuer: boolean
+  issuer?: boolean
 }) {
-  const nit = formatNit(party.documentNumber, party.checkDigit)
-
-  if (issuer) {
-    return (
-      <View style={styles.columns}>
-        <View style={styles.column}>
-          <Field label="Razón Social:" value={party.name} />
-          <Field
-            label="Nombre Comercial:"
-            value={party.tradeName || party.name}
-          />
-          <Field label="Nit del Emisor:" value={nit} />
-          <Field label="Tipo de Contribuyente:" value="" />
-          <Field label="Régimen Fiscal:" value="" />
-          <Field label="Responsabilidad tributaria:" value="" />
-          <Field label="Actividad Económica:" value="" />
-        </View>
-        <View style={styles.column}>
-          <Field label="País:" value={party.countryName} />
-          <Field label="Departamento:" value={party.departmentName} />
-          <Field label="Municipio / Ciudad:" value={party.cityName} />
-          <Field label="Dirección:" value={party.address} />
-          <Field label="Teléfono / Móvil:" value={party.phone} />
-          <Field label="Correo:" value={party.email} />
-        </View>
-      </View>
-    )
-  }
-
   return (
-    <View style={styles.columns}>
+    <View style={styles.columns} wrap={false}>
       <View style={styles.column}>
-        <Field label="Nombre o Razón Social:" value={party.name} />
-        <Field label="Tipo de Documento:" value={party.documentType || 'NIT'} />
-        <Field label="Número Documento:" value={nit} />
-        <Field label="Tipo de Contribuyente:" value="" />
-        <Field label="Régimen fiscal:" value="" />
-        <Field label="Responsabilidad tributaria:" value="" />
+        <Field
+          label={issuer ? 'Razón Social:' : 'Nombre o Razón Social:'}
+          value={p.name}
+        />
+        {issuer ? (
+          <Field label="Nombre Comercial:" value={p.tradeName} />
+        ) : (
+          <Field label="Tipo de Documento:" value={p.documentType} />
+        )}
+        <Field
+          label={issuer ? 'Nit del Emisor:' : 'Número Documento:'}
+          value={
+            p.documentNumber
+              ? `${p.documentNumber}${p.checkDigit ? `-${p.checkDigit}` : ''}`
+              : ''
+          }
+        />
+        <Field label="Tipo de Contribuyente:" value={p.contributorType} />
+        <Field label="Régimen Fiscal:" value={p.fiscalRegime} />
+        <Field
+          label="Responsabilidad tributaria:"
+          value={p.taxResponsibility}
+        />
+        {issuer && (
+          <Field label="Actividad Económica:" value={p.economicActivity} />
+        )}
       </View>
       <View style={styles.column}>
-        <Field label="País:" value={party.countryName} />
-        <Field label="Departamento:" value={party.departmentName} />
-        <Field label="Municipio / Ciudad:" value={party.cityName} />
-        <Field label="Dirección:" value={party.address} />
-        <Field label="Teléfono / Móvil:" value={party.phone} />
-        <Field label="Correo:" value={party.email} />
+        <Field label="País:" value={p.countryName} />
+        <Field label="Departamento:" value={p.departmentName} />
+        <Field label="Municipio / Ciudad:" value={p.cityName} />
+        <Field label="Dirección:" value={p.address} />
+        <Field label="Teléfono / Móvil:" value={p.phone} />
+        <Field label="Correo:" value={p.email} />
       </View>
+    </View>
+  )
+}
+function TotalRow({
+  label,
+  amount,
+  strong = false,
+}: {
+  label: string
+  amount?: number | null
+  strong?: boolean
+}) {
+  return (
+    <View style={strong ? [styles.totalRow, styles.band] : styles.totalRow}>
+      <Text style={styles.totalLabel}>{label}</Text>
+      <Text style={styles.totalValue}>{decimal(amount)}</Text>
     </View>
   )
 }
@@ -459,268 +272,252 @@ export function renderPurchaseInvoicePdfDocument(
   data: PurchaseInvoiceDownload,
   qrDataUrl: string,
 ) {
-  const money = (amount: number | null | undefined) =>
-    formatMoney(amount, data.currency)
-  const items =
-    data.items.length > 0
-      ? data.items
-      : [
-          {
-            description: 'Factura electrónica recibida',
-            code: null,
-            quantity: 1,
-            unitValue: data.subtotal,
-            discount: null,
-            surcharge: null,
-            ivaPercentage: null,
-            ivaAmount: null,
-            total: data.subtotal,
-          },
-        ]
-
-  const detailDiscount = items.reduce(
-    (sum, item) => sum + (item.discount ?? 0),
+  const money = (n: number | null | undefined) =>
+    n == null ? '' : `$ ${decimal(n)}`
+  const taxes = data.taxes ?? []
+  const taxSum = (pattern: RegExp) =>
+    taxes
+      .filter((t) => pattern.test(t.type))
+      .reduce((sum, t) => sum + t.amount, 0)
+  const inc = taxSum(/INC|CONSUMO/i),
+    bags = taxSum(/BOLSA/i)
+  const other = taxes
+    .filter((t) => !/IVA|INC|CONSUMO|BOLSA|RETE/i.test(t.type))
+    .reduce((sum, t) => sum + t.amount, 0)
+  const totalTax = data.iva + inc + bags + other
+  const retention = (code: string) =>
+    data.withholdings
+      .filter((t) => t.dianTaxCode === code)
+      .reduce((sum, t) => sum + (t.amount ?? 0), 0)
+  const detailDiscount = data.items.reduce(
+    (sum, t) => sum + (t.discount ?? 0),
     0,
   )
-  const detailSurcharge = items.reduce(
-    (sum, item) => sum + (item.surcharge ?? 0),
+  const detailSurcharge = data.items.reduce(
+    (sum, t) => sum + (t.surcharge ?? 0),
     0,
   )
-  const inc = taxAmount(data, ['INC', 'CONSUMO'])
-  const bags = taxAmount(data, ['BOLSA'])
-  const otherTaxes = (data.taxes ?? [])
-    .filter((tax) => {
-      const type = tax.type.toUpperCase()
-      return !['IVA', 'INC', 'CONSUMO', 'BOLSA', 'RETE'].some((alias) =>
-        type.includes(alias),
-      )
-    })
-    .reduce((sum, tax) => sum + tax.amount, 0)
-  const totalTax = data.iva + (inc ?? 0) + (bags ?? 0) + otherTaxes
-  const globalDiscount = data.discount ?? 0
-  const globalSurcharge = data.surcharge ?? 0
-  const reteFuente = withholdingAmount(data, ['fuente', '06'])
-  const reteIva = withholdingAmount(data, ['reteiva', 'rete iva', '05'])
-  const reteIca = withholdingAmount(data, ['ica', '07'])
-
+  const auth = data.authorization
   return (
     <Document
-      title={`Factura electrónica de venta ${data.invoiceNumber || data.cufe}`}
-      author="Jarvis"
+      title={`Factura ${data.invoiceNumber ?? data.cufe}`}
+      author="JARVIS"
     >
       <Page size="A4" style={styles.page} wrap>
-        <View style={styles.header}>
-          <Image src={dianLogo} style={styles.logoLeft} />
-          <Text style={styles.headerTitle}>FACTURA ELECTRÓNICA DE VENTA</Text>
-          <Text style={styles.headerSub}>Representación Gráfica</Text>
-          <Image src={dianLogo} style={styles.logoRight} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Datos del Documento</Text>
-          <View style={styles.stackedField}>
-            <Text style={styles.label}>Código Único de Factura - CUFE :</Text>
-            <Text style={styles.cufeValue}>{data.cufe}</Text>
-          </View>
-          <View style={styles.columns}>
-            <View style={styles.column}>
-              <Field label="Número de Factura:" value={data.invoiceNumber} />
-              <Field
-                label="Fecha de Emisión:"
-                value={formatIsoDate(data.issueDate)}
-              />
-              <Field
-                label="Fecha de Vencimiento:"
-                value={formatIsoDate(data.dueDate)}
-              />
-              <Field label="Tipo de Operación:" value="" />
-            </View>
-            <View style={styles.column}>
-              <Field
-                label="Forma de pago:"
-                value={formatPaymentForm(data.isCreditPayment)}
-              />
-              <Field label="Medio de Pago:" value={data.paymentMethodName} />
-              <Field label="Orden de pedido:" value="" />
-              <Field label="Fecha de orden de pedido:" value="" />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Datos del Emisor / Vendedor</Text>
-          <PartyBlock party={data.issuer} issuer />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Datos del Adquiriente / Comprador
+        <Text style={styles.title}>FACTURA ELECTRÓNICA DE VENTA</Text>
+        <Text style={styles.subtitle}>Representación Gráfica</Text>
+        <Section topRule>Datos del Documento</Section>
+        <View style={styles.details}>
+          <Text style={styles.label}>Código Único de Factura - CUFE :</Text>
+          <Text style={styles.cufe} hyphenationCallback={textBreaks}>
+            {data.cufe}
           </Text>
-          <PartyBlock party={data.buyer} issuer={false} />
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Detalles de Productos</Text>
-          <View style={styles.table}>
-            <View style={styles.tableGroup} fixed>
-              <Text style={[styles.th, { width: COLS.nro }]}>Nro.</Text>
-              <Text style={[styles.th, { width: COLS.code }]}>Código</Text>
-              <Text style={[styles.th, { width: COLS.desc }]}>Descripción</Text>
-              <Text style={[styles.th, { width: COLS.um }]}>U/M</Text>
-              <Text style={[styles.th, { width: COLS.qty }]}>Cantidad</Text>
-              <Text style={[styles.th, { width: COLS.price }]}>
-                Precio unitario
-              </Text>
-              <Text style={[styles.th, { width: COLS.disc }]}>
-                Descuento detalle
-              </Text>
-              <Text style={[styles.th, { width: COLS.surch }]}>
-                Recargo detalle
-              </Text>
-              <Text style={[styles.th, { width: COLS.iva }]}>IVA</Text>
-              <Text style={[styles.th, { width: COLS.ivaPct }]}>%</Text>
-              <Text style={[styles.th, { width: COLS.inc }]}>INC</Text>
-              <Text style={[styles.th, { width: COLS.incPct }]}>%</Text>
-              <Text style={[styles.th, { width: COLS.line }]}>
-                Precio unitario de venta
-              </Text>
-            </View>
-            {items.map((item, index) => (
+        <View style={styles.columns} wrap={false}>
+          <View style={styles.column}>
+            <Field label="Número de Factura:" value={data.invoiceNumber} />
+            <Field label="Fecha de Emisión:" value={date(data.issueDate)} />
+            <Field label="Fecha de Vencimiento:" value={date(data.dueDate)} />
+            <Field label="Tipo de Operación:" value={data.operationType} />
+          </View>
+          <View style={styles.column}>
+            <Field
+              label="Forma de pago:"
+              value={
+                data.isCreditPayment === null
+                  ? ''
+                  : data.isCreditPayment
+                    ? 'Crédito'
+                    : 'Contado'
+              }
+            />
+            <Field label="Medio de Pago:" value={data.paymentMethodName} />
+            <Field label="Orden de pedido:" value={data.orderNumber} />
+            <Field
+              label="Fecha de orden de pedido:"
+              value={date(data.orderDate)}
+            />
+          </View>
+        </View>
+        <Section>Datos del Emisor / Vendedor</Section>
+        <Party party={data.issuer} issuer />
+        <Section>Datos del Adquiriente / Comprador</Section>
+        <Party party={data.buyer} />
+        <Section>Detalles de Productos</Section>
+        <View>
+          <View style={styles.tableRow} fixed>
+            {headers.map((h, i) => (
               <View
-                key={`${item.description}-${index}`}
-                style={styles.tableGroup}
-                wrap={false}
+                key={i}
+                style={[styles.cell, styles.head, { width: `${widths[i]}%` }]}
               >
-                <Text style={[styles.td, styles.tdCenter, { width: COLS.nro }]}>
-                  {index + 1}
-                </Text>
-                <Text style={[styles.td, styles.tdCenter, { width: COLS.code }]}>
-                  {item.code || ''}
-                </Text>
-                <Text style={[styles.td, styles.tdCenter, { width: COLS.desc }]}>
-                  {item.description}
-                </Text>
-                <Text style={[styles.td, { width: COLS.um }]} />
-                <Text style={[styles.td, styles.tdRight, { width: COLS.qty }]}>
-                  {formatDecimal(item.quantity)}
-                </Text>
-                <Text style={[styles.td, styles.tdRight, { width: COLS.price }]}>
-                  {money(item.unitValue)}
-                </Text>
-                <Text style={[styles.td, styles.tdRight, { width: COLS.disc }]}>
-                  {money(item.discount ?? 0)}
-                </Text>
-                <Text style={[styles.td, styles.tdRight, { width: COLS.surch }]}>
-                  {money(item.surcharge ?? 0)}
-                </Text>
-                <Text style={[styles.td, styles.tdRight, { width: COLS.iva }]}>
-                  {money(lineIvaAmount(item))}
-                </Text>
-                <Text
-                  style={[styles.td, styles.tdCenter, { width: COLS.ivaPct }]}
-                >
-                  {formatDecimal(item.ivaPercentage)}
-                </Text>
-                <Text style={[styles.td, styles.tdRight, { width: COLS.inc }]} />
-                <Text
-                  style={[styles.td, styles.tdCenter, { width: COLS.incPct }]}
-                />
-                <Text style={[styles.td, styles.tdRight, { width: COLS.line }]}>
-                  {money(item.total)}
-                </Text>
+                <Text>{h}</Text>
               </View>
             ))}
           </View>
+          {data.items.map((item, index) => {
+            const cells = [
+              String(index + 1),
+              item.code ?? '',
+              item.description,
+              item.unitCode ?? '',
+              decimal(item.quantity),
+              money(item.unitValue),
+              money(item.discount ?? 0),
+              money(item.surcharge ?? 0),
+              money(item.ivaAmount),
+              decimal(item.ivaPercentage),
+              money(item.incAmount),
+              decimal(item.incPercentage),
+              money(item.total),
+            ]
+            return (
+              <View key={index} style={styles.tableRow} wrap={false}>
+                {cells.map((value, col) => (
+                  <View
+                    key={col}
+                    style={[styles.cell, { width: `${widths[col]}%` }]}
+                  >
+                    <Text
+                      style={col === 1 ? styles.code : col === 2 ? styles.description : {}}
+                      hyphenationCallback={col === 1 ? preserveCodeCharacters : textBreaks}
+                    >
+                      {col === 1 ? wrapItemCode(value) : value}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )
+          })}
         </View>
-
-        <View style={styles.totalsWrap} wrap={false}>
-          <View style={styles.qrCol}>
-            <Image src={qrDataUrl} style={styles.qr} />
-            <Text style={styles.qrHint}>
-              Escanee el QR para validar el documento en el catálogo DIAN.
+        <Section>Referencias</Section>
+        <View style={styles.referenceRow} wrap={false}>
+          {[
+            'Tipo de Documento Referencia',
+            'Número Referencia',
+            'Fecha Referencia',
+          ].map((t) => (
+            <Text key={t} style={[styles.referenceCell, styles.label]}>
+              {t}
             </Text>
+          ))}
+        </View>
+        {(data.references ?? []).map((ref, i) => (
+          <View key={i} style={styles.referenceRow} wrap={false}>
+            <Text style={styles.referenceCell}>{ref.type}</Text>
+            <Text style={styles.referenceCell}>{ref.number}</Text>
+            <Text style={styles.referenceCell}>{date(ref.date)}</Text>
           </View>
-          <View style={styles.totalsCol}>
-            <Text style={[styles.sectionTitle, { alignSelf: 'stretch' }]}>
-              Datos Totales
+        ))}
+        <Section>Notas Finales</Section>
+        <Text style={styles.note} hyphenationCallback={textBreaks}>
+          {data.observations ?? ''}
+        </Text>
+        <Footer />
+      </Page>
+      <Page size="A4" style={styles.page} wrap>
+        <Section>Datos Totales</Section>
+        <View style={styles.totals} wrap={false}>
+          <View style={styles.qrColumn}>
+            <Image src={qrDataUrl} style={styles.qr} />
+            <Text style={styles.provenanceLabel}>Documento generado el:</Text>
+            <Text style={styles.provenance}>
+              {date(data.issueDate)} {data.issueTime ?? ''}
             </Text>
-            <View style={styles.currencyCard}>
+            {data.technologyProviderId && (
+              <>
+                <Text style={styles.provenanceLabel}>XML generado por:</Text>
+                <Text style={styles.provenance}>
+                  Proveedor tecnológico{'\n'}
+                  {data.technologyProviderId}
+                </Text>
+              </>
+            )}
+            <Text style={styles.provenanceLabel}>PDF generado por:</Text>
+            <Text style={styles.provenance}>JARVIS</Text>
+          </View>
+          <View style={styles.summaryColumn}>
+            <View style={styles.currency}>
               <View style={styles.currencyRow}>
                 <Text>MONEDA</Text>
                 <Text>{data.currency}</Text>
               </View>
+              <View style={styles.currencyRow}>
+                <Text>TASA DE CAMBIO</Text>
+                <Text>{decimal(data.exchangeRate)}</Text>
+              </View>
             </View>
-            <View style={styles.totalsCard}>
-              <TotalRow label="Subtotal" value={money(data.subtotal)} band />
-              <TotalRow
-                label="Descuento detalle"
-                value={money(detailDiscount)}
-              />
-              <TotalRow
-                label="Recargo detalle"
-                value={money(detailSurcharge)}
-              />
+            <View style={styles.summary}>
+              <TotalRow label="Subtotal" amount={data.subtotal} strong />
+              <TotalRow label="Descuento detalle" amount={detailDiscount} />
+              <TotalRow label="Recargo detalle" amount={detailSurcharge} />
               <TotalRow
                 label="Total Bruto Factura"
-                value={money(data.subtotal - globalDiscount)}
-                band
+                amount={data.subtotal}
+                strong
               />
-              <TotalRow label="IVA" value={money(data.iva)} />
-              <TotalRow label="INC" value={money(inc ?? 0)} />
-              <TotalRow label="Bolsas" value={money(bags ?? 0)} />
-              <TotalRow label="Otros impuestos" value={money(otherTaxes)} />
-              <TotalRow
-                label="Total impuesto (=)"
-                value={money(totalTax)}
-                band
-              />
+              <TotalRow label="IVA" amount={data.iva} />
+              <TotalRow label="INC" amount={inc} />
+              <TotalRow label="Bolsas" amount={bags} />
+              <TotalRow label="Otros impuestos" amount={other} />
+              <TotalRow label="Total impuesto (=)" amount={totalTax} strong />
               <TotalRow
                 label="Total neto factura (=)"
-                value={money(data.total)}
-                band
+                amount={
+                  data.taxInclusiveAmount ??
+                  data.subtotal -
+                    (data.discount ?? 0) +
+                    (data.surcharge ?? 0) +
+                    totalTax
+                }
+                strong
               />
               <TotalRow
                 label="Descuento Global (-)"
-                value={money(globalDiscount)}
+                amount={data.discount ?? 0}
               />
               <TotalRow
                 label="Recargo Global (+)"
-                value={money(globalSurcharge)}
+                amount={data.surcharge ?? 0}
               />
               <TotalRow
-                label="Total factura (=)"
-                value={money(data.total)}
-                band
+                label={`Total factura (=)  ${data.currency} $`}
+                amount={data.total}
+                strong
               />
             </View>
             <Text style={styles.infoTitle}>Valores informativos</Text>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoHead}>ANTICIPOS</Text>
-              <TotalRow label="Anticipos" value={money(0)} />
+            <View style={styles.summary}>
+              <TotalRow label="ANTICIPOS" strong />
+              <TotalRow label="Anticipos" amount={data.prepaidAmount ?? 0} />
             </View>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoHead}>RETENCIONES</Text>
-              <TotalRow label="Rete fuente" value={money(reteFuente ?? 0)} />
-              <TotalRow label="Rete IVA" value={money(reteIva ?? 0)} />
-              <TotalRow label="Rete ICA" value={money(reteIca ?? 0)} />
+            <View style={styles.summary}>
+              <TotalRow label="RETENCIONES" strong />
+              <TotalRow label="Rete fuente" amount={retention('06')} />
+              <TotalRow label="Rete IVA" amount={retention('05')} />
+              <TotalRow label="Rete ICA" amount={retention('07')} />
             </View>
           </View>
         </View>
-
-        {data.observations ? (
-          <View style={styles.section} wrap={false}>
-            <Text style={styles.sectionTitle}>Observaciones</Text>
-            <Text style={styles.observations}>{data.observations}</Text>
-          </View>
-        ) : null}
-
-        <Text
-          style={styles.pageNumber}
-          render={({ pageNumber, totalPages }) =>
-            `Hoja ${pageNumber} de ${totalPages}`
-          }
-          fixed
-        />
+        <View style={styles.authorization} wrap={false}>
+          <Text style={{ flex: 2.2 }}>
+            Número de Autorización:{'\n'}
+            {auth?.number ?? ''}
+          </Text>
+          <Text style={{ flex: 1 }}>
+            Rango desde:{'\n'}
+            {auth?.from ?? ''}
+          </Text>
+          <Text style={{ flex: 1 }}>
+            Rango hasta:{'\n'}
+            {auth?.to ?? ''}
+          </Text>
+          <Text style={{ flex: 1 }}>
+            Vigencia:{'\n'}
+            {date(auth?.endDate)}
+          </Text>
+        </View>
+        <Footer />
       </Page>
     </Document>
   )

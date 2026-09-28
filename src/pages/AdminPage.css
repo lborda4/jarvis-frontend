@@ -522,3 +522,9 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.admin-tabs { display: flex; gap: .5rem; border-bottom: 1px solid #dbe3ed; margin-bottom: 1.5rem; }
+.admin-tabs [role="tab"] { border: 0; border-bottom: 3px solid transparent; background: transparent; padding: .85rem 1.5rem; color: #64748b; font: inherit; font-weight: 600; cursor: pointer; }
+.admin-tabs [aria-selected="true"] { color: #0f766e; border-bottom-color: #0f766e; }
+.admin-tabs [role="tab"]:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
+.admin-bold-settings__company { max-width: 560px; margin-bottom: 1.5rem; }

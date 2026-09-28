@@ -228,8 +228,6 @@ export interface BoldBindedTerminalsResponse {
  * usará la extensión de Chrome, ver SiigoBoldCashRegister en el backend. */
 export interface BoldCashRegister {
   id: string
-  branchOfficeId: number
-  cashRegisterId: string
   cashRegisterName: string
   boldTerminalId: string
 }
@@ -239,13 +237,22 @@ export interface ListBoldCashRegistersResponse {
 }
 
 export interface UpsertBoldCashRegisterRequest {
+  id?: string
   companyId: string
-  branchOfficeId: number
-  cashRegisterId: string
   cashRegisterName: string
   boldTerminalId: string
 }
 
 export interface UpsertBoldCashRegisterResponse {
   item: BoldCashRegister
+}
+
+
+export interface AdminBoldCredentialsStatus {
+  identityKey: string
+  hasSecretKey: boolean
+}
+export interface SaveAdminBoldCredentialsRequest {
+  identityKey: string
+  secretKey?: string
 }

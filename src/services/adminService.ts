@@ -1,4 +1,6 @@
 import type {
+  AdminBoldCredentialsStatus,
+  SaveAdminBoldCredentialsRequest,
   BoldBindedTerminalsResponse,
   CreateAdminCompanyRequest,
   CreateAdminCompanyResponse,
@@ -134,15 +136,13 @@ export async function updateCompanyCity(
   return response.data
 }
 
-/** La llave de identidad (x-api-key) de Bold no se persiste todavía (ver
- * ensureBoldIntegration en el backend) — viaja en este header en cada
- * llamada, la ingresa el admin a mano en el panel. */
+/** Consulta los datáfonos usando las credenciales guardadas en el servidor. */
 export async function fetchBoldBindedTerminals(
-  apiKey: string,
+  companyId: string,
 ): Promise<BoldBindedTerminalsResponse> {
   const response = await apiClient.get<BoldBindedTerminalsResponse>(
     BOLD_BINDED_TERMINALS_ENDPOINT,
-    { headers: { 'x-bold-api-key': apiKey } },
+    { params: { companyId } },
   )
 
   return response.data
@@ -181,4 +181,21 @@ export async function updateIntegrationSubscription(
     )
 
   return response.data
+}
+
+
+export async function fetchAdminBoldCredentials(companyId: string): Promise<AdminBoldCredentialsStatus> {
+  return (await apiClient.get<AdminBoldCredentialsStatus>(
+    ADMIN_COMPANIES_ENDPOINT + '/' + encodeURIComponent(companyId) + '/bold/credentials',
+  )).data
+}
+
+export async function saveAdminBoldCredentials(
+  companyId: string,
+  request: SaveAdminBoldCredentialsRequest,
+): Promise<AdminBoldCredentialsStatus> {
+  return (await apiClient.patch<AdminBoldCredentialsStatus>(
+    ADMIN_COMPANIES_ENDPOINT + '/' + encodeURIComponent(companyId) + '/bold/credentials',
+    request,
+  )).data
 }

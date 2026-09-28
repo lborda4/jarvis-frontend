@@ -1,3 +1,4 @@
+import AdminBoldSettings from '../components/AdminBoldSettings'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -13,12 +14,9 @@ import {
   fetchAdminCities,
   fetchAdminCompanies,
   fetchAdminPlans,
-  fetchBoldBindedTerminals,
-  fetchBoldCashRegisters,
   lookupAdminCompanyName,
   parseAdminCompanyRut,
   regenerateCompanyInviteCode,
-  saveBoldCashRegister,
   updateCompanyCity,
   updateCompanyDescription,
   updateCompanyNextPymeToken,
@@ -34,8 +32,6 @@ import {
   type AdminCompanyListItem,
   type AdminIntegrationItem,
   type AdminPlan,
-  type BoldCashRegister,
-  type BoldTerminal,
   type CompanyPersonType,
   type ElectronicDocumentType,
   type IntegrationProvider,
@@ -58,22 +54,6 @@ const AVAILABLE_DOCUMENT_TYPES: Array<{
     label: 'Factura de compra',
   },
 ]
-
-/** Borrador de la fila "nueva caja" al final de la tabla — texto libre
- * mientras se edita, se valida/convierte recién al guardar. */
-interface BoldCashRegisterDraft {
-  branchOfficeId: string
-  cashRegisterId: string
-  cashRegisterName: string
-  boldTerminalId: string
-}
-
-const EMPTY_CASH_REGISTER_DRAFT: BoldCashRegisterDraft = {
-  branchOfficeId: '',
-  cashRegisterId: '',
-  cashRegisterName: '',
-  boldTerminalId: '',
-}
 
 function formatDocumentLimit(limit: number | null | undefined): string {
   if (limit == null) {
@@ -126,6 +106,7 @@ function formatResponsible(
 }
 
 function AdminPage() {
+  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold'>('jarvis')
   const { logout } = useAuth()
   const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([])
@@ -157,36 +138,6 @@ function AdminPage() {
   >(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  // Panel de Bold (caja/datáfonos) por empresa — la llave de identidad no se
-  // persiste todavía (ver ensureBoldIntegration en el backend), así que vive
-  // solo en memoria del navegador mientras dura la sesión del admin.
-  const [expandedBoldCompanyId, setExpandedBoldCompanyId] = useState<
-    string | null
-  >(null)
-  const [boldApiKeyByCompanyId, setBoldApiKeyByCompanyId] = useState<
-    Record<string, string>
-  >({})
-  const [boldTerminalsByCompanyId, setBoldTerminalsByCompanyId] = useState<
-    Record<string, BoldTerminal[]>
-  >({})
-  const [loadingBoldTerminalsCompanyId, setLoadingBoldTerminalsCompanyId] =
-    useState<string | null>(null)
-  const [boldTerminalsErrorByCompanyId, setBoldTerminalsErrorByCompanyId] =
-    useState<Record<string, string | null>>({})
-  const [boldCashRegistersByCompanyId, setBoldCashRegistersByCompanyId] =
-    useState<Record<string, BoldCashRegister[]>>({})
-  const [
-    loadingBoldCashRegistersCompanyId,
-    setLoadingBoldCashRegistersCompanyId,
-  ] = useState<string | null>(null)
-  const [
-    boldCashRegistersErrorByCompanyId,
-    setBoldCashRegistersErrorByCompanyId,
-  ] = useState<Record<string, string | null>>({})
-  const [newCashRegisterDraftByCompanyId, setNewCashRegisterDraftByCompanyId] =
-    useState<Record<string, BoldCashRegisterDraft>>({})
-  const [savingCashRegisterCompanyId, setSavingCashRegisterCompanyId] =
-    useState<string | null>(null)
   const [nit, setNit] = useState('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -216,12 +167,6 @@ function AdminPage() {
   // CUFE, de cualquier proveedor). Antes eran dos inputs separados que
   // pedían literalmente el mismo dato dos veces en la misma pantalla.
   const [companyNextPymeToken, setCompanyNextPymeToken] = useState('')
-  // Llave de identidad (x-api-key) de Bold para esta empresa — igual que el
-  // resto del panel de Bold, no se persiste en BD todavía (ver
-  // ensureBoldIntegration en el backend); al crear la empresa solo queda
-  // precargada en memoria (boldApiKeyByCompanyId) para no tener que
-  // volver a escribirla al abrir su panel de cajas/datáfonos.
-  const [companyBoldApiKey, setCompanyBoldApiKey] = useState('')
   const [siigoPlanId, setSiigoPlanId] = useState('')
   const [jarvisPlanId, setJarvisPlanId] = useState('')
   const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
@@ -452,17 +397,6 @@ function AdminPage() {
       setCompanies((current) => [response.company, ...current])
       setSuccessMessage(`Empresa ${response.company.name} creada correctamente.`)
 
-      if (selectedIntegrations.includes(INTEGRATION_PROVIDER.BOLD)) {
-        const trimmedBoldApiKey = companyBoldApiKey.trim()
-
-        if (trimmedBoldApiKey) {
-          setBoldApiKeyByCompanyId((current) => ({
-            ...current,
-            [response.company.id]: trimmedBoldApiKey,
-          }))
-        }
-      }
-
       setNit('')
       setName('')
       setDescription('')
@@ -476,7 +410,6 @@ function AdminPage() {
       setJarvisCredentials(undefined)
       setIdSoftware('')
       setCompanyNextPymeToken('')
-      setCompanyBoldApiKey('')
       setSelectedCity(null)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
       setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
@@ -664,169 +597,6 @@ function AdminPage() {
     }
   }
 
-  const handleLoadBoldCashRegisters = async (
-    company: AdminCompanyListItem,
-  ) => {
-    setLoadingBoldCashRegistersCompanyId(company.id)
-    setBoldCashRegistersErrorByCompanyId((current) => ({
-      ...current,
-      [company.id]: null,
-    }))
-
-    try {
-      const response = await fetchBoldCashRegisters(company.id)
-      setBoldCashRegistersByCompanyId((current) => ({
-        ...current,
-        [company.id]: response.items,
-      }))
-    } catch (error) {
-      setBoldCashRegistersErrorByCompanyId((current) => ({
-        ...current,
-        [company.id]: getApiErrorMessage(
-          error,
-          'No se pudieron cargar las cajas de esta empresa.',
-        ),
-      }))
-    } finally {
-      setLoadingBoldCashRegistersCompanyId(null)
-    }
-  }
-
-  const handleToggleBoldPanel = (company: AdminCompanyListItem) => {
-    const isOpening = expandedBoldCompanyId !== company.id
-
-    setExpandedBoldCompanyId(isOpening ? company.id : null)
-
-    // Trae las cajas ya guardadas apenas se despliega el panel — así se ve
-    // la misma tabla persistida cada vez que se abre, no solo justo después
-    // de guardar una nueva en esta misma sesión.
-    if (isOpening && !boldCashRegistersByCompanyId[company.id]) {
-      void handleLoadBoldCashRegisters(company)
-    }
-  }
-
-  const handleBoldApiKeyChange = (companyId: string, value: string) => {
-    setBoldApiKeyByCompanyId((current) => ({ ...current, [companyId]: value }))
-  }
-
-  const handleCashRegisterDraftChange = (
-    companyId: string,
-    patch: Partial<BoldCashRegisterDraft>,
-  ) => {
-    setNewCashRegisterDraftByCompanyId((current) => ({
-      ...current,
-      [companyId]: {
-        ...(current[companyId] ?? EMPTY_CASH_REGISTER_DRAFT),
-        ...patch,
-      },
-    }))
-  }
-
-  const handleSaveCashRegister = async (company: AdminCompanyListItem) => {
-    const draft =
-      newCashRegisterDraftByCompanyId[company.id] ?? EMPTY_CASH_REGISTER_DRAFT
-    const branchOfficeId = Number(draft.branchOfficeId)
-
-    if (!draft.branchOfficeId.trim() || !Number.isFinite(branchOfficeId)) {
-      setBoldCashRegistersErrorByCompanyId((current) => ({
-        ...current,
-        [company.id]: 'La sucursal debe ser un número válido.',
-      }))
-      return
-    }
-
-    if (!draft.cashRegisterId.trim() || !draft.cashRegisterName.trim()) {
-      setBoldCashRegistersErrorByCompanyId((current) => ({
-        ...current,
-        [company.id]: 'El id y el nombre de la caja son obligatorios.',
-      }))
-      return
-    }
-
-    if (!draft.boldTerminalId) {
-      setBoldCashRegistersErrorByCompanyId((current) => ({
-        ...current,
-        [company.id]: 'Seleccione un datáfono.',
-      }))
-      return
-    }
-
-    setSavingCashRegisterCompanyId(company.id)
-    setBoldCashRegistersErrorByCompanyId((current) => ({
-      ...current,
-      [company.id]: null,
-    }))
-
-    try {
-      const response = await saveBoldCashRegister({
-        companyId: company.id,
-        branchOfficeId,
-        cashRegisterId: draft.cashRegisterId.trim(),
-        cashRegisterName: draft.cashRegisterName.trim(),
-        boldTerminalId: draft.boldTerminalId,
-      })
-
-      setBoldCashRegistersByCompanyId((current) => {
-        const existing = current[company.id] ?? []
-        const withoutOldVersion = existing.filter(
-          (item) => item.id !== response.item.id,
-        )
-
-        return {
-          ...current,
-          [company.id]: [...withoutOldVersion, response.item],
-        }
-      })
-      setNewCashRegisterDraftByCompanyId((current) => ({
-        ...current,
-        [company.id]: EMPTY_CASH_REGISTER_DRAFT,
-      }))
-    } catch (error) {
-      setBoldCashRegistersErrorByCompanyId((current) => ({
-        ...current,
-        [company.id]: getApiErrorMessage(
-          error,
-          'No se pudo guardar la caja.',
-        ),
-      }))
-    } finally {
-      setSavingCashRegisterCompanyId(null)
-    }
-  }
-
-  const handleLoadBoldTerminals = async (company: AdminCompanyListItem) => {
-    // No se exige la llave acá — mientras Bold no esté configurado de
-    // verdad en el backend (BOLD_API_KEY/BOLD_API_BASE_URL), el endpoint
-    // devuelve un mock sin importar qué se haya escrito; una vez sí esté
-    // configurado, el backend rechaza la llave faltante y ese error llega
-    // igual al catch de abajo con el mismo mensaje.
-    const apiKey = boldApiKeyByCompanyId[company.id]?.trim() ?? ''
-
-    setLoadingBoldTerminalsCompanyId(company.id)
-    setBoldTerminalsErrorByCompanyId((current) => ({
-      ...current,
-      [company.id]: null,
-    }))
-
-    try {
-      const response = await fetchBoldBindedTerminals(apiKey)
-      setBoldTerminalsByCompanyId((current) => ({
-        ...current,
-        [company.id]: response.payload.available_terminals,
-      }))
-    } catch (error) {
-      setBoldTerminalsErrorByCompanyId((current) => ({
-        ...current,
-        [company.id]: getApiErrorMessage(
-          error,
-          'No se pudieron consultar los datáfonos de Bold.',
-        ),
-      }))
-    } finally {
-      setLoadingBoldTerminalsCompanyId(null)
-    }
-  }
-
   const handleStartEditDescription = (company: AdminCompanyListItem) => {
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -1001,6 +771,27 @@ function AdminPage() {
         }
       />
 
+      <div className="admin-tabs" role="tablist" aria-label="Secciones de administración">
+        {(['jarvis', 'bold'] as const).map((tab) => (
+          <button key={tab} id={'admin-tab-' + tab} type="button" role="tab"
+            aria-selected={activeAdminTab === tab} aria-controls={'admin-panel-' + tab}
+            tabIndex={activeAdminTab === tab ? 0 : -1}
+            onClick={() => setActiveAdminTab(tab)}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+              event.preventDefault()
+              const next = event.key === 'Home' ? 'jarvis' : event.key === 'End' ? 'bold' : tab === 'jarvis' ? 'bold' : 'jarvis'
+              setActiveAdminTab(next)
+              document.getElementById('admin-tab-' + next)?.focus()
+            }}>
+            {tab === 'jarvis' ? 'Jarvis' : 'Bold'}
+          </button>
+        ))}
+      </div>
+      <div id="admin-panel-bold" role="tabpanel" aria-labelledby="admin-tab-bold" hidden={activeAdminTab !== 'bold'}>
+        {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
+      </div>
+      <div id="admin-panel-jarvis" role="tabpanel" aria-labelledby="admin-tab-jarvis" hidden={activeAdminTab !== 'jarvis'}>
       <section className="admin-card">
         <div className="admin-card__header">
           <h2>Crear empresa</h2>
@@ -1253,24 +1044,6 @@ function AdminPage() {
                 </div>
               )}
 
-              {includesBold && (
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-bold-token">
-                    Token Bold (opcional)
-                  </label>
-                  <input
-                    id="admin-company-bold-token"
-                    type="password"
-                    value={companyBoldApiKey}
-                    onChange={(event) =>
-                      setCompanyBoldApiKey(event.target.value)
-                    }
-                    placeholder="Llave de identidad (x-api-key) de la cuenta Bold"
-                    disabled={isSubmitting}
-                    autoComplete="new-password"
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -1378,7 +1151,6 @@ function AdminPage() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th aria-label="Expandir" />
                   <th>Código de invitación</th>
                   <th>NIT</th>
                   <th>Empresa</th>
@@ -1407,32 +1179,8 @@ function AdminPage() {
                     [INTEGRATION_PROVIDER.SIIGO]: siigoPlans,
                     [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
                   }
-                  const hasBold = company.integrations.some(
-                    (integration) =>
-                      integration.provider === INTEGRATION_PROVIDER.BOLD,
-                  )
-                  const isBoldPanelOpen =
-                    hasBold && expandedBoldCompanyId === company.id
-
                   return [
                   <tr key={company.id}>
-                      <td>
-                        {hasBold && (
-                          <button
-                            type="button"
-                            className="admin-table__expand-button"
-                            aria-expanded={isBoldPanelOpen}
-                            aria-label={
-                              isBoldPanelOpen
-                                ? `Ocultar Bold de ${company.name}`
-                                : `Ver Bold de ${company.name}`
-                            }
-                            onClick={() => handleToggleBoldPanel(company)}
-                          >
-                            {isBoldPanelOpen ? '▾' : '▸'}
-                          </button>
-                        )}
-                      </td>
                       <td>
                         <div className="admin-invite-code">
                           <code>{company.inviteCode}</code>
@@ -1809,252 +1557,6 @@ function AdminPage() {
                         )}
                       </td>
                     </tr>,
-                    isBoldPanelOpen ? (
-                      <tr key={`${company.id}-bold`} className="admin-bold-panel-row">
-                        <td colSpan={15}>
-                          <div className="admin-bold-panel">
-                            <h3 className="admin-bold-panel__title">
-                              Bold — Cajas y datáfonos de {company.name}
-                            </h3>
-
-                            <div className="admin-bold-panel__key-row">
-                              <label htmlFor={`bold-api-key-${company.id}`}>
-                                Llave de identidad (x-api-key)
-                              </label>
-                              <input
-                                id={`bold-api-key-${company.id}`}
-                                type="text"
-                                value={boldApiKeyByCompanyId[company.id] ?? ''}
-                                onChange={(event) =>
-                                  handleBoldApiKeyChange(
-                                    company.id,
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Llave de la cuenta Bold de esta empresa"
-                                disabled={
-                                  loadingBoldTerminalsCompanyId === company.id
-                                }
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void handleLoadBoldTerminals(company)
-                                }
-                                disabled={
-                                  loadingBoldTerminalsCompanyId === company.id
-                                }
-                              >
-                                {loadingBoldTerminalsCompanyId === company.id
-                                  ? 'Consultando...'
-                                  : 'Consultar datáfonos'}
-                              </button>
-                            </div>
-
-                            {boldTerminalsErrorByCompanyId[company.id] && (
-                              <p className="admin-bold-panel__error">
-                                {boldTerminalsErrorByCompanyId[company.id]}
-                              </p>
-                            )}
-
-                            {boldCashRegistersErrorByCompanyId[
-                              company.id
-                            ] && (
-                              <p className="admin-bold-panel__error">
-                                {boldCashRegistersErrorByCompanyId[company.id]}
-                              </p>
-                            )}
-
-                            <table className="admin-table admin-bold-panel__table">
-                              <thead>
-                                <tr>
-                                  <th>Caja</th>
-                                  <th>Datáfonos</th>
-                  </tr>
-                              </thead>
-                              <tbody>
-                                {loadingBoldCashRegistersCompanyId ===
-                                  company.id && (
-                                  <tr>
-                                    <td colSpan={2} className="admin-empty">
-                                      Cargando cajas...
-                                    </td>
-                                  </tr>
-                                )}
-
-                                {(
-                                  boldCashRegistersByCompanyId[company.id] ??
-                                  []
-                                ).map((cashRegister) => {
-                                  const terminal = (
-                                    boldTerminalsByCompanyId[company.id] ?? []
-                                  ).find(
-                                    (item) =>
-                                      item.terminal_serial ===
-                                      cashRegister.boldTerminalId,
-                                  )
-
-                                  return (
-                                    <tr key={cashRegister.id}>
-                                      <td>
-                                        <div className="admin-bold-panel__caja-name">
-                                          {cashRegister.cashRegisterName}
-                                        </div>
-                                        <div className="admin-bold-panel__caja-meta">
-                                          Sucursal {cashRegister.branchOfficeId}{' '}
-                                          · Caja {cashRegister.cashRegisterId}
-                                        </div>
-                                      </td>
-                                      <td>
-                                        {terminal
-                                          ? `${terminal.name} (${terminal.terminal_model})`
-                                          : cashRegister.boldTerminalId}
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
-
-                                <tr>
-                                  <td>
-                                    <div className="admin-bold-panel__new-caja">
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        placeholder="Sucursal"
-                                        value={
-                                          newCashRegisterDraftByCompanyId[
-                                            company.id
-                                          ]?.branchOfficeId ?? ''
-                                        }
-                                        onChange={(event) =>
-                                          handleCashRegisterDraftChange(
-                                            company.id,
-                                            {
-                                              branchOfficeId:
-                                                event.target.value,
-                                            },
-                                          )
-                                        }
-                                        disabled={
-                                          savingCashRegisterCompanyId ===
-                                          company.id
-                                        }
-                                      />
-                                      <input
-                                        type="text"
-                                        placeholder="Id de caja (SIIGO POS)"
-                                        value={
-                                          newCashRegisterDraftByCompanyId[
-                                            company.id
-                                          ]?.cashRegisterId ?? ''
-                                        }
-                                        onChange={(event) =>
-                                          handleCashRegisterDraftChange(
-                                            company.id,
-                                            { cashRegisterId: event.target.value },
-                                          )
-                                        }
-                                        disabled={
-                                          savingCashRegisterCompanyId ===
-                                          company.id
-                                        }
-                                      />
-                                      <input
-                                        type="text"
-                                        placeholder="Nombre (ej. Caja 1)"
-                                        value={
-                                          newCashRegisterDraftByCompanyId[
-                                            company.id
-                                          ]?.cashRegisterName ?? ''
-                                        }
-                                        onChange={(event) =>
-                                          handleCashRegisterDraftChange(
-                                            company.id,
-                                            {
-                                              cashRegisterName:
-                                                event.target.value,
-                                            },
-                                          )
-                                        }
-                                        disabled={
-                                          savingCashRegisterCompanyId ===
-                                          company.id
-                                        }
-                                      />
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <div className="admin-bold-panel__new-caja-datafono">
-                                      <select
-                                        value={
-                                          newCashRegisterDraftByCompanyId[
-                                            company.id
-                                          ]?.boldTerminalId ?? ''
-                                        }
-                                        onChange={(event) =>
-                                          handleCashRegisterDraftChange(
-                                            company.id,
-                                            {
-                                              boldTerminalId:
-                                                event.target.value,
-                                            },
-                                          )
-                                        }
-                                        disabled={
-                                          !(
-                                            boldTerminalsByCompanyId[
-                                              company.id
-                                            ]?.length
-                                          ) ||
-                                          savingCashRegisterCompanyId ===
-                                            company.id
-                                        }
-                                      >
-                                        <option value="">
-                                          {boldTerminalsByCompanyId[company.id]
-                                            ?.length
-                                            ? 'Seleccione un datáfono...'
-                                            : 'Consulte los datáfonos primero'}
-                                        </option>
-                                        {(
-                                          boldTerminalsByCompanyId[
-                                            company.id
-                                          ] ?? []
-                                        ).map((terminal) => (
-                                          <option
-                                            key={terminal.terminal_serial}
-                                            value={terminal.terminal_serial}
-                                          >
-                                            {terminal.name} (
-                                            {terminal.terminal_model}) —{' '}
-                                            {terminal.status}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          void handleSaveCashRegister(company)
-                                        }
-                                        disabled={
-                                          savingCashRegisterCompanyId ===
-                                          company.id
-                                        }
-                                      >
-                                        {savingCashRegisterCompanyId ===
-                                        company.id
-                                          ? 'Guardando...'
-                                          : 'Guardar'}
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : null,
                   ]
                 })}
               </tbody>
@@ -2064,6 +1566,7 @@ function AdminPage() {
       </section>
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
+      </div>
     </main>
   )
 }
