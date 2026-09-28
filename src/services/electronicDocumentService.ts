@@ -271,6 +271,7 @@ export async function fetchPurchaseInvoiceDownload(
   )
 
   return response.data
+}
 
 /** Consulta únicamente el lote importado, incluidos documentos antiguos reutilizados. */
 export async function fetchImportedDocuments(
