@@ -3,6 +3,7 @@ import type {
   ElectronicDocumentFilterOptions,
   ElectronicDocumentListFilters,
   ElectronicDocumentListResponse,
+  PurchaseInvoiceDownload,
   ResumeElectronicDocumentResponse,
 } from '../types/electronicDocument'
 import { apiClient } from './apiClient'
@@ -261,6 +262,16 @@ export async function deleteElectronicDocumentsBatch(
   return response.data
 }
 
+/** Datos visuales certificados para generar el PDF de una factura de compra. */
+export async function fetchPurchaseInvoiceDownload(
+  documentId: string,
+): Promise<PurchaseInvoiceDownload> {
+  const response = await apiClient.get<PurchaseInvoiceDownload>(
+    `${ELECTRONIC_DOCUMENTS_ENDPOINT}/download/${documentId}`,
+  )
+
+  return response.data
+}
 
 /** Consulta únicamente el lote importado, incluidos documentos antiguos reutilizados. */
 export async function fetchImportedDocuments(

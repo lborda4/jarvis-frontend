@@ -1,3 +1,4 @@
+import { triggerBrowserDownload } from '../utils/downloadFile'
 import { apiClient } from './apiClient'
 
 const SUPPORT_DOCUMENT_TEMPLATE_ENDPOINT =
@@ -5,18 +6,6 @@ const SUPPORT_DOCUMENT_TEMPLATE_ENDPOINT =
 
 const SUPPORT_DOCUMENT_TEMPLATE_FILENAME =
   'plantilla-documento-soporte.xlsx'
-
-function triggerBrowserDownload(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.rel = 'noopener'
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.URL.revokeObjectURL(url)
-}
 
 export async function downloadSupportDocumentTemplate(
   provider?: 'SIIGO' | 'JARVIS',
