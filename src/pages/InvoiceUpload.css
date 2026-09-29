@@ -439,6 +439,38 @@
   border-color: var(--jarvis-primary);
 }
 
+.account-autocomplete.account-autocomplete--clearable .account-autocomplete__input {
+  padding-right: 2.25rem;
+}
+
+.account-autocomplete__clear {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--jarvis-text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.account-autocomplete__clear:hover {
+  background: var(--jarvis-gray-100);
+  color: var(--jarvis-text);
+}
+
+.account-autocomplete__clear:focus-visible {
+  outline: 2px solid var(--jarvis-primary);
+  outline-offset: 1px;
+}
+
 .account-autocomplete__input:disabled {
   opacity: 0.6;
   cursor: not-allowed;

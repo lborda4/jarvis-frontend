@@ -189,6 +189,7 @@ export interface CreateSiigoPurchaseSendProviderInvoice {
 }
 
 export interface CreateSiigoPurchaseSendRequest {
+  tax_included?: boolean
   documentId: string
   date: string
   supplier: CreateSiigoSupportDocumentSupplier

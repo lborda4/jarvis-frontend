@@ -14,10 +14,10 @@ import type {
   CreateSiigoSupportDocumentRequest,
 } from '../types/siigo'
 import { buildSiigoSupportDocumentRequest as buildSupportDocumentRequest } from './buildSiigoSupportDocumentRequest'
+import { purchaseInvoiceItemIncludedIvaRate } from './purchaseInvoicePricing'
 import {
-  areItemPricesTaxInclusive,
   calculateSiigoSupportDocumentPaymentValue,
-  convertTaxInclusiveUnitPrice,
+  roundMoney,
 } from './siigoSupportDocumentTotal'
 import { isCreditPaymentMethod } from './siigoPaymentMethods'
 import { getTodayLocalDate, isValidLocalDateFormat } from './supportDocumentDate'
@@ -184,21 +184,34 @@ export function buildSiigoPurchaseSendRequest(
       : []),
   ])
 
-  const itemsGross = items.reduce((sum, item) => {
-    const quantity = item.quantity > 0 ? item.quantity : 1
-    const discount = item.discount && item.discount > 0 ? item.discount : 0
-    return sum + quantity * item.price - discount
-  }, 0)
-  if (areItemPricesTaxInclusive({
-    itemsGross,
-    subtotal: document.documentSubtotal,
-    total: document.total,
-  })) {
-    for (const item of items) {
-      const rate = itemTaxesCatalog.find(tax =>
-        tax.type === 'IVA' && item.taxes?.some(selected => selected.id === tax.id),
-      )?.percentage
-      if (rate && rate > 0) item.price = convertTaxInclusiveUnitPrice(item.price, rate)
+  // Algunos emisores entregan precio Y descuento con IVA. Convertir ambos
+  // solo si las líneas originales concilian con base, IVA y total certificados.
+  const includedRates = items.map((_, index) => purchaseInvoiceItemIncludedIvaRate(document, index))
+  // Se envían precios originales solo cuando todas las líneas gravadas
+  // concilian como IVA incluido y conservan su tarifa original.
+  const taxIncluded = includedRates.some(rate => rate > 0) && items.every((item, index) => {
+    const rate = itemTaxesCatalog.find(tax => tax.type.toUpperCase() === 'IVA' && item.taxes?.some(ref => ref.id === tax.id))?.percentage ?? 0
+    return includedRates[index] > 0 ? rate === includedRates[index] : rate === 0
+  })
+  for (const [index, item] of items.entries()) {
+    if (taxIncluded) continue
+    const rate = purchaseInvoiceItemIncludedIvaRate(document, index)
+    if (rate <= 0) continue
+    const source = document.items?.[index]
+    const unchanged = source && item.quantity === source.quantity && item.price === source.unitValue &&
+      (item.discount ?? 0) === (source.discount ?? 0)
+    const factor = 1 + rate / 100
+    item.price = roundMoney(item.price / factor)
+    if (item.discount) {
+      item.discount = roundMoney(item.discount / factor)
+      // En una línea sin editar, absorber únicamente el centavo de conversión
+      // en el descuento para conservar la base explícita de Nextpyme.
+      if (unchanged && source && Math.abs(
+        (source.quantity * source.unitValue - (source.discount ?? 0)) / factor - source.total,
+      ) <= 0.011) {
+        const sourceDiscount = roundMoney(item.quantity * item.price - source.total)
+        if (sourceDiscount >= 0 && Math.abs(sourceDiscount - item.discount) <= 0.011) item.discount = sourceDiscount
+      }
     }
   }
 
@@ -208,6 +221,7 @@ export function buildSiigoPurchaseSendRequest(
     documentRetentions
       .map((retention) => retentionOptionsPool.find((tax) => tax.id === retention.id))
       .filter((retention): retention is SiigoTaxOption => Boolean(retention)),
+    taxIncluded,
   )
   // La fecha de Factura de compra es la de una factura de tercero ya
   // emitida (puede ser de hace meses) — solo se valida el formato, no una
@@ -230,6 +244,7 @@ export function buildSiigoPurchaseSendRequest(
   const resolvedObservations = observations?.trim() || (cufe ? `CUFE: ${cufe}` : undefined)
 
   return {
+    tax_included: taxIncluded,
     documentId: document.id,
     date: documentDate,
     supplier: {

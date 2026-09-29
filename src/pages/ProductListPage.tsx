@@ -1,5 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
+import CatalogRowActions from '../components/CatalogRowActions'
+import ConfirmDialog from '../components/ConfirmDialog'
 import CreateProductModal from '../components/CreateProductModal'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -7,7 +9,7 @@ import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { PackageIcon } from '../components/icons/SidebarIcons'
 import { getApiErrorMessage } from '../services/apiClient'
-import { fetchProducts, type ProductResponse } from '../services/productService'
+import { deleteProduct, fetchProducts, type ProductResponse } from '../services/productService'
 import {
   companyQueryKey,
   peekCachedQuery,
@@ -59,6 +61,26 @@ function ProductListPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ProductResponse | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || isDeleting) return
+    setIsDeleting(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    try {
+      await deleteProduct(pendingDelete.id)
+      setItems((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setTotal((current) => Math.max(0, current - 1))
+      setSuccessMessage(`Producto "${pendingDelete.name}" eliminado correctamente.`)
+      setPendingDelete(null)
+    } catch (error) {
+      setPendingDelete(null)
+      setErrorMessage(getApiErrorMessage(error, 'No se pudo eliminar el producto.'))
+    } finally { setIsDeleting(false) }
+  }
 
   const loadProducts = useCallback(async (query?: string) => {
     const trimmed = query?.trim()
@@ -78,6 +100,8 @@ function ProductListPage() {
   }, [])
 
   useEffect(() => {
+    // La carga inicial actualiza el listado después de la consulta asíncrona.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadProducts()
   }, [loadProducts])
 
@@ -128,7 +152,7 @@ function ProductListPage() {
   }
 
   return (
-    <main className="product-list-page">
+    <main className="product-list-page integration-page">
       <PageHeader
         title="Listar productos"
         description="Consulta el catálogo de productos y servicios registrados en Jarvis."
@@ -145,7 +169,7 @@ function ProductListPage() {
       {errorMessage && <ErrorMessage message={errorMessage} />}
       {successMessage && <SuccessMessage message={successMessage} />}
 
-      <form className="product-filters" onSubmit={handleSearch}>
+      <form className="product-filters integration-filters" onSubmit={handleSearch}>
         <div className="product-filters__field product-filters__field--grow">
           <label htmlFor="product-search">Buscar</label>
           <div className="product-filters__search-row">
@@ -203,8 +227,8 @@ function ProductListPage() {
         )}
       </form>
 
-      <section className="product-list" aria-live="polite">
-        <div className="product-list__header">
+      <section className="product-list integration-card" aria-live="polite">
+        <div className="product-list__header integration-card-header">
           <h2>Catálogo</h2>
           <p>
             {visibleItems.length}
@@ -240,7 +264,7 @@ function ProductListPage() {
           </div>
         ) : (
           <div className="product-list__table-wrap">
-            <table className="product-list__table">
+            <table className="product-list__table integration-table">
               <thead>
                 <tr>
                   <th>Código / SKU</th>
@@ -249,6 +273,7 @@ function ProductListPage() {
                   <th>Categoría</th>
                   <th>Impuestos</th>
                   <th className="product-list__num">Precio</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,6 +298,9 @@ function ProductListPage() {
                       <td className="product-list__num">
                         {price === null ? '—' : formatMoney(price)}
                       </td>
+                      <td>
+                        <CatalogRowActions name={item.name} onEdit={() => setEditingProduct(item)} onDelete={() => setPendingDelete(item)} disabled={isDeleting} />
+                      </td>
                     </tr>
                   )
                 })}
@@ -282,11 +310,28 @@ function ProductListPage() {
         )}
       </section>
 
+      <ConfirmDialog isOpen={pendingDelete !== null} title="Eliminar producto"
+        message={`¿Seguro que quieres eliminar "${pendingDelete?.name ?? ''}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar" variant="danger" isBusy={isDeleting}
+        onConfirm={() => void confirmDelete()} onCancel={() => { if (!isDeleting) setPendingDelete(null) }} />
       <CreateProductModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={handleProductCreated}
       />
+      {editingProduct && (
+        <CreateProductModal
+          key={editingProduct.id}
+          isOpen
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onCreated={(product) => {
+            setSuccessMessage(`Producto "${product.name}" actualizado correctamente.`)
+            setItems((current) => current.map((item) => item.id === product.id ? product : item))
+            void loadProducts(search)
+          }}
+        />
+      )}
     </main>
   )
 }

@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
-  AccountsIcon,
   AdminIcon,
   ChevronDownIcon,
   ChevronsLeftIcon,
@@ -14,7 +13,6 @@ import {
   PackageIcon,
   // PulseIcon,
   SettingsIcon,
-  SuppliersIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
 
@@ -64,7 +62,7 @@ function getUserInitials(name: string): string {
 function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const { user, companies, isLoading, isSwitchingCompany, logout, switchCompany } =
     useAuth()
   const {
@@ -141,41 +139,17 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           },
         ]
       : []),
-    // Productos es menú de cliente (rol user) con integración Jarvis — SIIGO
-    // maneja su propio catálogo de productos allá, no tiene nada que hacer
-    // acá. Es un solo ítem (no un grupo desplegable): lleva directo al
-    // listado, que ya tiene su propio botón "Crear producto" para el otro caso.
     ...(!isAdminRole(user?.role) && isJarvisCompany
-      ? [
-          {
-            label: 'Productos',
-            to: '/productos/listar',
-            icon: PackageIcon,
-          },
-        ]
-      : []),
-    // Impuestos y retenciones: mismo criterio que Productos/Terceros.
-    ...(!isAdminRole(user?.role) && isJarvisCompany
-      ? [
-          {
-            label: 'Impuestos y retenciones',
-            to: '/impuestos-retenciones',
-            icon: AccountsIcon,
-          },
-        ]
-      : []),
-    // Terceros: mismo criterio que Productos (menú de cliente con
-    // integración Jarvis) — ya existía la ruta y la página completas, pero
-    // nunca se agregó acá, así que solo se veía entrando directo por URL o
-    // desde el panel de admin (bug real reportado).
-    ...(!isAdminRole(user?.role) && isJarvisCompany
-      ? [
-          {
-            label: 'Terceros',
-            to: '/terceros',
-            icon: SuppliersIcon,
-          },
-        ]
+      ? [{
+          label: 'Categorías',
+          to: 'categorias',
+          icon: PackageIcon,
+          children: [
+            { label: 'Productos', to: '/productos/listar' },
+            { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
+            { label: 'Terceros', to: '/terceros' },
+          ],
+        }]
       : []),
     // Extractos bancarios oculto temporalmente a pedido explícito — la ruta y
     // la página siguen intactas, solo se saca el ítem del menú (ver las
@@ -229,45 +203,32 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     return location.pathname === to
   }
 
-  const toggleGroup = (to: string) => {
-    setExpandedGroups((current) => {
-      const next = new Set(current)
-
-      if (next.has(to)) {
-        next.delete(to)
-      } else {
-        next.add(to)
-      }
-
-      return next
-    })
-  }
-
   const renderNavItems = (iconOnly: boolean) =>
     navItems.map((item) => {
       const Icon = item.icon
 
       if ('children' in item && item.children) {
-        const groupActive = location.pathname.startsWith(item.to)
-        const isExpanded = expandedGroups.has(item.to) || groupActive
+        const groupActive = item.children.some(child => isActive(child.to))
+        const groupKey = location.pathname + ':' + item.to
+        const isExpanded = expandedGroups[groupKey] ?? groupActive
+        const groupId = 'sidebar-group-' + item.to
 
         if (iconOnly) {
           return (
-            <NavLink
+            <button
               key={item.to}
-              to={item.children[0].to}
-              className={[
-                'app-sidebar__link',
-                'app-sidebar__link--icon-only',
-                groupActive ? 'app-sidebar__link--active' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              type="button"
+              className="app-sidebar__link app-sidebar__link--icon-only app-sidebar__group-toggle"
               title={item.label}
-              aria-label={item.label}
+              aria-label={`Abrir ${item.label}`}
+              aria-expanded={false}
+              onClick={() => {
+                setExpandedGroups(current => ({ ...current, [groupKey]: true }))
+                onOpen()
+              }}
             >
               <Icon className="app-sidebar__link-icon" />
-            </NavLink>
+            </button>
           )
         }
 
@@ -278,11 +239,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               className={[
                 'app-sidebar__link',
                 'app-sidebar__group-toggle',
-                groupActive ? 'app-sidebar__link--active' : '',
+                groupActive ? 'app-sidebar__group-toggle--active' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
-              onClick={() => toggleGroup(item.to)}
+              onClick={() => setExpandedGroups(current => ({ ...current, [groupKey]: !isExpanded }))}
+              aria-controls={isExpanded ? groupId : undefined}
               aria-expanded={isExpanded}
             >
               <Icon className="app-sidebar__link-icon" />
@@ -298,15 +260,15 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             </button>
 
             {isExpanded && (
-              <div className="app-sidebar__group-children">
+              <div id={groupId} className="app-sidebar__group-children">
                 {item.children.map((child) => (
                   <NavLink
                     key={child.to}
                     to={child.to}
-                    className={({ isActive: childActive }) =>
+                    className={() =>
                       [
                         'app-sidebar__child-link',
-                        childActive ? 'app-sidebar__child-link--active' : '',
+                        isActive(child.to) ? 'app-sidebar__child-link--active' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')

@@ -5,6 +5,17 @@ interface CacheEntry<T> {
 }
 
 const store = new Map<string, CacheEntry<unknown>>()
+const MAX_CACHE_ENTRIES = 200
+
+function saveEntry<T>(key: string, entry: CacheEntry<T>): void {
+  store.delete(key)
+  store.set(key, entry)
+  while (store.size > MAX_CACHE_ENTRIES) {
+    const oldest = store.keys().next().value
+    if (oldest === undefined) break
+    store.delete(oldest)
+  }
+}
 
 let activeCompanyId: string | null = null
 
@@ -16,6 +27,7 @@ export const QUERY_STALE_MS = {
   providers: 60_000,
   filterOptions: 30_000,
   documents: 10 * 60_000,
+  jarvisHistory: 60_000,
   siigoCatalogBundle: 5 * 60_000,
 } as const
 
@@ -54,11 +66,9 @@ export function isCachedQueryFresh(key: string, staleMs: number): boolean {
 }
 
 export function setCachedQuery<T>(key: string, value: T): void {
-  const existing = store.get(key) as CacheEntry<T> | undefined
-  store.set(key, {
+  saveEntry(key, {
     value,
     fetchedAt: Date.now(),
-    inflight: existing?.inflight,
   })
 }
 
@@ -90,6 +100,7 @@ export async function cachedQuery<T>(
   if (
     !options?.force &&
     existing &&
+    existing.value !== undefined &&
     Date.now() - existing.fetchedAt < staleMs
   ) {
     return existing.value
@@ -99,15 +110,18 @@ export async function cachedQuery<T>(
     return existing.inflight
   }
 
-  const inflight = fetcher()
+  const inflight = Promise.resolve().then(fetcher)
     .then((value) => {
-      store.set(key, { value, fetchedAt: Date.now() })
+      // A mutation, company switch or newer refresh may have invalidated this request.
+      if (store.get(key)?.inflight === inflight) {
+        saveEntry(key, { value, fetchedAt: Date.now() })
+      }
       return value
     })
     .catch((error) => {
       const current = store.get(key) as CacheEntry<T> | undefined
       if (current?.inflight === inflight) {
-        store.set(key, {
+        saveEntry(key, {
           value: current.value,
           fetchedAt: current.fetchedAt,
         })
@@ -117,7 +131,7 @@ export async function cachedQuery<T>(
       throw error
     })
 
-  store.set(key, {
+  saveEntry(key, {
     value: existing?.value as T,
     fetchedAt: existing?.fetchedAt ?? 0,
     inflight,
@@ -141,27 +155,7 @@ export async function cachedQuerySWR<T>(
     const fresh = Date.now() - existing.fetchedAt < staleMs
 
     if (!fresh && !existing.inflight) {
-      const inflight = fetcher()
-        .then((value) => {
-          store.set(key, { value, fetchedAt: Date.now() })
-          return value
-        })
-        .catch((error) => {
-          const current = store.get(key) as CacheEntry<T> | undefined
-          if (current?.inflight === inflight) {
-            store.set(key, {
-              value: current.value,
-              fetchedAt: current.fetchedAt,
-            })
-          }
-          throw error
-        })
-
-      store.set(key, {
-        value: existing.value,
-        fetchedAt: existing.fetchedAt,
-        inflight,
-      })
+      void cachedQuery(key, staleMs, fetcher).catch(() => undefined)
     }
 
     return { value: existing.value, fromCache: true }

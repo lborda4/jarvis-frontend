@@ -143,7 +143,7 @@ function SiigoIntegrationSettings() {
   }
 
   return (
-    <main className="settings-page">
+    <main className="settings-page integration-page">
       <PageHeader
         title="Configuración de integración SIIGO"
         actions={

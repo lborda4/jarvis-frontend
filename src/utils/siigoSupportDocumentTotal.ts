@@ -52,11 +52,20 @@ function isRetentionTaxType(type?: string): boolean {
 function calculateLineBreakdown(
   item: SupportDocumentItem,
   taxesById: Map<number, SiigoTaxOption>,
+  taxIncluded = false,
 ): { baseValue: number; taxTotal: number; lineTotal: number } {
   const lineGross = roundMoney(item.quantity * item.price)
   const discount =
     item.discount !== undefined && item.discount > 0 ? roundMoney(item.discount) : 0
   const baseValue = roundMoney(lineGross - discount)
+  if (taxIncluded) {
+    const rate = (item.taxes ?? []).reduce((sum, ref) => {
+      const tax = taxesById.get(ref.id)
+      return tax && tax.percentage > 0 && !isRetentionTaxType(tax.type) ? sum + tax.percentage : sum
+    }, 0)
+    const net = roundMoney(baseValue / (1 + rate / 100))
+    return { baseValue: net, taxTotal: roundMoney(baseValue - net), lineTotal: baseValue }
+  }
   let taxTotal = 0
 
   for (const taxRef of item.taxes ?? []) {
@@ -115,6 +124,7 @@ function calculateRetentionTotal(
   items: SupportDocumentItem[],
   retentions: SiigoTaxOption[],
   taxesById: Map<number, SiigoTaxOption>,
+  taxIncluded = false,
 ): number {
   if (!retentions.length) {
     return 0
@@ -124,7 +134,7 @@ function calculateRetentionTotal(
   let taxTotal = 0
 
   for (const item of items) {
-    const breakdown = calculateLineBreakdown(item, taxesById)
+    const breakdown = calculateLineBreakdown(item, taxesById, taxIncluded)
     subtotal = roundMoney(subtotal + breakdown.baseValue)
     taxTotal = roundMoney(taxTotal + breakdown.taxTotal)
   }
@@ -155,15 +165,16 @@ export function calculateSiigoSupportDocumentPaymentValue(
   items: SupportDocumentItem[],
   taxesCatalog: SiigoTaxOption[] = [],
   retentions: SiigoTaxOption[] = [],
+  taxIncluded = false,
 ): number {
   const taxesById = new Map(taxesCatalog.map((tax) => [tax.id, tax]))
   const itemsTotal = roundMoney(
     items.reduce(
-      (sum, item) => sum + calculateLineBreakdown(item, taxesById).lineTotal,
+      (sum, item) => sum + calculateLineBreakdown(item, taxesById, taxIncluded).lineTotal,
       0,
     ),
   )
-  const retentionTotal = calculateRetentionTotal(items, retentions, taxesById)
+  const retentionTotal = calculateRetentionTotal(items, retentions, taxesById, taxIncluded)
 
   return roundMoney(itemsTotal - retentionTotal)
 }

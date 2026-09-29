@@ -22,6 +22,7 @@ import {
 import { useAuth } from './AuthContext'
 import {
   companyQueryKey,
+  getActiveCompanyId,
   isCachedQueryFresh,
   QUERY_STALE_MS,
 } from '../services/queryCache'
@@ -100,6 +101,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth()
   const companyId = user?.company?.id
   const [isCheckingSetup, setIsCheckingSetup] = useState(true)
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(null)
   const [integrationProviders, setIntegrationProviders] = useState<
     IntegrationProvider[]
   >([])
@@ -177,7 +179,8 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     setIsCheckingSetup(!hasFreshSetupCache)
 
     try {
-      const { providers } = await fetchIntegrationProviders()
+      const { providers } = await fetchIntegrationProviders(companyId)
+      if (getActiveCompanyId() !== companyId) return
       const mode = resolveIntegrationMode(providers)
 
       setIntegrationProviders(providers)
@@ -185,6 +188,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
       if (mode === 'siigo') {
         const status = await fetchSiigoCredentialsStatus()
+        if (getActiveCompanyId() !== companyId) return
         const configured = Boolean(status.configured)
         const accountsReady = Boolean(status.hasAccounts)
         const documentTypesReady = Boolean(status.documentTypesConfigured)
@@ -213,6 +217,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
       if (mode === 'jarvis') {
         const status = await fetchJarvisCredentialsStatus()
+        if (getActiveCompanyId() !== companyId) return
         const companyConfigured = Boolean(status.configured)
         const subscription = status.subscription
         const subscriptionActive = subscription?.status === 'ACTIVE'
@@ -262,6 +267,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setDocumentsRemaining(null)
       clearIntegrationConfigured()
     } catch {
+      if (getActiveCompanyId() !== companyId) return
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
@@ -275,7 +281,10 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setDocumentsRemaining(null)
       clearIntegrationConfigured()
     } finally {
-      setIsCheckingSetup(false)
+      if (getActiveCompanyId() === companyId) {
+        setResolvedCompanyId(companyId)
+        setIsCheckingSetup(false)
+      }
     }
   }, [companyId, isAuthLoading, isAuthenticated, resetJarvisFlags])
 
@@ -310,7 +319,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     ? isJarvisFullyConfigured
     : isSiigoFullyConfigured
   const setupPath = isJarvisCompany ? JARVIS_SETUP_PATH : SIIGO_SETUP_PATH
-  const isSetupStatusPending = isAuthLoading || isCheckingSetup
+  const isSetupStatusPending = isAuthLoading || isCheckingSetup || (Boolean(companyId) && resolvedCompanyId !== companyId)
   const requiresSetup =
     !isSetupStatusPending &&
     integrationMode !== 'unknown' &&

@@ -197,3 +197,14 @@ export async function createProduct(
 
   return data
 }
+
+export async function updateProduct(id: string, request: CreateProductRequest): Promise<CreateProductResponse> {
+  const { data } = await apiClient.put<CreateProductResponse>(`${PRODUCTS_ENDPOINT}/${encodeURIComponent(id)}`, request)
+  invalidateQueryCache(companyQueryKey(['products', 'list']))
+  return data
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  await apiClient.delete(`${PRODUCTS_ENDPOINT}/${encodeURIComponent(id)}`)
+  invalidateQueryCache(companyQueryKey(['products', 'list']))
+}

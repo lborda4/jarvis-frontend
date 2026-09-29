@@ -137,7 +137,7 @@ describe('calculatePurchaseInvoiceRowSummary — Total neto = payable_amount, nu
     expect(summaryWithRetention.total).toBe(1140000 - expectedRetention)
   })
 
-  it('descuento general editado a mano: el Total se desplaza por la diferencia contra el valor original de la DIAN', () => {
+  it('conserva descuento original aunque un borrador antiguo tenga otro valor', () => {
     const document = buildDocument({
       documentSubtotal: 1000000,
       documentIva: 190000,
@@ -145,21 +145,20 @@ describe('calculatePurchaseInvoiceRowSummary — Total neto = payable_amount, nu
       total: 1140000,
     })
 
-    // El contador sube el descuento de 50.000 a 80.000 — el Total baja en
-    // esos 30.000 extra, sin tocar payable_amount.
+    // Un borrador antiguo no puede cambiar los importes de la factura.
     const summaryIncreased = calculatePurchaseInvoiceRowSummary(
       document,
       [],
       null,
       80000,
     )
-    expect(summaryIncreased.documentDiscount).toBe(80000)
-    expect(summaryIncreased.total).toBe(1140000 - 30000)
+    expect(summaryIncreased.documentDiscount).toBe(50000)
+    expect(summaryIncreased.total).toBe(1140000)
 
-    // El contador lo borra a 0 — el Total sube en los 50.000 que ya traía.
+    // Tampoco puede borrar el descuento original.
     const summaryCleared = calculatePurchaseInvoiceRowSummary(document, [], null, 0)
-    expect(summaryCleared.documentDiscount).toBe(0)
-    expect(summaryCleared.total).toBe(1140000 + 50000)
+    expect(summaryCleared.documentDiscount).toBe(50000)
+    expect(summaryCleared.total).toBe(1140000)
 
     // Sin override (undefined): se comporta exactamente igual que antes.
     const summaryUnedited = calculatePurchaseInvoiceRowSummary(document, [])

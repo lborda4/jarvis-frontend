@@ -85,12 +85,8 @@ export function calculatePurchaseInvoiceRowSummary(
   document: ElectronicDocumentListItem,
   retentions: SiigoTaxOption[],
   editedItems?: PurchaseInvoiceItemDraft[] | null,
-  /** Descuento general editado a mano por el contador (arranca en el valor
-   * certificado por la DIAN, `document.documentDiscount`). Solo desplaza el
-   * "Total neto" mostrado por la diferencia contra ese valor original — no
-   * reemplaza `document.total`, que sigue siendo la fuente de verdad de lo
-   * que ya viene pagado según la DIAN. */
-  documentDiscountOverride?: number | null,
+  /** Compatibilidad con borradores anteriores; prevalece el descuento original. */
+  _documentDiscountOverride?: number | null,
 ): PurchaseInvoiceRowSummary {
   const { subtotal, ivaAmount } = calculateSubtotalAndIva(document)
 
@@ -114,32 +110,14 @@ export function calculatePurchaseInvoiceRowSummary(
   const retentionTotal = roundMoney(
     retentionLines.reduce((sum, line) => sum + line.amount, 0),
   )
-  const originalDocumentDiscount =
-    document.documentDiscount && document.documentDiscount > 0
-      ? document.documentDiscount
-      : 0
-  const documentDiscount =
-    documentDiscountOverride != null && documentDiscountOverride >= 0
-      ? documentDiscountOverride
-      : originalDocumentDiscount
-  // Lo que cambió el contador respecto al valor certificado por la DIAN —
-  // ese es el único monto que hay que reflejar en el Total, ver nota abajo.
-  const documentDiscountDelta = documentDiscount - originalDocumentDiscount
+  const documentDiscount = document.documentDiscount ?? 0
 
-  // Total neto = payable_amount (document.total, ya mapeado directo del
-  // JSON de la DIAN) menos las retenciones propias del comprador — nunca
-  // Subtotal + IVA: hay facturas reales (ej. muestras sin valor comercial)
-  // donde tax_exclusive_amount + IVA no coincide con payable_amount porque
-  // el vendedor asume el IVA, y ese cálculo daba un total inflado. Si el
-  // contador edita el descuento general, el Total se desplaza por la
-  // diferencia contra el valor original (que ya estaba incluido en
-  // payable_amount) — sin tocar ese valor original nunca queda en 0.
   return {
     subtotal,
     ivaAmount,
     consumptionTaxAmount: roundMoney(document.documentConsumptionTax ?? 0),
     retentionLines,
     documentDiscount,
-    total: roundMoney(document.total - retentionTotal - documentDiscountDelta),
+    total: roundMoney(document.total - retentionTotal),
   }
 }

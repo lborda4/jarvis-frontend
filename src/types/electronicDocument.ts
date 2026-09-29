@@ -132,6 +132,7 @@ export interface SuggestedItemAccount {
 }
 
 export interface ElectronicDocumentListItemItem {
+  productMapping?: { code: string }
   ivaPercentage?: number
   description: string
   quantity: number

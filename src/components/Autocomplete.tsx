@@ -28,6 +28,8 @@ export interface AutocompleteProps<T> {
   /** Predicado de búsqueda por opción. Por defecto, getOptionLabel(option) incluye el query. */
   isOptionMatch?: (option: T, query: string) => boolean
   className?: string
+  clearLabel?: string
+  selectOnFocus?: boolean
 }
 
 /**
@@ -49,10 +51,15 @@ function Autocomplete<T>({
   formatValueLabel,
   isOptionMatch,
   className = 'account-autocomplete',
+  clearLabel,
+  selectOnFocus = false,
 }: AutocompleteProps<T>) {
   const listboxId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
-  const [inputValue, setInputValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [inputValue, setInputValue] = useState(() =>
+    formatValueLabel ? formatValueLabel(value) : value ? getOptionLabel(value) : '',
+  )
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [listStyle, setListStyle] = useState<CSSProperties>({})
@@ -101,9 +108,13 @@ function Autocomplete<T>({
     })
   }, [])
 
-  useEffect(() => {
-    setInputValue(resolveValueLabel(value))
-  }, [resolveValueLabel, value])
+  const selectedLabel = resolveValueLabel(value)
+  const selectedValueKey = value ? getOptionKey(value) : null
+  const [previousSelection, setPreviousSelection] = useState({ key: selectedValueKey, label: selectedLabel })
+  if (previousSelection.key !== selectedValueKey || previousSelection.label !== selectedLabel) {
+    setPreviousSelection({ key: selectedValueKey, label: selectedLabel })
+    setInputValue(selectedLabel)
+  }
 
   const filteredOptions = useMemo(() => {
     const query = inputValue.replace(/^★\s*/, '').trim().toLowerCase()
@@ -119,9 +130,7 @@ function Autocomplete<T>({
     return options.filter(matches)
   }, [inputValue, options, value, getOptionLabel, isOptionMatch])
 
-  useEffect(() => {
-    setHighlightedIndex(0)
-  }, [filteredOptions])
+  const activeHighlightedIndex = Math.min(highlightedIndex, Math.max(0, filteredOptions.length - 1))
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -161,6 +170,7 @@ function Autocomplete<T>({
       onChange(option)
       setInputValue(resolveValueLabel(option))
       setIsOpen(false)
+      setHighlightedIndex(0)
     },
     [onChange, resolveValueLabel],
   )
@@ -168,6 +178,7 @@ function Autocomplete<T>({
   const handleInputChange = (nextValue: string) => {
     setInputValue(nextValue)
     setIsOpen(true)
+    setHighlightedIndex(0)
 
     if (!nextValue.trim()) {
       onChange(null)
@@ -193,9 +204,9 @@ function Autocomplete<T>({
       return
     }
 
-    if (event.key === 'Enter' && isOpen && filteredOptions[highlightedIndex]) {
+    if (event.key === 'Enter' && isOpen && filteredOptions[activeHighlightedIndex]) {
       event.preventDefault()
-      selectOption(filteredOptions[highlightedIndex])
+      selectOption(filteredOptions[activeHighlightedIndex])
       return
     }
 
@@ -208,14 +219,20 @@ function Autocomplete<T>({
   const selectedKey = value ? getOptionKey(value) : null
 
   return (
-    <div className={className} ref={containerRef}>
+    <div className={`${className}${clearLabel ? ' account-autocomplete--clearable' : ''}`} ref={containerRef}>
       <input
+        ref={inputRef}
         id={id}
         type="text"
         className="account-autocomplete__input"
         value={inputValue}
         onChange={(event) => handleInputChange(event.target.value)}
-        onFocus={() => !disabled && setIsOpen(true)}
+        onFocus={(event) => {
+          if (disabled) return
+          setIsOpen(true)
+          setHighlightedIndex(0)
+          if (selectOnFocus) event.target.select()
+        }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
@@ -225,6 +242,25 @@ function Autocomplete<T>({
         aria-autocomplete="list"
         autoComplete="off"
       />
+
+      {clearLabel && !disabled && (value || inputValue) && (
+        <button
+          type="button"
+          className="account-autocomplete__clear"
+          aria-label={clearLabel}
+          title={clearLabel}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            onChange(null)
+            setInputValue('')
+            setIsOpen(true)
+            setHighlightedIndex(0)
+            inputRef.current?.focus()
+          }}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      )}
 
       {isOpen && !disabled && (
         <ul
@@ -244,7 +280,7 @@ function Autocomplete<T>({
                   role="option"
                   aria-selected={selectedKey !== null && key === selectedKey}
                   className={`account-autocomplete__option${
-                    index === highlightedIndex
+                    index === activeHighlightedIndex
                       ? ' account-autocomplete__option--highlighted'
                       : ''
                   }`}

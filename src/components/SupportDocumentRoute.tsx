@@ -1,7 +1,8 @@
 import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
-import SupportDocumentIndividualPage from '../pages/SupportDocumentIndividualPage'
+import SalesInvoicePage from '../pages/SalesInvoicePage'
+import SalesInvoiceListPage from '../pages/SalesInvoiceListPage'
 import SupportDocumentPage from '../pages/SupportDocumentPage'
 import {
   JARVIS_SUPPORT_DOCUMENT_WORKSPACE,
@@ -45,7 +46,7 @@ function SupportDocumentRoute({ view = 'start' }: SupportDocumentRouteProps) {
   }
 
   if (hasJarvisIntegration && (view === 'start' || view === 'individual')) {
-    return <SupportDocumentIndividualPage />
+    return view === 'individual' ? <SalesInvoicePage supportDocument key="support-new" /> : <SalesInvoiceListPage supportDocument key="support-list" />
   }
 
   if (view === 'individual') {

@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '../services/apiClient'
 import { resumeElectronicDocument } from '../services/electronicDocumentService'
 import {
   createJarvisTercero,
+  updateJarvisTercero,
   fetchJarvisMunicipalities,
   fetchJarvisTypeLiabilities,
   fetchJarvisTypeRegimes,
@@ -29,6 +30,7 @@ import {
 } from '../types/jarvis'
 import type { SiigoSupplierPersonType } from '../types/siigo'
 import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
+import { terceroToForm } from '../utils/jarvisTerceroForm'
 import '../pages/TercerosPage.css'
 import '../pages/InvoiceUpload.css'
 
@@ -139,6 +141,7 @@ export interface CreateJarvisTerceroModalProps {
   /** JARVIS guarda en jarvis_terceros; SIIGO crea el cliente en SIIGO. */
   provider?: CreateTerceroModalProvider
   onCreated?: (tercero: JarvisTercero) => void
+  editingTercero?: JarvisTercero
 }
 
 function resolveDocumentType(value?: string | null): JarvisDocumentType {
@@ -170,6 +173,7 @@ function CreateJarvisTerceroModal({
   resumeDocumentId,
   provider = 'JARVIS',
   onCreated,
+  editingTercero,
 }: CreateJarvisTerceroModalProps) {
   const [form, setForm] = useState<CreateJarvisTerceroRequest>(EMPTY_FORM)
   const [typeLiabilities, setTypeLiabilities] = useState<JarvisTypeLiability[]>(
@@ -178,13 +182,13 @@ function CreateJarvisTerceroModal({
   const [typeRegimes, setTypeRegimes] = useState<JarvisTypeRegime[]>([])
   const [municipalities, setMunicipalities] = useState<JarvisMunicipality[]>([])
   const municipalitiesRef = useRef(municipalities)
-  municipalitiesRef.current = municipalities
+  useEffect(() => { municipalitiesRef.current = municipalities }, [municipalities])
   const [lookupCity, setLookupCity] = useState<{
     cityCode: string | null
     cityName: string | null
   }>({ cityCode: null, cityName: null })
   const lookupCityRef = useRef(lookupCity)
-  lookupCityRef.current = lookupCity
+  useEffect(() => { lookupCityRef.current = lookupCity }, [lookupCity])
   const [isSaving, setIsSaving] = useState(false)
   const [isLookingUpNit, setIsLookingUpNit] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -265,7 +269,7 @@ function CreateJarvisTerceroModal({
       return
     }
 
-    const openKey = `${initialDocumentType ?? ''}|${initialDocumentNumber ?? ''}|${resumeDocumentId ?? ''}`
+    const openKey = `${editingTercero?.id ?? ''}|${initialDocumentType ?? ''}|${initialDocumentNumber ?? ''}|${resumeDocumentId ?? ''}`
     if (openedKeyRef.current === openKey) {
       return
     }
@@ -273,7 +277,7 @@ function CreateJarvisTerceroModal({
     openedKeyRef.current = openKey
     const documentType = resolveDocumentType(initialDocumentType)
     const documentNumber = initialDocumentNumber?.trim() || ''
-    setForm({
+    setForm(editingTercero ? terceroToForm(editingTercero) : {
       ...EMPTY_FORM,
       document_type: documentType,
       document_number: documentNumber,
@@ -286,11 +290,13 @@ function CreateJarvisTerceroModal({
     // Ya no hay botón "Autocompletar": la consulta a NextPyme (vía
     // lookup-nit) se dispara sola apenas se abre el modal, para que el
     // usuario vea los datos ya llenos en vez de tener que pedirlos a mano.
-    if (documentNumber) {
+    if (documentNumber && !editingTercero) {
+      // La apertura con documento inicia la consulta y su indicador de carga.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void handleLookupDocument(documentType, documentNumber)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId])
+  }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId, editingTercero])
 
   useEffect(() => {
     if (!isOpen || provider !== 'JARVIS') {
@@ -358,6 +364,7 @@ function CreateJarvisTerceroModal({
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (isSaving || isLookingUpNit) return
     setIsSaving(true)
     setErrorMessage(null)
 
@@ -448,15 +455,17 @@ function CreateJarvisTerceroModal({
         return
       }
 
-      const response = await createJarvisTercero(payload)
-      if (documentId) {
+      const response = editingTercero
+        ? await updateJarvisTercero(editingTercero.id, payload)
+        : await createJarvisTercero(payload)
+      if (documentId && !editingTercero) {
         await resumeElectronicDocument(documentId, 'JARVIS')
       }
 
       onCreated?.(response.tercero)
       onClose()
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'No se pudo crear el tercero.'))
+      setErrorMessage(getApiErrorMessage(error, 'No se pudo guardar el tercero.'))
     } finally {
       setIsSaving(false)
     }
@@ -471,7 +480,7 @@ function CreateJarvisTerceroModal({
       className="terceros-page__dialog"
     >
       <h2 id="crear-tercero-title" className="modal-dialog__title">
-        {provider === 'SIIGO' ? 'Crear tercero en SIIGO' : 'Crear tercero'}
+        {editingTercero ? 'Editar tercero' : provider === 'SIIGO' ? 'Crear tercero en SIIGO' : 'Crear tercero'}
       </h2>
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
@@ -530,7 +539,7 @@ function CreateJarvisTerceroModal({
                   // handleLookupDocument al salir del campo.
                   onBlur={(event) => {
                     const value = event.target.value.trim()
-                    if (value) {
+                    if (value && !editingTercero) {
                       void handleLookupDocument(form.document_type, value)
                     }
                   }}
@@ -795,7 +804,7 @@ function CreateJarvisTerceroModal({
               Cancelar
             </Button>
             <Button type="submit" variant="primary" disabled={isSaving || isLookingUpNit}>
-              {isSaving ? 'Guardando...' : 'Crear'}
+              {isSaving ? 'Guardando...' : editingTercero ? 'Guardar cambios' : 'Crear'}
             </Button>
           </div>
         </form>

@@ -14,6 +14,7 @@ import {
 import {
   SUPPORT_DOCUMENT_WORKSPACE,
   type DocumentWorkspaceConfig,
+  type DocumentWorkspaceImportFailedRow,
   type DocumentWorkspaceProvider,
 } from '../constants/documentWorkspaceConfig'
 import AccountMappingModal from '../components/AccountMappingModal'
@@ -53,7 +54,10 @@ import {
   useAutoDismissMessage,
 } from '../hooks/useAutoDismissMessage'
 import { retryFailedPurchaseInvoiceImportRows } from '../services/documentSources/purchaseInvoiceExcelSource'
-import { waitForTerminalStatus } from '../services/realtime/purchaseInvoiceImportJobsStore'
+import {
+  fetchPurchaseInvoiceImportJobStatus,
+  waitForTerminalStatus,
+} from '../services/realtime/purchaseInvoiceImportJobsStore'
 import {
   deleteElectronicDocument,
   deleteElectronicDocumentsBatch,
@@ -531,6 +535,7 @@ function resolvePurchaseInvoiceItemsFallback(
       ivaOptions,
       retefuenteOptions,
       resolvePreferredInvoiceIvaTax(document, ivaOptions),
+      document,
     )
   }
 
@@ -623,6 +628,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const [purchaseInvoiceRetryInfo, setPurchaseInvoiceRetryInfo] = useState<{
     jobId: string
     errorCount: number
+    failedRows: DocumentWorkspaceImportFailedRow[]
   } | null>(null)
   const [isRetryingFailedImportRows, setIsRetryingFailedImportRows] =
     useState(false)
@@ -819,6 +825,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
               ivaOptions,
               retefuenteOptions,
               resolvePreferredInvoiceIvaTax(document, ivaOptions),
+              document,
             )
           }
 
@@ -2266,7 +2273,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         } = await config.importFile(file)
 
         if (config.key === 'purchaseInvoice' && jobId && errorCount) {
-          setPurchaseInvoiceRetryInfo({ jobId, errorCount })
+          setPurchaseInvoiceRetryInfo({ jobId, errorCount, failedRows: failedRows ?? [] })
         }
 
         for (const documentId of documentIds) {
@@ -2276,13 +2283,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         if (failedRows && failedRows.length > 0) {
           const preview = failedRows
             .slice(0, 3)
-            .map((row) => row.issuerName?.trim() || row.cufe || 'factura')
+            .map((row) => `${row.issuerName?.trim() || row.cufe || 'Factura'}: ${row.error || 'No se pudo completar la importación'}`)
             .join(', ')
           const suffix =
             failedRows.length > 3 ? `, +${failedRows.length - 3} más` : ''
 
           setErrorMessage(
-            `${failedRows.length} factura(s) no se importaron (no se encontró la factura al consultarla): ${preview}${suffix}.`,
+            `${failedRows.length} factura(s) no se importaron: ${preview}${suffix}.`,
           )
         }
 
@@ -2613,7 +2620,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
 
   return (
-    <main className="support-document-page" ref={pageRef}>
+    <main className="support-document-page integration-page" ref={pageRef}>
       <PageHeader
         title={config.pageTitle}
         description={config.pageDescription}
@@ -2729,7 +2736,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         )}
 
         {purchaseInvoiceRetryInfo && (
-          <p className="support-document-page__feedback" role="status">
+          <div className="support-document-page__feedback support-document-page__import-failures" role="status">
             {purchaseInvoiceRetryInfo.errorCount} factura(s) fallaron en la
             importación.{' '}
             <button
@@ -2740,16 +2747,26 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 void (async () => {
                   const jobId = purchaseInvoiceRetryInfo.jobId
                   setIsRetryingFailedImportRows(true)
+                  setErrorMessage(null)
                   try {
                     await retryFailedPurchaseInvoiceImportRows(jobId)
-                    setPurchaseInvoiceRetryInfo(null)
                     setIsImporting(true)
                     const finalJob = await waitForTerminalStatus(jobId)
                     if (finalJob.errorCount > 0) {
+                      const finalStatus = finalJob.finalStatus ??
+                        await fetchPurchaseInvoiceImportJobStatus(jobId)
                       setPurchaseInvoiceRetryInfo({
                         jobId,
                         errorCount: finalJob.errorCount,
+                        failedRows: finalStatus.failedRows.map((row) => ({
+                          cufe: row.cufe,
+                          issuerNit: row.issuerNit,
+                          issuerName: row.issuerName,
+                          error: row.errorMessage,
+                        })),
                       })
+                    } else {
+                      setPurchaseInvoiceRetryInfo(null)
                     }
                     reloadDocuments({ resetPage: false })
                   } catch (error) {
@@ -2770,7 +2787,21 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 ? 'Reintentando...'
                 : 'Reintentar fallidas'}
             </button>
-          </p>
+            {purchaseInvoiceRetryInfo.failedRows.length > 0 && (
+              <details className="support-document-page__import-failure-details" open>
+                <summary>Detalle de los documentos fallidos</summary>
+                <ul>
+                  {purchaseInvoiceRetryInfo.failedRows.map((row, index) => (
+                    <li key={`${row.cufe}-${index}`}>
+                      <strong>{row.issuerName || row.issuerNit || `Documento ${index + 1}`}</strong>
+                      {': '}{row.error || 'No se pudo completar la importación.'}
+                      {row.cufe && <small>CUFE/CUDE: {row.cufe}</small>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
         )}
 
         {errorMessage && <ErrorMessage message={errorMessage} />}

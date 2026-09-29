@@ -1,0 +1,199 @@
+/* Shared visual contract for integration screens. Keep page-specific CSS for layout only. */
+.integration-page.integration-page {
+  width: 100%;
+  max-width: var(--app-content-max-width, 1280px);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+  color: var(--jarvis-text);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.integration-page :is(input, select, textarea, button) { font-family: inherit; }
+.integration-page :is(.page-header h1, .ds-individual__title) {
+  font-size: var(--text-h1);
+  font-weight: 700;
+  letter-spacing: normal;
+  color: var(--jarvis-navy);
+}
+.integration-page .page-header__description { font-size: var(--text-md); }
+.integration-page .page-header { align-items: flex-start; margin-bottom: 2rem; }
+.integration-page .integration-card {
+  background: #fff;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.integration-page .integration-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--jarvis-border);
+}
+.integration-page .integration-card-header h2 {
+  margin: 0;
+  color: var(--jarvis-text);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.integration-page .integration-card-header p {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+.integration-page .integration-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: .9rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--jarvis-gray-50);
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+}
+.integration-page .integration-filters label {
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.integration-page .integration-filters :is(input, select) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 2.75rem;
+  height: 2.75rem;
+  padding: .65rem .75rem;
+  color: var(--jarvis-text);
+  background: #fff;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+  font-size: var(--text-md);
+  font-weight: 400;
+}
+.integration-page .integration-filters :is(input, select):focus-visible {
+  outline: 2px solid var(--jarvis-primary);
+  outline-offset: 2px;
+}
+.integration-page .integration-table { width: 100%; border-collapse: collapse; }
+.integration-page .integration-table :is(th, td) {
+  padding: .9rem 1.1rem;
+  text-align: left;
+  vertical-align: middle;
+  border-top: 0;
+  border-bottom: 1px solid var(--jarvis-border);
+  line-height: 1.5;
+}
+.integration-page .integration-table th {
+  background: var(--jarvis-gray-50);
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.integration-page .integration-table td { color: var(--jarvis-text); font-size: var(--text-md); }
+.integration-page .integration-table td strong { font-weight: 600; }
+.integration-page .integration-table tbody tr:last-child td { border-bottom: 0; }
+.integration-page .integration-table tbody tr:hover { background: var(--jarvis-gray-50); }
+.integration-page .integration-table :is(.product-list__num, .sales-history__amount) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.integration-page :is(.product-list__muted, .terceros-page__muted, .sales-history__muted) {
+  font-size: var(--text-sm);
+  color: var(--jarvis-text-muted);
+}
+.integration-page :is(.sales-history__status, .jarvis-taxes-page__status) {
+  padding: .25rem .65rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: 999px;
+}
+.integration-page :is(.sales-history__status, .jarvis-taxes-page__status--active) {
+  background: var(--jarvis-success-soft);
+  color: var(--jarvis-success);
+}
+.integration-page :is(.sales-history__pagination, .jarvis-taxes-page__pagination) {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--jarvis-border);
+  font-size: var(--text-sm);
+  color: var(--jarvis-text-muted);
+}
+.integration-page :is(.sales-history__pagination, .jarvis-taxes-page__pagination) button {
+  min-height: 2rem;
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+}
+.integration-page :is(.product-list-empty, .terceros-page__empty, .jarvis-taxes-page__empty, .sales-history__empty) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .85rem;
+  padding: 3rem 1.5rem;
+  color: var(--jarvis-text-muted);
+  text-align: center;
+  font-size: var(--text-md);
+}
+.integration-page :is(.product-list-empty, .terceros-page__empty, .jarvis-taxes-page__empty, .sales-history__empty) p {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.integration-page :is(.btn--md, .sales-history__new, .import-siigo-button, .ds-individual__btn) {
+  min-height: 2.75rem;
+  padding: .7rem 1.15rem;
+  border-radius: var(--r-sm);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.integration-page :is(.sales-history__new, .import-siigo-button) {
+  background: var(--jarvis-primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.integration-page :is(.sales-history__new, .import-siigo-button):hover:not(:disabled) {
+  background: var(--jarvis-primary-hover);
+}
+.integration-page .sales-history__filters { margin: 0; border: 0; border-bottom: 1px solid var(--jarvis-border); border-radius: 0; }
+.integration-page .sales-history__detail { font-size: var(--text-sm); }
+.integration-page .sales-history__cufe { font-family: inherit; font-size: var(--text-sm); }
+.integration-page .sales-history__count { font-size: var(--text-xs); }
+.integration-page .terceros-page__search { flex-direction: column; align-items: stretch; }
+.integration-page .integration-filters .btn { min-height: 2.75rem; }
+
+/* Form screens use the same type scale without changing their editable grids. */
+.integration-page :is(.ds-individual__section-title, .settings-card__title, .settings-accordion__copy h2) {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--jarvis-text);
+}
+.integration-page :is(.ds-individual__table th, .purchase-item-editor th, .support-table > table > thead th) {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--jarvis-text-muted);
+  background: var(--jarvis-gray-50);
+}
+.integration-page :is(.ds-individual__table td, .support-table > table > tbody > tr > td) {
+  font-size: var(--text-md);
+}
+.integration-page :is(.ds-individual__field, .settings-form__field, .terceros-page__field, .create-product-field) :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+  font-size: var(--text-md);
+  border-radius: var(--r-sm);
+  color: var(--jarvis-text);
+}
+.integration-page :is(.create-product-taxes-item__code, .support-table__detail-value--mono) { font-family: inherit; }
+.integration-page .ds-individual__total-neto { background: var(--jarvis-primary-soft); color: var(--jarvis-primary); }
+
+@media (max-width: 720px) {
+  .integration-page.integration-page { padding: 1.25rem .75rem 2rem; }
+  .integration-page .integration-filters { align-items: stretch; flex-direction: column; }
+  .integration-page .integration-filters > * { min-width: 0; }
+  .integration-page .page-header__actions { flex-wrap: wrap; }
+  .integration-page .integration-table :is(th, td) { padding: .8rem .9rem; }
+}

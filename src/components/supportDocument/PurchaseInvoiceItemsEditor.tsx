@@ -1,5 +1,8 @@
+import MoneyInput from '../MoneyInput'
+import { useId, useState } from 'react'
 import AccountAutocomplete from '../AccountAutocomplete'
 import Button from '../Button'
+import { AccountsIcon, InfoIcon } from '../icons/SidebarIcons'
 import ProductAutocomplete from '../ProductAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
@@ -77,6 +80,25 @@ function PurchaseInvoiceItemsEditor({
   documentReference = null,
   disabled = false,
 }: PurchaseInvoiceItemsEditorProps) {
+  const bulkAccountId = useId()
+  const [bulkAccount, setBulkAccount] = useState<SiigoAccountOption | null>(null)
+  const canApplyAccount =
+    !disabled && items.length > 0 &&
+    bulkAccount !== null &&
+    accountOptions.some((account) => account.code === bulkAccount.code)
+
+  const applyAccountToAllItems = () => {
+    if (!canApplyAccount || !bulkAccount) return
+
+    onChange(items.map((item) => ({
+      ...item,
+      tipo: 'Account',
+      producto: bulkAccount.code,
+      codeManuallyEdited: true,
+    })))
+    setBulkAccount(null)
+  }
+
   // Con la factura ya en SIIGO ningún campo se puede editar, así que los
   // placeholders ("Buscar producto...", "Descripción") solo invitan a
   // escribir donde no se puede, y peor: se leen como si hubiera un dato. Un
@@ -87,7 +109,11 @@ function PurchaseInvoiceItemsEditor({
   const lineTotals = calculatePurchaseInvoiceItemLineTotals(items, documentTotal)
   const updateItem = (localId: string, patch: Partial<PurchaseInvoiceItemDraft>) => {
     onChange(
-      items.map((item) => (item.localId === localId ? { ...item, ...patch } : item)),
+      items.map((item) => (item.localId === localId ? {
+        ...item,
+        ...patch,
+        ...('producto' in patch || 'tipo' in patch ? { codeManuallyEdited: true } : {}),
+      } : item)),
     )
   }
 
@@ -120,6 +146,37 @@ function PurchaseInvoiceItemsEditor({
           + Agregar ítem
         </Button>
       </div>
+
+      {!disabled && items.length > 1 && (
+        <div className="purchase-item-editor__bulk-account">
+          <label className="purchase-item-editor__bulk-account-label" htmlFor={bulkAccountId}>
+            <AccountsIcon />
+            Cuenta contable para todos los ítems
+          </label>
+          <div className="purchase-item-editor__bulk-account-field">
+            <AccountAutocomplete
+              id={bulkAccountId}
+              value={bulkAccount}
+              onChange={setBulkAccount}
+              options={accountOptions}
+              disabled={accountOptions.length === 0}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={applyAccountToAllItems}
+            disabled={!canApplyAccount}
+          >
+            Aplicar a todos ({items.length})
+          </Button>
+          <p className="purchase-item-editor__bulk-account-hint">
+            <InfoIcon />
+            <span>Todos los ítems usarán el tipo Cuenta y la cuenta seleccionada.</span>
+          </p>
+        </div>
+      )}
 
       <div className="purchase-item-editor__table-wrap">
         <table className="purchase-item-editor__table">
@@ -236,30 +293,26 @@ function PurchaseInvoiceItemsEditor({
                       disabled={disabled}
                     />
                   </td>
-                  <td className="purchase-item-editor__cell--unit-value">
-                    <input
-                      type="number"
-                      min={0}
+                  <td className="purchase-item-editor__cell--unit-value" title={(item.includedIvaPercentage ?? 0) > 0 ? "Precio y descuento de origen incluyen IVA" : undefined}>
+                    <MoneyInput
                       className="purchase-item-editor__input purchase-item-editor__input--unit-value"
-                      value={formatNumberInputValue(item.unitValue)}
-                      onChange={(event) =>
+                      value={item.unitValue}
+                      onValueChange={(value) =>
                         updateItem(item.localId, {
-                          unitValue: parseNumberInputValue(event.target.value),
+                          unitValue: parseNumberInputValue(value),
                         })
                       }
                       onFocus={selectAllOnFocus}
                       disabled={disabled}
                     />
                   </td>
-                  <td className="purchase-item-editor__cell--discount">
-                    <input
-                      type="number"
-                      min={0}
+                  <td className="purchase-item-editor__cell--discount" title={(item.includedIvaPercentage ?? 0) > 0 ? "Descuento con IVA incluido, tal como viene en la factura" : undefined}>
+                    <MoneyInput
                       className="purchase-item-editor__input purchase-item-editor__input--discount"
-                      value={formatNumberInputValue(item.discount)}
-                      onChange={(event) =>
+                      value={item.discount}
+                      onValueChange={(value) =>
                         updateItem(item.localId, {
-                          discount: parseNumberInputValue(event.target.value),
+                          discount: parseNumberInputValue(value),
                         })
                       }
                       onFocus={selectAllOnFocus}

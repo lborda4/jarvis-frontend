@@ -850,6 +850,26 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
 })
 
 describe('mergeLateItemSuggestions', () => {
+  it('respeta una cuenta borrada manualmente aunque lleguen sugerencias nuevas', () => {
+    const stored = [buildDraft({ tipo: 'Account', producto: '', codeManuallyEdited: true })]
+    const fresh = [buildDraft({ tipo: 'Product', producto: 'SUGERIDO' })]
+
+    const result = mergeLateItemSuggestions(stored, fresh)
+    expect(result[0]).toMatchObject({ tipo: 'Account', producto: '', codeManuallyEdited: true })
+    expect(mergeLateItemSuggestions(result, fresh)[0].producto).toBe('')
+  })
+
+  it('protege la línea editada sin impedir sugerencias en otras líneas', () => {
+    const stored = [
+      buildDraft({ producto: '', codeManuallyEdited: true }),
+      buildDraft({ producto: '' }),
+    ]
+    const fresh = [buildDraft({ producto: '51050601' }), buildDraft({ producto: '51959501' })]
+
+    expect(mergeLateItemSuggestions(stored, fresh).map((item) => item.producto))
+      .toEqual(['', '51959501'])
+  })
+
   it('copia la cuenta que llega después en una línea que el paso 1 dejó vacía', () => {
     const stored = [buildDraft({ tipo: 'Account', producto: '', description: 'BOLSA RECICLADA' })]
     const fresh = [buildDraft({ tipo: 'Account', producto: '51959501', description: 'BOLSA RECICLADA' })]
@@ -956,5 +976,52 @@ describe('IVA independiente por línea', () => {
       quantity: 1, unitValue: 100, discount: 0, ivaTaxId: id,
     }], [iva19], [], iva19)
     expect(draft.ivaTax).toBeNull()
+  })
+})
+
+describe('Producto sugerido desde el catálogo SIIGO', () => {
+  const catalog = [{ code: 'SIIGO-1', description: 'Producto SIIGO' }]
+  const item = {
+    description: 'Descripción de la factura', quantity: 1, unitValue: 100, total: 100,
+    code: 'SKU-PROVEEDOR', itemType: 'Product' as const,
+  }
+  it('no confunde el tipo detectado por IA con una selección guardada', () => {
+    const document = buildDocument({ items: [{ ...item,
+      suggestedProduct: { code: 'SIIGO-1', name: 'Producto SIIGO' },
+    }] })
+    expect(buildPurchaseInvoiceItemDrafts(document, [], catalog)[0].producto).toBe('SIIGO-1')
+  })
+  it('espera la sugerencia sin copiar el código del proveedor, aunque coincida con el catálogo', () => {
+    const document = buildDocument({ items: [item] })
+    const options = [...catalog, { code: item.code, description: 'Otro producto' }]
+    const stored = buildPurchaseInvoiceItemDrafts(document, [], options)
+    expect(stored[0].producto).toBe('')
+    document.items![0].suggestedProduct = { code: 'SIIGO-1', name: 'Producto SIIGO' }
+    const fresh = buildPurchaseInvoiceItemDrafts(document, [], options)
+    expect(mergeLateItemSuggestions(stored, fresh)[0].producto).toBe('SIIGO-1')
+  })
+  it('descarta sugerencias fuera del catálogo de la empresa', () => {
+    const document = buildDocument({ items: [{ ...item,
+      suggestedProduct: { code: 'NO-EXISTE', name: 'Inventado' },
+    }] })
+    expect(buildPurchaseInvoiceItemDrafts(document, [], catalog)[0].producto).toBe('')
+  })
+  it('conserva un producto confirmado sin sustituirlo por el SKU o por la IA', () => {
+    const document = buildDocument({ items: [{ ...item,
+      productMapping: { code: 'ELEGIDO' },
+      suggestedProduct: { code: 'SIIGO-1', name: 'Producto SIIGO' },
+    }] })
+    expect(buildPurchaseInvoiceItemDrafts(document, [], [])[0].producto).toBe('ELEGIDO')
+  })
+  it('prioriza el producto de cada línea sobre el producto general del proveedor', () => {
+    const document = buildDocument({ items: [{ ...item,
+      suggestedProduct: { code: 'SIIGO-1', name: 'Producto SIIGO' },
+    }], suggestedItemConfig: {
+      itemType: 'Product', productCode: 'GENERAL', productName: 'General',
+      accountCode: null, accountName: null, ivaTax: null, retefuenteTax: null, paymentMethod: null,
+    } })
+    expect(buildPurchaseInvoiceItemDrafts(document, [], [
+      ...catalog, { code: 'GENERAL', description: 'General' },
+    ])[0].producto).toBe('SIIGO-1')
   })
 })

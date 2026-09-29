@@ -1,3 +1,4 @@
+import MoneyInput from '../components/MoneyInput'
 import {
   type DragEvent,
   type FormEvent,
@@ -531,7 +532,7 @@ function SupportDocumentIndividualPage() {
   const onFormSubmit = (event: FormEvent) => { event.preventDefault(); void handleSubmit('send') }
 
   return (
-    <section className="ds-individual">
+    <section className="ds-individual integration-page">
       <p className="ds-individual__breadcrumb">
         <Link to="/documento-soporte">Documento soporte</Link>
         <span aria-hidden="true"> › </span>
@@ -710,8 +711,8 @@ function SupportDocumentIndividualPage() {
                       <input type="text" inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.id, { quantity: e.target.value })} />
                       {fieldErrors[`line-${index}-quantity`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-quantity`]}</em>}
                     </td>
-                    <td className="ds-individual__td-unit-price"><input type="text" inputMode="decimal" value={line.unitValue} onChange={(e) => updateLine(line.id, { unitValue: e.target.value })} /></td>
-                    <td className="ds-individual__td-discount"><input type="text" inputMode="decimal" value={line.discount} onChange={(e) => updateLine(line.id, { discount: e.target.value })} /></td>
+                    <td className="ds-individual__td-unit-price"><MoneyInput value={line.unitValue} onValueChange={(value) => updateLine(line.id, { unitValue: value })} /></td>
+                    <td className="ds-individual__td-discount">{discountIsPercent ? <input type="text" inputMode="decimal" value={line.discount} onChange={(e) => updateLine(line.id, { discount: e.target.value })} /> : <MoneyInput value={line.discount} onValueChange={(value) => updateLine(line.id, { discount: value })} />}</td>
                     <td className="ds-individual__td-tax">
                       <select value={line.taxChargeId} onChange={(e) => updateLine(line.id, { taxChargeId: e.target.value, taxPercent: e.target.value ? line.taxPercent || String(DEFAULT_IVA_PERCENT) : '0' })}>
                         <option value="">Seleccionar</option>
@@ -764,7 +765,7 @@ function SupportDocumentIndividualPage() {
                   </label>
                   <label className="ds-individual__field ds-individual__field--amount">
                     {idx === 0 && <span>&nbsp;</span>}
-                    <input type="text" inputMode="decimal" value={payment.amount} onChange={(e) => updatePayment(payment.id, { amount: e.target.value })} />
+                    <MoneyInput value={payment.amount} onValueChange={(value) => updatePayment(payment.id, { amount: value })} />
                   </label>
                   {payments.length > 1 && (
                     <button type="button" className="ds-individual__delete ds-individual__delete--payment" aria-label="Eliminar forma de pago" onClick={() => removePayment(payment.id)}>

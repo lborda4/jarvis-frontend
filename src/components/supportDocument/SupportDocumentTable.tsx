@@ -1,3 +1,4 @@
+import { formatInvoiceCurrency } from '../../utils/formatters'
 import { useEffect, useRef, useState } from 'react'
 import Button from '../Button'
 import { ChevronDownIcon, ChevronRightIcon } from '../icons/SidebarIcons'
@@ -729,14 +730,14 @@ function SupportDocumentTable({
                   )}
                   {showSummaryColumns && (
                     <td className="support-table__cell-config support-table__cell-config--amount">
-                      {rowSummary ? formatCurrency(rowSummary.subtotal) : '—'}
+                      {rowSummary ? formatInvoiceCurrency(rowSummary.subtotal) : '—'}
                     </td>
                   )}
                   {showIvaColumn && (
                     <td className="support-table__cell-config support-table__cell-config--amount">
                       {showSummaryColumns
                         ? rowSummary
-                          ? formatCurrency(rowSummary.ivaAmount)
+                          ? formatInvoiceCurrency(rowSummary.ivaAmount)
                           : '—'
                         : formatSupportDocumentTableIva(rowIva[row.id])}
                     </td>
@@ -760,7 +761,7 @@ function SupportDocumentTable({
                   </td>
                   {showSummaryColumns && (
                     <td className="support-table__cell-config support-table__cell-config--amount">
-                      {rowSummary ? formatCurrency(rowSummary.total) : '—'}
+                      {rowSummary ? formatInvoiceCurrency(rowSummary.total) : '—'}
                     </td>
                   )}
                   <td>

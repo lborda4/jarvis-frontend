@@ -1,3 +1,4 @@
+import CatalogRowActions from '../components/CatalogRowActions'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -22,35 +23,6 @@ import './JarvisTaxesPage.css'
 const PAGE_SIZE = 10
 
 type StatusFilter = 'all' | 'active' | 'inactive'
-
-function PencilIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function TrashIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6h16z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 function formatRate(tax: JarvisTax): string {
   return tax.rate === null ? '—' : `${tax.rate} %`
@@ -193,7 +165,7 @@ function JarvisTaxesPage() {
   }
 
   return (
-    <main className="jarvis-taxes-page">
+    <main className="jarvis-taxes-page integration-page">
       <PageHeader
         title="Impuestos y retenciones"
         description="Gestiona los impuestos y retenciones que podrás usar al emitir tus facturas electrónicas. Estos valores se mostrarán en los formularios de facturación para que puedas seleccionarlos rápidamente."
@@ -207,7 +179,7 @@ function JarvisTaxesPage() {
       {errorMessage && <ErrorMessage message={errorMessage} />}
       {successMessage && <SuccessMessage message={successMessage} />}
 
-      <form className="jarvis-taxes-page__filters" onSubmit={handleSearchSubmit}>
+      <form className="jarvis-taxes-page__filters integration-filters" onSubmit={handleSearchSubmit}>
         <div className="jarvis-taxes-page__field jarvis-taxes-page__field--grow">
           <label htmlFor="jarvis-taxes-search">Buscar</label>
           <input
@@ -251,7 +223,11 @@ function JarvisTaxesPage() {
         </div>
       </form>
 
-      <section className="jarvis-taxes-page__list" aria-live="polite">
+      <section className="jarvis-taxes-page__list integration-card" aria-live="polite">
+        <div className="integration-card-header">
+          <h2>Impuestos y retenciones</h2>
+          <p>{filteredItems.length} {filteredItems.length === 1 ? 'registro' : 'registros'}</p>
+        </div>
         {isLoading ? (
           <LoadingIndicator message="Cargando impuestos..." />
         ) : filteredItems.length === 0 ? (
@@ -268,7 +244,7 @@ function JarvisTaxesPage() {
         ) : (
           <>
             <div className="jarvis-taxes-page__table-wrap">
-              <table className="jarvis-taxes-page__table">
+              <table className="jarvis-taxes-page__table integration-table">
                 <thead>
                   <tr>
                     <th>En uso</th>
@@ -294,7 +270,7 @@ function JarvisTaxesPage() {
                         />
                       </td>
                       <td>{item.code}</td>
-                      <td>{item.name}</td>
+                      <td><strong>{item.name}</strong></td>
                       <td>{item.tax_type}</td>
                       <td>{formatRate(item)}</td>
                       <td>
@@ -307,24 +283,7 @@ function JarvisTaxesPage() {
                         </span>
                       </td>
                       <td>
-                        <div className="jarvis-taxes-page__actions">
-                          <button
-                            type="button"
-                            className="jarvis-taxes-page__icon-btn"
-                            onClick={() => openEdit(item)}
-                            aria-label={`Editar ${item.name}`}
-                          >
-                            <PencilIcon />
-                          </button>
-                          <button
-                            type="button"
-                            className="jarvis-taxes-page__icon-btn jarvis-taxes-page__icon-btn--danger"
-                            onClick={() => requestDelete(item.id)}
-                            aria-label={`Eliminar ${item.name}`}
-                          >
-                            <TrashIcon />
-                          </button>
-                        </div>
+                        <CatalogRowActions name={item.name} onEdit={() => openEdit(item)} onDelete={() => requestDelete(item.id)} disabled={isDeleting} />
                       </td>
                     </tr>
                   ))}
@@ -332,7 +291,7 @@ function JarvisTaxesPage() {
               </table>
             </div>
 
-            <div className="jarvis-taxes-page__pagination">
+            {filteredItems.length > PAGE_SIZE && <div className="jarvis-taxes-page__pagination">
               <span>
                 Mostrando {pageItems.length} de {filteredItems.length}{' '}
                 {filteredItems.length === 1 ? 'registro' : 'registros'}
@@ -358,7 +317,7 @@ function JarvisTaxesPage() {
                   ›
                 </button>
               </div>
-            </div>
+            </div>}
           </>
         )}
       </section>

@@ -12,9 +12,9 @@ export interface IntegrationProvidersResponse {
   providers: IntegrationProvider[]
 }
 
-export async function fetchIntegrationProviders(): Promise<IntegrationProvidersResponse> {
+export async function fetchIntegrationProviders(companyId?: string): Promise<IntegrationProvidersResponse> {
   return cachedQuery(
-    companyQueryKey(['integrations', 'providers']),
+    companyId ? ['company', companyId, 'integrations', 'providers'].join(':') : companyQueryKey(['integrations', 'providers']),
     QUERY_STALE_MS.providers,
     async () => {
       const response = await apiClient.get<IntegrationProvidersResponse>(

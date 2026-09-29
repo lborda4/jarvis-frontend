@@ -32,6 +32,7 @@ import {
 import {
   cachedQuery,
   companyQueryKey,
+  getActiveCompanyId,
   peekCachedQuery,
   QUERY_STALE_MS,
   setCachedQuery,
@@ -255,8 +256,8 @@ async function loadCatalogsCached(force = false): Promise<SiigoCatalogBundle> {
 }
 
 export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, user } = useAuth()
-  const { isSiigoConfigured } = useIntegrationSetup()
+  const { isAuthenticated, user, isSwitchingCompany } = useAuth()
+  const { isSiigoConfigured, isSiigoCompany, isCheckingSetup } = useIntegrationSetup()
   const companyId = user?.company?.id
   const cachedBundle = peekCachedQuery<SiigoCatalogBundle>(siigoCatalogCacheKey())
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(
@@ -310,7 +311,7 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refreshCatalogs = useCallback(async (options?: { force?: boolean }) => {
-    if (!isAuthenticated || !isSiigoConfigured) {
+    if (!isAuthenticated || !isSiigoConfigured || !isSiigoCompany || isCheckingSetup || isSwitchingCompany || getActiveCompanyId() !== companyId) {
       applyCatalogState(EMPTY_CATALOGS)
       setIsLoadingCatalogs(false)
       return
@@ -320,7 +321,9 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
       setIsLoadingCatalogs(true)
       try {
         await syncSiigoCatalogs({ force: true })
+        if (getActiveCompanyId() !== companyId) return
         const catalogs = await loadCatalogsCached(true)
+        if (getActiveCompanyId() !== companyId) return
         applyCatalogState(catalogs)
         const errors = [
           catalogs.accountsError,
@@ -348,20 +351,24 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
 
     try {
       const catalogs = await loadCatalogsCached()
+      if (getActiveCompanyId() !== companyId) return
       applyCatalogState(catalogs)
     } finally {
       setIsLoadingCatalogs(false)
     }
 
     // Sync en background; solo reescribe UI si hay datos nuevos (sin spinner).
+    if (getActiveCompanyId() !== companyId) return
     void syncSiigoCatalogs()
       .then(async () => {
+        if (getActiveCompanyId() !== companyId) return
         const catalogs = await loadCatalogsCached(true)
+        if (getActiveCompanyId() !== companyId) return
         setCachedQuery(siigoCatalogCacheKey(), catalogs)
         applyCatalogState(catalogs)
       })
       .catch(() => undefined)
-  }, [applyCatalogState, isAuthenticated, isSiigoConfigured])
+  }, [applyCatalogState, companyId, isAuthenticated, isSiigoConfigured, isSiigoCompany, isCheckingSetup, isSwitchingCompany])
 
   useEffect(() => {
     // Sin caché todavía (login recién resuelto, o cambio de empresa): esta

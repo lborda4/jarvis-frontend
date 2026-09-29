@@ -4,6 +4,7 @@ import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import { pickPreferredIvaTax, resolvePreferredInvoiceIvaTax } from '../utils/siigoTaxes'
 import { roundMoney } from '../utils/siigoSupportDocumentTotal'
+import { purchaseInvoiceItemIncludedIvaRate } from '../utils/purchaseInvoicePricing'
 
 /** Valores que SIIGO acepta en items[].type — campo obligatorio del lado de
  * SIIGO, solo admite estos 3. */
@@ -17,10 +18,14 @@ export interface PurchaseInvoiceItemDraft {
    * documento). Editable siempre; si tipo es 'Account' y se deja vacío, el
    * envío cae a esa cuenta del documento. */
   producto: string
+  /** Impide que las sugerencias repongan una cuenta o producto borrado a mano. */
+  codeManuallyEdited?: boolean
   description: string
   quantity: number
   unitValue: number
   discount: number
+  /** IVA incluido en precio y descuento originales; independiente del impuesto seleccionado. */
+  includedIvaPercentage?: number
   ivaTax: SiigoTaxOption | null
   /** Retefuente elegida por línea (reemplaza el reparto proporcional a nivel
    * de documento — cada ítem puede tener un concepto/tarifa distinto). */
@@ -40,6 +45,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
   ivaOptions: SiigoTaxOption[] = [],
   retefuenteOptions: SiigoTaxOption[] = [],
   _fallbackIvaTax: SiigoTaxOption | null = null,
+  sourceDocument?: ElectronicDocumentListItem,
 ): PurchaseInvoiceItemDraft[] {
   const findTax = (
     options: SiigoTaxOption[],
@@ -47,7 +53,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
   ): SiigoTaxOption | null =>
     id == null ? null : (options.find((tax) => tax.id === id) ?? null)
 
-  return (draftItems ?? []).map((item) => ({
+  return (draftItems ?? []).map((item, index) => ({
     localId: createLocalId(),
     tipo: item.tipo,
     producto: item.producto?.trim() ?? '',
@@ -55,6 +61,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
     quantity: item.quantity,
     unitValue: item.unitValue,
     discount: item.discount,
+    includedIvaPercentage: sourceDocument ? purchaseInvoiceItemIncludedIvaRate(sourceDocument, index) : 0,
     ivaTax: findTax(ivaOptions, item.ivaTaxId),
     retefuenteTax: findTax(retefuenteOptions, item.retefuenteTaxId),
   }))
@@ -242,7 +249,7 @@ export function buildPurchaseInvoiceItemDrafts(
     ]
   }
 
-  return items.map((item) => {
+  return items.map((item, index) => {
     const rawItemCode = item.code?.trim() || null
     // Regla exacta de ESTE ítem puntual (proveedor + esta descripción,
     // SupplierItemAccountMapping en el backend) — tiene prioridad sobre el
@@ -259,15 +266,15 @@ export function buildPurchaseInvoiceItemDrafts(
     const itemTipo: PurchaseInvoiceItemType =
       savedItemType ??
       (hasExactItemAccountRule ? 'Account' : effectiveTipo)
-    // accountMapping / itemType los escribe saveDraft: son la cuenta o el
+    // accountMapping / productMapping los escribe saveDraft: son la cuenta o el
     // producto que el contador YA eligió, no un SKU del vendedor. Se usan
     // tal cual — sin exigir que el catálogo esté cargado todavía — para que
     // recargar no deje el campo en "Buscar cuenta contable...".
     const savedProducto =
       itemTipo === 'Account'
         ? savedAccountCode
-        : itemTipo === 'Product' && savedItemType
-          ? rawItemCode
+        : itemTipo === 'Product'
+          ? (item.productMapping?.code?.trim() || null)
           : itemTipo === 'FixedAsset' && savedItemType
             ? rawItemCode
             : null
@@ -293,10 +300,9 @@ export function buildPurchaseInvoiceItemDrafts(
         : itemTipo === 'Product'
           ? (resolveValidatedProductCode(
               [
-                supplierConfig?.productCode,
                 item.suggestedProduct?.code,
-                rawItemCode,
                 aiSuggestedProductCode,
+                supplierConfig?.productCode,
               ],
               productOptions,
             ) ?? '')
@@ -310,6 +316,7 @@ export function buildPurchaseInvoiceItemDrafts(
       quantity: item.quantity > 0 ? item.quantity : 1,
       unitValue: item.unitValue > 0 ? item.unitValue : item.total,
       discount: item.discount && item.discount > 0 ? item.discount : 0,
+      includedIvaPercentage: purchaseInvoiceItemIncludedIvaRate(document, index),
       // Solo se usa el IVA de esta línea; el historial no puede cambiar su tarifa.
       ivaTax: resolveItemIvaTax(item, ivaOptions, ivaTaxFromSupplierConfig),
       retefuenteTax: retefuenteTaxFromSupplierConfig,
@@ -345,7 +352,7 @@ export function mergeLateItemSuggestions(
       return item
     }
 
-    const keepStoredCode = Boolean(item.producto?.trim())
+    const keepStoredCode = item.codeManuallyEdited || Boolean(item.producto?.trim())
 
     return {
       ...item,
@@ -386,12 +393,15 @@ export function hasEmptyItemDescription(
 export function purchaseInvoiceItemDraftBase(item: PurchaseInvoiceItemDraft): number {
   const quantity = item.quantity > 0 ? item.quantity : 1
   const discount = item.discount > 0 ? item.discount : 0
-  return quantity * item.unitValue - discount
+  return roundMoney((quantity * item.unitValue - discount) / (1 + (item.includedIvaPercentage ?? 0) / 100))
 }
 
 export function purchaseInvoiceItemDraftIvaAmount(item: PurchaseInvoiceItemDraft): number {
   const percentage = item.ivaTax?.percentage ?? 0
-  return percentage > 0 ? (purchaseInvoiceItemDraftBase(item) * percentage) / 100 : 0
+  if (percentage > 0 && percentage === item.includedIvaPercentage) {
+    return roundMoney(item.quantity * item.unitValue - item.discount - purchaseInvoiceItemDraftBase(item))
+  }
+  return percentage > 0 ? roundMoney((purchaseInvoiceItemDraftBase(item) * percentage) / 100) : 0
 }
 
 export function purchaseInvoiceItemDraftRetefuenteAmount(
@@ -425,6 +435,12 @@ export function calculatePurchaseInvoiceItemLineTotals(
     purchaseInvoiceItemDraftRetefuenteAmount(item),
   )
 
+  if (items.some(item => (item.includedIvaPercentage ?? 0) > 0)) {
+    // Cada línea conserva su base y su IVA; no repartir el pagable entre productos.
+    return items.map((item, index) => roundMoney(
+      purchaseInvoiceItemDraftBase(item) + purchaseInvoiceItemDraftIvaAmount(item) - retefuenteAmounts[index],
+    ))
+  }
   if (items.length === 1) {
     return [roundMoney(documentTotal - retefuenteAmounts[0])]
   }

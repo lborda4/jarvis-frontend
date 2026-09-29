@@ -1,4 +1,25 @@
 /* ─── Contenedor principal ─── */
+.ds-individual__create-option-row {
+  border-top: 1px solid var(--jarvis-border);
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+}
+
+.ds-individual__supplier-option.ds-individual__create-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--jarvis-primary);
+  font-weight: 600;
+  background: var(--jarvis-primary-soft);
+}
+
+.ds-individual__create-option:focus-visible {
+  outline: 2px solid var(--jarvis-primary);
+  outline-offset: -2px;
+}
+
 .ds-individual {
   width: 100%;
   max-width: var(--app-content-max-width, 1280px);
@@ -857,6 +878,14 @@
 }
 .ds-individual__td-unit-price input {
   text-align: right;
+}
+
+.ds-individual--sales .ds-individual__td-unit-price select {
+  min-width: 165px;
+}
+
+.ds-individual--sales .ds-individual__td-unit-price select + input {
+  margin-top: 0.35rem;
 }
 
 .ds-individual__th-discount,

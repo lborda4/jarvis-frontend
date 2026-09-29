@@ -1,3 +1,4 @@
+import { companyQueryKey, getActiveCompanyId, peekCachedQuery } from './queryCache'
 import axios, {
   type AxiosError,
   type InternalAxiosRequestConfig,
@@ -69,6 +70,15 @@ async function refreshAccessToken(): Promise<string | null> {
 
 apiClient.interceptors.request.use((config) => {
   const requestUrl = config.url ?? ''
+  // No sale ninguna petición SIIGO sin integración confirmada para la empresa activa.
+  if (/\/integrations\/siigo(?:[/?#]|$)/.test(requestUrl)) {
+    const providers = peekCachedQuery<{ providers: string[] }>(
+      companyQueryKey(['integrations', 'providers']),
+    )?.providers
+    if (!getActiveCompanyId() || !providers?.includes('SIIGO')) {
+      throw new axios.CanceledError('La empresa activa no tiene integración SIIGO confirmada.')
+    }
+  }
 
   if (isAuthRequestUrl(requestUrl)) {
     return config
@@ -150,7 +160,7 @@ export function getApiErrorMessage(
     }
 
     if (error.code === 'ERR_NETWORK') {
-      return 'No se pudo conectar con el servidor. Verifica que el backend esté en ejecución.'
+      return 'No se pudo conectar con el servidor.'
     }
 
     return sanitize(error.message) || fallbackMessage

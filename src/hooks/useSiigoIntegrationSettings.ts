@@ -51,6 +51,7 @@ export function useSiigoIntegrationSettings() {
     refreshSetupStatus,
     isCheckingSetup,
     isSiigoConfigured,
+    isSiigoCompany,
     hasSiigoAccounts,
     hasSiigoDocumentTypesConfigured,
     isSupportDocumentEnabled,
@@ -161,7 +162,7 @@ export function useSiigoIntegrationSettings() {
   )
 
   useEffect(() => {
-    if (!user?.company?.id) {
+    if (!user?.company?.id || isCheckingSetup || !isSiigoCompany) {
       return
     }
 
@@ -197,7 +198,7 @@ export function useSiigoIntegrationSettings() {
         setStatusLoaded(true)
       }
     })()
-  }, [markConfigured, user?.company?.id])
+  }, [markConfigured, user?.company?.id, isCheckingSetup, isSiigoCompany])
 
   useEffect(() => {
     if (!statusLoaded || steps.length === 0) {
@@ -222,7 +223,7 @@ export function useSiigoIntegrationSettings() {
   }, [statusLoaded, steps])
 
   useEffect(() => {
-    if (!user?.company?.id || !isSiigoConfigured || !needsDocumentTypesStep) {
+    if (!user?.company?.id || isCheckingSetup || !isSiigoCompany || !isSiigoConfigured || !needsDocumentTypesStep) {
       return
     }
 
@@ -267,6 +268,8 @@ export function useSiigoIntegrationSettings() {
       cancelled = true
     }
   }, [
+    isCheckingSetup,
+    isSiigoCompany,
     hasPurchaseInvoiceAccess,
     hasSupportDocumentAccess,
     isSiigoConfigured,

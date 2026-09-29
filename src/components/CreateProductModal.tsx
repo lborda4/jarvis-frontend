@@ -1,3 +1,4 @@
+import MoneyInput from './MoneyInput'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import Autocomplete from './Autocomplete'
 import Button from './Button'
@@ -9,13 +10,11 @@ import {
   PRODUCT_DESCRIPTION_MAX_LENGTH,
   PRODUCT_KIND,
   PRODUCT_KIND_OPTIONS,
-  formatMoneyInput,
-  parseMoneyInput,
   type ProductCategory,
   type ProductKind,
 } from '../constants/createProduct'
 import { getApiErrorMessage } from '../services/apiClient'
-import { fetchJarvisTaxes } from '../services/jarvisService'
+import { ensureDefaultProductIva, fetchJarvisTaxes } from '../services/jarvisService'
 import {
   createProduct,
   createProductCategory,
@@ -23,18 +22,20 @@ import {
   fetchProductCategories,
   fetchUnitMeasures,
   updateProductCategory,
+  updateProduct,
   type CreateProductRequest,
   type ProductResponse,
   type UnitMeasure,
 } from '../services/productService'
-import type { JarvisTax } from '../types/jarvis'
+import { buildProductTaxOptions, DEFAULT_PRODUCT_IVA_ID, type ProductTaxOption } from '../utils/productTaxes'
+import { parseProductPrice as parsePrice } from '../utils/productPriceInput'
 import '../pages/CreateProductPage.css'
 
 /** Unidad de medida DIAN por defecto: "Unidad" (código 94). Se preselecciona
  * en el formulario y se muestra mientras carga el catálogo de NextPyme. */
 const DEFAULT_UNIT_MEASURE: UnitMeasure = { code: '94', name: 'Unidad' }
 
-function formatTaxRate(tax: JarvisTax): string {
+function formatTaxRate(tax: ProductTaxOption): string {
   return tax.rate === null ? '—' : `${tax.rate} %`
 }
 
@@ -49,6 +50,7 @@ export interface CreateProductModalProps {
   isOpen: boolean
   onClose: () => void
   onCreated: (product: ProductResponse) => void
+  product?: ProductResponse
 }
 
 const MAX_PRICE_LISTS = 3
@@ -58,6 +60,7 @@ interface PriceListDraft {
   id: number
   name: string
   price: string
+  enabled: boolean
 }
 
 interface ProductFormState {
@@ -71,7 +74,21 @@ interface ProductFormState {
   priceLists: PriceListDraft[]
 }
 
-function createInitialForm(): ProductFormState {
+function createInitialForm(product?: ProductResponse): ProductFormState {
+  if (product) return {
+    kind: product.kind === 'service' ? PRODUCT_KIND.SERVICE : PRODUCT_KIND.PRODUCT,
+    sku: product.sku,
+    name: product.name,
+    unit: product.unit,
+    category: product.categoryId ?? '',
+    description: product.description ?? '',
+    priceIncludesIva: product.priceIncludesIva,
+    priceLists: [...product.priceLists].sort((a, b) => a.position - b.position).map((list, index) => ({
+      id: index + 1, name: list.name,
+      price: list.price.toLocaleString('es-CO', { maximumFractionDigits: 2 }),
+      enabled: list.enabled,
+    })),
+  }
   return {
     kind: PRODUCT_KIND.PRODUCT,
     sku: '',
@@ -80,49 +97,37 @@ function createInitialForm(): ProductFormState {
     category: '',
     description: '',
     priceIncludesIva: false,
-    priceLists: [{ id: 1, name: DEFAULT_PRICE_LIST_NAMES[0], price: '' }],
+    priceLists: [{ id: 1, name: DEFAULT_PRICE_LIST_NAMES[0], price: '', enabled: true }],
   }
 }
 
-function CreateProductModal({
+function ProductForm({
   isOpen,
   onClose,
   onCreated,
+  product,
 }: CreateProductModalProps) {
-  const [form, setForm] = useState<ProductFormState>(createInitialForm)
+  const [form, setForm] = useState<ProductFormState>(() => createInitialForm(product))
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isCancelOpen, setIsCancelOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [categories, setCategories] = useState<ProductCategory[]>([])
-  // El usuario editó el SKU a mano: dejamos de auto-sugerirlo al cambiar de tipo.
-  const [skuTouched, setSkuTouched] = useState(false)
+  const [skuSuggestion, setSkuSuggestion] = useState<{ kind: ProductFormState['kind']; sku: string } | null>(null)
+  const suggestedSku = !product && skuSuggestion?.kind === form.kind ? skuSuggestion.sku : ''
+  const effectiveSku = form.sku.trim() || suggestedSku
   // Sembrado con la opción por defecto para que "Unidad - 94" se vea al
   // instante, antes de que responda el catálogo de NextPyme.
   const [unitMeasures, setUnitMeasures] = useState<UnitMeasure[]>([
     DEFAULT_UNIT_MEASURE,
   ])
 
-  // Impuestos y retenciones: siempre visible (ya no colapsable, pedido
-  // explícito) — trae el catálogo REAL de la empresa (jarvis_taxes, ver
-  // Impuestos y retenciones) en vez de tarifas fijas inventadas por la app.
-  const [availableTaxes, setAvailableTaxes] = useState<JarvisTax[]>([])
-  const [isLoadingTaxes, setIsLoadingTaxes] = useState(false)
+  // Impuestos configurados y opciones predeterminadas; al guardar, cada
+  // selección se vincula a un impuesto real de la empresa.
+  const [availableTaxes, setAvailableTaxes] = useState<ProductTaxOption[]>(() => buildProductTaxOptions([]))
+  const [isLoadingTaxes, setIsLoadingTaxes] = useState(true)
   const [taxesError, setTaxesError] = useState<string | null>(null)
-  const [selectedTaxIds, setSelectedTaxIds] = useState<Set<string>>(new Set())
-
-  // Reinicia el formulario cada vez que el modal se abre — igual que
-  // cualquier otro modal de creación de la app, no arrastra lo que haya
-  // quedado de una apertura anterior.
-  useEffect(() => {
-    if (!isOpen) return
-
-    setForm(createInitialForm())
-    setSkuTouched(false)
-    setFieldErrors({})
-    setErrorMessage(null)
-    setSelectedTaxIds(new Set())
-  }, [isOpen])
+  const [selectedTaxIds, setSelectedTaxIds] = useState<Set<string>>(() => new Set(product?.taxes.map((tax) => tax.id) ?? []))
 
   useEffect(() => {
     if (!isOpen) return
@@ -164,18 +169,17 @@ function CreateProductModal({
     }
   }, [isOpen])
 
-  // Sugiere el siguiente SKU según el tipo (producto/servicio) mientras el
-  // usuario no lo haya escrito a mano. El backend recuerda el último usado por
-  // empresa y prefijo, así que el consecutivo no se repite aunque se olvide.
+  // La sugerencia se muestra como placeholder y se usa al guardar si no se
+  // escribe otro código. Nunca reemplaza el texto que está editando el usuario.
   useEffect(() => {
-    if (!isOpen || skuTouched) return
+    if (!isOpen || product) return
 
     let active = true
 
     fetchNextSku(form.kind)
       .then((sku) => {
-        if (active && !skuTouched) {
-          setForm((current) => ({ ...current, sku }))
+        if (active) {
+          setSkuSuggestion({ kind: form.kind, sku })
         }
       })
       .catch(() => {
@@ -185,7 +189,7 @@ function CreateProductModal({
     return () => {
       active = false
     }
-  }, [isOpen, form.kind, skuTouched])
+  }, [isOpen, form.kind, product])
 
   // Catálogo de impuestos y retenciones de la empresa, al abrir el modal.
   // OJO: `isLoadingTaxes` NO va en las dependencias — tenerlo ahí (y
@@ -198,13 +202,11 @@ function CreateProductModal({
     if (!isOpen) return
 
     let active = true
-    setIsLoadingTaxes(true)
-    setTaxesError(null)
 
     fetchJarvisTaxes()
       .then((response) => {
         if (active) {
-          setAvailableTaxes(response.items.filter((tax) => tax.is_active))
+          setAvailableTaxes(buildProductTaxOptions(response.items, product?.taxes.map(tax => tax.id)))
         }
       })
       .catch((error) => {
@@ -224,7 +226,7 @@ function CreateProductModal({
     return () => {
       active = false
     }
-  }, [isOpen])
+  }, [isOpen, product])
 
   const handleCreateCategory = async (
     name: string,
@@ -275,7 +277,7 @@ function CreateProductModal({
         // El nombre queda vacío a propósito: "Precio 2"/"Precio 3" se ve
         // como placeholder (gris, se escribe encima), no como texto real
         // que haya que borrar primero (pedido explícito).
-        priceLists: [...current.priceLists, { id: nextId, name: '', price: '' }],
+        priceLists: [...current.priceLists, { id: nextId, name: '', price: '', enabled: true }],
       }
     })
   }
@@ -310,7 +312,7 @@ function CreateProductModal({
   const validateForm = (): Record<string, string> => {
     const errors: Record<string, string> = {}
 
-    if (!form.sku.trim()) errors.sku = 'El código / SKU es obligatorio.'
+    if (!effectiveSku) errors.sku = 'El código / SKU es obligatorio.'
     if (!form.name.trim()) errors.name = 'El nombre del producto es obligatorio.'
     if (!form.unit) errors.unit = 'La unidad de medida DIAN es obligatoria.'
     // La categoría dejó de ser obligatoria (pedido explícito).
@@ -319,16 +321,17 @@ function CreateProductModal({
     // se usa el placeholder (defaultPriceListName) como valor real al
     // enviar — no hace falta validarlo acá.
     form.priceLists.forEach((list) => {
-      if (parseMoneyInput(list.price) <= 0) {
+      if (list.enabled && (!Number.isFinite(parsePrice(list.price)) || parsePrice(list.price) <= 0)) {
         errors[`priceValue-${list.id}`] = 'El precio de venta debe ser mayor a 0.'
       }
     })
 
+    if (!form.priceLists.some((list) => list.enabled)) errors.prices = 'Activa al menos un precio.'
     return errors
   }
 
   const buildCreateProductRequest = (): CreateProductRequest => ({
-    sku: form.sku.trim(),
+    sku: effectiveSku,
     name: form.name.trim(),
     kind: form.kind,
     unit: form.unit,
@@ -339,8 +342,8 @@ function CreateProductModal({
     priceLists: form.priceLists.map((list) => ({
       position: list.id,
       name: list.name.trim() || defaultPriceListName(list.id),
-      price: parseMoneyInput(list.price),
-      enabled: true,
+      price: parsePrice(list.price),
+      enabled: list.enabled,
     })),
   })
 
@@ -352,7 +355,7 @@ function CreateProductModal({
     const errors = validateForm()
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
-      setErrorMessage('Completa los campos obligatorios para crear el producto.')
+      setErrorMessage(errors.prices ?? 'Completa los campos obligatorios para guardar el producto.')
       return
     }
 
@@ -361,12 +364,22 @@ function CreateProductModal({
     setIsSubmitting(true)
 
     try {
-      const response = await createProduct(buildCreateProductRequest())
+      const request = buildCreateProductRequest()
+      if (selectedTaxIds.has(DEFAULT_PRODUCT_IVA_ID)) {
+        const savedTax = await ensureDefaultProductIva()
+        request.taxIds = [...new Set((request.taxIds ?? []).map(id => id === DEFAULT_PRODUCT_IVA_ID ? savedTax.id : id))]
+        // Keep the persisted ID if saving the product fails and the user retries.
+        setSelectedTaxIds(new Set(request.taxIds))
+        setAvailableTaxes(current => [...current.filter(tax => tax.id !== DEFAULT_PRODUCT_IVA_ID && tax.id !== savedTax.id), savedTax])
+      }
+      const response = product
+        ? await updateProduct(product.id, request)
+        : await createProduct(request)
       onCreated(response.product)
       onClose()
     } catch (error) {
       setErrorMessage(
-        getApiErrorMessage(error, 'No se pudo crear el producto.'),
+        getApiErrorMessage(error, 'No se pudo guardar el producto.'),
       )
     } finally {
       setIsSubmitting(false)
@@ -374,6 +387,8 @@ function CreateProductModal({
   }
 
   const hasUnsavedChanges = () =>
+    product ? JSON.stringify(form) !== JSON.stringify(createInitialForm(product)) ||
+      [...selectedTaxIds].sort().join(',') !== product.taxes.map((tax) => tax.id).sort().join(',') :
     form.sku.trim() !== '' ||
     form.name.trim() !== '' ||
     form.description.trim() !== '' ||
@@ -397,7 +412,7 @@ function CreateProductModal({
 
   const descriptionCount = form.description.length
   const selectedUnit = useMemo(
-    () => unitMeasures.find((unit) => unit.code === form.unit) ?? null,
+    () => unitMeasures.find((unit) => unit.code === form.unit) ?? (form.unit ? { code: form.unit, name: form.unit } : null),
     [unitMeasures, form.unit],
   )
 
@@ -412,7 +427,7 @@ function CreateProductModal({
         className="create-product-modal"
       >
         <h2 id="create-product-modal-title" className="modal-dialog__title">
-          Crear producto
+          {product ? 'Editar producto' : 'Crear producto'}
         </h2>
 
         <form
@@ -458,8 +473,8 @@ function CreateProductModal({
                 </span>
                 <input
                   value={form.sku}
+                  placeholder={suggestedSku}
                   onChange={(event) => {
-                    setSkuTouched(true)
                     patchForm({ sku: event.target.value })
                   }}
                   aria-invalid={Boolean(fieldErrors.sku)}
@@ -536,12 +551,12 @@ function CreateProductModal({
                         )}
                         <span className="create-product-money">
                           <span aria-hidden="true">$</span>
-                          <input
-                            inputMode="numeric"
-                            value={formatMoneyInput(list.price)}
-                            onChange={(event) =>
+                          <MoneyInput
+                            title="Precio en pesos. Usa coma para los decimales, por ejemplo: 1.250,50"
+                            value={list.price.replace(/\./g, '').replace(',', '.')}
+                            onValueChange={(value) =>
                               updatePriceList(list.id, {
-                                price: event.target.value.replace(/[^\d]/g, ''),
+                                price: value.replace('.', ','),
                               })
                             }
                             aria-invalid={Boolean(
@@ -560,6 +575,12 @@ function CreateProductModal({
                           </button>
                         )}
                       </div>
+                      {product && (
+                        <label>
+                          <input type="checkbox" checked={list.enabled} onChange={(event) => updatePriceList(list.id, { enabled: event.target.checked })} />
+                          Precio activo
+                        </label>
+                      )}
                       {fieldErrors[`priceValue-${list.id}`] && (
                         <em className="create-product-error">
                           {fieldErrors[`priceValue-${list.id}`]}
@@ -611,8 +632,8 @@ function CreateProductModal({
 
             <div className="create-product-taxes-body">
               <p className="create-product-section__hint">
-                Elige los impuestos y retenciones ya creados en Impuestos y
-                retenciones que aplican a este producto.
+                Elige los impuestos y retenciones que aplican a este producto.
+                El IVA 19% está disponible por defecto, junto con tus impuestos configurados.
               </p>
 
               <label className="create-product-price-includes-iva">
@@ -672,7 +693,7 @@ function CreateProductModal({
               Cancelar
             </Button>
             <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : 'Crear producto'}
+              {isSubmitting ? 'Guardando...' : product ? 'Guardar cambios' : 'Crear producto'}
             </Button>
           </footer>
         </form>
@@ -680,7 +701,7 @@ function CreateProductModal({
 
       <ConfirmDialog
         isOpen={isCancelOpen}
-        title="¿Cancelar la creación?"
+        title={product ? '¿Descartar los cambios?' : '¿Cancelar la creación?'}
         message="Se perderán los datos que hayas ingresado en este producto."
         confirmLabel="Sí, cancelar"
         cancelLabel="Seguir editando"
@@ -692,4 +713,6 @@ function CreateProductModal({
   )
 }
 
-export default CreateProductModal
+export default function CreateProductModal(props: CreateProductModalProps) {
+  return props.isOpen ? <ProductForm key={props.product?.id ?? 'new'} {...props} /> : null
+}

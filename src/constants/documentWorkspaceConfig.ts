@@ -329,7 +329,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   requiresPaymentMethod: true,
   pageTitle: 'Factura de compra',
   pageDescription:
-    'Sube el Excel descargado de la DIAN. Solo se importan filas con Tipo de documento “Factura electrónica” y Grupo “Recibido”.',
+    'Sube el Excel descargado de la DIAN. Se importan filas del Grupo “Recibido” con tipo Factura electrónica, Factura electrónica de contingencia, POS electrónico, Tiquete aéreo o Tiquete transporte pasajeros.',
   loadDocumentsError: 'No se pudieron cargar las facturas de compra.',
   templateDownloadError: '',
   importFileError: 'No se pudo importar el Excel de la DIAN.',
@@ -386,7 +386,7 @@ export const JARVIS_PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   requiresPaymentMethod: false,
   pageTitle: 'Factura de compra',
   pageDescription:
-    'Sube el Excel descargado de la DIAN. Solo se importan filas con Tipo de documento “Factura electrónica” y Grupo “Recibido”.',
+    'Sube el Excel descargado de la DIAN. Se importan filas del Grupo “Recibido” con tipo Factura electrónica, Factura electrónica de contingencia, POS electrónico, Tiquete aéreo o Tiquete transporte pasajeros.',
   loadDocumentsError: 'No se pudieron cargar las facturas de compra.',
   templateDownloadError: '',
   importFileError: 'No se pudo importar el Excel de la DIAN.',

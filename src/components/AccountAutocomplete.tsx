@@ -56,6 +56,8 @@ function AccountAutocomplete({
       disabled={disabled}
       placeholder={placeholder}
       emptyMessage="No se encontraron cuentas"
+      clearLabel="Borrar cuenta contable"
+      selectOnFocus
       getOptionKey={(account) => account.code}
       getOptionLabel={formatAccountOptionLabel}
       formatValueLabel={formatValueLabel}

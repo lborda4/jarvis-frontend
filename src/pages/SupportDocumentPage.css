@@ -1670,6 +1670,95 @@
   color: var(--jarvis-text);
 }
 
+.purchase-item-editor__bulk-account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(var(--jarvis-primary-rgb), 0.3);
+  border-left: 3px solid var(--jarvis-primary);
+  border-radius: var(--r-sm);
+  background: var(--jarvis-primary-soft);
+}
+
+.support-document-page__import-failures {
+  background-color: var(--jarvis-warning-soft);
+  color: var(--jarvis-warning-hover);
+  border: 1px solid var(--jarvis-warning-border);
+}
+
+.support-document-page__import-failure-details {
+  margin-top: 0.6rem;
+}
+
+.support-document-page__import-failure-details summary {
+  cursor: pointer;
+}
+
+.support-document-page__import-failure-details ul {
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.support-document-page__import-failure-details li {
+  margin-bottom: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.support-document-page__import-failure-details small {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.purchase-item-editor__bulk-account-field {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.purchase-item-editor__bulk-account-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--jarvis-primary-hover);
+}
+
+.purchase-item-editor__bulk-account-label svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.purchase-item-editor__bulk-account-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 220px;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--jarvis-gray-600);
+}
+
+.purchase-item-editor__bulk-account-hint svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--jarvis-primary-hover);
+}
+
+@media (max-width: 640px) {
+  .purchase-item-editor__bulk-account-label,
+  .purchase-item-editor__bulk-account-field,
+  .purchase-item-editor__bulk-account-hint {
+    flex-basis: 100%;
+  }
+}
+
 .purchase-item-editor__table-wrap {
   overflow-x: auto;
   border: 1px solid var(--jarvis-gray-200);

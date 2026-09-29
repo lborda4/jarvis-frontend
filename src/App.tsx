@@ -18,6 +18,7 @@ import { SiigoCatalogProvider } from './context/SiigoCatalogContext'
 import { ImportSessionProvider } from './context/ImportSessionContext'
 import AppLayout from './layout/AppLayout'
 import SalesInvoicePage from './pages/SalesInvoicePage'
+import SalesInvoiceListPage from './pages/SalesInvoiceListPage'
 import LoginPage from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import RegisterPage from './pages/RegisterPage'
@@ -60,7 +61,8 @@ function App() {
                 />
 
                 <Route path="/factura-compra" element={<PurchaseInvoiceRoute />} />
-                <Route path="/factura-venta" element={<SalesInvoicePage />} />
+                <Route path="/factura-venta" element={<SalesInvoiceListPage />} />
+                <Route path="/factura-venta/nueva" element={<SalesInvoicePage />} />
 
                 <Route path="/terceros" element={<TercerosRoute />} />
                 <Route

@@ -23,6 +23,7 @@ import type {
   UpdateJarvisTaxResponse,
 } from '../types/jarvis'
 import { apiClient } from './apiClient'
+import { isDefaultProductIva } from '../utils/productTaxes'
 import {
   cachedQuery,
   companyQueryKey,
@@ -37,6 +38,17 @@ const JARVIS_RESOLUTIONS_ENDPOINT = '/integrations/jarvis/resolutions'
 const JARVIS_RESOLUTIONS_PARSE_ENDPOINT =
   '/integrations/jarvis/resolutions/parse'
 const JARVIS_TERCEROS_ENDPOINT = '/integrations/jarvis/terceros'
+
+export async function updateJarvisTercero(id: string, request: CreateJarvisTerceroRequest): Promise<CreateJarvisTerceroResponse> {
+  const { data } = await apiClient.patch<CreateJarvisTerceroResponse>(`${JARVIS_TERCEROS_ENDPOINT}/${encodeURIComponent(id)}`, request)
+  invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
+  return data
+}
+
+export async function deleteJarvisTercero(id: string): Promise<void> {
+  await apiClient.delete(`${JARVIS_TERCEROS_ENDPOINT}/${encodeURIComponent(id)}`)
+  invalidateQueryCache(companyQueryKey(['jarvis', 'terceros']))
+}
 const JARVIS_TAXES_ENDPOINT = '/integrations/jarvis/taxes'
 const JARVIS_CATALOGS_ENDPOINT = '/integrations/jarvis/catalogs'
 const JARVIS_SUPPORT_DOCUMENTS_ENDPOINT =
@@ -118,6 +130,7 @@ export interface CreateJarvisInvoiceItem {
   unitValue: number
   discount?: number
   taxAmount?: number
+  taxId?: number
   code?: string
   notes?: string
 }
@@ -151,6 +164,45 @@ export interface CreateJarvisInvoiceResponse {
     date: string
     cufe?: string | null
   }
+}
+
+export interface JarvisSalesInvoice {
+  id: string
+  providerId: string
+  prefix: string
+  number: string
+  issueDate: string
+  customerName: string
+  customerIdentification: string
+  currency: string
+  total: string
+  cufe: string | null
+  sentAt: string
+  status: 'SENT'
+}
+
+export interface JarvisSalesInvoiceList {
+  items: JarvisSalesInvoice[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface JarvisHistoryFilters { search?: string; from?: string; to?: string; page?: number }
+
+export function jarvisHistoryQueryKey(supportDocument: boolean, filters: JarvisHistoryFilters = {}): string {
+  return companyQueryKey(['jarvis', 'history', supportDocument ? 'support' : 'sales', JSON.stringify([filters.search?.trim() || '', filters.from || '', filters.to || '', filters.page ?? 1])])
+}
+
+function fetchJarvisHistory(supportDocument: boolean, filters: JarvisHistoryFilters, options?: { force?: boolean }): Promise<JarvisSalesInvoiceList> {
+  return cachedQuery(jarvisHistoryQueryKey(supportDocument, filters), QUERY_STALE_MS.jarvisHistory, async () => {
+    const { data } = await apiClient.get<JarvisSalesInvoiceList>(supportDocument ? JARVIS_SUPPORT_DOCUMENTS_ENDPOINT : JARVIS_INVOICES_ENDPOINT, { params: filters })
+    return data
+  }, options)
+}
+
+export function fetchJarvisSalesInvoices(filters: JarvisHistoryFilters, options?: { force?: boolean }): Promise<JarvisSalesInvoiceList> {
+  return fetchJarvisHistory(false, filters, options)
 }
 
 export async function fetchJarvisCredentialsStatus(): Promise<JarvisCredentialsStatusResponse> {
@@ -405,6 +457,25 @@ export async function createJarvisTax(
   return response.data
 }
 
+const pendingDefaultProductTaxes = new Map<string, Promise<import('../types/jarvis').JarvisTax>>()
+
+/** Materialize the selected default as a company-owned tax before linking a product. */
+export function ensureDefaultProductIva(): Promise<import('../types/jarvis').JarvisTax> {
+  const key = companyQueryKey(['jarvis', 'default-product-iva'])
+  const pending = pendingDefaultProductTaxes.get(key)
+  if (pending) return pending
+  const request = (async () => {
+    // Read fresh data so another product saved since opening the modal can be reused.
+    const { data } = await apiClient.get<JarvisTaxesListResponse>(JARVIS_TAXES_ENDPOINT)
+    const existing = data.items.find(tax => tax.is_active && isDefaultProductIva(tax))
+    if (existing) return existing
+    const response = await createJarvisTax({ category: 'IMPUESTO', name: 'IVA', tax_type: 'IVA', rate: 19 })
+    return response.tax
+  })().finally(() => pendingDefaultProductTaxes.delete(key))
+  pendingDefaultProductTaxes.set(key, request)
+  return request
+}
+
 export async function updateJarvisTax(
   id: string,
   request: UpdateJarvisTaxRequest,
@@ -481,5 +552,18 @@ export async function createJarvisInvoice(
     request,
   )
 
+  invalidateQueryCache(companyQueryKey(['jarvis', 'history', 'sales']))
+  invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
   return response.data
+}
+
+export async function createJarvisSupportInvoice(request: CreateJarvisInvoiceRequest): Promise<CreateJarvisInvoiceResponse> {
+  const { data } = await apiClient.post<CreateJarvisInvoiceResponse>(`${JARVIS_SUPPORT_DOCUMENTS_ENDPOINT}/issue`, request)
+  invalidateQueryCache(companyQueryKey(['jarvis', 'history', 'support']))
+  invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
+  return data
+}
+
+export function fetchJarvisSupportInvoices(filters: JarvisHistoryFilters, options?: { force?: boolean }): Promise<JarvisSalesInvoiceList> {
+  return fetchJarvisHistory(true, filters, options)
 }

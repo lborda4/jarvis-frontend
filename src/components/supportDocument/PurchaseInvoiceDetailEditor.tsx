@@ -17,7 +17,7 @@ import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
 import { isCreditPaymentMethod } from '../../utils/siigoPaymentMethods'
 import { addDaysToLocalDate, resolvePlazoDays } from '../../utils/supportDocumentDate'
-import { formatCurrency } from '../../utils/formatters'
+import { formatInvoiceCurrency as formatCurrency } from '../../utils/formatters'
 import { calculatePurchaseInvoiceRowSummary } from '../../utils/purchaseInvoiceRowSummary'
 
 /** Retefuente se elige por ítem (columna "Imp. Ret." de la tabla de ítems),
@@ -30,23 +30,6 @@ const RETEFUENTE_TAX_TYPE = 'Retefuente'
  * el usuario vea el tope mientras escribe, en vez de enterarse recién al
  * enviar (o de que el texto se trunque en silencio del lado del servidor). */
 const OBSERVATIONS_MAX_LENGTH = 1000
-
-/** Valor a mostrar en un input numérico controlado: vacío en vez de "0" —
- * así el usuario puede escribir directo (o borrar hasta dejarlo en blanco)
- * sin pelear con un cero que no se deja reemplazar ni eliminar. */
-function formatNumberInputValue(value: number): number | string {
-  return value === 0 ? '' : value
-}
-
-function parseNumberInputValue(rawValue: string): number {
-  return rawValue === '' ? 0 : Math.max(0, Number(rawValue) || 0)
-}
-
-/** Selecciona todo el texto al enfocar — así escribir reemplaza el valor
- * completo en vez de insertarse a la mitad/después de lo que ya había. */
-function selectAllOnFocus(event: React.FocusEvent<HTMLInputElement>) {
-  event.target.select()
-}
 
 export interface PurchaseInvoiceDetailEditorSave {
   items: PurchaseInvoiceItemDraft[]
@@ -100,7 +83,6 @@ function PurchaseInvoiceDetailEditor({
   retentions,
   retentionCatalogTypes,
   retentionOptionsByType,
-  documentDiscount,
   disabled = false,
   onSaveDraft,
   isSavingDraft = false,
@@ -129,8 +111,7 @@ function PurchaseInvoiceDetailEditor({
   const [draftRetentionsByType, setDraftRetentionsByType] = useState(() =>
     splitRetentionsByTypes(retentions, sidebarRetentionTypes),
   )
-  const [draftDocumentDiscount, setDraftDocumentDiscount] =
-    useState(documentDiscount)
+  const draftDocumentDiscount = document.documentDiscount ?? 0
 
   const isCreditSelected = isCreditPaymentMethod(draftPaymentMethod)
   // El medio de pago arranca en blanco (ya no se autosugiere), pero con el
@@ -191,7 +172,9 @@ function PurchaseInvoiceDetailEditor({
   // listarla en el arreglo de dependencias dispararía el efecto de nuevo en
   // cada re-render causado por el propio onChange — un loop infinito.
   const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   useEffect(() => {
     setDraftItems((current) => {
@@ -202,6 +185,7 @@ function PurchaseInvoiceDetailEditor({
       const incomingFilledEmptyLines = items.some(
         (item, index) =>
           Boolean(item.producto?.trim()) &&
+          !current[index]?.codeManuallyEdited &&
           !current[index]?.producto?.trim(),
       )
 
@@ -211,7 +195,7 @@ function PurchaseInvoiceDetailEditor({
 
       if (userEditedItemsRef.current) {
         return current.map((item, index) => {
-          if (item.producto?.trim() || !items[index]?.producto?.trim()) {
+          if (item.codeManuallyEdited || item.producto?.trim() || !items[index]?.producto?.trim()) {
             return item
           }
 
@@ -348,28 +332,7 @@ function PurchaseInvoiceDetailEditor({
 
           <div className="purchase-invoice-editor__summary-row">
             <span>Descuento general</span>
-            {/* Con la factura ya en SIIGO el campo no se puede editar, así que
-              * el recuadro solo agrega ruido: se muestra el monto como un dato
-              * más del resumen, igual que Subtotal o IVA. Mientras la factura
-              * sea editable sigue siendo un input — el descuento general es
-              * uno de los pocos valores que el contador puede ajustar a mano
-              * (desplaza el Total neto, ver calculatePurchaseInvoiceRowSummary). */}
-            {disabled ? (
-              <span>{formatCurrency(draftDocumentDiscount)}</span>
-            ) : (
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                className="purchase-invoice-editor__discount-input"
-                value={formatNumberInputValue(draftDocumentDiscount)}
-                onChange={(event) =>
-                  setDraftDocumentDiscount(parseNumberInputValue(event.target.value))
-                }
-                onFocus={selectAllOnFocus}
-                placeholder="0"
-              />
-            )}
+            <span>{formatCurrency(summary.documentDiscount)}</span>
           </div>
 
           <div className="purchase-invoice-editor__summary-row">

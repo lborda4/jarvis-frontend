@@ -33,3 +33,8 @@ export function normalizeStatusClass(status: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, '-')
 }
+
+/** Importes originales de facturas: conservar los centavos visibles. */
+export function formatInvoiceCurrency(amount: number): string {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+}

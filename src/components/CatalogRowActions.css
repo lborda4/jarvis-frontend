@@ -1,0 +1,21 @@
+.catalog-row-actions { display: flex; gap: 0.4rem; }
+.catalog-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-sm);
+  background: #fff;
+  color: var(--jarvis-text-muted);
+  cursor: pointer;
+}
+.catalog-row-actions button:hover { background: var(--jarvis-gray-50); color: var(--jarvis-text); }
+.catalog-row-actions .catalog-row-actions__delete:hover {
+  background: var(--jarvis-danger-soft);
+  color: var(--jarvis-danger);
+  border-color: var(--jarvis-danger-border);
+}
+.catalog-row-actions button:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
+.catalog-row-actions button:disabled { opacity: 0.5; cursor: not-allowed; }

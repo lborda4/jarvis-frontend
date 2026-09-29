@@ -16,6 +16,7 @@ export interface JarvisProductSearchProps {
   value: string
   onChange: (value: string) => void
   onSelectProduct: (product: ProductResponse) => void
+  onCreateProduct?: () => void
   products: ProductResponse[]
   isLoading?: boolean
   disabled?: boolean
@@ -35,6 +36,7 @@ export default function JarvisProductSearch({
   value,
   onChange,
   onSelectProduct,
+  onCreateProduct,
   products,
   isLoading = false,
   disabled = false,
@@ -87,7 +89,7 @@ export default function JarvisProductSearch({
     })
   }, [])
 
-  useLayoutEffect_safe(() => {
+  useEffect(() => {
     if (!isOpen) return
     updatePosition()
 
@@ -113,9 +115,7 @@ export default function JarvisProductSearch({
     })
   }, [products, value])
 
-  useEffect(() => {
-    setHighlightedIndex(0)
-  }, [filteredProducts])
+  const activeHighlightedIndex = Math.min(highlightedIndex, Math.max(Math.min(filteredProducts.length, 50) - 1 + (onCreateProduct ? 1 : 0), 0))
 
   const handleSelect = useCallback(
     (product: ProductResponse) => {
@@ -135,7 +135,7 @@ export default function JarvisProductSearch({
         return
       }
       setHighlightedIndex((current) =>
-        Math.min(current + 1, Math.max(filteredProducts.length - 1, 0)),
+        Math.min(current + 1, Math.max(Math.min(filteredProducts.length, 50) - 1 + (onCreateProduct ? 1 : 0), 0)),
       )
       return
     }
@@ -150,9 +150,16 @@ export default function JarvisProductSearch({
       return
     }
 
-    if (event.key === 'Enter' && isOpen && filteredProducts[highlightedIndex]) {
+    if (event.key === 'Enter' && isOpen && onCreateProduct && activeHighlightedIndex === Math.min(filteredProducts.length, 50)) {
       event.preventDefault()
-      handleSelect(filteredProducts[highlightedIndex])
+      setIsOpen(false)
+      onCreateProduct()
+      return
+    }
+
+    if (event.key === 'Enter' && isOpen && filteredProducts[activeHighlightedIndex]) {
+      event.preventDefault()
+      handleSelect(filteredProducts[activeHighlightedIndex])
       return
     }
 
@@ -163,6 +170,7 @@ export default function JarvisProductSearch({
 
   const handleFocus = () => {
     if (disabled) return
+    setHighlightedIndex(0)
     if (blurTimeoutRef.current) {
       window.clearTimeout(blurTimeoutRef.current)
     }
@@ -183,6 +191,9 @@ export default function JarvisProductSearch({
     <div
       ref={containerRef}
       className={`ds-individual__search ds-individual__product-search ${className}`.trim()}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) handleBlur()
+      }}
     >
       <input
         id={id}
@@ -192,9 +203,9 @@ export default function JarvisProductSearch({
         disabled={disabled}
         autoComplete="off"
         onFocus={handleFocus}
-        onBlur={handleBlur}
         onChange={(e) => {
           onChange(e.target.value)
+          setHighlightedIndex(0)
           if (!isOpen) {
             setIsOpen(true)
           }
@@ -239,7 +250,7 @@ export default function JarvisProductSearch({
             filteredProducts.slice(0, 50).map((product, idx) => {
               const mainPrice = resolveProductMainPrice(product)
               const ivaTax = findProductIvaTax(product)
-              const isSelected = idx === highlightedIndex
+              const isSelected = idx === activeHighlightedIndex
 
               return (
                 <li key={product.id}>
@@ -280,13 +291,21 @@ export default function JarvisProductSearch({
               )
             })
           )}
+          {onCreateProduct && (
+            <li className="ds-individual__create-option-row">
+              <button
+                type="button"
+                className={`ds-individual__supplier-option ds-individual__create-option${activeHighlightedIndex === Math.min(filteredProducts.length, 50) ? ' is-selected' : ''}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => { setIsOpen(false); onCreateProduct() }}
+              >
+                <span aria-hidden="true">＋</span> Crear producto
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>
   )
 }
 
-function useLayoutEffect_safe(effect: () => void | (() => void), deps: unknown[]) {
-  const isBrowser = typeof window !== 'undefined'
-  useEffect(isBrowser ? effect : () => {}, deps)
-}

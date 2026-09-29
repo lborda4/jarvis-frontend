@@ -1,13 +1,15 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Button from '../components/Button'
+import CatalogRowActions from '../components/CatalogRowActions'
+import ConfirmDialog from '../components/ConfirmDialog'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { getApiErrorMessage } from '../services/apiClient'
-import { fetchJarvisTerceros } from '../services/jarvisService'
+import { deleteJarvisTercero, fetchJarvisTerceros } from '../services/jarvisService'
 import {
   companyQueryKey,
   peekCachedQuery,
@@ -57,6 +59,9 @@ function TercerosPage() {
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingTercero, setEditingTercero] = useState<JarvisTercero | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<JarvisTercero | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [createDocumentType, setCreateDocumentType] = useState<string>(
     JARVIS_DOCUMENT_TYPE.NIT,
   )
@@ -64,6 +69,23 @@ function TercerosPage() {
   const [resumeDocumentId, setResumeDocumentId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || isDeleting) return
+    setIsDeleting(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    try {
+      await deleteJarvisTercero(pendingDelete.id)
+      setItems((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setTotal((current) => Math.max(0, current - 1))
+      setSuccessMessage(`Tercero "${pendingDelete.name}" eliminado correctamente.`)
+      setPendingDelete(null)
+    } catch (error) {
+      setPendingDelete(null)
+      setErrorMessage(getApiErrorMessage(error, 'No se pudo eliminar el tercero.'))
+    } finally { setIsDeleting(false) }
+  }
 
   const loadTerceros = useCallback(async (query?: string) => {
     const trimmed = query?.trim()
@@ -98,6 +120,8 @@ function TercerosPage() {
   }, [])
 
   useEffect(() => {
+    // La carga inicial muestra la caché y luego consulta el catálogo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadTerceros()
   }, [loadTerceros])
 
@@ -153,7 +177,7 @@ function TercerosPage() {
   }
 
   return (
-    <main className="terceros-page">
+    <main className="terceros-page integration-page">
       <PageHeader
         title="Terceros"
         description="Consulta y crea los terceros de tu empresa Jarvis."
@@ -167,7 +191,7 @@ function TercerosPage() {
       {errorMessage && <ErrorMessage message={errorMessage} />}
       {successMessage && <SuccessMessage message={successMessage} />}
 
-      <form className="terceros-page__search" onSubmit={handleSearch}>
+      <form className="terceros-page__search integration-filters" onSubmit={handleSearch}>
         <label htmlFor="terceros-search">Buscar</label>
         <div className="terceros-page__search-row">
           <input
@@ -183,8 +207,8 @@ function TercerosPage() {
         </div>
       </form>
 
-      <section className="terceros-page__list" aria-live="polite">
-        <div className="terceros-page__list-header">
+      <section className="terceros-page__list integration-card" aria-live="polite">
+        <div className="terceros-page__list-header integration-card-header">
           <h2>Lista de terceros</h2>
           <p>
             {total} {total === 1 ? 'tercero' : 'terceros'}
@@ -202,7 +226,7 @@ function TercerosPage() {
           </div>
         ) : (
           <div className="terceros-page__table-wrap">
-            <table className="terceros-page__table">
+            <table className="terceros-page__table integration-table">
               <thead>
                 <tr>
                   <th>Nombre</th>
@@ -210,6 +234,7 @@ function TercerosPage() {
                   <th>Tipo</th>
                   <th>Régimen</th>
                   <th>Contacto</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,6 +264,7 @@ function TercerosPage() {
                         '—'
                       )}
                     </td>
+                    <td><CatalogRowActions name={item.name} onEdit={() => setEditingTercero(item)} onDelete={() => setPendingDelete(item)} disabled={isDeleting} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -247,6 +273,19 @@ function TercerosPage() {
         )}
       </section>
 
+      <ConfirmDialog isOpen={pendingDelete !== null} title="Eliminar tercero"
+        message={`¿Seguro que quieres eliminar "${pendingDelete?.name ?? ''}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar" variant="danger" isBusy={isDeleting}
+        onConfirm={() => void confirmDelete()} onCancel={() => { if (!isDeleting) setPendingDelete(null) }} />
+      {editingTercero && <CreateJarvisTerceroModal
+        key={editingTercero.id} isOpen editingTercero={editingTercero}
+        onClose={() => setEditingTercero(null)}
+        onCreated={(tercero) => {
+          setSuccessMessage(`Tercero "${tercero.name}" actualizado correctamente.`)
+          setItems((current) => current.map((item) => item.id === tercero.id ? tercero : item))
+          void loadTerceros(search)
+        }}
+      />}
       <CreateJarvisTerceroModal
         isOpen={isCreateOpen}
         onClose={() => {
