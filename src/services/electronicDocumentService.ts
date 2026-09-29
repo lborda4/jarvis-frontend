@@ -292,3 +292,38 @@ export async function fetchImportedDocuments(
   }
   return [...found.values()]
 }
+
+const EXPORT_PAGE_SIZE = 100
+
+/** Trae todas las páginas del listado (bypass de caché) — para exportar un
+ * periodo completo sin quedarse en el tope de 100 filas del UI. */
+export async function fetchAllElectronicDocuments(
+  filters: Partial<ElectronicDocumentListFilters>,
+): Promise<import('../types/electronicDocument').ElectronicDocumentListItem[]> {
+  const items: import('../types/electronicDocument').ElectronicDocumentListItem[] =
+    []
+  let page = 1
+  let total = Number.POSITIVE_INFINITY
+
+  while (items.length < total) {
+    const response = await fetchElectronicDocuments(
+      {
+        ...filters,
+        page,
+        limit: EXPORT_PAGE_SIZE,
+      },
+      { force: true },
+    )
+
+    items.push(...response.items)
+    total = Number.isFinite(response.total) ? response.total : items.length
+
+    if (response.items.length === 0) {
+      break
+    }
+
+    page += 1
+  }
+
+  return items
+}

@@ -92,6 +92,8 @@ export interface DocumentWorkspaceConfig {
   downloadingTemplateLabel: string
   fileInputAccept: string
   showTemplateDownload: boolean
+  /** Botón para exportar resumen Excel del periodo (solo Factura de compra). */
+  showPeriodSummaryExport?: boolean
   supplierMissingLabel: string
   downloadTemplate?: () => Promise<void>
   importFile: (file: File) => Promise<DocumentWorkspaceImportResult>
@@ -340,6 +342,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   downloadingTemplateLabel: '',
   fileInputAccept: EXCEL_FILE_INPUT,
   showTemplateDownload: false,
+  showPeriodSummaryExport: true,
   supplierMissingLabel: 'Crear tercero',
   importFile: importPurchaseInvoiceExcel,
   buildSendRequest: (
@@ -397,6 +400,7 @@ export const JARVIS_PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   downloadingTemplateLabel: '',
   fileInputAccept: EXCEL_FILE_INPUT,
   showTemplateDownload: false,
+  showPeriodSummaryExport: true,
   supplierMissingLabel: 'Crear tercero',
   importFile: importPurchaseInvoiceExcel,
   buildSendRequest: buildJarvisSupportDocumentRequest,

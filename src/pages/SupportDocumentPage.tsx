@@ -24,6 +24,7 @@ import CreateTercerosBulkModal, {
   type PendingSupplierRow,
 } from '../components/CreateTercerosBulkModal'
 import ErrorMessage from '../components/ErrorMessage'
+import { ExcelIcon } from '../components/icons/SidebarIcons'
 import PageHeader from '../components/PageHeader'
 import ImportLoadingOverlay from '../components/supportDocument/ImportLoadingOverlay'
 import PurchaseInvoiceImportProgress from '../components/supportDocument/PurchaseInvoiceImportProgress'
@@ -57,6 +58,7 @@ import { waitForTerminalStatus } from '../services/realtime/purchaseInvoiceImpor
 import {
   deleteElectronicDocument,
   deleteElectronicDocumentsBatch,
+  fetchAllElectronicDocuments,
   fetchElectronicDocumentFilterOptions,
   fetchElectronicDocuments,
   invalidateElectronicDocumentsCache,
@@ -64,6 +66,7 @@ import {
   saveElectronicDocumentDraft,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
+import { useAuth } from '../context/AuthContext'
 import {
   createSiigoSuppliersBulk,
   fetchAutoCreatedSuppliers,
@@ -97,6 +100,16 @@ import {
   type SupportDocumentSortDirection,
 } from '../types/supportDocumentTableFilters'
 import { detectDocumentSourceType } from '../utils/fileType'
+import {
+  buildElectronicDocumentListFilters,
+  hasUiElectronicDocumentFilters,
+} from '../utils/buildElectronicDocumentListFilters'
+import {
+  buildPurchaseInvoicePeriodExportFilename,
+  buildPurchaseInvoicePeriodWorkbook,
+  downloadPurchaseInvoicePeriodWorkbook,
+  resolveExportDisplayPeriod,
+} from '../utils/purchaseInvoicePeriodExport'
 import { mapElectronicDocumentToSupportRow } from '../utils/mapSupportDocumentRow'
 import {
   getSupportDocumentActionFromImportStatus,
@@ -579,6 +592,7 @@ function resolveSharedSelectionValue<T>(
 
 
 export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
+  const { user } = useAuth()
   const { refreshSetupStatus } = useIntegrationSetup()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const controlsAnchorRef = useRef<HTMLDivElement>(null)
@@ -628,6 +642,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     useState(false)
   const latestPurchaseInvoiceImportJob = useLatestPurchaseInvoiceImportJob()
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
+  const [isExportingPeriodSummary, setIsExportingPeriodSummary] =
+    useState(false)
   const [terceroModalDocument, setTerceroModalDocument] =
     useState<ElectronicDocumentListItem | null>(null)
   const [pendingSuppliers, setPendingSuppliers] = useState<
@@ -721,32 +737,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     let cancelled = false
 
     void (async () => {
-      const requestFilters = {
+      const requestFilters = buildElectronicDocumentListFilters({
         electronicDocumentType: config.electronicDocumentType,
         page,
         limit: pageLimit,
-        supplierNits:
-          selectedSupplierNits.length > 0 ? selectedSupplierNits : undefined,
-        issueDates:
-          columnFilters.dates.length > 0 ? columnFilters.dates : undefined,
-        issueDateFrom: columnFilters.dateFrom || undefined,
-        issueDateTo: columnFilters.dateTo || undefined,
-        siigoDocumentNumbers:
-          columnFilters.siigoNumbers.length > 0
-            ? columnFilters.siigoNumbers
-            : undefined,
-        importStatuses:
-          columnFilters.statuses.length > 0
-            ? // El backend ya entiende nativamente "Requiere revisión" y
-              // "Existente en SIIGO" y filtra con precisión sobre TODA la
-              // empresa, no solo la página cargada (ver
-              // needsPurchaseInvoiceReviewNarrowing en
-              // electronic-document.service.ts y la columna real
-              // alreadyInSiigo) — se envían los valores seleccionados tal
-              // cual, sin traducirlos.
-              columnFilters.statuses
-            : undefined,
-      }
+        columnFilters,
+        selectedSupplierNits,
+      })
 
       const applyResponse = (
         response: Awaited<ReturnType<typeof fetchElectronicDocuments>>,
@@ -2234,6 +2231,79 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     })()
   }
 
+  const handleExportPeriodSummary = useCallback(() => {
+    if (!config.showPeriodSummaryExport) {
+      return
+    }
+
+    void (async () => {
+      setIsExportingPeriodSummary(true)
+      setErrorMessage(null)
+
+      try {
+        const exportFilters = buildElectronicDocumentListFilters({
+          electronicDocumentType: config.electronicDocumentType,
+          columnFilters,
+          selectedSupplierNits,
+          defaultToCurrentMonthWhenUnfiltered: true,
+        })
+
+        const usedDefaultMonth = !hasUiElectronicDocumentFilters(
+          columnFilters,
+          selectedSupplierNits,
+        )
+
+        const exportedDocuments = await fetchAllElectronicDocuments(exportFilters)
+
+        const displayPeriod = resolveExportDisplayPeriod({
+          issueDateFrom: exportFilters.issueDateFrom,
+          issueDateTo: exportFilters.issueDateTo,
+          usedDefaultMonth,
+          documents: exportedDocuments,
+        })
+
+        const workbook = buildPurchaseInvoicePeriodWorkbook({
+          documents: exportedDocuments,
+          company: {
+            name: user?.company?.name?.trim() || '',
+            nit: user?.company?.nit?.trim() || '',
+          },
+          periodFrom: displayPeriod.from,
+          periodTo: displayPeriod.to,
+        })
+
+        downloadPurchaseInvoicePeriodWorkbook(
+          workbook,
+          buildPurchaseInvoicePeriodExportFilename(
+            displayPeriod.from,
+            displayPeriod.to,
+          ),
+        )
+      } catch (error) {
+        setErrorMessage(
+          getApiErrorMessage(
+            error,
+            'No se pudo exportar el resumen del periodo.',
+          ),
+        )
+      } finally {
+        setIsExportingPeriodSummary(false)
+      }
+    })()
+  }, [
+    columnFilters.dates,
+    columnFilters.dateFrom,
+    columnFilters.dateTo,
+    columnFilters.siigoNumbers,
+    columnFilters.statuses,
+    config.electronicDocumentType,
+    config.showPeriodSummaryExport,
+    selectedSupplierNits,
+    setErrorMessage,
+    user?.company?.name,
+    user?.company?.nit,
+  ])
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -2628,6 +2698,21 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                 {isDownloadingTemplate
                   ? config.downloadingTemplateLabel
                   : config.templateButtonLabel}
+              </Button>
+            )}
+
+            {config.showPeriodSummaryExport && (
+              <Button
+                variant="secondary"
+                onClick={handleExportPeriodSummary}
+                disabled={
+                  isExportingPeriodSummary || isImporting || isLoading
+                }
+              >
+                <ExcelIcon className="support-document-page__excel-icon" />
+                {isExportingPeriodSummary
+                  ? 'Exportando…'
+                  : 'Exportar resumen'}
               </Button>
             )}
 
