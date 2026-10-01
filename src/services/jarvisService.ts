@@ -137,6 +137,8 @@ export interface CreateJarvisInvoiceItem {
 }
 
 export interface CreateJarvisInvoiceRequest {
+  number?: number
+  prefix?: string
   billingReference?: { number: string; uuid: string; issueDate: string }
   discrepancyResponseCode?: number
   discrepancyResponseDescription?: string

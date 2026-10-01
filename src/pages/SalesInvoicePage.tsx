@@ -230,6 +230,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
   const [nextConsecutive, setNextConsecutive] = useState<number | null>(null)
   const [resolutionPrefix, setResolutionPrefix] = useState('')
+  const [manualCreditNumber, setManualCreditNumber] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMode, setSubmitMode] = useState<SubmitMode | null>(null)
@@ -342,6 +343,11 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         const ivaDefault = mergedTaxes.find((tax) => tax.category === 'IMPUESTO' && isIvaTax(tax) && tax.percentage === DEFAULT_IVA_PERCENT)
         if (ivaDefault) setLines((current) => current.map((line) => line.taxChargeId ? line : { ...line, taxChargeId: String(ivaDefault.id), taxPercent: String(DEFAULT_IVA_PERCENT) }))
         const resolution = debitNote ? status.debitNoteResolution : isNote ? status.creditNoteResolution : supportDocument ? status.supportDocumentResolution : status.electronicInvoiceResolution
+        if (creditNote) {
+          const consecutive = resolution?.nextConsecutive ?? resolution?.fromNumber
+          const configured = Boolean(resolution?.prefix?.trim() && resolution?.formNumber?.trim() && consecutive != null && consecutive >= 1 && (!Number.isFinite(resolution?.toNumber) || consecutive <= resolution!.toNumber))
+          setManualCreditNumber(!configured)
+        }
         if (resolution?.nextConsecutive != null) setNextConsecutive(resolution.nextConsecutive)
         if (resolution?.prefix?.trim()) setResolutionPrefix(resolution.prefix.trim())
         if (source) {
@@ -556,7 +562,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const methodId = isNote ? 0 : resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
     const formId = Number(paymentFormId)
     const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
+    if (creditNote && manualCreditNumber && (!Number.isSafeInteger(nextConsecutive) || nextConsecutive == null || nextConsecutive < 1)) throw new Error('Indique el consecutivo de la nota crédito.')
     return {
+      ...(creditNote && manualCreditNumber ? { number: nextConsecutive!, prefix: resolutionPrefix } : {}),
       ...(isNote ? {
         billingReference: { number: billingNumber.trim(), uuid: billingUuid.trim(), issueDate: billingDate },
         discrepancyResponseCode: Number(reasonCode), discrepancyResponseDescription: reasonDescription.trim(),
@@ -594,7 +602,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
+  }, [manualCreditNumber, creditNote, nextConsecutive, resolutionPrefix, currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
 
   const handleSubmit = useCallback(async (mode: SubmitMode) => {
     if (sourceLoading) return
@@ -746,11 +754,14 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             <div className="ds-individual__col">
               <div className="ds-individual__field ds-individual__field--number">
                 <span>Número</span>
-                <p className="ds-individual__readonly">
+                <>{creditNote && manualCreditNumber ? <>
+                  <label>Prefijo<input aria-label="Prefijo de nota crédito" value={resolutionPrefix} onChange={e => setResolutionPrefix(e.target.value)} /></label>
+                  <label>Consecutivo<input aria-label="Consecutivo de nota crédito" type="number" min="1" step="1" value={nextConsecutive ?? ''} onChange={e => setNextConsecutive(e.target.value === '' ? null : Number(e.target.value))} /></label>
+                </> : <p className="ds-individual__readonly">
                   {nextConsecutive != null
                     ? `${resolutionPrefix}${nextConsecutive} (Numeración automática)`
                     : 'Numeración automática'}
-                </p>
+                </p>}</>
               </div>
 
               <label className="ds-individual__field ds-individual__field--currency">
