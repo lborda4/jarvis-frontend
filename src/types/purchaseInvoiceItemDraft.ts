@@ -213,7 +213,7 @@ export function buildPurchaseInvoiceItemDrafts(
     ivaOptions,
   )
 
-  const retefuenteTaxFromSupplierConfig = supplierConfig?.retefuenteTax
+  const retefuenteTaxFromSupplierConfig = document.status === 'PURCHASE_CREATED' && supplierConfig?.retefuenteTax
     ? {
         id: supplierConfig.retefuenteTax.id,
         name: supplierConfig.retefuenteTax.name,

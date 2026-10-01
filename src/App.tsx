@@ -62,9 +62,12 @@ function App() {
 
                 <Route path="/factura-compra" element={<PurchaseInvoiceRoute />} />
                 <Route path="/factura-venta" element={<SalesInvoiceListPage />} />
+                <Route path="/nota-credito" element={<SalesInvoiceListPage key="credit-list" creditNote />} />
+                <Route path="/nota-credito/nueva" element={<SalesInvoicePage key="credit-form" creditNote />} />
                 <Route path="/factura-venta/nueva" element={<SalesInvoicePage />} />
 
                 <Route path="/terceros" element={<TercerosRoute />} />
+                <Route path="/formas-de-pago" element={<JarvisTaxesRoute paymentMethods />} />
                 <Route
                   path="/impuestos-retenciones"
                   element={<JarvisTaxesRoute />}

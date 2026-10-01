@@ -137,6 +137,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             icon: DocumentIcon,
             featureEnabled: isSalesInvoiceEnabled,
           },
+          { label: 'Nota crédito', to: '/nota-credito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
         ]
       : []),
     ...(!isAdminRole(user?.role) && isJarvisCompany
@@ -147,6 +148,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           children: [
             { label: 'Productos', to: '/productos/listar' },
             { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
+            { label: 'Formas de pago', to: '/formas-de-pago' },
             { label: 'Terceros', to: '/terceros' },
           ],
         }]

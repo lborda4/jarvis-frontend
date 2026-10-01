@@ -41,6 +41,18 @@ describe('hasUiElectronicDocumentFilters', () => {
 })
 
 describe('buildElectronicDocumentListFilters', () => {
+  it.each([' FEV27381 ', 'a'.repeat(96)])('incluye referencia y conserva los otros filtros al exportar: %s', referenceSearch => {
+    const filters = buildElectronicDocumentListFilters({
+      electronicDocumentType: 'PURCHASE_INVOICE',
+      columnFilters: { ...EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS, referenceSearch },
+      selectedSupplierNits: ['901234567'],
+      defaultToCurrentMonthWhenUnfiltered: true,
+    })
+    expect(filters.search).toBe(referenceSearch.trim())
+    expect(filters.supplierNits).toEqual(['901234567'])
+    expect(filters.issueDateFrom).toBeUndefined()
+    expect(hasUiElectronicDocumentFilters({ ...EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS, referenceSearch }, [])).toBe(true)
+  })
   const reference = new Date(2026, 8, 15)
 
   it('listado: sin filtros no impone mes', () => {

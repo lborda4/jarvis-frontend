@@ -1,3 +1,4 @@
+import { jarvisTaxTechnical } from '../utils/jarvisTaxTechnical'
 import CatalogRowActions from '../components/CatalogRowActions'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
@@ -25,7 +26,7 @@ const PAGE_SIZE = 10
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 function formatRate(tax: JarvisTax): string {
-  return tax.rate === null ? '—' : `${tax.rate} %`
+  return tax.rate === null ? '—' : tax.rate.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 }
 
 function JarvisTaxesPage() {
@@ -251,7 +252,7 @@ function JarvisTaxesPage() {
                     <th>Código</th>
                     <th>Nombre</th>
                     <th>Tipo de impuesto</th>
-                    <th>Tarifa</th>
+                    <th>Tarifa</th><th>Unidad</th><th>Divisor técnico</th><th>Base de cálculo / Nota</th><th>Factor técnico</th>
                     <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
@@ -273,6 +274,10 @@ function JarvisTaxesPage() {
                       <td><strong>{item.name}</strong></td>
                       <td>{item.tax_type}</td>
                       <td>{formatRate(item)}</td>
+                      <td>{jarvisTaxTechnical(item).unit}</td>
+                      <td>{jarvisTaxTechnical(item).divisor}</td>
+                      <td>{jarvisTaxTechnical(item).note}</td>
+                      <td>{jarvisTaxTechnical(item).factor?.toLocaleString('es-CO', { minimumFractionDigits: 5, maximumFractionDigits: 5 }) ?? '—'}</td>
                       <td>
                         <span
                           className={`jarvis-taxes-page__status jarvis-taxes-page__status--${

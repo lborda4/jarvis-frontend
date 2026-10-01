@@ -1,8 +1,7 @@
 import MoneyInput from '../MoneyInput'
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import AccountAutocomplete from '../AccountAutocomplete'
 import Button from '../Button'
-import { AccountsIcon, InfoIcon } from '../icons/SidebarIcons'
 import ProductAutocomplete from '../ProductAutocomplete'
 import TaxAutocomplete from '../TaxAutocomplete'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
@@ -80,23 +79,16 @@ function PurchaseInvoiceItemsEditor({
   documentReference = null,
   disabled = false,
 }: PurchaseInvoiceItemsEditorProps) {
-  const bulkAccountId = useId()
-  const [bulkAccount, setBulkAccount] = useState<SiigoAccountOption | null>(null)
-  const canApplyAccount =
-    !disabled && items.length > 0 &&
-    bulkAccount !== null &&
-    accountOptions.some((account) => account.code === bulkAccount.code)
-
-  const applyAccountToAllItems = () => {
-    if (!canApplyAccount || !bulkAccount) return
-
-    onChange(items.map((item) => ({
-      ...item,
-      tipo: 'Account',
-      producto: bulkAccount.code,
-      codeManuallyEdited: true,
-    })))
-    setBulkAccount(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const selectedCount = items.filter((item) => selectedIds.has(item.localId)).length
+  const allSelected = items.length > 0 && selectedCount === items.length
+  const changeAccount = (localId: string, account: SiigoAccountOption | null) => {
+    if (disabled) return
+    onChange(items.map((item) =>
+      item.localId === localId || (selectedIds.has(localId) && selectedIds.has(item.localId))
+        ? { ...item, tipo: 'Account', producto: account?.code ?? '', codeManuallyEdited: true }
+        : item,
+    ))
   }
 
   // Con la factura ya en SIIGO ningún campo se puede editar, así que los
@@ -147,41 +139,25 @@ function PurchaseInvoiceItemsEditor({
         </Button>
       </div>
 
-      {!disabled && items.length > 1 && (
-        <div className="purchase-item-editor__bulk-account">
-          <label className="purchase-item-editor__bulk-account-label" htmlFor={bulkAccountId}>
-            <AccountsIcon />
-            Cuenta contable para todos los ítems
-          </label>
-          <div className="purchase-item-editor__bulk-account-field">
-            <AccountAutocomplete
-              id={bulkAccountId}
-              value={bulkAccount}
-              onChange={setBulkAccount}
-              options={accountOptions}
-              disabled={accountOptions.length === 0}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={applyAccountToAllItems}
-            disabled={!canApplyAccount}
-          >
-            Aplicar a todos ({items.length})
-          </Button>
-          <p className="purchase-item-editor__bulk-account-hint">
-            <InfoIcon />
-            <span>Todos los ítems usarán el tipo Cuenta y la cuenta seleccionada.</span>
-          </p>
-        </div>
-      )}
-
       <div className="purchase-item-editor__table-wrap">
         <table className="purchase-item-editor__table">
           <thead>
             <tr>
+              {!disabled && (
+                <th className="purchase-item-editor__selection-cell">
+                  <input
+                    type="checkbox"
+                    className="purchase-item-editor__checkbox"
+                    aria-label="Seleccionar todos los ítems de esta factura"
+                    title="Seleccionar todos los ítems para cambiar su cuenta contable"
+                    checked={allSelected}
+                    disabled={items.length === 0}
+                    ref={(node) => { if (node) node.indeterminate = selectedCount > 0 && !allSelected }}
+                    onChange={(event) => setSelectedIds(event.target.checked
+                      ? new Set(items.map((item) => item.localId)) : new Set())}
+                  />
+                </th>
+              )}
               <th>Tipo</th>
               <th>Producto</th>
               <th>Descripción</th>
@@ -199,7 +175,26 @@ function PurchaseInvoiceItemsEditor({
               const lineTotal = lineTotals[index] ?? 0
 
               return (
-                <tr key={item.localId}>
+                <tr key={item.localId} className={!disabled && selectedIds.has(item.localId) ? 'purchase-item-editor__row--selected' : undefined}>
+                  {!disabled && (
+                    <td className="purchase-item-editor__selection-cell">
+                      <input
+                        type="checkbox"
+                        className="purchase-item-editor__checkbox"
+                        aria-label={'Seleccionar ítem ' + (index + 1)}
+                        checked={selectedIds.has(item.localId)}
+                        onChange={(event) => {
+                          const checked = event.target.checked
+                          setSelectedIds((current) => {
+                            const next = new Set(current)
+                            if (checked) next.add(item.localId)
+                            else next.delete(item.localId)
+                            return next
+                          })
+                        }}
+                      />
+                    </td>
+                  )}
                   <td className="purchase-item-editor__cell--tipo">
                     <select
                       className="purchase-item-editor__select purchase-item-editor__select--tipo"
@@ -230,7 +225,7 @@ function PurchaseInvoiceItemsEditor({
                             : null)
                         }
                         onChange={(account) =>
-                          updateItem(item.localId, { producto: account?.code ?? '' })
+                          changeAccount(item.localId, account)
                         }
                         options={accountOptions}
                         disabled={disabled}

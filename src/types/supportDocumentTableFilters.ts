@@ -14,6 +14,7 @@ export type SupportDocumentSortColumn =
 export type SupportDocumentSortDirection = 'asc' | 'desc'
 
 export interface SupportDocumentColumnFilters {
+  referenceSearch?: string
   /** Documento soporte: multi-selección de fechas exactas. */
   dates: string[]
   /** Factura de compra: rango de fechas (calendario "desde"/"hasta") — ver

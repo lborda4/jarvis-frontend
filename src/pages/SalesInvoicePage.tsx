@@ -1,4 +1,7 @@
+import { calculateJarvisRetention } from '../utils/jarvisTaxTechnical'
 import MoneyInput from '../components/MoneyInput'
+import JarvisPaymentMethodModal from '../components/JarvisPaymentMethodModal'
+import { fetchJarvisPaymentMethods, resolveJarvisPaymentMethodId, type JarvisPaymentMethod } from '../services/jarvisPaymentMethodService'
 import {
   type DragEvent,
   type FormEvent,
@@ -16,6 +19,7 @@ import JarvisProductSearch from '../components/JarvisProductSearch'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
   createJarvisInvoice,
+  createJarvisCreditNote,
   createJarvisSupportInvoice,
   fetchJarvisCatalogs,
   fetchJarvisCredentialsStatus,
@@ -29,7 +33,6 @@ import type { JarvisTercero } from '../types/jarvis'
 import {
   buildSalesInvoiceTaxOptions,
   calculateSalesInvoiceTax,
-  DEFAULT_SALES_IVA,
   formatSalesInvoiceTaxLabel,
   requireSalesInvoiceTaxCatalogId,
   type SalesInvoiceTaxOption,
@@ -58,6 +61,7 @@ const CURRENCY_LABELS: Record<string, string> = {
 }
 
 interface LineItem {
+  notes?: string
   id: string
   productSearch: string
   code?: string
@@ -156,12 +160,20 @@ function formatFileSize(bytes: number): string {
 
 type SubmitMode = 'save' | 'send'
 
-function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boolean }) {
-  const documentTitle = supportDocument ? 'Documento soporte' : 'Factura de venta'
-  const newTitle = supportDocument ? 'Nuevo documento soporte' : 'Nueva factura de venta'
-  const listPath = supportDocument ? '/documento-soporte' : '/factura-venta'
+function SalesInvoicePage({ supportDocument = false, creditNote = false }: { supportDocument?: boolean; creditNote?: boolean }) {
+  const documentTitle = creditNote ? 'Nota crédito' : supportDocument ? 'Documento soporte' : 'Factura de venta'
+  const newTitle = creditNote ? 'Nueva nota crédito' : supportDocument ? 'Nuevo documento soporte' : 'Nueva factura de venta'
+  const listPath = creditNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
   const partyLabel = supportDocument ? 'Proveedor' : 'Cliente'
   const navigate = useNavigate()
+  const [billingNumber, setBillingNumber] = useState('')
+  const [billingUuid, setBillingUuid] = useState('')
+  const [billingDate, setBillingDate] = useState('')
+  const [reasonCode, setReasonCode] = useState('2')
+  const [reasonDescription, setReasonDescription] = useState('')
+  const [seze, setSeze] = useState('')
+  const [sendmail, setSendmail] = useState(false)
+  const [sendmailtome, setSendmailtome] = useState(false)
   const [issueDate, setIssueDate] = useState(todayLocalDate)
   const [dueDate, setDueDate] = useState(todayLocalDate)
   const [currency, setCurrency] = useState('COP')
@@ -182,8 +194,9 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
   const [productCreationLineId, setProductCreationLineId] = useState<string | null>(null)
   const [isLoadingProducts, setIsLoadingProducts] = useState(false)
   const [lines, setLines] = useState<LineItem[]>([createEmptyLine()])
-  const [taxes, setTaxes] = useState<SalesInvoiceTaxOption[]>([DEFAULT_SALES_IVA])
-  const [paymentMethods, setPaymentMethods] = useState<JarvisCatalogItem[]>([])
+  const [taxes, setTaxes] = useState<SalesInvoiceTaxOption[]>([])
+  const [paymentMethods, setPaymentMethods] = useState<JarvisPaymentMethod[]>([])
+  const [paymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false)
   const [paymentForms, setPaymentForms] = useState<JarvisCatalogItem[]>([])
   const [currencies, setCurrencies] = useState<JarvisCatalogItem[]>([])
 
@@ -238,9 +251,14 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     if (!reteIcaId) return 0
     const tax = taxes.find((t) => String(t.id) === reteIcaId)
     const rate = tax?.percentage ?? 0
-    return Math.round((documentSubtotal * rate) / 100 * 100) / 100
+    return calculateJarvisRetention(tax?.type ?? 'ReteICA', rate, documentSubtotal, documentTax)
   })()
-  const documentTotal = documentSubtotal + documentTax - reteIcaTax
+  const lineRetentionAmount = (line: LineItem) => {
+    const tax = taxes.find(t => t.id === line.taxRetentionId)
+    return tax ? calculateJarvisRetention(tax.type, tax.percentage ?? 0, lineBaseTotal(line, discountIsPercent), lineTaxAmount(line, discountIsPercent)) : 0
+  }
+  const itemRetentionsTotal = lines.reduce((sum, line) => sum + lineRetentionAmount(line), 0)
+  const documentTotal = documentSubtotal + documentTax - reteIcaTax - itemRetentionsTotal
 
   const filteredCustomers = (() => {
     const query = customerQuery.trim().toLowerCase()
@@ -284,20 +302,20 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     let cancelled = false
     async function loadCatalogs() {
       try {
-        const [catalogs, status, savedTaxes] = await Promise.all([fetchJarvisCatalogs(), fetchJarvisCredentialsStatus(), fetchJarvisTaxes()])
+        const [catalogs, status, savedTaxes, savedPaymentMethods] = await Promise.all([fetchJarvisCatalogs(), fetchJarvisCredentialsStatus(), fetchJarvisTaxes(), fetchJarvisPaymentMethods()])
         if (cancelled) return
         const mergedTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
         setTaxes(mergedTaxes)
-        setPaymentMethods(catalogs.paymentMethods ?? [])
+        setPaymentMethods(savedPaymentMethods.items)
         setPaymentForms(catalogs.paymentForms ?? [])
         setCurrencies(catalogs.currencies ?? [])
         if (catalogs.paymentForms?.[0]) setPaymentFormId(String(catalogs.paymentForms[0].id))
-        if (catalogs.paymentMethods?.[0]) setPayments([{ ...createEmptyPayment(), methodId: String(catalogs.paymentMethods[0].id) }])
+        if (savedPaymentMethods.items[0]) setPayments([{ ...createEmptyPayment(), methodId: savedPaymentMethods.items[0].id }])
         const hasCop = (catalogs.currencies ?? []).some((item) => (item.code ?? '').trim().toUpperCase() === 'COP')
         if (!hasCop) { const fc = catalogs.currencies?.[0]?.code?.trim(); if (fc) setCurrency(fc.toUpperCase()) }
         const ivaDefault = mergedTaxes.find((tax) => tax.category === 'IMPUESTO' && isIvaTax(tax) && tax.percentage === DEFAULT_IVA_PERCENT)
         if (ivaDefault) setLines((current) => current.map((line) => line.taxChargeId ? line : { ...line, taxChargeId: String(ivaDefault.id), taxPercent: String(DEFAULT_IVA_PERCENT) }))
-        const resolution = supportDocument ? status.supportDocumentResolution : status.electronicInvoiceResolution
+        const resolution = creditNote ? status.creditNoteResolution : supportDocument ? status.supportDocumentResolution : status.electronicInvoiceResolution
         if (resolution?.nextConsecutive != null) setNextConsecutive(resolution.nextConsecutive)
         if (resolution?.prefix?.trim()) setResolutionPrefix(resolution.prefix.trim())
       } catch (error) {
@@ -306,9 +324,10 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     }
     void loadCatalogs()
     return () => { cancelled = true }
-  }, [supportDocument])
+  }, [supportDocument, creditNote])
 
   const resetForm = useCallback(() => {
+    setBillingNumber(''); setBillingUuid(''); setBillingDate(''); setReasonCode('2'); setReasonDescription(''); setSeze(''); setSendmail(false); setSendmailtome(false)
     setIssueDate(todayLocalDate())
     setDueDate(todayLocalDate())
     setNotes('')
@@ -318,13 +337,13 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     setSelectedCustomer(null)
     setIsCustomerMenuOpen(false)
     setLines([createEmptyLine()])
-    setPayments([createEmptyPayment()])
+    setPayments([{ ...createEmptyPayment(), methodId: paymentMethods[0]?.id ?? '' }])
     setReteIcaId('')
     setDiscountIsPercent(false)
     setAttachedFile(null)
     setFieldErrors({})
     setErrorMessage(null)
-  }, [])
+  }, [paymentMethods])
 
   const updateLine = useCallback((lineId: string, patch: Partial<LineItem>) => {
     setLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)))
@@ -450,25 +469,26 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     const nextErrors: Record<string, string> = {}
     if (!selectedCustomer) nextErrors.customer = `Debe seleccionar un ${partyLabel.toLowerCase()}.`
     if (!issueDate.trim()) nextErrors.issueDate = 'La fecha es obligatoria.'
+    if (!creditNote && !paymentMethods.some(method => method.id === payments[0]?.methodId)) nextErrors.payment = 'Selecciona una forma de pago. Si aún no tienes ninguna, créala aquí.'
     const hasValidLine = lines.some((line) => line.description.trim() && parseAmount(line.quantity) > 0 && parseAmount(line.unitValue) > 0)
     if (!hasValidLine) nextErrors.lines = 'Agrega al menos un ítem con descripción, cantidad y valor.'
     lines.forEach((line, index) => {
       if (!line.description.trim()) nextErrors[`line-${index}-description`] = 'No puede estar vacío'
       if (parseAmount(line.quantity) <= 0) nextErrors[`line-${index}-quantity`] = 'Cantidad inválida'
     })
-    if (isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
+    if (!creditNote && isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
+    if (creditNote) {
+      if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > issueDate) nextErrors.reference = 'Indica el número, CUFE y fecha de la factura afectada.'
+      if (!Number.isSafeInteger(Number(reasonCode)) || Number(reasonCode) < 1 || !reasonDescription.trim()) nextErrors.reason = 'Indica el código y la descripción del motivo.'
+    }
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
-  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel])
+  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, creditNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription])
 
   const buildRequest = useCallback(() => {
     if (!selectedCustomer) throw new Error(`Debe seleccionar un ${partyLabel.toLowerCase()}.`)
     const taxesById = new Map(taxes.map((tax) => [tax.id, tax]))
-    const retentions = lines.map((line) => {
-      const tax = taxesById.get(line.taxRetentionId)
-      if (!tax) return null
-      return { id: requireSalesInvoiceTaxCatalogId(tax), type: tax.type, percentage: tax.percentage ?? undefined }
-    }).filter((item): item is NonNullable<typeof item> => item != null)
+    const retentions: Array<{ id: number; type: string; percentage?: number }> = []
     if (reteIcaId) {
       const tax = taxesById.get(reteIcaId)
       if (tax) {
@@ -478,14 +498,15 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     }
     const uniqueRetentions = Array.from(new Map(retentions.map((item) => [item.id, item])).values())
     const firstPayment = payments[0]
-    const methodId = firstPayment ? Number(firstPayment.methodId) : 0
+    const methodId = creditNote ? 0 : resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
     const formId = Number(paymentFormId)
     const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
-    const documentDiscount = lines.reduce(
-      (sum, line) => sum + lineDiscountAmount(line, discountIsPercent),
-      0,
-    )
     return {
+      ...(creditNote ? {
+        billingReference: { number: billingNumber.trim(), uuid: billingUuid.trim(), issueDate: billingDate },
+        discrepancyResponseCode: Number(reasonCode), discrepancyResponseDescription: reasonDescription.trim(),
+        seze: seze.trim(), sendmail, sendmailtome,
+      } : {}),
       issueDate: issueDate.trim(),
       customerDocumentType: selectedCustomer.document_type,
       customerIdentification: selectedCustomer.document_number,
@@ -494,13 +515,19 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
       ...(notes.trim() ? { observations: notes.trim() } : {}),
       ...(headNote.trim() ? { headNote: headNote.trim() } : {}),
       ...(footNote.trim() ? { footNote: footNote.trim() } : {}),
-      ...(documentDiscount > 0 ? { discountAmount: documentDiscount } : {}),
+
       items: lines.filter((line) => line.description.trim()).map((line) => ({
         description: line.description.trim(),
+        ...(creditNote && line.notes?.trim() ? { notes: line.notes.trim() } : {}),
         quantity: parseAmount(line.quantity),
         unitValue: parseAmount(line.unitValue),
         discount: lineDiscountAmount(line, discountIsPercent),
         taxAmount: lineTaxAmount(line, discountIsPercent),
+        ...(taxesById.has(line.taxRetentionId) ? { retention: {
+          id: requireSalesInvoiceTaxCatalogId(taxesById.get(line.taxRetentionId)!),
+          type: taxesById.get(line.taxRetentionId)!.type,
+          percentage: taxesById.get(line.taxRetentionId)!.percentage ?? 0,
+        } } : {}),
         ...(line.taxChargeId && taxesById.has(line.taxChargeId)
           ? { taxId: requireSalesInvoiceTaxCatalogId(taxesById.get(line.taxChargeId)!) }
           : {}),
@@ -511,7 +538,7 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel])
+  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, creditNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, sendmail, sendmailtome])
 
   const handleSubmit = useCallback(async (mode: SubmitMode) => {
     setErrorMessage(null)
@@ -520,7 +547,7 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     setIsSubmitting(true)
     setSubmitMode(mode)
     try {
-      const response = await (supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest())
+      const response = await (creditNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest())
       const consecutive = response.invoice?.consecutive || response.invoice?.number
       setSuccessMessage(`${documentTitle} ${consecutive ?? ""} ${supportDocument ? "enviado" : "enviada"} a DIAN.`)
       if (typeof consecutive === 'number') setNextConsecutive(consecutive + 1)
@@ -529,7 +556,7 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, `No se pudo enviar ${documentTitle.toLowerCase()}.`))
     } finally { setIsSubmitting(false); setSubmitMode(null) }
-  }, [buildRequest, nextConsecutive, resetForm, validate, supportDocument, documentTitle])
+  }, [buildRequest, nextConsecutive, resetForm, validate, supportDocument, documentTitle, creditNote])
 
   const onFormSubmit = (event: FormEvent) => { event.preventDefault(); void handleSubmit('send') }
 
@@ -552,10 +579,33 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
         </Link>
       </div>
 
-      {errorMessage && <DocumentNotice variant="error" title="Hay un detalle por revisar" message={errorMessage} onDismiss={() => setErrorMessage(null)} />}
-      {successMessage && <DocumentNotice variant="success" title={supportDocument ? "Documento enviado correctamente" : "Factura enviada correctamente"} message={successMessage} onDismiss={() => setSuccessMessage(null)} />}
+      {(errorMessage || successMessage) && <DocumentNotice
+        variant={errorMessage ? 'error' : 'success'}
+        title={errorMessage ? 'Hay un detalle por revisar' : creditNote ? 'Nota crédito enviada correctamente' : supportDocument ? 'Documento enviado correctamente' : 'Factura enviada correctamente'}
+        message={errorMessage || successMessage!}
+        onDismiss={() => { setErrorMessage(null); setSuccessMessage(null) }}
+      />}
 
       <form className="ds-individual__form" onSubmit={onFormSubmit}>
+        {creditNote && <section className="ds-individual__section">
+          <h2>Factura afectada y motivo de la nota crédito</h2>
+          <div className="ds-individual__info-grid">
+            <div className="ds-individual__col">
+              <label className="ds-individual__field"><span>Número de factura *</span><input value={billingNumber} onChange={e => setBillingNumber(e.target.value)} placeholder="Prefijo y número de la factura" /></label>
+              <label className="ds-individual__field"><span>CUFE de la factura *</span><input value={billingUuid} onChange={e => setBillingUuid(e.target.value)} maxLength={96} placeholder="CUFE de la factura afectada" /></label>
+              <label className="ds-individual__field"><span>Fecha de la factura *</span><DatePicker value={billingDate} onChange={setBillingDate} /></label>
+              {fieldErrors.reference && <p className="ds-individual__error" role="alert">{fieldErrors.reference}</p>}
+            </div>
+            <div className="ds-individual__col">
+              <label className="ds-individual__field"><span>Código del motivo *</span><input type="number" min="1" step="1" value={reasonCode} onChange={e => setReasonCode(e.target.value)} /></label>
+              <label className="ds-individual__field"><span>Descripción del motivo *</span><textarea value={reasonDescription} onChange={e => setReasonDescription(e.target.value)} rows={3} /></label>
+              {fieldErrors.reason && <p className="ds-individual__error" role="alert">{fieldErrors.reason}</p>}
+              <label className="ds-individual__field"><span>Referencia adicional (opcional)</span><input value={seze} onChange={e => setSeze(e.target.value)} /></label>
+              <label className="ds-individual__checkbox"><input type="checkbox" checked={sendmail} onChange={e => setSendmail(e.target.checked)} /> Enviar por correo al cliente</label>
+              <label className="ds-individual__checkbox"><input type="checkbox" checked={sendmailtome} onChange={e => setSendmailtome(e.target.checked)} /> Enviarme una copia</label>
+            </div>
+          </div>
+        </section>}
 
         {/* Información general */}
         <section className="ds-individual__section">
@@ -698,6 +748,7 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
                       />
                     </td>
                     <td className="ds-individual__td-desc">
+                      {creditNote && <input value={line.notes ?? ''} aria-label={`Notas del ítem ${index + 1}`} placeholder="Notas del ítem (opcional)" onChange={e => updateLine(line.id, { notes: e.target.value })} />}
                       <input type="text" value={line.description} placeholder="Descripción" onChange={(e) => updateLine(line.id, { description: e.target.value })} />
                       {fieldErrors[`line-${index}-description`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-description`]}</em>}
                     </td>
@@ -744,10 +795,10 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
                     <td className="ds-individual__td-tax">
                       <select value={line.taxRetentionId} onChange={(e) => updateLine(line.id, { taxRetentionId: e.target.value })}>
                         <option value="">Seleccionar</option>
-                        {retentionTaxes.map((tax) => <option key={tax.id} value={tax.id}>{formatSalesInvoiceTaxLabel(tax)}</option>)}
+                        {retentionTaxes.filter(tax => tax.type.toLowerCase() !== 'reteica').map((tax) => <option key={tax.id} value={tax.id}>{formatSalesInvoiceTaxLabel(tax)}</option>)}
                       </select>
                     </td>
-                    <td className="ds-individual__td-total ds-individual__total-cell">{formatMoney(lineTotal(line, discountIsPercent))}</td>
+                    <td className="ds-individual__td-total ds-individual__total-cell">{formatMoney(lineTotal(line, discountIsPercent) - lineRetentionAmount(line))}</td>
                     <td className="ds-individual__td-actions">
                       <button type="button" className="ds-individual__delete" aria-label="Eliminar línea" disabled={lines.length <= 1} onClick={() => removeLine(line.id)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -763,7 +814,7 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
         {/* Formas de pago + Totales */}
         <section className="ds-individual__section">
           <div className="ds-individual__payment-totals-grid">
-            <div className="ds-individual__payment-col">
+            {!creditNote && <div className="ds-individual__payment-col">
               <h2>Formas de pago</h2>
               <label className="ds-individual__field">
                 <span>Forma de negociación</span>
@@ -776,6 +827,9 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
                 </select>
               </label>
 
+              {fieldErrors.payment && <p role="alert">{fieldErrors.payment}</p>}
+              {!paymentMethods.length && <p>Crea una forma de pago para seleccionarla en este documento.</p>}
+              <button type="button" className="ds-individual__add-payment" onClick={() => setPaymentMethodModalOpen(true)}>+ Crear forma de pago</button>
               {payments.map((payment, idx) => (
                 <div key={payment.id} className="ds-individual__field ds-individual__field--payment-method">
                   <span>{idx === 0 ? 'Selecciona forma de pago' : ''}</span>
@@ -822,13 +876,14 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
                   </div>
                 </label>
               )}
-            </div>
-
+            </div>}
             <div className="ds-individual__totals-col">
               <div className="ds-individual__totals">
                 <div className="ds-individual__totals-row"><span>Total bruto:</span><strong>{formatMoney(documentGross)}</strong></div>
                 <div className="ds-individual__totals-row"><span>Descuentos:</span><strong>{formatMoney(documentDiscounts)}</strong></div>
                 <div className="ds-individual__totals-row"><span>Subtotal:</span><strong>{formatMoney(documentSubtotal)}</strong></div>
+                <div className="ds-individual__totals-row"><span>Impuestos:</span><strong>{formatMoney(documentTax)}</strong></div>
+                <div className="ds-individual__totals-row"><span>Retenciones por ítem:</span><strong>{formatMoney(itemRetentionsTotal)}</strong></div>
                 <div className="ds-individual__totals-row ds-individual__totals-row--reteica">
                   <span>ReteICA:</span>
                   <div className="ds-individual__reteica-group">
@@ -908,6 +963,13 @@ function SalesInvoicePage({ supportDocument = false }: { supportDocument?: boole
           </button>
         </footer>
       </form>
+
+      {paymentMethodModalOpen && <JarvisPaymentMethodModal onClose={() => setPaymentMethodModalOpen(false)} onSaved={method => {
+        setPaymentMethods(current => [...current, method])
+        setPayments(current => current.map((payment, index) => index === 0 && !payment.methodId ? { ...payment, methodId: method.id } : payment))
+        setFieldErrors(current => { const next = { ...current }; delete next.payment; return next })
+        setPaymentMethodModalOpen(false)
+      }} />}
 
       <CreateProductModal
         isOpen={productCreationLineId !== null}

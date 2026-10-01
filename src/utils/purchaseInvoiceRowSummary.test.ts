@@ -246,7 +246,7 @@ describe('calculatePurchaseInvoiceRowSummary — Total neto = payable_amount, nu
     const listadoSummary = calculatePurchaseInvoiceRowSummary(document, [], items)
     const detalleSummary = calculatePurchaseInvoiceRowSummary(document, [], items)
 
-    const expectedRetefuente = 148821.54 // 3.5% de 4.252.044
+    const expectedRetefuente = 0
     expect(listadoSummary.total).toBe(5059932 - expectedRetefuente)
     // La comparación directa es la que importa: no deben poder divergir,
     // sin importar cuál sea el valor "correcto".

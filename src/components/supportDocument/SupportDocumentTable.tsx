@@ -73,6 +73,7 @@ function TableLoadingPanel({ columnCount }: { columnCount: number }) {
 }
 
 interface SupportDocumentTableProps {
+  referenceSearch?: string
   rows: SupportDocumentRow[]
   selectedIds: Set<string>
   rowDates: Record<string, string>
@@ -256,6 +257,7 @@ function ActionCell({
 }
 
 function SupportDocumentTable({
+  referenceSearch = '',
   rows,
   selectedIds,
   rowDates,
@@ -386,8 +388,13 @@ function SupportDocumentTable({
     })
   }
 
-  const collapseAllRows = () => {
-    setExpandedRowIds(new Set())
+  const hasExpandedRows = rows.some((row) => expandedRowIds.has(row.id))
+  const toggleAllRowsExpanded = () => {
+    setExpandedRowIds((current) =>
+      rows.some((row) => current.has(row.id))
+        ? new Set()
+        : new Set(rows.map((row) => row.id)),
+    )
   }
 
   // El encabezado se fija con `position: sticky` respecto al scroll de la
@@ -427,6 +434,7 @@ function SupportDocumentTable({
       ref={containerRef}
       className={[
         'support-table',
+        showSummaryColumns ? 'support-table--purchase' : '',
         isLoading || isResuming ? 'support-table--busy' : '',
         needsHorizontalScroll ? 'support-table--scrollable' : '',
       ]
@@ -434,20 +442,33 @@ function SupportDocumentTable({
         .join(' ')}
     >
       <table aria-busy={isLoading || isResuming}>
+        {showSummaryColumns && <colgroup>
+          <col style={{ width: '2.25rem' }} />
+          <col style={{ width: '2rem' }} />
+          <col style={{ width: '6rem' }} />
+          <col />
+          <col style={{ width: '10%' }} />
+          {showIvaColumn && <col style={{ width: '9%' }} />}
+          <col style={{ width: '9%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '3rem' }} />
+        </colgroup>}
         <thead>
           <tr>
             <th className="support-table__expand-col" aria-label="Detalle">
-              {expandedRowIds.size > 0 && (
                 <button
                   type="button"
                   className="support-table__expand-button"
-                  onClick={collapseAllRows}
-                  aria-label="Contraer todos los registros desplegados"
-                  title="Contraer todos"
+                  onClick={toggleAllRowsExpanded}
+                  disabled={rows.length === 0}
+                  aria-expanded={hasExpandedRows}
+                  aria-label={hasExpandedRows ? 'Contraer todos los registros' : 'Desplegar todos los registros'}
+                  title={hasExpandedRows ? 'Contraer todos' : 'Desplegar todos'}
                 >
-                  <ChevronDownIcon />
+                  {hasExpandedRows ? <ChevronDownIcon /> : <ChevronRightIcon />}
                 </button>
-              )}
             </th>
 
             <th className="support-table__checkbox-col">
@@ -701,10 +722,10 @@ function SupportDocumentTable({
                       aria-label={`Seleccionar documento de ${row.supplierName}`}
                     />
                   </td>
-                  <td className="support-table__cell-date">
+                  <td data-label="Fecha" className="support-table__cell-date">
                     {formatSupportDocumentTableDate(rowDates[row.id])}
                   </td>
-                  <td>
+                  <td data-label="Proveedor">
                     <div className="support-table__supplier">
                       <span className="support-table__supplier-name">
                         {row.supplierName}
@@ -714,6 +735,12 @@ function SupportDocumentTable({
                           row.supplierNit,
                         )}
                       </span>
+                      {showSummaryColumns && referenceSearch && document && (
+                        <div className="support-table__reference-match">
+                          <span>Factura proveedor: <strong>{document.invoiceNumber || 'Sin consecutivo'}</strong></span>
+                          {document.cufe?.toLowerCase().includes(referenceSearch.toLowerCase()) && <span>CUFE: {document.cufe}</span>}
+                        </div>
+                      )}
                     </div>
                   </td>
                   {!showSummaryColumns && (
@@ -729,12 +756,12 @@ function SupportDocumentTable({
                     </td>
                   )}
                   {showSummaryColumns && (
-                    <td className="support-table__cell-config support-table__cell-config--amount">
+                    <td data-label="Subtotal" className="support-table__cell-config support-table__cell-config--amount">
                       {rowSummary ? formatInvoiceCurrency(rowSummary.subtotal) : '—'}
                     </td>
                   )}
                   {showIvaColumn && (
-                    <td className="support-table__cell-config support-table__cell-config--amount">
+                    <td data-label="IVA" className="support-table__cell-config support-table__cell-config--amount">
                       {showSummaryColumns
                         ? rowSummary
                           ? formatInvoiceCurrency(rowSummary.ivaAmount)
@@ -742,7 +769,7 @@ function SupportDocumentTable({
                         : formatSupportDocumentTableIva(rowIva[row.id])}
                     </td>
                   )}
-                  <td className="support-table__cell-config">
+                  <td data-label="Retenciones" className="support-table__cell-config">
                     {showSummaryColumns ? (
                       rowSummary && rowSummary.retentionLines.length > 0 ? (
                         <ul className="support-table__retention-breakdown">
@@ -760,11 +787,11 @@ function SupportDocumentTable({
                     )}
                   </td>
                   {showSummaryColumns && (
-                    <td className="support-table__cell-config support-table__cell-config--amount">
+                    <td data-label="Total" className="support-table__cell-config support-table__cell-config--amount">
                       {rowSummary ? formatInvoiceCurrency(rowSummary.total) : '—'}
                     </td>
                   )}
-                  <td>
+                  <td data-label="Estado">
                     <div className="support-table__status-cell">
                       <ImportStatusBadge
                         status={row.importStatus}
@@ -780,7 +807,7 @@ function SupportDocumentTable({
                       )}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Acción">
                     <ActionCell
                       action={isRowDeleting ? 'processing' : row.action}
                       disabled={actionDisabled}

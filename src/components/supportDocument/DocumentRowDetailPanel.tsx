@@ -91,6 +91,9 @@ export default function DocumentRowDetailPanel({
         <PurchaseInvoiceDetailEditor
           key={`${document.id}:${document.draft?.savedAt ?? 'unsaved'}`}
           document={document}
+          costCenter={costCenter}
+          costCenterOptions={costCenterOptions}
+          onCostCenterChange={onCostCenterChange}
           items={editable.items}
           paymentMethod={editable.paymentMethod}
           paymentMethodOptions={editable.paymentMethodOptions}

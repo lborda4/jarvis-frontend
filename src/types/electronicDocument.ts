@@ -106,6 +106,7 @@ export interface ElectronicDocumentDraftItem {
 }
 
 export interface ElectronicDocumentDraft {
+  costCenter?: SuggestedCostCenter | null
   items?: ElectronicDocumentDraftItem[]
   accountCode?: string | null
   paymentMethodId?: number | null

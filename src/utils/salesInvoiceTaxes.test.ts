@@ -16,11 +16,11 @@ function savedTax(overrides: Partial<JarvisTax> = {}): JarvisTax {
 }
 
 describe('impuestos de factura de venta', () => {
-  it('combina los impuestos activos guardados con IVA 19% aunque no haya catálogo general', () => {
+  it('usa solamente los impuestos activos de la empresa sin reponer los desactivados', () => {
     const options = buildSalesInvoiceTaxOptions([
       savedTax(), savedTax({ id: 'inactive', is_active: false }),
     ], [])
-    expect(options.map(formatSalesInvoiceTaxLabel)).toEqual(['IVA reducido (5%)', 'IVA (19%)'])
+    expect(options.map(formatSalesInvoiceTaxLabel)).toEqual(['IVA reducido (5%)'])
     expect(options[0]).toMatchObject({ id: 'saved:tax-uuid', catalogId: 1, savedId: 'tax-uuid' })
   })
 
@@ -28,7 +28,7 @@ describe('impuestos de factura de venta', () => {
     const options = buildSalesInvoiceTaxOptions([savedTax({ name: 'IVA 19%', rate: 19 })], [])
     expect(options).toHaveLength(1)
     expect(options[0].savedId).toBe('tax-uuid')
-    expect(formatSalesInvoiceTaxLabel(options[0])).toBe('IVA 19%')
+    expect(formatSalesInvoiceTaxLabel(options[0])).toBe('IVA 19% · tarifa 19%')
   })
 
   it('separa cargos y retenciones según la categoría y usa el ID del catálogo al enviar', () => {

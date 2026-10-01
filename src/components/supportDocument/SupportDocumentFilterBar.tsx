@@ -243,6 +243,7 @@ function SupportDocumentFilterBar({
   onColumnFiltersChange,
 }: SupportDocumentFilterBarProps) {
   const [openFilter, setOpenFilter] = useState<OpenFilterKey>(null)
+  const [referenceDraft, setReferenceDraft] = useState('')
 
   const columnFilterOptions = useMemo(
     () =>
@@ -259,6 +260,7 @@ function SupportDocumentFilterBar({
   )
 
   const hasActiveFilters =
+    Boolean(columnFilters.referenceSearch?.trim()) ||
     columnFilters.dates.length > 0 ||
     Boolean(columnFilters.dateFrom) ||
     Boolean(columnFilters.dateTo) ||
@@ -324,6 +326,7 @@ function SupportDocumentFilterBar({
   }
 
   const clearFilters = () => {
+    setReferenceDraft('')
     onColumnFiltersChange(() => EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS)
     onSupplierNitsChange([])
     setOpenFilter(null)
@@ -353,7 +356,26 @@ function SupportDocumentFilterBar({
 
   return (
     <section className="support-filter-bar" aria-label="Filtros de documentos">
-      <div className="support-filter-bar__fields">
+      <div className={`support-filter-bar__fields${dateRangeFilter ? ' support-filter-bar__fields--reference' : ''}`}>
+        {dateRangeFilter && <form
+          className="support-filter-bar__field"
+          onSubmit={event => {
+            event.preventDefault()
+            onColumnFiltersChange(current => ({ ...current, referenceSearch: referenceDraft.trim() }))
+          }}
+        >
+          <label className="support-filter-bar__label" htmlFor="purchase-reference-search">Consecutivo proveedor o CUFE</label>
+          <div className="support-filter-bar__trigger-row">
+            <input id="purchase-reference-search" className="support-filter-bar__reference-input" type="search" value={referenceDraft}
+              placeholder="Ej. FEV27381 o CUFE" disabled={disabled}
+              onChange={event => {
+                setReferenceDraft(event.target.value)
+                if (!event.target.value) onColumnFiltersChange(current => ({ ...current, referenceSearch: '' }))
+              }} />
+            <button type="submit" className="support-filter-bar__reference-submit" disabled={disabled}>Buscar</button>
+          </div>
+          {columnFilters.referenceSearch && <span className="support-filter-bar__reference-active">Buscando: {columnFilters.referenceSearch}</span>}
+        </form>}
         <FilterDropdown
           label="Fecha"
           summary={dateSummary}

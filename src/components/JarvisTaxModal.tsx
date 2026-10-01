@@ -85,14 +85,10 @@ function JarvisTaxModal({
     setErrorMessage(null)
 
     try {
-      // ReteICA nunca lleva tarifa manual (se divide en mil por defecto,
-      // pedido explícito) — aunque el campo esté oculto y el usuario no
-      // haya tocado nada, se manda null en vez de un valor que haya
-      // quedado de un tipo anterior.
       const trimmedRate = form.rate.trim()
-      const rate = isReteIca || !trimmedRate ? null : Number(trimmedRate)
+      const rate = !trimmedRate ? null : Number(trimmedRate.replace(',', '.'))
 
-      if (!isReteIca && trimmedRate && !Number.isFinite(rate)) {
+      if (trimmedRate && (!Number.isFinite(rate) || Number(rate) < 0)) {
         throw new Error('La tarifa debe ser un número válido.')
       }
 
@@ -101,6 +97,7 @@ function JarvisTaxModal({
         // se identifica en el resto de tablas — ver decisión del pedido
         // original): solo se muestra de referencia, no viaja en el update.
         const response = await updateJarvisTax(editingTax.id, {
+          category: form.taxType.trim().toLowerCase().startsWith('rete') ? 'RETENCION' : 'IMPUESTO',
           name: form.name.trim(),
           tax_type: form.taxType.trim(),
           rate,
@@ -111,7 +108,7 @@ function JarvisTaxModal({
         // Tampoco al crear: el cliente solo elige nombre/tipo/tarifa — el
         // código lo asigna el backend, y nace siempre Activo.
         const response = await createJarvisTax({
-          category: defaultCategory,
+          category: form.taxType.trim().toLowerCase().startsWith('rete') ? 'RETENCION' : defaultCategory,
           name: form.name.trim(),
           tax_type: form.taxType.trim(),
           rate,
@@ -197,23 +194,11 @@ function JarvisTaxModal({
             </datalist>
           </div>
 
-          {/* ReteICA se divide en mil por defecto — no se le pide tarifa
-              manual (pedido explícito). Para cualquier otro tipo, sí. */}
-          {!isReteIca && (
-            <div className="terceros-page__field">
-              <label htmlFor="jarvis-tax-rate">Tarifa (%)</label>
-              <input
-                id="jarvis-tax-rate"
-                type="number"
-                step="0.0001"
-                value={form.rate}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, rate: event.target.value }))
-                }
-                disabled={isSaving}
-              />
-            </div>
-          )}
+          <div className="terceros-page__field">
+            <label htmlFor="jarvis-tax-rate">{isReteIca ? 'Tarifa (x 1.000)' : 'Tarifa (%)'}</label>
+            <input id="jarvis-tax-rate" type="number" min="0" step="0.0001" value={form.rate}
+              onChange={event => setForm(current => ({ ...current, rate: event.target.value }))} disabled={isSaving} />
+          </div>
 
           {editingTax && (
             <div className="terceros-page__field">

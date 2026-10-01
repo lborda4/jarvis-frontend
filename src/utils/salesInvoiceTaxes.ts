@@ -22,11 +22,6 @@ function normalizeTaxType(value: string): string {
   return normalized === 'retefuente' ? 'reterenta' : normalized
 }
 
-function isRetentionTax(tax: JarvisCatalogItem): boolean {
-  const label = `${tax.name} ${tax.type ?? ''}`.toUpperCase()
-  return label.includes('RETE') || label.includes('RETENC') || label.includes('RENTA') || label.includes('ICA')
-}
-
 export function buildSalesInvoiceTaxOptions(
   savedTaxes: JarvisTax[],
   catalogTaxes: JarvisCatalogItem[],
@@ -42,22 +37,13 @@ export function buildSalesInvoiceTaxOptions(
       catalogId: master?.id ?? (type === 'iva' ? DEFAULT_SALES_IVA.catalogId : null),
     }
   })
-  const defaults: SalesInvoiceTaxOption[] = [
-    DEFAULT_SALES_IVA,
-    ...catalogTaxes.filter(isRetentionTax).map((tax) => ({
-      id: `catalog:${tax.id}`, name: tax.name, type: tax.type || tax.name,
-      percentage: tax.percentage ?? null, category: 'RETENCION' as const,
-      catalogId: tax.id,
-    })),
-  ]
-  return [...saved, ...defaults.filter((tax) => !saved.some((item) =>
-    item.category === tax.category && normalizeTaxType(item.type) === normalizeTaxType(tax.type) &&
-    item.percentage === tax.percentage,
-  ))]
+  return saved
 }
 
 export function formatSalesInvoiceTaxLabel(tax: SalesInvoiceTaxOption): string {
-  if (tax.percentage == null || tax.name.includes('%')) return tax.name
+  if (tax.percentage == null) return tax.name
+  if (tax.type.toLowerCase() === 'reteica') return `${tax.name} · ${tax.percentage} x 1.000`
+  if (tax.name.includes('%')) return `${tax.name} · tarifa ${tax.percentage}%`
   return `${tax.name} (${tax.percentage}%)`
 }
 

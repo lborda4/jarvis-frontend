@@ -201,6 +201,7 @@ export function patchElectronicDocumentsCache(
 }
 
 export interface SaveElectronicDocumentDraftRequest {
+  costCenter?: { id: number; code: string; name: string } | null
   items?: ElectronicDocumentDraftItem[]
   accountCode?: string | null
   paymentMethodId?: number | null

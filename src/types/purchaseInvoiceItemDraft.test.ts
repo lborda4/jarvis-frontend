@@ -179,15 +179,10 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
       type: 'IVA',
       percentage: 19,
     })
-    expect(draft.retefuenteTax).toEqual({
-      id: 4,
-      name: 'Servicios 4%',
-      type: 'Retefuente',
-      percentage: 4,
-    })
+    expect(draft.retefuenteTax).toBeNull()
   })
 
-  it('proveedor con Retefuente consistente en el historial: se autocompleta igual que el IVA (Araujo & Segovia SA)', () => {
+  it('proveedor con Retefuente consistente en el historial: no se aplica sin confirmación', () => {
     // Caso real reportado: el historial del proveedor trae una Retefuente
     // consistente, pero el documento puntual no la trae seleccionada — antes
     // se dejaba en null a propósito porque listado y detalle armaban esta
@@ -218,12 +213,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
 
     const [draft] = buildPurchaseInvoiceItemDrafts(document)
 
-    expect(draft.retefuenteTax).toEqual({
-      id: 4,
-      name: 'Servicios 4%',
-      type: 'Retefuente',
-      percentage: 4,
-    })
+    expect(draft.retefuenteTax).toBeNull()
   })
 
   it('proveedor repetido con itemType=Product: precarga el código de producto aprendido cuando existe en el catálogo', () => {
@@ -523,7 +513,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     expect(draft.tipo).toBe('Account')
     expect(draft.producto).toBe('5135950001')
     expect(draft.ivaTax?.id).toBe(1)
-    expect(draft.retefuenteTax?.id).toBe(4)
+    expect(draft.retefuenteTax).toBeNull()
   })
 
   it('si la factura trae IVA 19% y el catálogo tiene Activo Fijo, precarga el IVA de compras no el de activo', () => {

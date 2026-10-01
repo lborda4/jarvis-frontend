@@ -2,9 +2,10 @@ import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import JarvisTaxesPage from '../pages/JarvisTaxesPage'
+import JarvisPaymentMethodsPage from '../pages/JarvisPaymentMethodsPage'
 import '../pages/AuthPages.css'
 
-function JarvisTaxesRoute() {
+function JarvisTaxesRoute({ paymentMethods = false }: { paymentMethods?: boolean }) {
   const {
     isCheckingSetup,
     isJarvisCompany,
@@ -35,7 +36,7 @@ function JarvisTaxesRoute() {
     )
   }
 
-  return <JarvisTaxesPage />
+  return paymentMethods ? <JarvisPaymentMethodsPage /> : <JarvisTaxesPage />
 }
 
 export default JarvisTaxesRoute

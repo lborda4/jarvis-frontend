@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import CostCenterAutocomplete from '../CostCenterAutocomplete'
+import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import Button from '../Button'
 import DatePicker from '../DatePicker'
 import PaymentMethodAutocomplete from '../PaymentMethodAutocomplete'
@@ -32,6 +34,7 @@ const RETEFUENTE_TAX_TYPE = 'Retefuente'
 const OBSERVATIONS_MAX_LENGTH = 1000
 
 export interface PurchaseInvoiceDetailEditorSave {
+  costCenter?: SiigoCostCenterOption | null
   items: PurchaseInvoiceItemDraft[]
   paymentMethod: SiigoPaymentMethodOption | null
   dueDate: string | null
@@ -41,6 +44,9 @@ export interface PurchaseInvoiceDetailEditorSave {
 }
 
 interface PurchaseInvoiceDetailEditorProps {
+  costCenter?: SiigoCostCenterOption | null
+  costCenterOptions?: SiigoCostCenterOption[]
+  onCostCenterChange?: (value: SiigoCostCenterOption) => void
   document: ElectronicDocumentListItem
   items: PurchaseInvoiceItemDraft[]
   paymentMethod: SiigoPaymentMethodOption | null
@@ -70,6 +76,9 @@ interface PurchaseInvoiceDetailEditorProps {
 }
 
 function PurchaseInvoiceDetailEditor({
+  costCenter = null,
+  costCenterOptions = [],
+  onCostCenterChange,
   document,
   items,
   paymentMethod,
@@ -232,6 +241,15 @@ function PurchaseInvoiceDetailEditor({
 
   return (
     <div className="purchase-invoice-editor">
+      {!disabled && (document.suggestedItemConfig?.retefuenteTax || document.suggestedRetentions?.length) ? (
+        <p role="note">
+          Retenciones sugeridas por el historial: {Array.from(new Set([
+            document.suggestedItemConfig?.retefuenteTax?.name,
+            ...(document.suggestedRetentions ?? []).map((tax) => tax.name),
+          ].filter(Boolean))).join(', ')}.
+          {' '}Revisa y selecciona las que correspondan en los campos de retenciones. No se aplican automáticamente.
+        </p>
+      ) : null}
       <PurchaseInvoiceItemsEditor
         items={draftItems}
         onChange={(next) => {
@@ -287,17 +305,36 @@ function PurchaseInvoiceDetailEditor({
             </div>
           </div>
 
-          {showDueDateFields && (
-            <div className="purchase-invoice-editor__field">
-              <label htmlFor={`purchase-due-date-${document.id}`}>
-                Fecha de vencimiento
-              </label>
-              <DatePicker
-                id={`purchase-due-date-${document.id}`}
-                value={draftDueDate ?? ''}
-                onChange={(value) => setDraftDueDate(value || null)}
-                disabled={disabled}
-              />
+          {(showDueDateFields || onCostCenterChange) && (
+            <div className="purchase-invoice-editor__field-row purchase-invoice-editor__field-row--due-date">
+              {showDueDateFields && (
+                <div className="purchase-invoice-editor__field">
+                  <label htmlFor={`purchase-due-date-${document.id}`}>
+                    Fecha de vencimiento
+                  </label>
+                  <DatePicker
+                    id={`purchase-due-date-${document.id}`}
+                    value={draftDueDate ?? ''}
+                    onChange={(value) => setDraftDueDate(value || null)}
+                    disabled={disabled}
+                  />
+                </div>
+              )}
+              {onCostCenterChange && (
+                <div className="purchase-invoice-editor__field">
+                  <label htmlFor={`purchase-cost-center-${document.id}`}>
+                    Centro de costos (opcional)
+                  </label>
+                  <CostCenterAutocomplete
+                    id={`purchase-cost-center-${document.id}`}
+                    value={costCenter}
+                    onChange={onCostCenterChange}
+                    options={costCenterOptions}
+                    disabled={disabled}
+                    placeholder="Seleccionar centro de costos"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -428,6 +465,7 @@ function PurchaseInvoiceDetailEditor({
             variant="primary"
             onClick={() =>
               void onSaveDraft({
+                costCenter,
                 items: draftItems,
                 paymentMethod: draftPaymentMethod,
                 dueDate: draftDueDate,

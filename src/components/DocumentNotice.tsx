@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import Banner from './Banner'
 import './DocumentNotice.css'
 
@@ -9,7 +10,8 @@ interface DocumentNoticeProps {
 }
 
 export default function DocumentNotice({ variant, title, message, onDismiss }: DocumentNoticeProps) {
-  return (
+  return createPortal(
+    <div className="document-notice-layer">
     <Banner
       variant={variant}
       className="document-notice"
@@ -20,5 +22,7 @@ export default function DocumentNotice({ variant, title, message, onDismiss }: D
         </button>
       }
     />
+    </div>,
+    document.body,
   )
 }

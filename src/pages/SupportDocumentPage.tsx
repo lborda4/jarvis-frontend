@@ -202,7 +202,9 @@ function buildInitialRowCostCenters(
       document.id,
       current[document.id] !== undefined
         ? current[document.id]
-        : mapSuggestedCostCenterToOption(document.suggestedCostCenter),
+        : document.status !== 'PURCHASE_CREATED' && document.draft?.costCenter !== undefined
+          ? document.draft.costCenter ?? NONE_COST_CENTER_OPTION
+          : mapSuggestedCostCenterToOption(document.suggestedCostCenter),
     ]),
   )
 }
@@ -232,7 +234,10 @@ function buildInitialRowRetentions(
       current[document.id] !== undefined
         ? current[document.id]
         : normalizeRetentionsForTypes(
-            mapSuggestedRetentionsToTaxOptions(document.suggestedRetentions),
+            mapSuggestedRetentionsToTaxOptions(
+              document.electronicDocumentType === 'PURCHASE_INVOICE' && document.status !== 'PURCHASE_CREATED'
+                ? [] : document.suggestedRetentions,
+            ),
             retentionCatalogTypes,
           ),
     ]),
@@ -295,26 +300,6 @@ function buildInitialRowDocumentDiscounts(
       current[document.id] !== undefined
         ? current[document.id]
         : (document.draft?.documentDiscount ?? document.documentDiscount ?? 0),
-    ]),
-  )
-}
-
-/** Factura de compra (temporal): todavía no se autorrellena centro de costo
- * desde la preferencia histórica del proveedor — solo lo que viene
- * directamente del response de la factura. Se deja en blanco si el usuario
- * no lo ha elegido/guardado ya. (Cuenta contable y medio de pago sí se
- * autorrellenan — ver buildInitialPurchaseInvoiceRowAccounts y
- * buildInitialPurchaseInvoiceRowPaymentMethods — cada uno según la
- * variabilidad de SU PROPIO campo en el historial del proveedor.) */
-function buildBlankRow<T>(
-  documents: ElectronicDocumentListItem[],
-  blankValue: T,
-  current: Record<string, T> = {},
-): Record<string, T> {
-  return Object.fromEntries(
-    documents.map((document) => [
-      document.id,
-      current[document.id] !== undefined ? current[document.id] : blankValue,
     ]),
   )
 }
@@ -788,9 +773,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           return resolvedPaymentMethods
         })
         setRowCostCenters((current) =>
-          isPurchaseInvoiceWorkspace
-            ? buildBlankRow(response.items, null, current)
-            : buildInitialRowCostCenters(response.items, current),
+          buildInitialRowCostCenters(response.items, current),
         )
         setRowRetentions((current) =>
           isPurchaseInvoiceWorkspace
@@ -900,6 +883,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       cancelled = true
     }
   }, [
+    columnFilters.referenceSearch,
     columnFilters.dates,
     columnFilters.dateFrom,
     columnFilters.dateTo,
@@ -2298,6 +2282,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       }
     })()
   }, [
+    columnFilters.referenceSearch,
     columnFilters.dates,
     columnFilters.dateFrom,
     columnFilters.dateTo,
@@ -2465,6 +2450,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
       try {
         await saveElectronicDocumentDraft(documentId, {
+          costCenter: edits.costCenter && edits.costCenter.id > 0 ? edits.costCenter : null,
           items: edits.items.map((item) => ({
             tipo: item.tipo,
             producto: item.producto,
@@ -2499,6 +2485,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
               ? {
                   ...document,
                   draft: {
+                    costCenter: edits.costCenter && edits.costCenter.id > 0 ? edits.costCenter : null,
                     items: edits.items.map((item) => ({
                       tipo: item.tipo,
                       producto: item.producto,
@@ -2979,6 +2966,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       </div>
 
       <SupportDocumentTable
+        referenceSearch={columnFilters.referenceSearch}
         rows={tableRows}
         selectedIds={selectedDocumentIds}
         rowDates={rowDates}

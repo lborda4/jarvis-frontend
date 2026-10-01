@@ -7,6 +7,7 @@ export function hasUiElectronicDocumentFilters(
   selectedSupplierNits: string[],
 ): boolean {
   return (
+    Boolean(columnFilters.referenceSearch?.trim()) ||
     selectedSupplierNits.length > 0 ||
     columnFilters.statuses.length > 0 ||
     columnFilters.siigoNumbers.length > 0 ||
@@ -31,6 +32,7 @@ export interface BuildElectronicDocumentListFiltersParams {
 }
 
 export interface BuiltElectronicDocumentListFilters {
+  search?: string
   electronicDocumentType: ElectronicDocumentType
   page?: number
   limit?: number
@@ -72,6 +74,7 @@ export function buildElectronicDocumentListFilters(
 
   return {
     electronicDocumentType,
+    ...(columnFilters.referenceSearch?.trim() ? { search: columnFilters.referenceSearch.trim() } : {}),
     ...(page !== undefined ? { page } : {}),
     ...(limit !== undefined ? { limit } : {}),
     supplierNits:

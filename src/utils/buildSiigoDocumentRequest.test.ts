@@ -28,6 +28,20 @@ function buildDocument(
 
 const ACCOUNT = { code: '5135', description: 'Cuenta' }
 const PAYMENT_METHOD = { id: 1, name: 'Contado', type: 'Contado' }
+
+describe('centro de costo de la compra', () => {
+  it('incluye el centro elegido en Siigo y en la configuración guardada', () => {
+    const center = { id: 12, code: '001', name: 'Administración' }
+    const request = buildSiigoPurchaseSendRequest(buildDocument(), ACCOUNT, PAYMENT_METHOD, [], center, '2026-09-30')
+    expect(request.cost_center).toBe(12)
+    expect(request.supplierPreferences?.costCenter).toEqual(center)
+  })
+  it.each([null, { id: -1, code: '', name: 'Ninguno' }])('omite el centro al dejarlo vacío o seleccionar Ninguno', center => {
+    const request = buildSiigoPurchaseSendRequest(buildDocument(), ACCOUNT, PAYMENT_METHOD, [], center, '2026-09-30')
+    expect(request.cost_center).toBeUndefined()
+    expect(request.supplierPreferences?.costCenter).toBeUndefined()
+  })
+})
 const RETEFUENTE_TAX = {
   id: 7001,
   name: 'Retefuente servicios 4%',
@@ -65,17 +79,8 @@ describe('buildSiigoPurchaseSendRequest — Retefuente', () => {
       null,
     )
 
-    expect(request.retentions).toEqual([
-      { id: RETEFUENTE_TAX.id, type: RETEFUENTE_TAX.type },
-    ])
-    expect(request.supplierPreferences?.retentions).toEqual([
-      {
-        id: RETEFUENTE_TAX.id,
-        name: RETEFUENTE_TAX.name,
-        type: RETEFUENTE_TAX.type,
-        percentage: RETEFUENTE_TAX.percentage,
-      },
-    ])
+    expect(request.retentions ?? []).toEqual([])
+    expect(request.supplierPreferences?.retentions ?? []).toEqual([])
   })
 
   it('no agrega ninguna retención si el proveedor no tiene Retefuente sugerida en el historial', () => {

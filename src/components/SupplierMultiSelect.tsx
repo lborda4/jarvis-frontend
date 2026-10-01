@@ -9,6 +9,7 @@ import {
 import { ChevronDownIcon, SearchIcon } from './icons/SidebarIcons'
 import type { SupplierOption } from '../types/supplier'
 import { formatSupplierOptionLabel } from '../types/supplier'
+import { filterSuppliers } from '../utils/filterSuppliers'
 
 interface SupplierMultiSelectProps {
   id?: string
@@ -37,22 +38,10 @@ function SupplierMultiSelect({
   const selectedSet = useMemo(() => new Set(selectedNits), [selectedNits])
   const isAllSelected = selectedNits.length === 0
 
-  const filteredOptions = useMemo(() => {
-    const query = inputValue.trim().toLowerCase()
-
-    if (!query) {
-      return options
-    }
-
-    return options.filter((supplier) => {
-      const label = formatSupplierOptionLabel(supplier).toLowerCase()
-      return (
-        label.includes(query) ||
-        supplier.nit.includes(query) ||
-        supplier.name.toLowerCase().includes(query)
-      )
-    })
-  }, [inputValue, options])
+  const filteredOptions = useMemo(
+    () => filterSuppliers(options, inputValue),
+    [inputValue, options],
+  )
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

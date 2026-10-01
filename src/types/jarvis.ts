@@ -85,7 +85,7 @@ export interface JarvisSubscriptionStatus {
 }
 
 export interface JarvisDianResolution {
-  kind: 'SUPPORT_DOCUMENT' | 'ELECTRONIC_INVOICE'
+  kind: 'SUPPORT_DOCUMENT' | 'ELECTRONIC_INVOICE' | 'CREDIT_NOTE'
   formNumber?: string | null
   nit?: string | null
   checkDigit?: string | null
@@ -128,13 +128,14 @@ export interface ListJarvisAvailableResolutionsResponse {
   resolutions: JarvisAvailableResolution[]
 }
 
-/** Los dos únicos tipos de documento que emite la integración Jarvis, con su
+/** Los tipos de documento que emite la integración Jarvis, con su
  * type_document_id de NextPyme y el nombre exacto con el que los reporta.
  * El nombre se usa cuando la respuesta no trae el id; tiene que coincidir
  * completo porque hay tipos vecinos que comparten texto y NO son estos:
  * "Factura electrónica de venta - exportación" (2) y "Nota de Ajuste al
  * Documento Soporte Electrónico" (13). */
 export const JARVIS_RESOLUTION_DOCUMENT_TYPES = {
+  CREDIT_NOTE: { id: 4, label: 'nota crédito' },
   ELECTRONIC_INVOICE: {
     id: 1,
     label: 'factura electrónica de venta',
@@ -180,6 +181,7 @@ export interface JarvisCredentialsStatusResponse {
   phone?: string
   configured_at?: string
   supportDocumentResolution?: JarvisDianResolution | null
+  creditNoteResolution?: JarvisDianResolution | null
   electronicInvoiceResolution?: JarvisDianResolution | null
   supportDocumentResolutionConfigured?: boolean
   electronicInvoiceResolutionConfigured?: boolean
