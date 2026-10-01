@@ -3,10 +3,10 @@ import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 import Modal from './Modal'
 import { getApiErrorMessage } from '../services/apiClient'
-import { createJarvisTax, updateJarvisTax } from '../services/jarvisService'
+import { createJarvisTax, updateJarvisTax, fetchJarvisCatalogs, type JarvisCatalogItem } from '../services/jarvisService'
+import { normalizeJarvisTaxType, taxPresetLabel, taxPresetRates } from '../utils/jarvisTaxPresets'
 import {
   isReteIcaTaxType,
-  JARVIS_TAX_TYPE_SUGGESTIONS,
   type JarvisTax,
   type JarvisTaxCategory,
 } from '../types/jarvis'
@@ -59,18 +59,25 @@ function JarvisTaxModal({
   editingTax,
   onSaved,
 }: JarvisTaxModalProps) {
-  const [form, setForm] = useState<TaxFormState>(buildEmptyForm)
+  const [form, setForm] = useState<TaxFormState>(() => editingTax ? buildFormFromTax(editingTax) : buildEmptyForm())
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [taxTypes, setTaxTypes] = useState<JarvisCatalogItem[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(true)
+  const [catalogError, setCatalogError] = useState<string | null>(null)
+  const [catalogRevision, setCatalogRevision] = useState(0)
+  const [customRate, setCustomRate] = useState(false)
 
   useEffect(() => {
-    if (!isOpen) {
-      return
-    }
-
-    setForm(editingTax ? buildFormFromTax(editingTax) : buildEmptyForm())
-    setErrorMessage(null)
-  }, [isOpen, editingTax])
+    if (!isOpen) return
+    let active = true
+    fetchJarvisCatalogs().then(catalog => {
+      if (active) setTaxTypes(catalog.taxes)
+    }).catch(error => {
+      if (active) setCatalogError(getApiErrorMessage(error, 'No se pudieron cargar los tipos de impuesto.'))
+    }).finally(() => { if (active) setCatalogLoading(false) })
+    return () => { active = false }
+  }, [isOpen, catalogRevision])
 
   const handleClose = () => {
     if (isSaving) return
@@ -78,6 +85,9 @@ function JarvisTaxModal({
   }
 
   const isReteIca = isReteIcaTaxType(form.taxType)
+  const rates = taxPresetRates(form.taxType)
+  const selectedMaster = taxTypes.find(tax => normalizeJarvisTaxType(tax.name) === normalizeJarvisTaxType(form.taxType))
+  const rateIsCustom = customRate || (form.rate !== '' && !rates.includes(Number(form.rate)))
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -85,6 +95,7 @@ function JarvisTaxModal({
     setErrorMessage(null)
 
     try {
+      if (catalogLoading || catalogError || !selectedMaster) throw new Error('Selecciona un tipo de impuesto de la tabla maestra.')
       const trimmedRate = form.rate.trim()
       const rate = !trimmedRate ? null : Number(trimmedRate.replace(',', '.'))
 
@@ -99,7 +110,7 @@ function JarvisTaxModal({
         const response = await updateJarvisTax(editingTax.id, {
           category: form.taxType.trim().toLowerCase().startsWith('rete') ? 'RETENCION' : 'IMPUESTO',
           name: form.name.trim(),
-          tax_type: form.taxType.trim(),
+          tax_type: selectedMaster.name,
           rate,
           is_active: form.isActive,
         })
@@ -110,7 +121,7 @@ function JarvisTaxModal({
         const response = await createJarvisTax({
           category: form.taxType.trim().toLowerCase().startsWith('rete') ? 'RETENCION' : defaultCategory,
           name: form.name.trim(),
-          tax_type: form.taxType.trim(),
+          tax_type: selectedMaster.name,
           rate,
         })
         onSaved(response.tax)
@@ -141,6 +152,11 @@ function JarvisTaxModal({
       </h2>
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
+      {catalogError && <><ErrorMessage message={catalogError} /><Button variant="outline" onClick={() => {
+        setCatalogLoading(true)
+        setCatalogError(null)
+        setCatalogRevision(value => value + 1)
+      }}>Reintentar</Button></>}
 
       <form onSubmit={handleSubmit}>
         <div className="terceros-page__form-grid">
@@ -173,31 +189,40 @@ function JarvisTaxModal({
 
           <div className="terceros-page__field terceros-page__field--full">
             <label htmlFor="jarvis-tax-type">Tipo de impuesto</label>
-            <input
+            <select
               id="jarvis-tax-type"
-              type="text"
-              list="jarvis-tax-type-suggestions"
-              value={form.taxType}
-              onChange={(event) =>
+              value={selectedMaster?.name ?? form.taxType}
+              onChange={(event) => {
+                setCustomRate(false)
                 setForm((current) => ({
                   ...current,
                   taxType: event.target.value,
+                  rate: '',
                 }))
-              }
-              disabled={isSaving}
+              }}
+              disabled={isSaving || catalogLoading || Boolean(catalogError)}
               required
-            />
-            <datalist id="jarvis-tax-type-suggestions">
-              {JARVIS_TAX_TYPE_SUGGESTIONS.map((suggestion) => (
-                <option key={suggestion} value={suggestion} />
-              ))}
-            </datalist>
+            >
+              <option value="">{catalogLoading ? 'Cargando tipos…' : 'Selecciona un tipo'}</option>
+              {form.taxType && !selectedMaster && <option value={form.taxType} disabled>{form.taxType} (selecciona un tipo vigente)</option>}
+              {taxTypes.map(tax => <option key={tax.id} value={tax.name}>{tax.name}</option>)}
+            </select>
           </div>
 
           <div className="terceros-page__field">
             <label htmlFor="jarvis-tax-rate">{isReteIca ? 'Tarifa (x 1.000)' : 'Tarifa (%)'}</label>
-            <input id="jarvis-tax-rate" type="number" min="0" step="0.0001" value={form.rate}
+            {rates.length > 0 && <select id="jarvis-tax-rate" value={rateIsCustom ? 'custom' : form.rate} disabled={isSaving} onChange={event => {
+              const value = event.target.value
+              setCustomRate(value === 'custom')
+              setForm(current => ({ ...current, rate: value === 'custom' ? '' : value }))
+            }}>
+              <option value="">Selecciona una tarifa</option>
+              {rates.map(rate => <option key={rate} value={String(rate)}>{taxPresetLabel(form.taxType, rate)}</option>)}
+              <option value="custom">Otra tarifa</option>
+            </select>}
+            {(rates.length === 0 || rateIsCustom) && <input id={rates.length ? 'jarvis-tax-custom-rate' : 'jarvis-tax-rate'} aria-label="Tarifa personalizada" type="number" min="0" step="0.0001" value={form.rate}
               onChange={event => setForm(current => ({ ...current, rate: event.target.value }))} disabled={isSaving} />
+            }
           </div>
 
           {editingTax && (
@@ -229,7 +254,7 @@ function JarvisTaxModal({
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="primary" disabled={isSaving}>
+          <Button type="submit" variant="primary" disabled={isSaving || catalogLoading || Boolean(catalogError) || !selectedMaster}>
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Button>
         </div>
@@ -238,4 +263,6 @@ function JarvisTaxModal({
   )
 }
 
-export default JarvisTaxModal
+export default function JarvisTaxModalDialog(props: JarvisTaxModalProps) {
+  return props.isOpen ? <JarvisTaxModal key={props.editingTax?.id ?? 'new'} {...props} /> : null
+}

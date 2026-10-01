@@ -1,3 +1,4 @@
+import type { SiigoDocumentQuotas } from '../types/siigo'
 import {
   createContext,
   useCallback,
@@ -46,6 +47,7 @@ interface IntegrationSetupContextValue {
   isJarvisConfigured: boolean
   includedDocumentTypes: string[]
   isSubscriptionActive: boolean
+  documentQuotas: SiigoDocumentQuotas
   documentLimit: number | null
   documentsUsed: number
   documentsRemaining: number | null
@@ -125,6 +127,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     [],
   )
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false)
+  const [documentQuotas, setDocumentQuotas] = useState<SiigoDocumentQuotas>({})
   const [documentLimit, setDocumentLimit] = useState<number | null>(null)
   const [documentsUsed, setDocumentsUsed] = useState(0)
   const [documentsRemaining, setDocumentsRemaining] = useState<number | null>(
@@ -154,6 +157,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
       setDocumentLimit(null)
+      setDocumentQuotas({})
       setDocumentsUsed(0)
       setDocumentsRemaining(null)
       clearIntegrationConfigured()
@@ -202,6 +206,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         resetJarvisFlags()
         setIncludedDocumentTypes(documentTypes)
         setIsSubscriptionActive(subscriptionActive)
+        setDocumentQuotas(subscription?.documentQuotas ?? {})
         setDocumentLimit(subscription?.documentLimit ?? null)
         setDocumentsUsed(subscription?.documentsUsed ?? 0)
         setDocumentsRemaining(subscription?.remaining ?? null)
@@ -263,6 +268,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
       setDocumentLimit(null)
+      setDocumentQuotas({})
       setDocumentsUsed(0)
       setDocumentsRemaining(null)
       clearIntegrationConfigured()
@@ -277,6 +283,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
       setDocumentLimit(null)
+      setDocumentQuotas({})
       setDocumentsUsed(0)
       setDocumentsRemaining(null)
       clearIntegrationConfigured()
@@ -368,6 +375,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisConfigured: isJarvisCompanyConfigured,
       includedDocumentTypes,
       isSubscriptionActive,
+      documentQuotas,
       documentLimit,
       documentsUsed,
       documentsRemaining,
@@ -396,6 +404,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       isJarvisCompanyConfigured,
       includedDocumentTypes,
       isSubscriptionActive,
+      documentQuotas,
       documentLimit,
       documentsUsed,
       documentsRemaining,

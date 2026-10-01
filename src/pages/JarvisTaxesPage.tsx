@@ -249,10 +249,9 @@ function JarvisTaxesPage() {
                 <thead>
                   <tr>
                     <th>En uso</th>
-                    <th>Código</th>
                     <th>Nombre</th>
                     <th>Tipo de impuesto</th>
-                    <th>Tarifa</th><th>Unidad</th><th>Divisor técnico</th><th>Base de cálculo / Nota</th><th>Factor técnico</th>
+                    <th>Tarifa</th><th>Unidad</th>
                     <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
@@ -270,14 +269,10 @@ function JarvisTaxesPage() {
                           }
                         />
                       </td>
-                      <td>{item.code}</td>
                       <td><strong>{item.name}</strong></td>
                       <td>{item.tax_type}</td>
                       <td>{formatRate(item)}</td>
                       <td>{jarvisTaxTechnical(item).unit}</td>
-                      <td>{jarvisTaxTechnical(item).divisor}</td>
-                      <td>{jarvisTaxTechnical(item).note}</td>
-                      <td>{jarvisTaxTechnical(item).factor?.toLocaleString('es-CO', { minimumFractionDigits: 5, maximumFractionDigits: 5 }) ?? '—'}</td>
                       <td>
                         <span
                           className={`jarvis-taxes-page__status jarvis-taxes-page__status--${

@@ -50,7 +50,7 @@ const RETEFUENTE_TAX = {
 }
 
 describe('buildSiigoPurchaseSendRequest — Retefuente', () => {
-  it('aplica la Retefuente sugerida por el historial del proveedor aunque la fila nunca se haya editado a mano (bug reportado en producción)', () => {
+  it('no envía la Retefuente sugerida sin selección del usuario', () => {
     const document = buildDocument({
       suggestedItemConfig: {
         itemType: 'Account',

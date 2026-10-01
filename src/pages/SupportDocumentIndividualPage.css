@@ -1357,3 +1357,4 @@
     flex: 1 1 100%;
   }
 }
+.credit-note-source-warning { padding: 1rem; border: 1px solid #ead49b; border-radius: 10px; background: #fffaed; color: #725219; }

@@ -183,13 +183,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
   })
 
   it('proveedor con Retefuente consistente en el historial: no se aplica sin confirmación', () => {
-    // Caso real reportado: el historial del proveedor trae una Retefuente
-    // consistente, pero el documento puntual no la trae seleccionada — antes
-    // se dejaba en null a propósito porque listado y detalle armaban esta
-    // lista cada uno por su cuenta (un Total distinto para el mismo
-    // documento solo por abrir el panel). Ahora ambos parten de esta misma
-    // función (ver SupportDocumentTable.tsx), así que no hay como divergir:
-    // se autocompleta igual que cuenta/IVA.
+    // La sugerencia no seleccionada no debe cambiar el total ni el envío.
     const document = buildDocument({
       items: [
         {
@@ -490,7 +484,7 @@ describe('buildPurchaseInvoiceItemDrafts', () => {
     expect(draft.ivaTax?.id).toBe(7)
   })
 
-  it('sin ítems: la línea de respaldo también toma la config del proveedor cuando existe, incluida la Retefuente', () => {
+  it('sin ítems: la línea de respaldo también toma la config del proveedor cuando existe, sin aplicar la Retefuente sugerida', () => {
     const document = buildDocument({
       items: [],
       suggestedItemConfig: {

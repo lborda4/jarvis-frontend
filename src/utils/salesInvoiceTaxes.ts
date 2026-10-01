@@ -1,5 +1,6 @@
 import type { JarvisCatalogItem } from '../services/jarvisService'
 import type { JarvisTax, JarvisTaxCategory } from '../types/jarvis'
+import { JARVIS_TAX_RATES, normalizeJarvisTaxType, taxPresetLabel } from './jarvisTaxPresets'
 
 export interface SalesInvoiceTaxOption {
   id: string
@@ -17,9 +18,7 @@ export const DEFAULT_SALES_IVA: SalesInvoiceTaxOption = {
 }
 
 function normalizeTaxType(value: string): string {
-  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]/g, '')
-  return normalized === 'retefuente' ? 'reterenta' : normalized
+  return normalizeJarvisTaxType(value)
 }
 
 export function buildSalesInvoiceTaxOptions(
@@ -37,11 +36,23 @@ export function buildSalesInvoiceTaxOptions(
       catalogId: master?.id ?? (type === 'iva' ? DEFAULT_SALES_IVA.catalogId : null),
     }
   })
-  return saved
+  const defaults: SalesInvoiceTaxOption[] = Object.entries(JARVIS_TAX_RATES).flatMap(([type, rates]) => {
+    const normalized = normalizeTaxType(type)
+    const master = catalogTaxes.find(item => [item.name, item.type, item.code].some(value => value && normalizeTaxType(value) === normalized))
+    // Only offer types supported by the master catalog; IVA has an established ID.
+    const catalogId = master?.id ?? (normalized === 'iva' ? 1 : null)
+    if (catalogId === null) return []
+    return rates.filter(rate => !saved.some(tax => normalizeTaxType(tax.type) === normalized && tax.percentage === rate)).map(rate => ({
+      id: `default:${normalized}${rate}`, name: type, type, percentage: rate,
+      category: normalized.startsWith('rete') ? 'RETENCION' : 'IMPUESTO', catalogId,
+    }))
+  })
+  return [...saved, ...defaults]
 }
 
 export function formatSalesInvoiceTaxLabel(tax: SalesInvoiceTaxOption): string {
   if (tax.percentage == null) return tax.name
+  if (tax.id.startsWith('default:')) return taxPresetLabel(tax.type, tax.percentage)
   if (tax.type.toLowerCase() === 'reteica') return `${tax.name} · ${tax.percentage} x 1.000`
   if (tax.name.includes('%')) return `${tax.name} · tarifa ${tax.percentage}%`
   return `${tax.name} (${tax.percentage}%)`

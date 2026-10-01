@@ -165,6 +165,7 @@ export interface CreateJarvisInvoiceRequest {
 export interface CreateJarvisInvoiceResponse {
   success: boolean
   invoice: {
+    historyId?: string
     id: string
     number?: number | string
     consecutive?: string
@@ -172,6 +173,20 @@ export interface CreateJarvisInvoiceResponse {
     date: string
     cufe?: string | null
   }
+}
+
+export interface JarvisInvoiceDetail extends JarvisSalesInvoice {
+  sourceRequest: CreateJarvisInvoiceRequest | null
+}
+
+export async function fetchJarvisInvoicePdfData(id: string): Promise<import('../types/electronicDocument').PurchaseInvoiceDownload> {
+  const { data } = await apiClient.get<import('../types/electronicDocument').PurchaseInvoiceDownload>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/pdf-data`)
+  return data
+}
+
+export async function fetchJarvisInvoiceDetail(id: string): Promise<JarvisInvoiceDetail> {
+  const { data } = await apiClient.get<JarvisInvoiceDetail>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}`)
+  return data
 }
 
 export interface JarvisSalesInvoice {
@@ -198,13 +213,13 @@ export interface JarvisSalesInvoiceList {
 
 export interface JarvisHistoryFilters { search?: string; from?: string; to?: string; page?: number }
 
-export function jarvisHistoryQueryKey(supportDocument: boolean | 'credit', filters: JarvisHistoryFilters = {}): string {
-  return companyQueryKey(['jarvis', 'history', supportDocument === 'credit' ? 'credit' : supportDocument ? 'support' : 'sales', JSON.stringify([filters.search?.trim() || '', filters.from || '', filters.to || '', filters.page ?? 1])])
+export function jarvisHistoryQueryKey(supportDocument: boolean | 'credit' | 'debit', filters: JarvisHistoryFilters = {}): string {
+  return companyQueryKey(['jarvis', 'history', supportDocument === 'debit' ? 'debit' : supportDocument === 'credit' ? 'credit' : supportDocument ? 'support' : 'sales', JSON.stringify([filters.search?.trim() || '', filters.from || '', filters.to || '', filters.page ?? 1])])
 }
 
-function fetchJarvisHistory(supportDocument: boolean | 'credit', filters: JarvisHistoryFilters, options?: { force?: boolean }): Promise<JarvisSalesInvoiceList> {
+function fetchJarvisHistory(supportDocument: boolean | 'credit' | 'debit', filters: JarvisHistoryFilters, options?: { force?: boolean }): Promise<JarvisSalesInvoiceList> {
   return cachedQuery(jarvisHistoryQueryKey(supportDocument, filters), QUERY_STALE_MS.jarvisHistory, async () => {
-    const { data } = await apiClient.get<JarvisSalesInvoiceList>(supportDocument === 'credit' ? '/integrations/jarvis/credit-notes' : supportDocument ? JARVIS_SUPPORT_DOCUMENTS_ENDPOINT : JARVIS_INVOICES_ENDPOINT, { params: filters })
+    const { data } = await apiClient.get<JarvisSalesInvoiceList>(supportDocument === 'debit' ? '/integrations/jarvis/debit-notes' : supportDocument === 'credit' ? '/integrations/jarvis/credit-notes' : supportDocument ? JARVIS_SUPPORT_DOCUMENTS_ENDPOINT : JARVIS_INVOICES_ENDPOINT, { params: filters })
     return data
   }, options)
 }
@@ -584,4 +599,14 @@ export async function createJarvisCreditNote(request: CreateJarvisInvoiceRequest
 }
 export function fetchJarvisCreditNotes(filters: JarvisHistoryFilters, options?: { force?: boolean }) {
   return fetchJarvisHistory('credit', filters, options)
+}
+
+export async function createJarvisDebitNote(request: CreateJarvisInvoiceRequest): Promise<CreateJarvisInvoiceResponse> {
+  const { data } = await apiClient.post<CreateJarvisInvoiceResponse>('/integrations/jarvis/debit-notes', request)
+  invalidateQueryCache(companyQueryKey(['jarvis', 'history']))
+  invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
+  return data
+}
+export function fetchJarvisDebitNotes(filters: JarvisHistoryFilters, options?: { force?: boolean }) {
+  return fetchJarvisHistory('debit', filters, options)
 }

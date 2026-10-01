@@ -85,7 +85,7 @@ export interface JarvisSubscriptionStatus {
 }
 
 export interface JarvisDianResolution {
-  kind: 'SUPPORT_DOCUMENT' | 'ELECTRONIC_INVOICE' | 'CREDIT_NOTE'
+  kind: 'SUPPORT_DOCUMENT' | 'ELECTRONIC_INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE'
   formNumber?: string | null
   nit?: string | null
   checkDigit?: string | null
@@ -135,6 +135,7 @@ export interface ListJarvisAvailableResolutionsResponse {
  * "Factura electrónica de venta - exportación" (2) y "Nota de Ajuste al
  * Documento Soporte Electrónico" (13). */
 export const JARVIS_RESOLUTION_DOCUMENT_TYPES = {
+  DEBIT_NOTE: { id: 5, label: 'nota débito' },
   CREDIT_NOTE: { id: 4, label: 'nota crédito' },
   ELECTRONIC_INVOICE: {
     id: 1,
@@ -181,6 +182,7 @@ export interface JarvisCredentialsStatusResponse {
   phone?: string
   configured_at?: string
   supportDocumentResolution?: JarvisDianResolution | null
+  debitNoteResolution?: JarvisDianResolution | null
   creditNoteResolution?: JarvisDianResolution | null
   electronicInvoiceResolution?: JarvisDianResolution | null
   supportDocumentResolutionConfigured?: boolean

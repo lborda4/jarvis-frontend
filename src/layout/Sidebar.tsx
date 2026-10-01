@@ -76,9 +76,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     isJarvisCompany,
     isConfigured,
     isSubscriptionActive,
-    documentLimit,
-    documentsUsed,
-    documentsRemaining,
+    documentQuotas,
+    documentLimit: totalDocumentLimit,
+    documentsUsed: totalDocumentsUsed,
+    documentsRemaining: totalDocumentsRemaining,
   } = useIntegrationSetup()
   const companyName = user?.company?.name ?? 'Mi Empresa'
   const activeCompanyId = user?.company?.id ?? ''
@@ -86,6 +87,11 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const userEmail = user?.email?.trim() || ''
   const settingsLabel = isJarvisCompany ? 'Configuración' : 'Configuración SIIGO'
   const showUsageIndicator = isConfigured && isSubscriptionActive
+  const activeQuota = !isJarvisCompany ? documentQuotas[location.pathname.startsWith('/factura-compra') ? 'PURCHASE_INVOICE' : 'SUPPORT_DOCUMENT'] : undefined
+  const documentLimit = activeQuota ? activeQuota.documentLimit : totalDocumentLimit
+  const documentsUsed = activeQuota ? activeQuota.documentsUsed : totalDocumentsUsed
+  const documentsRemaining = activeQuota ? activeQuota.remaining : totalDocumentsRemaining
+  const quotaLabel = activeQuota ? (location.pathname.startsWith('/factura-compra') ? 'facturas de compra' : 'documentos soporte') : 'documentos'
   const isUnlimited = documentLimit == null
   const limit = documentLimit ?? 0
   const remaining = documentsRemaining ?? (isUnlimited ? null : Math.max(0, limit - documentsUsed))
@@ -137,6 +143,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             icon: DocumentIcon,
             featureEnabled: isSalesInvoiceEnabled,
           },
+          { label: 'Nota débito', to: '/nota-debito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
           { label: 'Nota crédito', to: '/nota-credito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
         ]
       : []),
@@ -411,8 +418,8 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                 <DocumentIcon className="app-sidebar__usage-icon" />
                 <span className="app-sidebar__usage-label">
                   {isUnlimited
-                    ? 'Documentos ilimitados'
-                    : `${remaining} de ${limit} documentos restantes`}
+                    ? `${quotaLabel.charAt(0).toUpperCase() + quotaLabel.slice(1)} ilimitados`
+                    : `${remaining} de ${limit} ${quotaLabel} disponibles`}
                 </span>
               </div>
               {!isUnlimited && (

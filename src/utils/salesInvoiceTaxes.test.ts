@@ -16,19 +16,32 @@ function savedTax(overrides: Partial<JarvisTax> = {}): JarvisTax {
 }
 
 describe('impuestos de factura de venta', () => {
-  it('usa solamente los impuestos activos de la empresa sin reponer los desactivados', () => {
+  it('combina impuestos activos de la empresa con las tarifas predeterminadas', () => {
     const options = buildSalesInvoiceTaxOptions([
       savedTax(), savedTax({ id: 'inactive', is_active: false }),
     ], [])
-    expect(options.map(formatSalesInvoiceTaxLabel)).toEqual(['IVA reducido (5%)'])
+    expect(options.map(formatSalesInvoiceTaxLabel)).toEqual(['IVA reducido (5%)', 'IVA | 0%', 'IVA | 19%'])
+    expect(options.some(tax => tax.savedId === 'inactive')).toBe(false)
     expect(options[0]).toMatchObject({ id: 'saved:tax-uuid', catalogId: 1, savedId: 'tax-uuid' })
   })
 
   it('no duplica IVA 19% cuando ya está guardado y preserva la cuenta local', () => {
     const options = buildSalesInvoiceTaxOptions([savedTax({ name: 'IVA 19%', rate: 19 })], [])
-    expect(options).toHaveLength(1)
+    expect(options.filter(tax => tax.percentage === 19 && tax.type === 'IVA')).toHaveLength(1)
     expect(options[0].savedId).toBe('tax-uuid')
     expect(formatSalesInvoiceTaxLabel(options[0])).toBe('IVA 19% · tarifa 19%')
+  })
+
+  it('ofrece las 24 tarifas solicitadas y conserva el ID maestro y las unidades', () => {
+    const options = buildSalesInvoiceTaxOptions([], [
+      { id: 1, name: 'IVA' }, { id: 4, name: 'INC' }, { id: 5, name: 'ReteIVA' },
+      { id: 6, name: 'ReteRenta' }, { id: 7, name: 'ReteICA' },
+    ])
+    expect(options).toHaveLength(24)
+    expect(options.filter(tax => tax.type === 'Retefuente').map(tax => tax.percentage)).toEqual([1, 2, 2.5, 3.5, 4, 6, 10, 11])
+    expect(options.find(tax => tax.type === 'ReteIVA' && tax.percentage === 100)).toMatchObject({ catalogId: 5, category: 'RETENCION' })
+    expect(options.find(tax => tax.type === 'INC')).toMatchObject({ catalogId: 4, category: 'IMPUESTO' })
+    expect(formatSalesInvoiceTaxLabel(options.find(tax => tax.type === 'ReteICA' && tax.percentage === 7)!)).toBe('ReteICA | 7,00 x 1.000')
   })
 
   it('separa cargos y retenciones según la categoría y usa el ID del catálogo al enviar', () => {

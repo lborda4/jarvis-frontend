@@ -1,3 +1,4 @@
+import SiigoDocumentQuotasSettings from '../components/SiigoDocumentQuotasSettings'
 import CompanyAiSettings from '../components/CompanyAiSettings'
 import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
@@ -178,6 +179,8 @@ function SiigoIntegrationSettings() {
               : 'Paso 3 pendiente: seleccione y guarde los comprobantes de cargue.'}
         </div>
       )}
+
+      <SiigoDocumentQuotasSettings key={user?.company?.id} />
 
       {planBlockedReason && (isSiigoConfigured || hasSiigoAccounts) && (
         <div className="settings-page__setup-notice" role="status">

@@ -234,10 +234,7 @@ function buildInitialRowRetentions(
       current[document.id] !== undefined
         ? current[document.id]
         : normalizeRetentionsForTypes(
-            mapSuggestedRetentionsToTaxOptions(
-              document.electronicDocumentType === 'PURCHASE_INVOICE' && document.status !== 'PURCHASE_CREATED'
-                ? [] : document.suggestedRetentions,
-            ),
+            mapSuggestedRetentionsToTaxOptions(document.suggestedRetentions),
             retentionCatalogTypes,
           ),
     ]),

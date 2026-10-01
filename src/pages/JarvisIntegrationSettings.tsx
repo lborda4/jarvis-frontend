@@ -65,6 +65,8 @@ function JarvisIntegrationSettings() {
     isSavingResolution,
     availableResolutions,
     creditResolutionOptions,
+    debitResolutionOptions,
+    selectedDebitResolutionId,
     selectedCreditResolutionId,
     invoiceResolutionOptions,
     supportResolutionOptions,
@@ -139,7 +141,7 @@ function JarvisIntegrationSettings() {
   // Basta con UNA resolución elegida: se puede configurar un tipo hoy y el
   // otro después. Cada sección del menú se habilita por su cuenta cuando su
   // resolución queda guardada, así que no hay nada que esperar.
-  const canSaveResolutions = Boolean(selectedCreditResolutionId) ||
+  const canSaveResolutions = Boolean(selectedDebitResolutionId) || Boolean(selectedCreditResolutionId) ||
     (hasPurchaseInvoiceAccess && Boolean(selectedInvoiceResolutionId)) ||
     (hasSupportDocumentAccess && Boolean(selectedSupportResolutionId))
 
@@ -181,14 +183,14 @@ function JarvisIntegrationSettings() {
    * y un selector, que lista SOLO las resoluciones del tipo de documento de
    * la tarjeta. */
   const renderResolutionPicker = (
-    kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE',
+    kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE' | 'DEBIT_NOTE',
     iconLabel: string,
     title: string,
     description: string,
   ) => {
     const selectId = `jarvis-resolution-${kind.toLowerCase()}`
     const selectedId =
-      kind === 'CREDIT_NOTE' ? selectedCreditResolutionId : kind === 'SUPPORT_DOCUMENT'
+      kind === 'DEBIT_NOTE' ? selectedDebitResolutionId : kind === 'CREDIT_NOTE' ? selectedCreditResolutionId : kind === 'SUPPORT_DOCUMENT'
         ? selectedSupportResolutionId
         : selectedInvoiceResolutionId
     const iconModifier =
@@ -196,7 +198,7 @@ function JarvisIntegrationSettings() {
         ? 'settings-document-type-card__icon--support'
         : 'settings-document-type-card__icon--purchase'
     const options =
-      kind === 'CREDIT_NOTE' ? creditResolutionOptions : kind === 'SUPPORT_DOCUMENT'
+      kind === 'DEBIT_NOTE' ? debitResolutionOptions : kind === 'CREDIT_NOTE' ? creditResolutionOptions : kind === 'SUPPORT_DOCUMENT'
         ? supportResolutionOptions
         : invoiceResolutionOptions
 
@@ -617,6 +619,7 @@ function JarvisIntegrationSettings() {
 
                       <div className="settings-document-types">
                         {renderResolutionPicker('CREDIT_NOTE', 'NC', 'Nota crédito', 'Numeración para notas crédito')}
+                        {renderResolutionPicker('DEBIT_NOTE', 'ND', 'Nota débito', 'Numeración para notas débito')}
                         {hasPurchaseInvoiceAccess &&
                           renderResolutionPicker(
                             'ELECTRONIC_INVOICE',

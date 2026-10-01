@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Factura Electrónica</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #16335b;
+      font-size: 11px;
+    }
+
+    .invoice {
+      width: 100%;
+      max-width: 190mm;
+      margin: 0 auto;
+      background: white;
+    }
+
+    /* =========================
+       HEADER
+    ========================== */
+
+    .header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      align-items: center;
+      padding: 5px 0 18px;
+      border-bottom: 1px solid #cbd9e6;
+    }
+
+    .logo-container {
+      width: 100%;
+      max-width: 320px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .logo-container img {
+      max-width: 100%;
+      max-height: 90px;
+      object-fit: contain;
+      object-position: left center;
+    }
+
+    .invoice-title {
+      text-align: right;
+    }
+
+    .invoice-title h1 {
+      margin: 0 0 10px;
+      color: #102f58;
+      font-size: 25px;
+      line-height: 1.05;
+      font-weight: 700;
+    }
+
+    .invoice-number {
+      display: inline-block;
+      min-width: 220px;
+      padding: 7px 15px;
+      margin-bottom: 10px;
+      background: #f3f8fb;
+      border: 1px solid #d5e1eb;
+      border-radius: 5px;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .header-data {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 5px 12px;
+      justify-content: end;
+      font-size: 11px;
+    }
+
+    .header-data .label {
+      text-align: right;
+    }
+
+    .header-data .value {
+      font-weight: 500;
+      min-width: 120px;
+    }
+
+    /* =========================
+       EMISOR / CLIENTE
+    ========================== */
+
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      padding: 18px 0;
+      border-bottom: 1px solid #cbd9e6;
+    }
+
+    .party:first-child {
+      padding-right: 30px;
+      border-right: 1px solid #cbd9e6;
+    }
+
+    .section-title {
+      color: #00a8a8;
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 7px;
+    }
+
+    .party-name {
+      color: #132f56;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+
+    .party-line {
+      margin-bottom: 4px;
+      color: #24456f;
+    }
+
+    /* =========================
+       PRODUCTOS
+    ========================== */
+
+    .products {
+      margin-top: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .products-table {
+      table-layout: fixed;
+    }
+
+    .products-table th,
+    .products-table td {
+      border: 1px solid #d7e1e9;
+      padding: 8px 6px;
+      vertical-align: middle;
+    }
+
+    .products-table th {
+      background: #f1f7fa;
+      color: #17345c;
+      font-weight: 700;
+      text-align: center;
+      font-size: 9.5px;
+    }
+
+    .products-table td {
+      color: #24456f;
+      font-size: 9.5px;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    /* Columnas */
+
+    .col-number {
+      width: 4%;
+    }
+
+    .col-name {
+      width: 16%;
+    }
+
+    .col-description {
+      width: 17%;
+    }
+
+    .col-qty {
+      width: 5%;
+    }
+
+    .col-value {
+      width: 11%;
+    }
+
+    .col-discount {
+      width: 8%;
+    }
+
+    .col-tax {
+      width: 6%;
+    }
+
+    .col-retention {
+      width: 7%;
+    }
+
+    .col-total {
+      width: 11%;
+    }
+
+    /* =========================
+       DETALLES / TOTALES
+    ========================== */
+
+    .financial-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .box {
+      border: 1px solid #d7e1e9;
+      border-radius: 5px;
+      padding: 14px;
+    }
+
+    .box-title {
+      color: #00a8a8;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 13px;
+    }
+
+    .payment-row {
+      display: grid;
+      grid-template-columns: 175px 1fr;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .payment-label {
+      color: #17345c;
+    }
+
+    .payment-value {
+      color: #24456f;
+      font-weight: 500;
+    }
+
+    .days-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .days-number {
+      border: 1px solid #ccdbe6;
+      border-radius: 4px;
+      min-width: 45px;
+      padding: 6px 10px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .credit-note {
+      margin-left: 175px;
+      margin-top: -6px;
+      font-size: 9px;
+      color: #7186a0;
+    }
+
+    .observations {
+      margin-top: 35px;
+    }
+
+    .observations-title {
+      margin-bottom: 7px;
+      color: #17345c;
+    }
+
+    /* Totales */
+
+    .totals-table td {
+      padding: 5px 4px;
+      border: none;
+      font-size: 11px;
+    }
+
+    .totals-table td:last-child {
+      text-align: right;
+    }
+
+    .strong {
+      font-weight: 700;
+    }
+
+    .total-before {
+      margin-top: 6px;
+      background: #dffafa;
+      color: #006d78;
+      font-weight: 700;
+    }
+
+    .total-before td {
+      padding: 9px 8px;
+    }
+
+    .separator-row td {
+      padding-top: 12px;
+    }
+
+    .net-total {
+      margin-top: 8px;
+      background: #dffafa;
+      color: #006675;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .net-total td {
+      padding: 12px 8px;
+      font-size: 17px;
+    }
+
+    /* =========================
+       VALOR EN LETRAS
+    ========================== */
+
+    .words {
+      border: 1px solid #d7e1e9;
+      border-radius: 5px;
+      padding: 12px 15px;
+      margin-top: 15px;
+    }
+
+    .words-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #009a9d;
+      margin-bottom: 7px;
+    }
+
+    .words-text {
+      font-size: 10px;
+      color: #264873;
+      text-transform: uppercase;
+    }
+
+    /* =========================
+       INFORMACIÓN DIAN
+    ========================== */
+
+    .dian-section {
+      display: grid;
+      grid-template-columns: 160px 1fr 1fr;
+      gap: 18px;
+      margin-top: 15px;
+      padding: 15px 0;
+      border-top: 1px solid #cbd9e6;
+      border-bottom: 1px solid #cbd9e6;
+      align-items: start;
+    }
+
+    .qr-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-container img {
+      width: 115px;
+      height: 115px;
+      object-fit: contain;
+    }
+
+    .dian-title,
+    .tax-title {
+      color: #17345c;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .dian-line,
+    .tax-line {
+      margin-bottom: 4px;
+      color: #36577e;
+      font-size: 9px;
+    }
+
+    .dian-label {
+      display: block;
+      font-weight: 700;
+      color: #17345c;
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+
+    .cufe {
+      overflow-wrap: anywhere;
+      line-height: 1.4;
+    }
+
+    .tax-info {
+      padding-left: 18px;
+      border-left: 1px solid #cbd9e6;
+    }
+
+    /* =========================
+       FOOTER
+    ========================== */
+
+    .footer {
+      text-align: center;
+      color: #7187a1;
+      font-size: 9px;
+      padding: 16px 0 5px;
+      line-height: 1.6;
+    }
+
+    .footer strong {
+      color: #506c8c;
+    }
+
+    /* =========================
+       IMPRESIÓN
+    ========================== */
+
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .invoice {
+        width: 100%;
+      }
+
+      .products-table tr,
+      .financial-section,
+      .dian-section {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="invoice">
+
+  <!-- =========================
+       ENCABEZADO
+  ========================== -->
+
+  <header class="header">
+
+    <div class="logo-container">
+
+      <!--
+        AQUÍ VA EL LOGO DE CADA CLIENTE
+        Ejemplo:
+        <img src="https://midominio.com/logo-cliente.png">
+      -->
+
+      <img
+        src="{{ logo_cliente }}"
+        alt="Logo empresa"
+      >
+
+    </div>
+
+    <div class="invoice-title">
+
+      <h1>
+        Factura Electrónica<br>
+        de Venta
+      </h1>
+
+      <div class="invoice-number">
+        No. {{ numero_factura }}
+      </div>
+
+      <div class="header-data">
+
+        <span class="label">Fecha de elaboración:</span>
+        <span class="value">{{ fecha_elaboracion }}</span>
+
+        <span class="label">Fecha de vencimiento:</span>
+        <span class="value">{{ fecha_vencimiento }}</span>
+
+        <span class="label">Moneda:</span>
+        <span class="value">{{ moneda }}</span>
+
+      </div>
+
+    </div>
+
+  </header>
+
+
+  <!-- =========================
+       EMISOR / CLIENTE
+  ========================== -->
+
+  <section class="parties">
+
+    <div class="party">
+
+      <div class="section-title">Emisor</div>
+
+      <div class="party-name">
+        {{ emisor.razon_social }}
+      </div>
+
+      <div class="party-line">
+        NIT: {{ emisor.nit }}
+      </div>
+
+      <div class="party-line">
+        Dirección: {{ emisor.direccion }}
+      </div>
+
+      <div class="party-line">
+        Ciudad: {{ emisor.ciudad }}
+      </div>
+
+      <div class="party-line">
+        Tel: {{ emisor.telefono }}
+      </div>
+
+      <div class="party-line">
+        Correo: {{ emisor.correo }}
+      </div>
+
+    </div>
+
+
+    <div class="party">
+
+      <div class="section-title">Cliente</div>
+
+      <div class="party-name">
+        {{ cliente.razon_social }}
+      </div>
+
+      <div class="party-line">
+        NIT: {{ cliente.nit }}
+      </div>
+
+      <div class="party-line">
+        Dirección: {{ cliente.direccion }}
+      </div>
+
+      <div class="party-line">
+        Ciudad: {{ cliente.ciudad }}
+      </div>
+
+      <div class="party-line">
+        Tel: {{ cliente.telefono }}
+      </div>
+
+      <div class="party-line">
+        Correo: {{ cliente.correo }}
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       PRODUCTOS
+  ========================== -->
+
+  <section class="products">
+
+    <table class="products-table">
+
+      <thead>
+
+        <tr>
+
+          <th class="col-number">#</th>
+
+          <th class="col-name">
+            Nombre del producto<br>
+            o servicio
+          </th>
+
+          <th class="col-description">
+            Descripción
+          </th>
+
+          <th class="col-qty">
+            Cant.
+          </th>
+
+          <th class="col-value">
+            Valor unitario
+          </th>
+
+          <th class="col-discount">
+            Descuento
+          </th>
+
+          <th class="col-tax">
+            IVA<br>(%)
+          </th>
+
+          <th class="col-retention">
+            ReteFuente<br>(%)
+          </th>
+
+          <th class="col-retention">
+            ReteICA<br>(%)
+          </th>
+
+          <th class="col-retention">
+            ReteIVA<br>(%)
+          </th>
+
+          <th class="col-total">
+            Valor total
+          </th>
+
+        </tr>
+
+      </thead>
+
+
+      <tbody>
+
+        <!-- REPETIR ESTE TR POR CADA ITEM -->
+
+        {% for item in items %}
+
+        <tr>
+
+          <td class="text-center">
+            {{ loop.index }}
+          </td>
+
+          <td>
+            {{ item.nombre }}
+          </td>
+
+          <td>
+            {{ item.descripcion }}
+          </td>
+
+          <td class="text-center">
+            {{ item.cantidad }}
+          </td>
+
+          <td class="text-right">
+            {{ item.valor_unitario }}
+          </td>
+
+          <td class="text-right">
+            {{ item.descuento }}
+          </td>
+
+          <td class="text-center">
+            {{ item.iva_porcentaje }}
+          </td>
+
+          <td class="text-center">
+            {{ item.retefuente_porcentaje }}
+          </td>
+
+          <td class="text-center">
+            {{ item.reteica_porcentaje }}
+          </td>
+
+          <td class="text-center">
+            {{ item.reteiva_porcentaje }}
+          </td>
+
+          <td class="text-right">
+            {{ item.valor_total }}
+          </td>
+
+        </tr>
+
+        {% endfor %}
+
+      </tbody>
+
+    </table>
+
+  </section>
+
+
+  <!-- =========================
+       PAGOS + TOTALES
+  ========================== -->
+
+  <section class="financial-section">
+
+    <!-- DETALLES PAGO -->
+
+    <div class="box">
+
+      <div class="box-title">
+        Detalles de pago
+      </div>
+
+      <div class="payment-row">
+
+        <div class="payment-label">
+          Forma de negociación:
+        </div>
+
+        <div class="payment-value">
+          {{ forma_negociacion }}
+        </div>
+
+      </div>
+
+
+      <div class="payment-row">
+
+        <div class="payment-label">
+          Forma de pago:
+        </div>
+
+        <div class="payment-value">
+          {{ forma_pago }}
+        </div>
+
+      </div>
+
+
+      <!-- SOLO MOSTRAR SI ES CRÉDITO -->
+
+      {% if forma_negociacion == "Crédito" %}
+
+      <div class="payment-row">
+
+        <div class="payment-label">
+          Días de vencimiento:
+        </div>
+
+        <div class="days-wrapper">
+
+          <div class="days-number">
+            {{ dias_vencimiento }}
+          </div>
+
+          <span>
+            días después de la emisión
+          </span>
+
+        </div>
+
+      </div>
+
+      <div class="credit-note">
+        Solo aplica para crédito
+      </div>
+
+      {% endif %}
+
+
+      <div class="observations">
+
+        <div class="observations-title">
+          Observaciones:
+        </div>
+
+        <div>
+          {{ observaciones or "—" }}
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- TOTALES -->
+
+    <div class="box">
+
+      <table class="totals-table">
+
+        <tr>
+          <td>Total bruto:</td>
+          <td class="strong">
+            {{ total_bruto }}
+          </td>
+        </tr>
+
+        <tr>
+          <td>Descuentos:</td>
+          <td>
+            {{ total_descuentos }}
+          </td>
+        </tr>
+
+        <tr>
+          <td>Subtotal:</td>
+          <td class="strong">
+            {{ subtotal }}
+          </td>
+        </tr>
+
+        <tr>
+          <td>IVA:</td>
+          <td>
+            {{ total_iva }}
+          </td>
+        </tr>
+
+
+        <tr class="total-before">
+          <td>
+            Total antes de retenciones:
+          </td>
+
+          <td>
+            {{ total_antes_retenciones }}
+          </td>
+        </tr>
+
+
+        <tr class="separator-row">
+          <td>
+            ReteFuente:
+          </td>
+
+          <td>
+            -{{ total_retefuente }}
+          </td>
+        </tr>
+
+        <tr>
+          <td>
+            ReteICA:
+          </td>
+
+          <td>
+            -{{ total_reteica }}
+          </td>
+        </tr>
+
+        <tr>
+          <td>
+            ReteIVA:
+          </td>
+
+          <td>
+            -{{ total_reteiva }}
+          </td>
+        </tr>
+
+
+        <tr class="net-total">
+
+          <td>
+            Total neto a pagar:
+          </td>
+
+          <td>
+            {{ total_neto }}
+          </td>
+
+        </tr>
+
+      </table>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       VALOR EN LETRAS
+  ========================== -->
+
+  <section class="words">
+
+    <div class="words-title">
+      Valor en letras
+    </div>
+
+    <div class="words-text">
+      {{ valor_en_letras }}
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       DIAN / QR / TRIBUTARIO
+  ========================== -->
+
+  <section class="dian-section">
+
+    <div class="qr-container">
+
+      <img
+        src="{{ qr_dian }}"
+        alt="QR DIAN"
+      >
+
+    </div>
+
+
+    <div class="dian-validation">
+
+      <div class="dian-title">
+        Documento electrónico validado por la DIAN
+      </div>
+
+      <span class="dian-label">
+        CUFE:
+      </span>
+
+      <div class="dian-line cufe">
+        {{ cufe }}
+      </div>
+
+      <span class="dian-label">
+        Fecha y hora de generación:
+      </span>
+
+      <div class="dian-line">
+        {{ fecha_hora_generacion }}
+      </div>
+
+    </div>
+
+
+    <div class="tax-info">
+
+      <div class="tax-title">
+        Información tributaria y resolución de facturación
+      </div>
+
+      <div class="tax-line">
+        Régimen: {{ informacion_tributaria.regimen }}
+      </div>
+
+      <div class="tax-line">
+        Responsable de IVA:
+        {{ informacion_tributaria.responsable_iva }}
+      </div>
+
+      <div class="tax-line">
+        Actividad económica:
+        {{ informacion_tributaria.actividad_economica }}
+      </div>
+
+      <div class="tax-line">
+        Resolución de facturación electrónica No.
+        {{ resolucion.numero }}
+      </div>
+
+      <div class="tax-line">
+        Prefijo:
+        {{ resolucion.prefijo }}
+      </div>
+
+      <div class="tax-line">
+        Desde:
+        {{ resolucion.desde }}
+        &nbsp;&nbsp;
+        Hasta:
+        {{ resolucion.hasta }}
+      </div>
+
+      <div class="tax-line">
+        Vigencia:
+        {{ resolucion.fecha_inicio }}
+        a
+        {{ resolucion.fecha_fin }}
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       FOOTER
+  ========================== -->
+
+  <footer class="footer">
+
+    Esta es una representación gráfica de la factura electrónica de venta.
+    <br>
+
+    <strong>
+      Documento electrónico generado por Jarvis
+    </strong>
+
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -16,6 +16,15 @@
 .sales-history__search { flex: 1; min-width: 220px; }
 .sales-history__filters input { min-width: 0; height: 40px; box-sizing: border-box; border: 1px solid var(--jarvis-border-strong); border-radius: 8px; padding: .5rem .7rem; font: inherit; font-weight: 400; color: var(--jarvis-text); background: white; }
 .sales-history__table-wrap { overflow-x: auto; }
+.sales-history__actions { display: flex; align-items: center; gap: .4rem; }
+.sales-history__view { text-decoration: none; }
+.sales-history__view, .sales-history__more { display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 36px; padding: .4rem .6rem; border: 1px solid var(--jarvis-border); border-radius: 8px; background: white; color: var(--jarvis-primary); cursor: pointer; font: inherit; white-space: nowrap; }
+.sales-history__more { min-width: 32px; font-size: 1.35rem; }
+.invoice-note-actions { z-index: 1050; width: 180px; padding: .4rem; background: white; box-shadow: 0 8px 24px #102c4226; border: 1px solid var(--jarvis-border); border-radius: 10px; }
+.invoice-note-actions a, .invoice-note-actions button { display: block; width: 100%; box-sizing: border-box; padding: .7rem; text-decoration: none; font: inherit; font-size: .85rem; text-align: left; background: transparent; border: 0; border-radius: 6px; color: var(--jarvis-text); }
+.invoice-note-actions small { display: block; font-size: .65rem; }
+.invoice-note-actions a:hover, .invoice-note-actions a:focus-visible { background: #eaf8f6; color: var(--jarvis-primary); }
+.invoice-note-actions button:disabled { opacity: .5; cursor: not-allowed; }
 .sales-history table { width: 100%; border-collapse: collapse; }
 .sales-history th { padding: .85rem 1.5rem; text-align: left; font-size: .68rem; letter-spacing: .055em; text-transform: uppercase; color: var(--jarvis-text-muted); background: #fafcfd; white-space: nowrap; }
 .sales-history td { padding: 1.1rem 1.5rem; border-top: 1px solid var(--jarvis-border); font-size: .82rem; vertical-align: top; }

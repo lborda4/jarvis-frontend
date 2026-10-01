@@ -215,6 +215,8 @@ export function useJarvisIntegrationSettings() {
   const [activeStepId, setActiveStepId] = useState<JarvisSetupStepId | null>(
     'company',
   )
+  const [debitResolution, setDebitResolution] = useState<ResolutionDraft>(EMPTY_RESOLUTION)
+  const [selectedDebitResolutionId, setSelectedDebitResolutionId] = useState('')
   const [creditResolution, setCreditResolution] = useState<ResolutionDraft>(EMPTY_RESOLUTION)
   const [selectedCreditResolutionId, setSelectedCreditResolutionId] = useState('')
   const [invoiceResolution, setInvoiceResolution] =
@@ -326,6 +328,7 @@ export function useJarvisIntegrationSettings() {
         if (status.phone) setPhone(status.phone)
 
         setCreditResolution(resolutionToDraft(status.creditNoteResolution, 'NOTA CRÉDITO'))
+        setDebitResolution(resolutionToDraft(status.debitNoteResolution, 'NOTA DÉBITO'))
         setInvoiceResolution(
           resolutionToDraft(
             status.electronicInvoiceResolution,
@@ -579,6 +582,7 @@ export function useJarvisIntegrationSettings() {
   // consulta trae todos los tipos de la empresa (nómina, notas, POS,
   // exportación...), y ofrecerlos para facturar llevaría a emitir contra una
   // numeración que no corresponde.
+  const debitResolutionOptions = useMemo(() => availableResolutions.filter(resolution => isResolutionOfDocumentType(resolution, JARVIS_RESOLUTION_DOCUMENT_TYPES.DEBIT_NOTE)), [availableResolutions])
   const creditResolutionOptions = useMemo(() => availableResolutions.filter(resolution => isResolutionOfDocumentType(resolution, JARVIS_RESOLUTION_DOCUMENT_TYPES.CREDIT_NOTE)), [availableResolutions])
   const invoiceResolutionOptions = useMemo(
     () =>
@@ -634,13 +638,13 @@ export function useJarvisIntegrationSettings() {
    * en vez de duplicar la lógica de envío: el paso queda igual que antes,
    * solo cambia de dónde salen los datos (antes, del PDF transcrito). */
   const handleSelectResolution = useCallback(
-    (kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE', resolutionId: string) => {
+    (kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE' | 'DEBIT_NOTE', resolutionId: string) => {
       const setSelectedId =
-        kind === 'CREDIT_NOTE' ? setSelectedCreditResolutionId : kind === 'SUPPORT_DOCUMENT'
+        kind === 'DEBIT_NOTE' ? setSelectedDebitResolutionId : kind === 'CREDIT_NOTE' ? setSelectedCreditResolutionId : kind === 'SUPPORT_DOCUMENT'
           ? setSelectedSupportResolutionId
           : setSelectedInvoiceResolutionId
       const setDraft =
-        kind === 'CREDIT_NOTE' ? setCreditResolution : kind === 'SUPPORT_DOCUMENT' ? setSupportResolution : setInvoiceResolution
+        kind === 'DEBIT_NOTE' ? setDebitResolution : kind === 'CREDIT_NOTE' ? setCreditResolution : kind === 'SUPPORT_DOCUMENT' ? setSupportResolution : setInvoiceResolution
 
       setSelectedId(resolutionId)
 
@@ -657,7 +661,7 @@ export function useJarvisIntegrationSettings() {
         formNumber: resolution.formNumber ?? '',
         documentTypeLabel:
           resolution.documentTypeLabel?.trim() ||
-          (kind === 'CREDIT_NOTE' ? 'NOTA CRÉDITO' : kind === 'SUPPORT_DOCUMENT'
+          (kind === 'DEBIT_NOTE' ? 'NOTA DÉBITO' : kind === 'CREDIT_NOTE' ? 'NOTA CRÉDITO' : kind === 'SUPPORT_DOCUMENT'
             ? 'DOCUMENTO SOPORTE'
             : 'FACTURA ELECTRÓNICA DE VENTA'),
         prefix: resolution.prefix,
@@ -680,11 +684,11 @@ export function useJarvisIntegrationSettings() {
    * falta, o null si quedó guardada. */
   const saveResolutionDraft = useCallback(
     async (
-      kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE',
+      kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE' | 'DEBIT_NOTE',
       draft: ResolutionDraft,
     ): Promise<string | null> => {
       const label =
-        kind === 'CREDIT_NOTE' ? 'nota crédito' : kind === 'SUPPORT_DOCUMENT'
+        kind === 'DEBIT_NOTE' ? 'nota débito' : kind === 'CREDIT_NOTE' ? 'nota crédito' : kind === 'SUPPORT_DOCUMENT'
           ? 'documento soporte'
           : 'factura electrónica'
       const fromNumber = Number(draft.fromNumber)
@@ -767,10 +771,11 @@ export function useJarvisIntegrationSettings() {
       // resolución hoy y la otra después, sin quedar bloqueado por la que
       // todavía no tiene a mano.
       const pending: Array<
-        ['ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE', ResolutionDraft]
+        ['ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE' | 'DEBIT_NOTE', ResolutionDraft]
       > = []
 
       if (selectedCreditResolutionId) pending.push(['CREDIT_NOTE', creditResolution])
+      if (selectedDebitResolutionId) pending.push(['DEBIT_NOTE', debitResolution])
       if (hasPurchaseInvoiceAccess && selectedInvoiceResolutionId) {
         pending.push(['ELECTRONIC_INVOICE', invoiceResolution])
       }
@@ -837,6 +842,8 @@ export function useJarvisIntegrationSettings() {
       hasSupportDocumentAccess,
       invoiceResolution,
       creditResolution,
+      debitResolution,
+      selectedDebitResolutionId,
       selectedCreditResolutionId,
       isInvoiceResolutionReady,
       isSavingResolution,
@@ -906,6 +913,8 @@ export function useJarvisIntegrationSettings() {
     resolutionWarnings,
     availableResolutions,
     creditResolutionOptions,
+    debitResolutionOptions,
+    selectedDebitResolutionId,
     selectedCreditResolutionId,
     invoiceResolutionOptions,
     supportResolutionOptions,

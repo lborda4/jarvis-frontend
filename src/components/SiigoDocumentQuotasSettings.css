@@ -1,0 +1,8 @@
+.siigo-document-quotas { margin-bottom: 1.25rem; }
+.siigo-document-quotas__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; margin: 1rem 0; }
+.siigo-document-quotas__card { border: 1px solid var(--jarvis-border-strong); border-radius: var(--r-sm); padding: 1rem; min-width: 0; }
+.siigo-document-quotas__card h3 { font-size: var(--text-md); margin: 0 0 0.75rem; }
+.siigo-document-quotas__remaining { color: var(--jarvis-primary); font-size: 1.5rem; }
+.siigo-document-quotas__remaining small { font-size: var(--text-sm); font-weight: 400; }
+.siigo-document-quotas__card label { display: grid; gap: 0.4rem; font-size: var(--text-sm); }
+.siigo-document-quotas__card input { width: 100%; padding: 0.6rem; font: inherit; border: 1px solid var(--jarvis-border-strong); border-radius: var(--r-sm); }

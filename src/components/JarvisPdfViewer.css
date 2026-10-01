@@ -1,0 +1,22 @@
+.jarvis-pdf { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 70vh; border: 1px solid var(--jarvis-border); border-radius: 12px; overflow: hidden; background: #eef4f6; }
+.jarvis-pdf__toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; flex-shrink: 0; gap: .5rem 1rem; padding: .55rem .8rem; border-bottom: 1px solid var(--jarvis-border); background: #f8fbfc; color: var(--jarvis-text-muted); font-size: .8rem; }
+.jarvis-pdf__pages, .jarvis-pdf__zoom { display: flex; align-items: center; gap: .4rem; }
+.jarvis-pdf__zoom { flex-wrap: wrap; }
+.jarvis-pdf button { min-width: 32px; min-height: 32px; padding: .25rem .5rem; background: white; border: 1px solid var(--jarvis-border); border-radius: 7px; color: var(--jarvis-text); font: inherit; cursor: pointer; }
+.jarvis-pdf button:hover:not(:disabled), .jarvis-pdf button[aria-pressed="true"] { color: var(--jarvis-primary); background: #e2f5f1; border-color: var(--jarvis-primary); }
+.jarvis-pdf button:disabled { opacity: .4; cursor: not-allowed; }
+.jarvis-pdf :focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: -2px; }
+.jarvis-pdf__zoom > span { min-width: 3rem; text-align: center; font-variant-numeric: tabular-nums; }
+.jarvis-pdf__viewport { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b4c9cc transparent; position: relative; }
+.jarvis-pdf__paper { position: relative; width: max-content; margin: 16px auto; background: white; box-shadow: 0 4px 20px #16335b1a; }
+.jarvis-pdf__paper canvas { display: block; }
+.jarvis-pdf__message { padding: 2rem; text-align: center; color: var(--jarvis-text-muted); }
+.jarvis-pdf__text { position: absolute; inset: 0; overflow: clip; line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; }
+.jarvis-pdf__text :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
+.jarvis-pdf__text .markedContent { top: 0; height: 0; }
+.jarvis-pdf__text ::selection { background: #0c9f9640; }
+.sales-invoice-preview .jarvis-pdf { height: auto; }
+@media (max-width: 600px) {
+  .jarvis-pdf__toolbar { padding: .4rem; font-size: .75rem; }
+  .jarvis-pdf__fit { font-size: .7rem !important; }
+}

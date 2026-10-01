@@ -154,19 +154,8 @@ export function createEmptyPurchaseInvoiceItemDraft(): PurchaseInvoiceItemDraft 
  * null entero y el comportamiento es exactamente el de antes: Tipo en
  * 'Account' por defecto, IVA solo si el % de la factura matchea el catálogo.
  *
- * Retefuente se autocompleta igual que el IVA cuando el historial del
- * proveedor la trae consistente (supplierConfig.retefuenteTax != null —
- * backend ya la deja en null si es variable/no confiable, no hay que
- * adivinar acá). Antes arrancaba SIEMPRE en null a propósito, porque el
- * listado y el panel de detalle armaban esta lista cada uno por su cuenta:
- * abrir el panel precargaba una Retefuente que el listado no aplicaba,
- * mostrando dos Totales distintos para el mismo documento. Ahora
- * SupportDocumentTable.tsx arma el listado y el panel a partir de esta
- * MISMA función (effectivePurchaseInvoiceItems), así que ya no hay dos
- * cálculos que puedan divergir — el problema de fondo que forzaba dejarla
- * en null quedó resuelto, y varios proveedores tienen Retefuente fija en
- * el 100% de su historial (dejarla en null ahí solo obliga a elegirla a
- * mano cada vez, con el riesgo de que se le olvide al contador). */
+ * La Retefuente sugerida se muestra aparte y requiere selección del usuario.
+ * Solo se reconstruye desde la configuración para documentos ya creados. */
 export function buildPurchaseInvoiceItemDrafts(
   document: ElectronicDocumentListItem,
   accountOptions: SiigoAccountOption[] = [],

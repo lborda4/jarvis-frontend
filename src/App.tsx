@@ -19,6 +19,7 @@ import { ImportSessionProvider } from './context/ImportSessionContext'
 import AppLayout from './layout/AppLayout'
 import SalesInvoicePage from './pages/SalesInvoicePage'
 import SalesInvoiceListPage from './pages/SalesInvoiceListPage'
+import SalesInvoicePreviewPage from './pages/SalesInvoicePreviewPage'
 import LoginPage from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
 import RegisterPage from './pages/RegisterPage'
@@ -62,6 +63,9 @@ function App() {
 
                 <Route path="/factura-compra" element={<PurchaseInvoiceRoute />} />
                 <Route path="/factura-venta" element={<SalesInvoiceListPage />} />
+                <Route path="/factura-venta/:id/visualizar" element={<SalesInvoicePreviewPage />} />
+                <Route path="/nota-debito" element={<SalesInvoiceListPage key="debit-list" debitNote />} />
+                <Route path="/nota-debito/nueva" element={<SalesInvoicePage key="debit-form" debitNote />} />
                 <Route path="/nota-credito" element={<SalesInvoiceListPage key="credit-list" creditNote />} />
                 <Route path="/nota-credito/nueva" element={<SalesInvoicePage key="credit-form" creditNote />} />
                 <Route path="/factura-venta/nueva" element={<SalesInvoicePage />} />

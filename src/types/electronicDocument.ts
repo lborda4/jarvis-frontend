@@ -292,6 +292,9 @@ export interface PurchaseInvoiceDownloadParty {
 }
 
 export interface PurchaseInvoiceDownloadItem {
+  name?: string | null
+  taxes?: PurchaseInvoiceDownloadTax[]
+  withholdings?: PurchaseInvoiceDownloadWithholding[]
   unitCode?: string | null;
   incAmount?: number | null;
   incPercentage?: number | null;

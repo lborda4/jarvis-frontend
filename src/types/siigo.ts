@@ -393,7 +393,10 @@ export interface SiigoSubscriptionPlan {
   includedDocumentTypes: string[]
 }
 
+export interface SiigoDocumentQuota { documentLimit: number | null; documentsUsed: number; remaining: number | null }
+export type SiigoDocumentQuotas = Partial<Record<'PURCHASE_INVOICE' | 'SUPPORT_DOCUMENT', SiigoDocumentQuota>>
 export interface SiigoSubscriptionStatus {
+  documentQuotas?: SiigoDocumentQuotas
   status: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED' | null
   startedAt: string | null
   documentLimit: number | null
