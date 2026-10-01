@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import CompanyLogoSettings from '../components/CompanyLogoSettings'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
 import ErrorMessage from '../components/ErrorMessage'
 import { CheckIcon } from '../components/icons/SidebarIcons'
@@ -288,6 +289,7 @@ function JarvisIntegrationSettings() {
 
       {/* Sin barra de pasos, igual que en SIIGO: el acordeón ya numera cada
           paso y muestra su estado (Completo / Bloqueado). */}
+      {hasCompany && <CompanyLogoSettings />}
       <div className="settings-accordion">
         <section
           id="jarvis-step-panel-company"

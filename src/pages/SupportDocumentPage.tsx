@@ -1086,6 +1086,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     onFlowCompleted: () => reloadDocuments({ resetPage: true }),
   })
 
+  const supplierReviewRecoveryIds = config.provider === 'SIIGO'
+    ? documents.filter((document) =>
+        document.supplierExistsInSiigo == null &&
+        ['PENDING', 'FAILED', 'ACCOUNT_REQUIRED', 'ACCOUNT_MAPPING_REQUIRED', 'ACCOUNT_MAPPED', 'READY'].includes(document.status),
+      ).map((document) => document.id)
+    : []
+
   const documentsById = useMemo(
     () => Object.fromEntries(documents.map((document) => [document.id, document])),
     [documents],
@@ -2875,6 +2882,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
         {errorMessage && <ErrorMessage message={errorMessage} />}
         {resumeErrorMessage && <ErrorMessage message={resumeErrorMessage} />}
+        {!isResuming && supplierReviewRecoveryIds.length > 0 && (
+          <div className="import-validation-notice" role="status">
+            <p>Hay documentos cuya revisión de proveedor no ha terminado. Si quedó detenida, puedes volver a consultarla. Esta acción no envía documentos a SIIGO.</p>
+            <Button variant="outline" onClick={() => {
+              void watchImportedDocuments(supplierReviewRecoveryIds, () => reloadDocuments({ resetPage: false }))
+            }}>Volver a revisar proveedores</Button>
+          </div>
+        )}
         {resumeNoticeMessage && <div className="import-validation-notice" role="status">{resumeNoticeMessage}</div>}
         {sendErrorMessage && <ErrorMessage message={sendErrorMessage} />}
         {accountsError && <ErrorMessage message={accountsError} />}
@@ -2884,6 +2899,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       </div>
 
       <SupportDocumentFilterBar
+        sentStatusLabel={config.provider === 'SIIGO' ? 'Enviado' : undefined}
         filterOptions={filterOptions}
         columnFilters={columnFilters}
         selectedSupplierNits={selectedSupplierNits}
@@ -2963,6 +2979,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       </div>
 
       <SupportDocumentTable
+        sentStatusLabel={config.provider === 'SIIGO' ? 'Enviado' : undefined}
         referenceSearch={columnFilters.referenceSearch}
         rows={tableRows}
         selectedIds={selectedDocumentIds}

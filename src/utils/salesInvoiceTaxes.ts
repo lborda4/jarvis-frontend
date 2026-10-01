@@ -52,6 +52,7 @@ export function buildSalesInvoiceTaxOptions(
 
 export function formatSalesInvoiceTaxLabel(tax: SalesInvoiceTaxOption): string {
   if (tax.percentage == null) return tax.name
+  if (tax.name === taxPresetLabel(tax.type, tax.percentage)) return tax.name
   if (tax.id.startsWith('default:')) return taxPresetLabel(tax.type, tax.percentage)
   if (tax.type.toLowerCase() === 'reteica') return `${tax.name} · ${tax.percentage} x 1.000`
   if (tax.name.includes('%')) return `${tax.name} · tarifa ${tax.percentage}%`

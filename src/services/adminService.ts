@@ -26,6 +26,11 @@ import type { IntegrationProvider } from '../types/admin'
 import { apiClient } from './apiClient'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
+
+export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingCycle: 'MONTHLY' | 'ANNUAL' }) {
+  const { data } = await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/tracking`, request)
+  return data.company
+}
 const ADMIN_PLANS_ENDPOINT = '/admin/plans'
 const ADMIN_CITIES_ENDPOINT = '/admin/cities'
 const ADMIN_RUT_PARSE_ENDPOINT = '/admin/companies/rut/parse'

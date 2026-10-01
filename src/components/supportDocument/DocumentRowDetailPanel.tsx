@@ -1,3 +1,4 @@
+import { supportDocumentItemAccount } from '../../utils/supportDocumentItemAccounts'
 import type { SiigoAccountOption } from '../../constants/siigoAccountCatalog'
 import type { SiigoCostCenterOption } from '../../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../../constants/siigoPaymentMethodCatalog'
@@ -182,6 +183,7 @@ export default function DocumentRowDetailPanel({
             <thead>
               <tr>
                 <th>Descripción</th>
+                <th>Cuenta contable</th>
                 <th>Cantidad</th>
                 <th>Valor unitario</th>
                 <th>Total</th>
@@ -192,6 +194,7 @@ export default function DocumentRowDetailPanel({
               {items.map((item, index) => (
                 <tr key={`${document.id}-item-${index}`}>
                   <td>{item.description}</td>
+                  <td>{supportDocumentItemAccount(item) ? `${supportDocumentItemAccount(item)!.code} - ${supportDocumentItemAccount(item)!.description}` : '—'}</td>
                   <td>{item.quantity}</td>
                   <td>{formatCurrency(item.unitValue)}</td>
                   <td>{formatCurrency(item.total)}</td>

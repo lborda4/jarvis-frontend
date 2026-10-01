@@ -11,6 +11,8 @@
 .jarvis-pdf__paper { position: relative; width: max-content; margin: 16px auto; background: white; box-shadow: 0 4px 20px #16335b1a; }
 .jarvis-pdf__paper canvas { display: block; }
 .jarvis-pdf__message { padding: 2rem; text-align: center; color: var(--jarvis-text-muted); }
+.jarvis-pdf__viewport { scrollbar-gutter: stable; }
+.jarvis-pdf__loading { position: absolute; top: .75rem; left: .75rem; z-index: 2; padding: .5rem .8rem; border-radius: 8px; background: #f8fbfc; color: var(--jarvis-text-muted); box-shadow: 0 2px 8px #16335b1a; pointer-events: none; font-size: .8rem; }
 .jarvis-pdf__text { position: absolute; inset: 0; overflow: clip; line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; }
 .jarvis-pdf__text :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
 .jarvis-pdf__text .markedContent { top: 0; height: 0; }

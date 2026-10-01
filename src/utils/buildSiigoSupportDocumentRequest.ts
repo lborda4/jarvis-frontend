@@ -1,3 +1,4 @@
+import { supportDocumentItemAccount } from './supportDocumentItemAccounts'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import {
   isNoneCostCenterOption,
@@ -78,7 +79,7 @@ export function buildSiigoSupportDocumentRequest(
 
   const items = sourceItems.map((item) => ({
     type: 'Account',
-    code: account.code,
+    code: supportDocumentItemAccount(item)?.code || account.code,
     description: item.description,
     quantity: item.quantity > 0 ? item.quantity : 1,
     price: item.unitValue > 0 ? item.unitValue : item.total,

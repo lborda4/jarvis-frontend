@@ -16,7 +16,10 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
   const [attempt, setAttempt] = useState(0)
   const viewportRef = useRef<HTMLDivElement>(null)
   const paperRef = useRef<HTMLDivElement>(null)
-  const renderKey = `${page}:${zoom}:${size.width}:${size.height}:${attempt}`
+  // Scrollbars can change the available size. A fixed zoom does not depend on it.
+  const renderWidth = typeof zoom === 'number' ? 0 : size.width
+  const renderHeight = zoom === 'page' ? size.height : 0
+  const renderKey = `${url}:${page}:${zoom}:${renderWidth}:${renderHeight}:${attempt}`
 
   useEffect(() => {
     const task = getDocument({ url, useSystemFonts: true, isEvalSupported: false })
@@ -30,14 +33,16 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
     const container = viewportRef.current
     if (!container) return
     const observer = new ResizeObserver(([entry]) => {
-      setSize({ width: Math.floor(entry.contentRect.width), height: Math.floor(entry.contentRect.height) })
+      const width = Math.floor(entry.contentRect.width)
+      const height = Math.floor(entry.contentRect.height)
+      setSize(previous => previous.width === width && previous.height === height ? previous : { width, height })
     })
     observer.observe(container)
     return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
-    if (!pdf || !size.width || !size.height) return
+    if (!pdf || (typeof zoom !== 'number' && !renderWidth) || (zoom === 'page' && !renderHeight)) return
     let active = true
     let task: RenderTask | undefined
     let textLayer: TextLayer | undefined
@@ -46,8 +51,8 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
         const documentPage = await pdf!.getPage(page)
         if (!active) return
         const original = documentPage.getViewport({ scale: 1 })
-        const widthScale = Math.max(100, size.width - 32) / original.width
-        const scale = zoom === 'page' ? Math.min(widthScale, Math.max(100, size.height - 32) / original.height)
+        const widthScale = Math.max(100, renderWidth - 32) / original.width
+        const scale = zoom === 'page' ? Math.min(widthScale, Math.max(100, renderHeight - 32) / original.height)
           : zoom === 'width' ? widthScale : zoom
         const viewport = documentPage.getViewport({ scale })
         const density = Math.min(window.devicePixelRatio || 1, 2)
@@ -81,7 +86,7 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
     }
     void render()
     return () => { active = false; task?.cancel(); textLayer?.cancel() }
-  }, [pdf, page, zoom, size, renderKey])
+  }, [pdf, page, zoom, renderWidth, renderHeight, renderKey])
 
   const changeZoom = (delta: number) => {
     const current = typeof zoom === 'number' ? zoom : (parseInt(scaleLabel) || 100) / 100
@@ -104,7 +109,7 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
     </div>
     <div ref={viewportRef} className="jarvis-pdf__viewport" tabIndex={0} aria-label="Contenido de la factura" aria-busy={!error && rendered !== renderKey}>
       {error ? <div className="jarvis-pdf__message" role="alert"><p>{error}</p><button type="button" onClick={() => { setError(''); setPdf(null); setRendered(''); setAttempt(value => value + 1) }}>Reintentar</button></div>
-        : <>{rendered !== renderKey && <div className="jarvis-pdf__message" role="status">Preparando página…</div>}<div className="jarvis-pdf__paper" ref={paperRef} style={{ display: rendered === renderKey ? undefined : 'none' }} /></>}
+        : <>{rendered !== renderKey && <div className="jarvis-pdf__loading" role="status">Preparando página…</div>}<div className="jarvis-pdf__paper" ref={paperRef} /></>}
     </div>
   </div>
 }

@@ -44,9 +44,9 @@ export function SalesInvoicePdfDocument({ data, qr }: { data: PurchaseInvoiceDow
   return <Document title={`Factura ${data.invoiceNumber}`} author={data.issuer.name || 'Jarvis'}>
     <Page size="A4" style={s.page}>
       <View style={s.header} wrap={false}>
-        <Text style={s.brand}>{data.issuer.tradeName || data.issuer.name || ''}</Text>
+        {data.logoDataUrl ? <Image src={data.logoDataUrl} style={{ width: '45%', height: 80, objectFit: 'contain' }} /> : <Text style={s.brand}>{data.issuer.tradeName || data.issuer.name || ''}</Text>}
         <View style={{ width: '49%' }}><Text style={s.title}>Factura Electrónica{'\n'}de Venta</Text><Text style={s.number}>No. {data.invoiceNumber}</Text>
-          <Text style={s.field}>Fecha de elaboración: {value(data.issueDate)}</Text><Text style={s.field}>Fecha de vencimiento: {value(data.dueDate)}</Text><Text>Moneda: {data.currency}</Text></View>
+          <Text style={s.field}>Fecha de elaboración: {value(data.issueDate)}</Text>{data.isCreditPayment && <Text style={s.field}>Fecha de vencimiento: {value(data.dueDate)}</Text>}<Text>Moneda: {data.currency}</Text></View>
       </View>
       <View style={s.parties} wrap={false}><Party title="Emisor" party={data.issuer} /><Party title="Cliente" party={data.buyer} /></View>
       <View style={s.table}>

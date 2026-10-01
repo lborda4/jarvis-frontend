@@ -1,3 +1,4 @@
+import { supportDocumentAccountsFallback } from '../utils/supportDocumentItemAccounts'
 import { useCallback, useState } from 'react'
 import {
   AUTO_DISMISS_ERROR_MS,
@@ -170,7 +171,7 @@ export function useSupportDocumentSend({
         documentId: string,
       ): SiigoDocumentSendRequest | null => {
         const document = documentsById[documentId]
-        const account = rowAccounts[documentId] ?? null
+        const account = rowAccounts[documentId] ?? (document ? supportDocumentAccountsFallback(document) : null)
         const paymentMethod = rowPaymentMethods[documentId] ?? null
 
         if (!document) {

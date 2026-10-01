@@ -1,3 +1,4 @@
+import { supportDocumentAccountsFallback } from './supportDocumentItemAccounts'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
@@ -139,7 +140,7 @@ export function buildNotSendableReason(
 
   if (
     requiresAccount &&
-    (hasItems ? !itemsSatisfyAccountRequirement(items) : !rowAccounts[documentId])
+    (hasItems ? !itemsSatisfyAccountRequirement(items) : !rowAccounts[documentId] && !supportDocumentAccountsFallback(document))
   ) {
     return 'Falta asignar la cuenta contable.'
   }
@@ -182,7 +183,7 @@ export function canSendDocument(
 
   return isDocumentReadyToSend(
     documentId,
-    rowAccounts,
+    supportDocumentAccountsFallback(document) ? { ...rowAccounts, [documentId]: rowAccounts[documentId] ?? supportDocumentAccountsFallback(document) } : rowAccounts,
     rowPaymentMethods,
     rowDueDates,
     rowItems,

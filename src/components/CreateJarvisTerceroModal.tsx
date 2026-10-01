@@ -500,6 +500,9 @@ function CreateJarvisTerceroModal({
                   }))
                   setLookupMessage(null)
                   setLookupError(null)
+                  if (provider === 'JARVIS' && !editingTercero && form.document_number.trim() && nextType !== form.document_type) {
+                    void handleLookupDocument(nextType, form.document_number.trim())
+                  }
                 }}
                 disabled={isSaving || isLookingUpNit}
                 required
@@ -538,6 +541,9 @@ function CreateJarvisTerceroModal({
                   // proveedor" (bug real reportado). Se reusa el mismo
                   // handleLookupDocument al salir del campo.
                   onBlur={(event) => {
+                    // El selector consultará con el nuevo tipo; evita iniciar
+                    // primero una consulta con el tipo anterior y bloquearlo.
+                    if (provider === 'JARVIS' && event.relatedTarget?.id === 'tercero-document-type') return
                     const value = event.target.value.trim()
                     if (value && !editingTercero) {
                       void handleLookupDocument(form.document_type, value)

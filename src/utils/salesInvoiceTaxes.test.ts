@@ -16,6 +16,11 @@ function savedTax(overrides: Partial<JarvisTax> = {}): JarvisTax {
 }
 
 describe('impuestos de factura de venta', () => {
+  it('muestra el nombre del predeterminado guardado sin repetir la tarifa', () => {
+    const options = buildSalesInvoiceTaxOptions([savedTax({ name: 'IVA | 19%', rate: 19 })], [])
+    expect(formatSalesInvoiceTaxLabel(options[0])).toBe('IVA | 19%')
+  })
+
   it('combina impuestos activos de la empresa con las tarifas predeterminadas', () => {
     const options = buildSalesInvoiceTaxOptions([
       savedTax(), savedTax({ id: 'inactive', is_active: false }),

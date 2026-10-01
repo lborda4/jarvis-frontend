@@ -538,6 +538,11 @@ export async function fetchJarvisCatalogs(): Promise<JarvisCatalogsResponse> {
   )
 }
 
+export async function fetchJarvisTypeRejections(): Promise<JarvisCatalogItem[]> {
+  return cachedQuery(companyQueryKey(['jarvis', 'type-rejections']), QUERY_STALE_MS.catalogs,
+    async () => (await apiClient.get<JarvisCatalogItem[]>(`${JARVIS_CATALOGS_ENDPOINT}/type-rejections`)).data)
+}
+
 export async function createJarvisSupportDocument(
   request: CreateJarvisSupportDocumentRequest,
 ): Promise<unknown> {

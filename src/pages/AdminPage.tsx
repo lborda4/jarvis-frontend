@@ -1,4 +1,5 @@
 import AdminBoldSettings from '../components/AdminBoldSettings'
+import AdminTracking from '../components/AdminTracking'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -106,7 +107,9 @@ function formatResponsible(
 }
 
 function AdminPage() {
-  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold'>('jarvis')
+  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking'>('jarvis')
+  const [commercial, setCommercial] = useState('')
+  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
   const { logout } = useAuth()
   const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([])
@@ -354,6 +357,8 @@ function AdminPage() {
         )
 
       const response = await createAdminCompany({
+        commercial: commercial.trim(),
+        billingCycle,
         nit: nit.trim(),
         name: name.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
@@ -398,6 +403,8 @@ function AdminPage() {
       setSuccessMessage(`Empresa ${response.company.name} creada correctamente.`)
 
       setNit('')
+      setCommercial('')
+      setBillingCycle('MONTHLY')
       setName('')
       setDescription('')
       setPersonType('')
@@ -754,7 +761,7 @@ function AdminPage() {
   }
 
   return (
-    <main className="admin-page">
+    <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}`}>
       <PageHeader
         eyebrow="Panel interno"
         title="Administración de empresas"
@@ -772,7 +779,7 @@ function AdminPage() {
       />
 
       <div className="admin-tabs" role="tablist" aria-label="Secciones de administración">
-        {(['jarvis', 'bold'] as const).map((tab) => (
+        {(['jarvis', 'bold', 'tracking'] as const).map((tab) => (
           <button key={tab} id={'admin-tab-' + tab} type="button" role="tab"
             aria-selected={activeAdminTab === tab} aria-controls={'admin-panel-' + tab}
             tabIndex={activeAdminTab === tab ? 0 : -1}
@@ -780,16 +787,23 @@ function AdminPage() {
             onKeyDown={(event) => {
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
               event.preventDefault()
-              const next = event.key === 'Home' ? 'jarvis' : event.key === 'End' ? 'bold' : tab === 'jarvis' ? 'bold' : 'jarvis'
+              const tabs = ['jarvis', 'bold', 'tracking'] as const
+              const index = tabs.indexOf(tab)
+              const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[2] : tabs[(index + (event.key === 'ArrowRight' ? 1 : 2)) % tabs.length]
               setActiveAdminTab(next)
               document.getElementById('admin-tab-' + next)?.focus()
             }}>
-            {tab === 'jarvis' ? 'Jarvis' : 'Bold'}
+            {tab === 'jarvis' ? 'Jarvis' : tab === 'bold' ? 'Bold' : 'Seguimiento'}
           </button>
         ))}
       </div>
       <div id="admin-panel-bold" role="tabpanel" aria-labelledby="admin-tab-bold" hidden={activeAdminTab !== 'bold'}>
         {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
+      </div>
+      <div id="admin-panel-tracking" role="tabpanel" aria-labelledby="admin-tab-tracking" hidden={activeAdminTab !== 'tracking'}>
+        {activeAdminTab === 'tracking' && <AdminTracking companies={companies} loading={isLoading}
+          onUpdated={company => setCompanies(current => current.map(item => item.id === company.id ? company : item))}
+          onCreate={() => { setActiveAdminTab('jarvis'); requestAnimationFrame(() => { document.getElementById('admin-company-nit')?.focus(); document.getElementById('admin-company-nit')?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }) }} />}
       </div>
       <div id="admin-panel-jarvis" role="tabpanel" aria-labelledby="admin-tab-jarvis" hidden={activeAdminTab !== 'jarvis'}>
       <section className="admin-card">
@@ -832,6 +846,17 @@ function AdminPage() {
               />
             </div>
 
+            <div className="admin-form__field">
+              <label htmlFor="admin-company-commercial">Comercial</label>
+              <input id="admin-company-commercial" value={commercial} onChange={event => setCommercial(event.target.value)} maxLength={120} placeholder="Nombre del comercial" disabled={isSubmitting} />
+            </div>
+            <div className="admin-form__field">
+              <label htmlFor="admin-company-billing-cycle">Periodicidad del plan</label>
+              <select id="admin-company-billing-cycle" value={billingCycle} onChange={event => setBillingCycle(event.target.value as 'MONTHLY' | 'ANNUAL')} disabled={isSubmitting}>
+                <option value="MONTHLY">Mensual</option><option value="ANNUAL">Anual</option>
+              </select>
+              <small>El vencimiento se calcula desde la fecha de creación de la empresa.</small>
+            </div>
             <div className="admin-form__field admin-form__field--wide">
               <label htmlFor="admin-company-description">
                 Descripción de la empresa

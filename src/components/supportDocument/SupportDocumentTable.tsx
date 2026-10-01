@@ -141,21 +141,24 @@ interface SupportDocumentTableProps {
   onCreateSupplier?: (document: ElectronicDocumentListItem) => void
   onSortChange: (column: SupportDocumentSortColumn) => void
   documentsById: Record<string, ElectronicDocumentListItem>
+  sentStatusLabel?: string
 }
 
 function ImportStatusBadge({
   status,
   aiConfidence,
+  sentStatusLabel,
 }: {
   status: SupportDocumentRow['importStatus']
   aiConfidence?: number | null
+  sentStatusLabel?: string
 }) {
   return (
     <span
       className={`status-badge status-badge--${normalizeStatusClass(status)}`}
       title={aiConfidence != null ? `Confianza IA: ${aiConfidence}%` : undefined}
     >
-      {status}
+      {status === IMPORT_ROW_STATUS.LISTA && sentStatusLabel ? sentStatusLabel : status}
     </span>
   )
 }
@@ -304,6 +307,7 @@ function SupportDocumentTable({
   onCreateSupplier,
   onSortChange,
   documentsById,
+  sentStatusLabel,
 }: SupportDocumentTableProps) {
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set())
   // Ancla para selección con Shift+click (como al seleccionar varios
@@ -795,6 +799,7 @@ function SupportDocumentTable({
                     <div className="support-table__status-cell">
                       <ImportStatusBadge
                         status={row.importStatus}
+                        sentStatusLabel={sentStatusLabel}
                         aiConfidence={documentsById[row.id]?.aiConfidence}
                       />
                       {row.siigoDocumentNumber && (

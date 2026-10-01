@@ -25,6 +25,7 @@ import { EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS } from '../../types/supportDocume
 const PANEL_GAP = 6
 
 interface SupportDocumentFilterBarProps {
+  sentStatusLabel?: string
   filterOptions: ElectronicDocumentFilterOptions | null
   columnFilters: SupportDocumentColumnFilters
   selectedSupplierNits: string[]
@@ -233,6 +234,7 @@ function buildSupplierFilterOptions(
 }
 
 function SupportDocumentFilterBar({
+  sentStatusLabel,
   filterOptions,
   columnFilters,
   selectedSupplierNits,
@@ -287,7 +289,7 @@ function SupportDocumentFilterBar({
     columnFilters.statuses.length === 0
       ? 'Todos'
       : columnFilters.statuses.length === 1
-        ? columnFilters.statuses[0]
+        ? (columnFilters.statuses[0] === 'LISTA' && sentStatusLabel ? sentStatusLabel : columnFilters.statuses[0])
         : `${columnFilters.statuses.length} seleccionados`
 
   const toggleDate = (date: string) => {
@@ -457,7 +459,7 @@ function SupportDocumentFilterBar({
           onClear={clearStatusFilter}
         >
           <ColumnCheckboxFilter
-            options={columnFilterOptions.statuses}
+            options={columnFilterOptions.statuses.map(option => option.value === 'LISTA' && sentStatusLabel ? { ...option, label: sentStatusLabel } : option)}
             selectedValues={columnFilters.statuses}
             disabled={disabled}
             onToggle={toggleStatus}

@@ -58,6 +58,9 @@ export interface AdminIntegrationItem {
 }
 
 export interface AdminCompanyListItem {
+  commercial?: string | null
+  billingCycle?: 'MONTHLY' | 'ANNUAL' | null
+  subscriptionDueDate?: string | null
   id: string
   nit: string
   name: string
@@ -95,6 +98,8 @@ export interface ListAdminPlansResponse {
 }
 
 export interface CreateAdminCompanyRequest {
+  commercial?: string
+  billingCycle?: 'MONTHLY' | 'ANNUAL'
   nit: string
   name: string
   description?: string

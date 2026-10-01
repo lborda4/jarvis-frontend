@@ -1,6 +1,7 @@
 import { calculateJarvisRetention } from '../utils/jarvisTaxTechnical'
 import MoneyInput from '../components/MoneyInput'
 import { balancePayments, type PaymentEntry } from '../utils/paymentBalance'
+import { alignPaymentMethods, paymentMethodsForNegotiation } from '../utils/paymentNegotiation'
 import { fetchJarvisPaymentMethods, resolveJarvisPaymentMethodId, type JarvisPaymentMethod } from '../services/jarvisPaymentMethodService'
 import {
   type DragEvent,
@@ -25,6 +26,7 @@ import {
   createJarvisDebitNote,
   createJarvisSupportInvoice,
   fetchJarvisCatalogs,
+  fetchJarvisTypeRejections,
   fetchJarvisInvoiceDetail,
   fetchJarvisCredentialsStatus,
   fetchJarvisTerceros,
@@ -175,11 +177,27 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const [billingNumber, setBillingNumber] = useState('')
   const [billingUuid, setBillingUuid] = useState('')
   const [billingDate, setBillingDate] = useState('')
-  const [reasonCode, setReasonCode] = useState(debitNote ? '3' : '2')
+  const [reasonCode, setReasonCode] = useState('')
+  const [rejectionTypes, setRejectionTypes] = useState<JarvisCatalogItem[]>([])
+  const [rejectionsLoading, setRejectionsLoading] = useState(true)
+  const [rejectionsError, setRejectionsError] = useState('')
+  const [rejectionsAttempt, setRejectionsAttempt] = useState(0)
   const [reasonDescription, setReasonDescription] = useState('')
+
+  useEffect(() => {
+    if (!isNote) return
+    let active = true
+    fetchJarvisTypeRejections().then(rows => {
+      if (!active) return
+      const options = rows.filter(row => row.name && row.code && Number.isSafeInteger(Number(row.code)) && Number(row.code) > 0)
+      setRejectionTypes(options)
+      setRejectionsError(options.length ? '' : 'No hay motivos disponibles en el catálogo de NextPyme.')
+    }).catch(error => {
+      if (active) setRejectionsError(getApiErrorMessage(error, 'No se pudieron cargar los motivos.'))
+    }).finally(() => { if (active) setRejectionsLoading(false) })
+    return () => { active = false }
+  }, [isNote, rejectionsAttempt])
   const [seze, setSeze] = useState('')
-  const [sendmail, setSendmail] = useState(false)
-  const [sendmailtome, setSendmailtome] = useState(false)
   const [issueDate, setIssueDate] = useState(todayLocalDate)
   const [dueDate, setDueDate] = useState(todayLocalDate)
   const [currency, setCurrency] = useState('COP')
@@ -235,6 +253,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   })()
 
   const plazoDays = Math.max(0, daysBetweenLocalDates(issueDate, dueDate))
+  const availablePaymentMethods = useMemo(() => paymentMethodsForNegotiation(paymentMethods, isCreditPayment), [paymentMethods, isCreditPayment])
 
   const currencyOptions = (() => {
     const matched = COMMON_CURRENCY_CODES.map((code) => {
@@ -265,7 +284,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   }
   const itemRetentionsTotal = lines.reduce((sum, line) => sum + lineRetentionAmount(line), 0)
   const documentTotal = documentSubtotal + documentTax - reteIcaTax - itemRetentionsTotal - (debitNote ? parseAmount(generalDiscount) : 0)
-  const payments = useMemo(() => balancePayments(paymentEntries, documentTotal), [paymentEntries, documentTotal])
+  const payments = useMemo(() => alignPaymentMethods(balancePayments(paymentEntries, documentTotal), availablePaymentMethods), [paymentEntries, documentTotal, availablePaymentMethods])
 
   const filteredCustomers = (() => {
     const query = customerQuery.trim().toLowerCase()
@@ -337,7 +356,6 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             setCustomerQuery(`${request.customerIdentification} — ${request.customerName || source.customerName}`)
             setLines(prefill.lines.length ? prefill.lines : [createEmptyLine()])
             setNotes(request.observations ?? ''); setHeadNote(request.headNote ?? ''); setFootNote(request.footNote ?? '')
-            setSendmail(request.sendmail ?? false); setSendmailtome(request.sendmailtome ?? false)
           } else {
             setCustomerQuery(`${source.customerIdentification} — ${source.customerName}`)
             setLines([createEmptyLine()])
@@ -357,7 +375,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const resetForm = useCallback(() => {
     setGeneralDiscount('0')
     setSourceWarning('')
-    setBillingNumber(''); setBillingUuid(''); setBillingDate(''); setReasonCode(debitNote ? '3' : '2'); setReasonDescription(''); setSeze(''); setSendmail(false); setSendmailtome(false)
+    setBillingNumber(''); setBillingUuid(''); setBillingDate(''); setReasonCode(''); setReasonDescription(''); setSeze('')
     setIssueDate(todayLocalDate())
     setDueDate(todayLocalDate())
     setNotes('')
@@ -373,7 +391,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setAttachedFile(null)
     setFieldErrors({})
     setErrorMessage(null)
-  }, [paymentMethods, debitNote])
+  }, [paymentMethods])
 
   const updateLine = useCallback((lineId: string, patch: Partial<LineItem>) => {
     setLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)))
@@ -516,11 +534,11 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     if (debitNote && (parseAmount(generalDiscount) < 0 || parseAmount(generalDiscount) > documentSubtotal + documentTax - reteIcaTax - itemRetentionsTotal)) nextErrors.generalDiscount = 'El descuento general no puede superar el valor de la nota.'
     if (isNote) {
       if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > issueDate) nextErrors.reference = 'Indica el número, CUFE y fecha de la factura afectada.'
-      if (!Number.isSafeInteger(Number(reasonCode)) || Number(reasonCode) < 1 || !reasonDescription.trim()) nextErrors.reason = 'Indica el código y la descripción del motivo.'
+      if (!rejectionTypes.some(reason => reason.code === reasonCode) || !reasonDescription.trim()) nextErrors.reason = 'Selecciona un motivo del catálogo y completa su descripción.'
     }
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
-  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, itemRetentionsTotal, documentTotal])
+  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, itemRetentionsTotal, documentTotal])
 
   const buildRequest = useCallback(() => {
     if (!selectedCustomer) throw new Error(`Debe seleccionar un ${partyLabel.toLowerCase()}.`)
@@ -542,7 +560,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(isNote ? {
         billingReference: { number: billingNumber.trim(), uuid: billingUuid.trim(), issueDate: billingDate },
         discrepancyResponseCode: Number(reasonCode), discrepancyResponseDescription: reasonDescription.trim(),
-        seze: seze.trim(), sendmail, sendmailtome,
+        seze: seze.trim(), sendmail: false, sendmailtome: true,
       } : {}),
       issueDate: issueDate.trim(),
       customerDocumentType: selectedCustomer.document_type,
@@ -576,7 +594,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, sendmail, sendmailtome, debitNote, generalDiscount])
+  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
 
   const handleSubmit = useCallback(async (mode: SubmitMode) => {
     if (sourceLoading) return
@@ -642,12 +660,14 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
               {fieldErrors.reference && <p className="ds-individual__error" role="alert">{fieldErrors.reference}</p>}
             </div>
             <div className="ds-individual__col">
-              <label className="ds-individual__field"><span>Código del motivo *</span><input type="number" min="1" step="1" value={reasonCode} onChange={e => setReasonCode(e.target.value)} /></label>
+              <label className="ds-individual__field"><span>Motivo *</span><select value={reasonCode} disabled={rejectionsLoading || !rejectionTypes.length} onChange={e => {
+                setReasonCode(e.target.value)
+                setReasonDescription(rejectionTypes.find(reason => reason.code === e.target.value)?.name ?? '')
+              }}><option value="">{rejectionsLoading ? 'Cargando motivos…' : 'Selecciona un motivo'}</option>{rejectionTypes.map(reason => <option key={reason.id} value={reason.code!}>{reason.name}</option>)}</select></label>
+              {rejectionsError && <div role="alert"><p>{rejectionsError}</p><button type="button" disabled={rejectionsLoading} onClick={() => { setRejectionsLoading(true); setRejectionsError(''); setRejectionsAttempt(value => value + 1) }}>Reintentar motivos</button></div>}
               <label className="ds-individual__field"><span>Descripción del motivo *</span><textarea value={reasonDescription} onChange={e => setReasonDescription(e.target.value)} rows={3} /></label>
               {fieldErrors.reason && <p className="ds-individual__error" role="alert">{fieldErrors.reason}</p>}
               <label className="ds-individual__field"><span>Referencia adicional (opcional)</span><input value={seze} onChange={e => setSeze(e.target.value)} /></label>
-              <label className="ds-individual__checkbox"><input type="checkbox" checked={sendmail} onChange={e => setSendmail(e.target.checked)} /> Enviar por correo al cliente</label>
-              <label className="ds-individual__checkbox"><input type="checkbox" checked={sendmailtome} onChange={e => setSendmailtome(e.target.checked)} /> Enviarme una copia</label>
             </div>
           </div>
         </section>}
@@ -866,6 +886,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                 <select value={paymentFormId} onChange={(e) => {
                   setPaymentFormId(e.target.value)
                   const isCredit = paymentForms.length > 0 ? (paymentForms.find((f) => String(f.id) === e.target.value)?.name?.toLowerCase().includes('cr') ?? e.target.value === '2') : e.target.value === '2'
+                  setPayments(alignPaymentMethods(payments, paymentMethodsForNegotiation(paymentMethods, isCredit)))
                   if (!isCredit) setDueDate(issueDate)
                 }}>
                   {paymentForms.length > 0 ? paymentForms.map((form) => <option key={form.id} value={form.id}>{form.name}</option>) : (<><option value="1">Contado</option><option value="2">Crédito</option></>)}
@@ -873,14 +894,14 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
               </label>
 
               {fieldErrors.payment && <p role="alert">{fieldErrors.payment}</p>}
-              {!paymentMethods.length && <p>Crea una forma de pago para seleccionarla en este documento.</p>}
+              {!availablePaymentMethods.length && <p>No hay medios de pago para {isCreditPayment ? 'crédito' : 'contado'}. Configúralos en el catálogo de formas de pago.</p>}
               {payments.map((payment, idx) => (
                 <div key={payment.id} className="ds-individual__field ds-individual__field--payment-method">
                   <span>{idx === 0 ? 'Selecciona forma de pago' : payment.automatic ? 'Saldo restante' : 'Otra forma de pago'}</span>
                   <div className="ds-individual__payment-controls">
                     <select value={payment.methodId} onChange={(e) => updatePayment(payment.id, { methodId: e.target.value })}>
                       <option value="">Selecciona forma de pago</option>
-                      {paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
+                      {availablePaymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
                     </select>
                     <MoneyInput value={payment.amount} onValueChange={(value) => updatePayment(payment.id, { amount: value })} />
                     <button
