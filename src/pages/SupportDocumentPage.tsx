@@ -387,7 +387,7 @@ function resolvePurchaseInvoiceAccountSuggestion(
     }
   }
 
-  return document.suggestedAccount
+  return document.suggestedAccount ?? null
 }
 
 /** Factura de compra: si el medio de pago del proveedor es fijo en su
