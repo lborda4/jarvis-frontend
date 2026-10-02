@@ -9,6 +9,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { uniqueSupplierOptions } from '../../utils/supplierOptions'
 import DateRangePicker, { type DateRangePickerValue } from '../DateRangePicker'
 import { ChevronDownIcon, CloseIcon } from '../icons/SidebarIcons'
 import SupplierMultiSelect from '../SupplierMultiSelect'
@@ -227,10 +228,10 @@ function buildSupplierFilterOptions(
     return []
   }
 
-  return filterOptions.suppliers.map((supplier) => ({
+  return uniqueSupplierOptions(filterOptions.suppliers.map((supplier) => ({
     nit: supplier.nit,
     name: supplier.name,
-  }))
+  })))
 }
 
 function SupportDocumentFilterBar({

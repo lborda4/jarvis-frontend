@@ -293,7 +293,8 @@ export function useSiigoIntegrationSettings() {
     })
     setCredentialsSuccessMessage(formatSiigoCredentialsSuccessMessage(response))
     markConfigured()
-    await refreshSetupStatus()
+    // Saving is complete. Do not hold the next step behind a status/catalog request.
+    void refreshSetupStatus({ background: true })
 
     // Arranca el historial de compras apenas quedan guardadas las
     // credenciales, en vez de esperar al paso de "Cuentas contables" — corre
@@ -399,7 +400,7 @@ export function useSiigoIntegrationSettings() {
       // termine, solo se ocupa de la importación del plan de cuentas.
       const response = await importSiigoAccountsExcel(file)
       setSuppliersSuccessMessage(formatAccountsImportSuccessMessage(response))
-      await refreshSetupStatus()
+      await refreshSetupStatus({ background: true })
 
       const status = await fetchSiigoCredentialsStatus({ force: true })
       setSubscription(status.subscription ?? null)
@@ -486,7 +487,7 @@ export function useSiigoIntegrationSettings() {
       setDocumentTypesSuccessMessage(
         'Comprobantes de cargue guardados correctamente.',
       )
-      await refreshSetupStatus()
+      await refreshSetupStatus({ background: true })
 
       const status = await fetchSiigoCredentialsStatus({ force: true })
       setSubscription(status.subscription ?? null)
@@ -625,6 +626,7 @@ export function useSiigoIntegrationSettings() {
     hasPurchaseInvoiceAccess,
     includedDocumentTypes,
     subscription,
+    setSubscription,
     supportDocumentTypes,
     purchaseDocumentTypes,
     selectedSupportDocumentTypeId,

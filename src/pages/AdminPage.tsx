@@ -1,10 +1,10 @@
+import AdminSidebar from '../components/AdminSidebar'
 import AdminBoldSettings from '../components/AdminBoldSettings'
 import AdminTracking from '../components/AdminTracking'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Autocomplete from '../components/Autocomplete'
-import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
@@ -761,42 +761,15 @@ function AdminPage() {
   }
 
   return (
+    <div className="admin-shell">
+      <AdminSidebar active={activeAdminTab} onChange={setActiveAdminTab} onLogout={handleLogout} />
     <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}`}>
       <PageHeader
         eyebrow="Panel interno"
         title="Administración de empresas"
         description="Gestione empresas, integraciones, planes y suscripciones."
-        actions={
-          <div className="admin-page__header-actions">
-        <Link to="/inicio" className="admin-page__back-link">
-          Volver a la aplicación
-        </Link>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Cerrar sesión
-            </Button>
-          </div>
-        }
       />
 
-      <div className="admin-tabs" role="tablist" aria-label="Secciones de administración">
-        {(['jarvis', 'bold', 'tracking'] as const).map((tab) => (
-          <button key={tab} id={'admin-tab-' + tab} type="button" role="tab"
-            aria-selected={activeAdminTab === tab} aria-controls={'admin-panel-' + tab}
-            tabIndex={activeAdminTab === tab ? 0 : -1}
-            onClick={() => setActiveAdminTab(tab)}
-            onKeyDown={(event) => {
-              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-              event.preventDefault()
-              const tabs = ['jarvis', 'bold', 'tracking'] as const
-              const index = tabs.indexOf(tab)
-              const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[2] : tabs[(index + (event.key === 'ArrowRight' ? 1 : 2)) % tabs.length]
-              setActiveAdminTab(next)
-              document.getElementById('admin-tab-' + next)?.focus()
-            }}>
-            {tab === 'jarvis' ? 'Jarvis' : tab === 'bold' ? 'Bold' : 'Seguimiento'}
-          </button>
-        ))}
-      </div>
       <div id="admin-panel-bold" role="tabpanel" aria-labelledby="admin-tab-bold" hidden={activeAdminTab !== 'bold'}>
         {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
       </div>
@@ -1593,6 +1566,7 @@ function AdminPage() {
       {errorMessage && <ErrorMessage message={errorMessage} />}
       </div>
     </main>
+    </div>
   )
 }
 

@@ -946,7 +946,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                 <label className="ds-individual__field">
                   <span>Plazo (días)</span>
                   <div className="ds-individual__term">
-                    <input type="number" inputMode="numeric" min={0} value={plazoDays} onChange={(e) => { const days = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)); setDueDate(addDaysToLocalDate(issueDate, days)) }} placeholder="0" />
+                    <input type="number" inputMode="numeric" min={0} value={plazoDays || ''} onFocus={event => event.target.select()} onChange={(e) => { const days = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)); setDueDate(addDaysToLocalDate(issueDate, days)) }} placeholder="0" />
                     <span className="ds-individual__term-suffix">días</span>
                   </div>
                 </label>

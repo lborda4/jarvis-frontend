@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -61,7 +62,7 @@ interface IntegrationSetupContextValue {
   requiresSetup: boolean
   setupPath: string
   markConfigured: () => void
-  refreshSetupStatus: () => Promise<void>
+  refreshSetupStatus: (options?: { background?: boolean }) => Promise<void>
 }
 
 const IntegrationSetupContext =
@@ -104,6 +105,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   const companyId = user?.company?.id
   const [isCheckingSetup, setIsCheckingSetup] = useState(true)
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(null)
+  const resolvedCompanyRef = useRef<string | null>(null)
   const [integrationProviders, setIntegrationProviders] = useState<
     IntegrationProvider[]
   >([])
@@ -140,7 +142,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     setIsElectronicInvoiceResolutionConfigured(false)
   }, [])
 
-  const refreshSetupStatus = useCallback(async () => {
+  const refreshSetupStatus = useCallback(async (options?: { background?: boolean }) => {
     // Evita un frame en falso "no configurado" durante el restore de sesión.
     if (isAuthLoading) {
       setIsCheckingSetup(true)
@@ -148,6 +150,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     }
 
     if (!isAuthenticated || !companyId) {
+      resolvedCompanyRef.current = null
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
@@ -180,7 +183,8 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
           QUERY_STALE_MS.credentials,
         ))
 
-    setIsCheckingSetup(!hasFreshSetupCache)
+    const isBackgroundRefresh = options?.background && resolvedCompanyRef.current === companyId
+    setIsCheckingSetup(!hasFreshSetupCache && !isBackgroundRefresh)
 
     try {
       const { providers } = await fetchIntegrationProviders(companyId)
@@ -274,6 +278,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       clearIntegrationConfigured()
     } catch {
       if (getActiveCompanyId() !== companyId) return
+      // A failed background refresh must not discard the confirmed setup or
+      // unmount a form immediately after it has saved successfully.
+      if (isBackgroundRefresh) return
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
@@ -289,6 +296,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       clearIntegrationConfigured()
     } finally {
       if (getActiveCompanyId() === companyId) {
+        resolvedCompanyRef.current = companyId
         setResolvedCompanyId(companyId)
         setIsCheckingSetup(false)
       }

@@ -45,6 +45,7 @@ function SiigoIntegrationSettings() {
     hasPurchaseInvoiceAccess,
     includedDocumentTypes,
     subscription,
+    setSubscription,
     supportDocumentTypes,
     purchaseDocumentTypes,
     selectedSupportDocumentTypeId,
@@ -180,7 +181,10 @@ function SiigoIntegrationSettings() {
         </div>
       )}
 
-      <SiigoDocumentQuotasSettings key={user?.company?.id} />
+      <SiigoDocumentQuotasSettings
+        subscription={subscription}
+        onUpdated={setSubscription}
+      />
 
       {planBlockedReason && (isSiigoConfigured || hasSiigoAccounts) && (
         <div className="settings-page__setup-notice" role="status">

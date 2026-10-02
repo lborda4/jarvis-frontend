@@ -2899,7 +2899,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       </div>
 
       <SupportDocumentFilterBar
-        sentStatusLabel={config.provider === 'SIIGO' ? 'Enviado' : undefined}
+        sentStatusLabel={config.provider === 'SIIGO' ? 'ENVIADO' : undefined}
         filterOptions={filterOptions}
         columnFilters={columnFilters}
         selectedSupplierNits={selectedSupplierNits}
@@ -2979,7 +2979,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       </div>
 
       <SupportDocumentTable
-        sentStatusLabel={config.provider === 'SIIGO' ? 'Enviado' : undefined}
+        sentStatusLabel={config.provider === 'SIIGO' ? 'ENVIADO' : undefined}
         referenceSearch={columnFilters.referenceSearch}
         rows={tableRows}
         selectedIds={selectedDocumentIds}

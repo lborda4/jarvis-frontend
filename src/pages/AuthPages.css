@@ -337,6 +337,15 @@
   color: var(--jarvis-gray-500);
 }
 
+.auth-login-form__password { position: relative; }
+.auth-login-form__password input { padding-right: 3.25rem; }
+.auth-login-form__password input::-ms-reveal { display: none; }
+.auth-login-form__password-toggle { position: absolute; top: 50%; right: .25rem; transform: translateY(-50%); display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--jarvis-text-muted); cursor: pointer; }
+.auth-login-form__password-toggle svg { width: 21px; height: 21px; }
+.auth-login-form__password-toggle:hover:not(:disabled) { color: var(--jarvis-primary); background: var(--jarvis-primary-soft); }
+.auth-login-form__password-toggle:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: -2px; }
+.auth-login-form__password-toggle:disabled { opacity: .5; cursor: not-allowed; }
+
 .auth-login-form__field input:focus {
   outline: none;
   border-color: var(--jarvis-primary);

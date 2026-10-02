@@ -38,6 +38,7 @@ function LoginPage() {
   } = useBackendWakeup()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [errorKind, setErrorKind] = useState<LoginErrorKind | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -236,10 +237,11 @@ function LoginPage() {
               }`}
             >
               <label htmlFor="login-password">Contraseña</label>
+              <div className="auth-login-form__password">
               <input
                 id="login-password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -248,6 +250,22 @@ function LoginPage() {
                 disabled={isSubmitting}
                 aria-invalid={errorKind === 'invalid_password'}
               />
+              <button
+                type="button"
+                className="auth-login-form__password-toggle"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-controls="login-password"
+                title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                disabled={isSubmitting}
+                onClick={() => setShowPassword(value => !value)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                  {showPassword && <path d="m3 3 18 18" />}
+                </svg>
+              </button>
+              </div>
             </div>
 
             {errorMessage && <ErrorMessage message={errorMessage} />}

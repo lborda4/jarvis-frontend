@@ -1,8 +1,87 @@
-.siigo-document-quotas { margin-bottom: 1.25rem; }
-.siigo-document-quotas__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; margin: 1rem 0; }
-.siigo-document-quotas__card { border: 1px solid var(--jarvis-border-strong); border-radius: var(--r-sm); padding: 1rem; min-width: 0; }
-.siigo-document-quotas__card h3 { font-size: var(--text-md); margin: 0 0 0.75rem; }
-.siigo-document-quotas__remaining { color: var(--jarvis-primary); font-size: 1.5rem; }
-.siigo-document-quotas__remaining small { font-size: var(--text-sm); font-weight: 400; }
-.siigo-document-quotas__card label { display: grid; gap: 0.4rem; font-size: var(--text-sm); }
-.siigo-document-quotas__card input { width: 100%; padding: 0.6rem; font: inherit; border: 1px solid var(--jarvis-border-strong); border-radius: var(--r-sm); }
+.siigo-document-quotas {
+  margin-bottom: 1.25rem;
+}
+
+.siigo-document-quotas h2 {
+  margin: 0 0 0.4rem;
+}
+
+.siigo-document-quotas > p {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+}
+
+.siigo-document-quotas__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1.5rem;
+  margin: 1.1rem 0 0;
+}
+
+.siigo-document-quotas__item {
+  min-width: 0;
+  padding: 0;
+}
+
+.siigo-document-quotas__item + .siigo-document-quotas__item {
+  border-left: 1px solid var(--jarvis-border);
+  padding-left: 1.5rem;
+}
+
+.siigo-document-quotas__item h3 {
+  font-size: var(--text-md);
+  margin: 0 0 0.5rem;
+}
+
+.siigo-document-quotas__remaining {
+  color: var(--jarvis-primary);
+  font-size: 1.5rem;
+}
+
+.siigo-document-quotas__remaining small {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.siigo-document-quotas__item p {
+  margin: 0.35rem 0 0;
+  color: var(--jarvis-text-muted);
+}
+
+.siigo-document-quotas__item label {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  font-size: var(--text-sm);
+}
+
+.siigo-document-quotas__item input {
+  width: 100%;
+  padding: 0.6rem;
+  font: inherit;
+  border: 1px solid var(--jarvis-border-strong);
+  border-radius: var(--r-sm);
+}
+
+.siigo-document-quotas form > p {
+  margin: 0.9rem 0 0;
+  color: var(--jarvis-text-muted);
+}
+
+.siigo-document-quotas form > button {
+  margin-top: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .siigo-document-quotas__grid {
+    grid-template-columns: 1fr;
+    gap: 1rem 0;
+  }
+
+  .siigo-document-quotas__item + .siigo-document-quotas__item {
+    border-left: none;
+    border-top: 1px solid var(--jarvis-border);
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+}

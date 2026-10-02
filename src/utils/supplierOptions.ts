@@ -1,6 +1,18 @@
 import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import type { SupplierOption } from '../types/supplier'
 
+export function uniqueSupplierOptions(options: SupplierOption[]): SupplierOption[] {
+  const suppliers = new Map<string, SupplierOption>()
+  for (const option of options) {
+    const nit = option.nit.trim()
+    if (!nit) continue
+    const name = option.name?.trim() || nit
+    const existing = suppliers.get(nit)
+    if (!existing || existing.name === nit) suppliers.set(nit, { nit, name })
+  }
+  return [...suppliers.values()]
+}
+
 export function extractSupplierOptions(
   documents: ElectronicDocumentListItem[],
 ): SupplierOption[] {
