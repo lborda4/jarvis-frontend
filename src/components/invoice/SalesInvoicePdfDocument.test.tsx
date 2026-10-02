@@ -20,6 +20,18 @@ describe('sales invoice HTML template adaptation', () => {
     return ''
   }
 
+  it('muestra el porcentaje de retención del documento cuando la línea no lo trae', () => {
+    const text = textContent(SalesInvoicePdfDocument({
+      data: {
+        ...data,
+        withholdings: [{ dianTaxCode: '06', name: 'ReteFuente', percentage: 3.5, amount: 260 }],
+      },
+      qr: '',
+    }))
+    expect(text).toContain('3.5')
+    expect(text).toContain('-260,00')
+  })
+
   it('oculta el vencimiento en contado aunque el XML incluya una fecha', () => {
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, isCreditPayment: false }, qr: '' }))
     expect(text).not.toContain('Fecha de vencimiento:')

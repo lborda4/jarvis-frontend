@@ -82,6 +82,17 @@ export function resolveSuggestedAccountOption(
     return catalogMatch
   }
 
+  // Catálogo ya cargado y el código/nombre no matchean ninguna cuenta usable
+  // (padre, borrada, producto colado como cuenta, etc.): NO inventar una
+  // opción sintética. Eso era el bug de prod — la UI mostraba la "cuenta",
+  // el envío iba con ese código y SIIGO respondía que no existe; al
+  // reelegir del picker sí iba el código hoja real.
+  if (catalog.length > 0) {
+    return null
+  }
+
+  // Catálogo todavía vacío (carga en curso): se deja provisional para no
+  // vaciar la fila; el efecto de rematch la valida cuando llegue el catálogo.
   if (code) {
     return {
       code,
@@ -132,24 +143,75 @@ export function buildInitialRowAccounts(
   )
 }
 
-export function mergeSuggestedAccountsIntoOptions(
-  options: SiigoAccountOption[],
+/**
+ * Rematch de cuentas precargadas contra el catálogo usable. Corrige el caso
+ * en que la fila quedó con un código sintético (historial/IA / catálogo aún
+ * vacío) que SIIGO rechaza al enviar.
+ */
+export function rematchRowAccountsToCatalog(
   documents: ElectronicDocumentListItem[],
-): SiigoAccountOption[] {
-  const accountsByCode = new Map(options.map((option) => [option.code, option]))
+  catalog: SiigoAccountOption[],
+  current: Record<string, SiigoAccountOption | null>,
+  resolveSuggestion: (
+    document: ElectronicDocumentListItem,
+  ) => SuggestedAccountLike | null | undefined,
+): Record<string, SiigoAccountOption | null> {
+  if (catalog.length === 0) {
+    return current
+  }
+
+  let changed = false
+  const next = { ...current }
 
   for (const document of documents) {
+    const existing = next[document.id]
+
+    if (existing?.code) {
+      const catalogMatch = findAccountInCatalog(
+        catalog,
+        existing.code,
+        existing.description,
+      )
+
+      if (catalogMatch) {
+        if (
+          catalogMatch.code !== existing.code ||
+          catalogMatch.description !== existing.description
+        ) {
+          next[document.id] = catalogMatch
+          changed = true
+        }
+        continue
+      }
+
+      next[document.id] = null
+      changed = true
+    }
+
+    if (next[document.id]) {
+      continue
+    }
+
     const suggested = resolveSuggestedAccountOption(
-      document.suggestedAccount,
-      options,
+      resolveSuggestion(document),
+      catalog,
     )
 
-    if (suggested && !accountsByCode.has(suggested.code)) {
-      accountsByCode.set(suggested.code, suggested)
+    if (suggested) {
+      next[document.id] = suggested
+      changed = true
     }
   }
 
-  return [...accountsByCode.values()].sort((left, right) =>
-    left.code.localeCompare(right.code),
-  )
+  return changed ? next : current
+}
+
+export function mergeSuggestedAccountsIntoOptions(
+  options: SiigoAccountOption[],
+  _documents: ElectronicDocumentListItem[],
+): SiigoAccountOption[] {
+  // Solo el catálogo real del picker. Antes se inyectaban códigos de
+  // historial/IA fuera del plan usable y el contador podía "elegir" (o
+  // reelegir) esa misma opción inválida.
+  return options
 }

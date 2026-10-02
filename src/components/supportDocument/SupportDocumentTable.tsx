@@ -748,12 +748,12 @@ function SupportDocumentTable({
                     </div>
                   </td>
                   {!showSummaryColumns && (
-                    <td className="support-table__cell-config">
+                    <td data-label="Cuenta contable" className="support-table__cell-config">
                       {formatSupportDocumentTableAccount(rowAccounts[row.id])}
                     </td>
                   )}
                   {!showSummaryColumns && (
-                    <td className="support-table__cell-config">
+                    <td data-label="Medio de pago" className="support-table__cell-config">
                       {formatSupportDocumentTablePaymentMethod(
                         rowPaymentMethods[row.id],
                       )}
@@ -838,7 +838,7 @@ function SupportDocumentTable({
                     />
                   </td>
                   {showSummaryColumns && (
-                    <td className="support-table__download-col">
+                    <td data-label="Descargar" className="support-table__download-col">
                       <PurchaseInvoiceDownloadButton
                         documentId={row.id}
                         cufe={document?.cufe}

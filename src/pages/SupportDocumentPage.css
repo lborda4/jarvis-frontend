@@ -1077,6 +1077,7 @@
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-md);
   background-color: #ffffff;
+  container: siigo-docs / inline-size;
 }
 
 .support-table--scrollable {
@@ -2442,7 +2443,6 @@
 .support-table--purchase {
   min-width: 0;
   max-width: 100%;
-  container: purchase-list / inline-size;
 }
 
 .support-table--purchase > table {
@@ -2523,63 +2523,135 @@
   flex-wrap: wrap;
 }
 
-/* Depende del espacio real disponible, incluso con el menú lateral abierto. */
-@container purchase-list (max-width: 950px) {
-  .support-table--purchase > table > colgroup {
+/* Listado angosto (móvil o con el menú abierto): cada factura es una
+ * tarjeta etiqueta + valor. El thead solo deja seleccionar / desplegar. */
+@container siigo-docs (max-width: 860px) {
+  .support-table,
+  .support-table--scrollable {
+    overflow: visible;
+  }
+
+  .support-table > table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .support-table > table > colgroup {
     display: none;
   }
 
-  .support-table--purchase > table > thead,
-  .support-table--purchase > table > tbody {
+  .support-table > table > thead,
+  .support-table > table > tbody {
     display: block;
+    width: 100%;
   }
 
-  /* Mantener disponibles selección, contraer y ordenación en tamaños pequeños. */
-  .support-table--purchase > table > thead > tr {
+  .support-table > table > thead > tr {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    padding: 0.4rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--jarvis-border);
   }
 
+  .support-table > table > thead th,
   .support-table--purchase > table > thead th {
+    display: none;
     position: static;
     width: auto;
-    border-bottom: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
-  .support-table--purchase > table > thead .support-table__column-header--plain,
-  .support-table--purchase > table > thead .support-table__download-col {
-    display: none;
+  .support-table > table > thead .support-table__expand-col,
+  .support-table > table > thead .support-table__checkbox-col {
+    display: flex;
+    align-items: center;
   }
 
-  .support-table--purchase > table > tbody > tr:not(.support-table__detail-row) {
+  .support-table > table > tbody > tr:not(.support-table__detail-row) {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 0.5rem;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    column-gap: 0.55rem;
+    row-gap: 0.55rem;
+    padding: 0.9rem 0.9rem 1rem;
     border-top: 1px solid var(--jarvis-border);
   }
 
+  .support-table > table > tbody > tr:not(.support-table__detail-row) > td,
   .support-table--purchase > table > tbody > tr:not(.support-table__detail-row) > td {
     width: auto;
     max-width: none;
+    min-width: 0;
+    padding: 0;
     border-bottom: 0;
     white-space: normal;
+    overflow-wrap: anywhere;
   }
 
-  .support-table--purchase > table > tbody > tr > td[data-label]::before {
+  .support-table > table > tbody > tr > .support-table__expand-col {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .support-table > table > tbody > tr > .support-table__checkbox-col {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    padding-top: 0.2rem;
+  }
+
+  .support-table > table > tbody > tr > td[data-label='Proveedor'] {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .support-table > table > tbody > tr > td[data-label='Proveedor']::before {
+    content: none;
+  }
+
+  .support-table > table > tbody > tr > td[data-label]:not([data-label='Proveedor']) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    align-items: start;
+    column-gap: 0.75rem;
+  }
+
+  .support-table > table > tbody > tr > td[data-label]:not([data-label='Proveedor'])::before {
     content: attr(data-label);
-    display: block;
-    margin-bottom: 0.25rem;
     color: var(--jarvis-text-muted);
     font-size: var(--text-xs);
     font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
   }
 
-  .support-table--purchase > table > tbody > .support-table__detail-row,
-  .support-table--purchase > table > tbody > .support-table__detail-row > td {
+  .support-table > table > tbody > tr > td[data-label='Acción'] .support-table__action,
+  .support-table > table > tbody > tr > td[data-label='Acción'] .btn {
+    justify-self: start;
+  }
+
+  .support-table > table > tbody > tr > .support-table__download-col {
+    grid-column: 1 / -1;
+  }
+
+  .support-table > table > tbody > tr > td[data-label='Descargar'] {
+    grid-template-columns: 7.5rem auto;
+  }
+
+  .support-table > table > tbody > .support-table__detail-row,
+  .support-table > table > tbody > .support-table__detail-row > td {
     display: block;
     width: 100%;
+  }
+
+  .support-table > table > tbody > tr > .support-table__empty-cell,
+  .support-table > table > tbody > tr > .support-table__loading-cell {
+    grid-column: 1 / -1;
   }
 
   .support-table--purchase .purchase-invoice-editor__lower,
@@ -2587,12 +2659,126 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .support-table--purchase > table > tbody > tr > .support-table__download-col {
-    align-self: center;
+  .purchase-item-editor__table {
+    min-width: 0;
   }
 
-  .support-table--purchase > table > tbody > tr > .support-table__empty-cell,
-  .support-table--purchase > table > tbody > tr > .support-table__loading-cell {
-    grid-column: 1 / -1;
+  .purchase-item-editor__table,
+  .purchase-item-editor__table thead,
+  .purchase-item-editor__table tbody,
+  .purchase-item-editor__table tr,
+  .purchase-item-editor__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .purchase-item-editor__table thead {
+    display: none;
+  }
+
+  .purchase-item-editor__table tbody tr {
+    padding: 0.75rem 0 0.85rem;
+    border-bottom: 1px solid var(--jarvis-gray-200);
+  }
+
+  .purchase-item-editor__table td {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.45rem 0.7rem;
+    width: auto;
+    padding: 0.35rem 0;
+    border-bottom: 0;
+  }
+
+  .purchase-item-editor__table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--jarvis-text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .purchase-item-editor__selection-cell,
+  .purchase-item-editor__cell--remove {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 0.15rem;
+  }
+
+  .purchase-item-editor__selection-cell::before,
+  .purchase-item-editor__cell--remove::before {
+    content: none;
+  }
+
+  .purchase-item-editor__account-cell,
+  .purchase-item-editor__input--wide,
+  .purchase-item-editor__input,
+  .purchase-item-editor__select {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .purchase-item-editor__table {
+    min-width: 0;
+  }
+
+  .purchase-item-editor__table,
+  .purchase-item-editor__table thead,
+  .purchase-item-editor__table tbody,
+  .purchase-item-editor__table tr,
+  .purchase-item-editor__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .purchase-item-editor__table thead {
+    display: none;
+  }
+
+  .purchase-item-editor__table tbody tr {
+    padding: 0.75rem 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--jarvis-gray-200);
+  }
+
+  .purchase-item-editor__table td {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.45rem 0.7rem;
+    width: auto;
+    padding: 0.35rem 0;
+    border-bottom: 0;
+  }
+
+  .purchase-item-editor__table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--jarvis-text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .purchase-item-editor__selection-cell,
+  .purchase-item-editor__cell--remove {
+    display: flex;
+    justify-content: flex-start;
+    grid-template-columns: none;
+    padding-top: 0.15rem;
+  }
+
+  .purchase-item-editor__selection-cell::before,
+  .purchase-item-editor__cell--remove::before {
+    content: none;
+  }
+
+  .purchase-item-editor__account-cell,
+  .purchase-item-editor__input--wide,
+  .purchase-item-editor__input,
+  .purchase-item-editor__select {
+    min-width: 0;
   }
 }

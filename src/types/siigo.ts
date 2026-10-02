@@ -45,6 +45,9 @@ export interface CreateSiigoSupplierRequest extends DocumentIdRequest {
   email?: string
   phone?: string
   address?: string
+  city_code?: string
+  tax_responsibility?: string
+  vat_responsible?: boolean
   identification?: string
   id_type?: SiigoSupplierIdType
 }

@@ -82,13 +82,27 @@ function PurchaseInvoiceItemsEditor({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const selectedCount = items.filter((item) => selectedIds.has(item.localId)).length
   const allSelected = items.length > 0 && selectedCount === items.length
-  const changeAccount = (localId: string, account: SiigoAccountOption | null) => {
+  const applyToSelected = (
+    localId: string,
+    patch: Partial<PurchaseInvoiceItemDraft>,
+  ) => {
     if (disabled) return
-    onChange(items.map((item) =>
-      item.localId === localId || (selectedIds.has(localId) && selectedIds.has(item.localId))
-        ? { ...item, tipo: 'Account', producto: account?.code ?? '', codeManuallyEdited: true }
-        : item,
-    ))
+    onChange(
+      items.map((item) =>
+        item.localId === localId ||
+        (selectedIds.has(localId) && selectedIds.has(item.localId))
+          ? { ...item, ...patch }
+          : item,
+      ),
+    )
+  }
+
+  const changeAccount = (localId: string, account: SiigoAccountOption | null) => {
+    applyToSelected(localId, {
+      tipo: 'Account',
+      producto: account?.code ?? '',
+      codeManuallyEdited: true,
+    })
   }
 
   // Con la factura ya en SIIGO ningún campo se puede editar, así que los
@@ -149,7 +163,7 @@ function PurchaseInvoiceItemsEditor({
                     type="checkbox"
                     className="purchase-item-editor__checkbox"
                     aria-label="Seleccionar todos los ítems de esta factura"
-                    title="Seleccionar todos los ítems para cambiar su cuenta contable"
+                    title="Seleccionar todos los ítems para cambiar cuenta, IVA o retención"
                     checked={allSelected}
                     disabled={items.length === 0}
                     ref={(node) => { if (node) node.indeterminate = selectedCount > 0 && !allSelected }}
@@ -195,7 +209,7 @@ function PurchaseInvoiceItemsEditor({
                       />
                     </td>
                   )}
-                  <td className="purchase-item-editor__cell--tipo">
+                  <td data-label="Tipo" className="purchase-item-editor__cell--tipo">
                     <select
                       className="purchase-item-editor__select purchase-item-editor__select--tipo"
                       value={item.tipo}
@@ -213,7 +227,7 @@ function PurchaseInvoiceItemsEditor({
                       ))}
                     </select>
                   </td>
-                  <td className="purchase-item-editor__account-cell">
+                  <td data-label="Producto" className="purchase-item-editor__account-cell">
                     {item.tipo === 'Account' ? (
                       <AccountAutocomplete
                         value={
@@ -261,7 +275,7 @@ function PurchaseInvoiceItemsEditor({
                       />
                     )}
                   </td>
-                  <td className="purchase-item-editor__cell--description">
+                  <td data-label="Descripción" className="purchase-item-editor__cell--description">
                     <input
                       type="text"
                       className="purchase-item-editor__input purchase-item-editor__input--wide"
@@ -273,7 +287,7 @@ function PurchaseInvoiceItemsEditor({
                       placeholder={editablePlaceholder('Descripción')}
                     />
                   </td>
-                  <td className="purchase-item-editor__cell--qty">
+                  <td data-label="Cant." className="purchase-item-editor__cell--qty">
                     <input
                       type="number"
                       min={0}
@@ -288,7 +302,7 @@ function PurchaseInvoiceItemsEditor({
                       disabled={disabled}
                     />
                   </td>
-                  <td className="purchase-item-editor__cell--unit-value" title={(item.includedIvaPercentage ?? 0) > 0 ? "Precio y descuento de origen incluyen IVA" : undefined}>
+                  <td data-label="V/U" className="purchase-item-editor__cell--unit-value" title={(item.includedIvaPercentage ?? 0) > 0 ? "Precio y descuento de origen incluyen IVA" : undefined}>
                     <MoneyInput
                       className="purchase-item-editor__input purchase-item-editor__input--unit-value"
                       value={item.unitValue}
@@ -301,7 +315,7 @@ function PurchaseInvoiceItemsEditor({
                       disabled={disabled}
                     />
                   </td>
-                  <td className="purchase-item-editor__cell--discount" title={(item.includedIvaPercentage ?? 0) > 0 ? "Descuento con IVA incluido, tal como viene en la factura" : undefined}>
+                  <td data-label="Descuento" className="purchase-item-editor__cell--discount" title={(item.includedIvaPercentage ?? 0) > 0 ? "Descuento con IVA incluido, tal como viene en la factura" : undefined}>
                     <MoneyInput
                       className="purchase-item-editor__input purchase-item-editor__input--discount"
                       value={item.discount}
@@ -314,10 +328,12 @@ function PurchaseInvoiceItemsEditor({
                       disabled={disabled}
                     />
                   </td>
-                  <td className="purchase-item-editor__tax-cell">
+                  <td data-label="IVA" className="purchase-item-editor__tax-cell">
                     <TaxAutocomplete
                       value={item.ivaTax}
-                      onChange={(tax) => updateItem(item.localId, { ivaTax: tax })}
+                      onChange={(tax) =>
+                        applyToSelected(item.localId, { ivaTax: tax })
+                      }
                       options={ivaOptions}
                       disabled={disabled}
                       // Sin placeholder a propósito: el encabezado de la
@@ -330,10 +346,12 @@ function PurchaseInvoiceItemsEditor({
                       }
                     />
                   </td>
-                  <td className="purchase-item-editor__tax-cell">
+                  <td data-label="Imp. Ret." className="purchase-item-editor__tax-cell">
                     <TaxAutocomplete
                       value={item.retefuenteTax}
-                      onChange={(tax) => updateItem(item.localId, { retefuenteTax: tax })}
+                      onChange={(tax) =>
+                        applyToSelected(item.localId, { retefuenteTax: tax })
+                      }
                       options={retefuenteOptions}
                       disabled={disabled}
                       placeholder=""
@@ -342,7 +360,7 @@ function PurchaseInvoiceItemsEditor({
                       }
                     />
                   </td>
-                  <td className="purchase-item-editor__readonly-cell purchase-item-editor__readonly-cell--total">
+                  <td data-label="Valor total" className="purchase-item-editor__readonly-cell purchase-item-editor__readonly-cell--total">
                     {formatCurrency(lineTotal)}
                   </td>
                   <td className="purchase-item-editor__cell--remove">

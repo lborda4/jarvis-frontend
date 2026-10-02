@@ -1,4 +1,19 @@
-import { JARVIS_DOCUMENT_TYPE_OPTIONS, type CreateJarvisTerceroRequest, type JarvisTercero } from '../types/jarvis'
+import {
+  JARVIS_DOCUMENT_TYPE,
+  JARVIS_DOCUMENT_TYPE_OPTIONS,
+  JARVIS_ENTITY_TYPE,
+  type CreateJarvisTerceroRequest,
+  type JarvisEntityType,
+  type JarvisTercero,
+} from '../types/jarvis'
+
+export function entityTypeFromDocumentType(
+  documentType?: string | null,
+): JarvisEntityType {
+  return documentType === JARVIS_DOCUMENT_TYPE.NIT
+    ? JARVIS_ENTITY_TYPE.LEGAL_ENTITY
+    : JARVIS_ENTITY_TYPE.NATURAL_PERSON
+}
 
 export function terceroToForm(tercero: JarvisTercero): CreateJarvisTerceroRequest {
   return {

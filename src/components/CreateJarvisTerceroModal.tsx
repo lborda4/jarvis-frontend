@@ -30,13 +30,12 @@ import {
 } from '../types/jarvis'
 import type { SiigoSupplierPersonType } from '../types/siigo'
 import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
-import { terceroToForm } from '../utils/jarvisTerceroForm'
+import { entityTypeFromDocumentType, terceroToForm } from '../utils/jarvisTerceroForm'
 import '../pages/TercerosPage.css'
 import '../pages/InvoiceUpload.css'
 
 const DEFAULT_TAX_RESPONSIBILITY_CODE = JARVIS_TAX_RESPONSIBILITY.NOT_APPLICABLE
 const DEFAULT_TAX_RESPONSIBILITY_ID = 117
-const DEFAULT_MUNICIPALITY_ID = 149
 const DEFAULT_TYPE_REGIME_ID = 2
 
 const EMPTY_FORM: CreateJarvisTerceroRequest = {
@@ -44,8 +43,8 @@ const EMPTY_FORM: CreateJarvisTerceroRequest = {
   document_number: '',
   name: '',
   check_digit: '',
+  entity_type: JARVIS_ENTITY_TYPE.LEGAL_ENTITY,
   tax_responsibility: DEFAULT_TAX_RESPONSIBILITY_CODE,
-  municipality_id: DEFAULT_MUNICIPALITY_ID,
   type_regime_id: DEFAULT_TYPE_REGIME_ID,
   email: '',
   phone: '',
@@ -95,6 +94,18 @@ function formatMunicipalityLabel(item: JarvisMunicipality): string {
   }
 
   return item.name
+}
+
+function isVatResponsibleRegime(
+  regime?: JarvisTypeRegime,
+  typeRegimeId?: number,
+): boolean {
+  const name = regime?.name?.trim() ?? ''
+  if (name) {
+    return !/no\s*responsable/i.test(name)
+  }
+
+  return typeRegimeId != null && typeRegimeId !== DEFAULT_TYPE_REGIME_ID
 }
 
 function matchMunicipalityId(
@@ -236,9 +247,7 @@ function CreateJarvisTerceroModal({
               municipalitiesRef.current,
               response.cityCode,
               response.cityName,
-            ) ??
-            current.municipality_id ??
-            DEFAULT_MUNICIPALITY_ID,
+            ) ?? current.municipality_id,
         }))
         setLookupCity({
           cityCode: response.cityCode ?? null,
@@ -281,6 +290,7 @@ function CreateJarvisTerceroModal({
       ...EMPTY_FORM,
       document_type: documentType,
       document_number: documentNumber,
+      entity_type: entityTypeFromDocumentType(documentType),
     })
     setErrorMessage(null)
     setLookupMessage(null)
@@ -299,7 +309,7 @@ function CreateJarvisTerceroModal({
   }, [isOpen, initialDocumentType, initialDocumentNumber, resumeDocumentId, editingTercero])
 
   useEffect(() => {
-    if (!isOpen || provider !== 'JARVIS') {
+    if (!isOpen) {
       return
     }
 
@@ -327,15 +337,13 @@ function CreateJarvisTerceroModal({
         setForm((current) => ({
           ...current,
           tax_responsibility: current.tax_responsibility || defaultCode,
+          type_regime_id: current.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
           municipality_id:
             matchMunicipalityId(
               municipalityItems,
               lookupCityRef.current.cityCode,
               lookupCityRef.current.cityName,
-            ) ??
-            current.municipality_id ??
-            DEFAULT_MUNICIPALITY_ID,
-          type_regime_id: current.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
+            ) ?? current.municipality_id,
         }))
       } catch {
         if (!cancelled) {
@@ -378,17 +386,13 @@ function CreateJarvisTerceroModal({
           : {}),
         ...(form.entity_type ? { entity_type: form.entity_type } : {}),
         ...(form.tax_regime ? { tax_regime: form.tax_regime } : {}),
-        ...(provider === 'JARVIS'
-          ? {
-              tax_responsibility:
-                form.tax_responsibility?.trim() ||
-                DEFAULT_TAX_RESPONSIBILITY_CODE,
-              municipality_id:
-                form.municipality_id ?? DEFAULT_MUNICIPALITY_ID,
-              type_regime_id:
-                form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
-            }
+        tax_responsibility:
+          form.tax_responsibility?.trim() ||
+          DEFAULT_TAX_RESPONSIBILITY_CODE,
+        ...(form.municipality_id
+          ? { municipality_id: form.municipality_id }
           : {}),
+        type_regime_id: form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
         ...(form.email?.trim() ? { email: form.email.trim() } : {}),
         ...(form.phone?.trim() ? { phone: form.phone.trim() } : {}),
         ...(form.address?.trim() ? { address: form.address.trim() } : {}),
@@ -413,6 +417,14 @@ function CreateJarvisTerceroModal({
           )
         }
 
+        const cityCode =
+          selectedMunicipality?.code?.trim() ||
+          lookupCity.cityCode?.trim() ||
+          undefined
+        const selectedRegime = typeRegimes.find(
+          (item) => item.id === payload.type_regime_id,
+        )
+
         await createSiigoSupplier({
           documentId,
           person_type: resolveSiigoPersonType(
@@ -428,6 +440,14 @@ function CreateJarvisTerceroModal({
           ...(payload.email ? { email: payload.email } : {}),
           ...(payload.phone ? { phone: payload.phone } : {}),
           ...(payload.address ? { address: payload.address } : {}),
+          ...(cityCode ? { city_code: cityCode } : {}),
+          ...(payload.tax_responsibility
+            ? { tax_responsibility: payload.tax_responsibility }
+            : {}),
+          vat_responsible: isVatResponsibleRegime(
+            selectedRegime,
+            payload.type_regime_id,
+          ),
         })
 
         await resumeElectronicDocument(documentId, 'SIIGO')
@@ -480,7 +500,7 @@ function CreateJarvisTerceroModal({
       className="terceros-page__dialog"
     >
       <h2 id="crear-tercero-title" className="modal-dialog__title">
-        {editingTercero ? 'Editar tercero' : provider === 'SIIGO' ? 'Crear tercero en SIIGO' : 'Crear tercero'}
+        {editingTercero ? 'Editar tercero' : 'Crear tercero'}
       </h2>
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
@@ -497,10 +517,11 @@ function CreateJarvisTerceroModal({
                   setForm((current) => ({
                     ...current,
                     document_type: nextType,
+                    entity_type: entityTypeFromDocumentType(nextType),
                   }))
                   setLookupMessage(null)
                   setLookupError(null)
-                  if (provider === 'JARVIS' && !editingTercero && form.document_number.trim() && nextType !== form.document_type) {
+                  if (!editingTercero && form.document_number.trim() && nextType !== form.document_type) {
                     void handleLookupDocument(nextType, form.document_number.trim())
                   }
                 }}
@@ -543,7 +564,7 @@ function CreateJarvisTerceroModal({
                   onBlur={(event) => {
                     // El selector consultará con el nuevo tipo; evita iniciar
                     // primero una consulta con el tipo anterior y bloquearlo.
-                    if (provider === 'JARVIS' && event.relatedTarget?.id === 'tercero-document-type') return
+                    if (event.relatedTarget?.id === 'tercero-document-type') return
                     const value = event.target.value.trim()
                     if (value && !editingTercero) {
                       void handleLookupDocument(form.document_type, value)
@@ -619,11 +640,7 @@ function CreateJarvisTerceroModal({
                 disabled={isSaving || isLookingUpNit}
                 required={provider === 'SIIGO'}
               >
-                <option value="">
-                  {provider === 'SIIGO'
-                    ? 'Seleccione una opción'
-                    : 'Sin especificar'}
-                </option>
+                <option value="">Sin especificar</option>
                 {JARVIS_ENTITY_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -632,125 +649,119 @@ function CreateJarvisTerceroModal({
               </select>
             </div>
 
-            {provider === 'JARVIS' && (
-              <div className="terceros-page__field">
-                <label htmlFor="tercero-tax-responsibility">
-                  Tipo de responsabilidad
-                </label>
-                <select
-                  id="tercero-tax-responsibility"
-                  value={
-                    form.tax_responsibility ?? DEFAULT_TAX_RESPONSIBILITY_CODE
-                  }
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      tax_responsibility: event.target.value,
-                    }))
-                  }
-                  disabled={isSaving || isLookingUpNit}
-                >
-                  {typeLiabilities.length === 0 && (
-                    <option value={DEFAULT_TAX_RESPONSIBILITY_CODE}>
-                      R-99-PN
+            <div className="terceros-page__field">
+              <label htmlFor="tercero-tax-responsibility">
+                Tipo de responsabilidad
+              </label>
+              <select
+                id="tercero-tax-responsibility"
+                value={
+                  form.tax_responsibility ?? DEFAULT_TAX_RESPONSIBILITY_CODE
+                }
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    tax_responsibility: event.target.value,
+                  }))
+                }
+                disabled={isSaving || isLookingUpNit}
+              >
+                {typeLiabilities.length === 0 && (
+                  <option value={DEFAULT_TAX_RESPONSIBILITY_CODE}>
+                    R-99-PN
+                  </option>
+                )}
+                {typeLiabilities.length > 0 &&
+                  !typeLiabilities.some(
+                    (item) =>
+                      item.code ===
+                      (form.tax_responsibility ??
+                        DEFAULT_TAX_RESPONSIBILITY_CODE),
+                  ) && (
+                    <option
+                      value={
+                        form.tax_responsibility ??
+                        DEFAULT_TAX_RESPONSIBILITY_CODE
+                      }
+                    >
+                      {form.tax_responsibility ??
+                        DEFAULT_TAX_RESPONSIBILITY_CODE}
                     </option>
                   )}
-                  {typeLiabilities.length > 0 &&
-                    !typeLiabilities.some(
-                      (item) =>
-                        item.code ===
-                        (form.tax_responsibility ??
-                          DEFAULT_TAX_RESPONSIBILITY_CODE),
-                    ) && (
-                      <option
-                        value={
-                          form.tax_responsibility ??
-                          DEFAULT_TAX_RESPONSIBILITY_CODE
-                        }
-                      >
-                        {form.tax_responsibility ??
-                          DEFAULT_TAX_RESPONSIBILITY_CODE}
-                      </option>
-                    )}
-                  {typeLiabilities.map((item) => (
-                    <option key={item.id} value={item.code}>
-                      {formatTypeLiabilityLabel(item)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                {typeLiabilities.map((item) => (
+                  <option key={item.id} value={item.code}>
+                    {formatTypeLiabilityLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {provider === 'JARVIS' && (
-              <div className="terceros-page__field">
-                <label htmlFor="tercero-type-regime">Tipo de régimen</label>
-                <select
-                  id="tercero-type-regime"
-                  value={form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      type_regime_id: Number(event.target.value),
-                    }))
-                  }
-                  disabled={isSaving || isLookingUpNit}
-                >
-                  {typeRegimes.length === 0 && (
-                    <option value={DEFAULT_TYPE_REGIME_ID}>
-                      No Responsable de IVA
+            <div className="terceros-page__field">
+              <label htmlFor="tercero-type-regime">Tipo de régimen</label>
+              <select
+                id="tercero-type-regime"
+                value={form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    type_regime_id: Number(event.target.value),
+                  }))
+                }
+                disabled={isSaving || isLookingUpNit}
+              >
+                {typeRegimes.length === 0 && (
+                  <option value={DEFAULT_TYPE_REGIME_ID}>
+                    No Responsable de IVA
+                  </option>
+                )}
+                {typeRegimes.length > 0 &&
+                  !typeRegimes.some(
+                    (item) =>
+                      item.id ===
+                      (form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID),
+                  ) && (
+                    <option
+                      value={form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
+                    >
+                      {form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
                     </option>
                   )}
-                  {typeRegimes.length > 0 &&
-                    !typeRegimes.some(
-                      (item) =>
-                        item.id ===
-                        (form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID),
-                    ) && (
-                      <option
-                        value={form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
-                      >
-                        {form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID}
-                      </option>
-                    )}
-                  {typeRegimes.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {formatTypeRegimeLabel(item)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                {typeRegimes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {formatTypeRegimeLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {provider === 'JARVIS' && (
-              <div className="terceros-page__field">
-                <label htmlFor="tercero-municipality">Municipio</label>
-                <Autocomplete
-                  id="tercero-municipality"
-                  value={selectedMunicipality}
-                  onChange={(municipality) =>
-                    setForm((current) => ({
-                      ...current,
-                      municipality_id:
-                        municipality?.id ?? DEFAULT_MUNICIPALITY_ID,
-                    }))
-                  }
-                  options={municipalities}
-                  disabled={isSaving || isLookingUpNit}
-                  placeholder="Buscar municipio"
-                  emptyMessage="No se encontraron municipios."
-                  getOptionKey={(municipality) => municipality.id}
-                  getOptionLabel={formatMunicipalityLabel}
-                  isOptionMatch={(municipality, query) => {
-                    const label = formatMunicipalityLabel(municipality).toLowerCase()
-                    return (
-                      label.includes(query) ||
-                      String(municipality.id).includes(query) ||
-                      (municipality.code ?? '').toLowerCase().includes(query)
-                    )
-                  }}
-                />
-              </div>
-            )}
+            <div className="terceros-page__field">
+              <label htmlFor="tercero-municipality">Ciudad</label>
+              <Autocomplete
+                id="tercero-municipality"
+                value={selectedMunicipality}
+                onChange={(municipality) =>
+                  setForm((current) => ({
+                    ...current,
+                    municipality_id: municipality?.id,
+                  }))
+                }
+                options={municipalities}
+                disabled={isSaving || isLookingUpNit}
+                placeholder="Buscar ciudad (opcional)"
+                emptyMessage="No se encontraron ciudades."
+                clearLabel="Quitar ciudad"
+                getOptionKey={(municipality) => municipality.id}
+                getOptionLabel={formatMunicipalityLabel}
+                isOptionMatch={(municipality, query) => {
+                  const label = formatMunicipalityLabel(municipality).toLowerCase()
+                  return (
+                    label.includes(query) ||
+                    String(municipality.id).includes(query) ||
+                    (municipality.code ?? '').toLowerCase().includes(query)
+                  )
+                }}
+              />
+            </div>
 
             <div className="terceros-page__field">
               <label htmlFor="tercero-email">Correo</label>

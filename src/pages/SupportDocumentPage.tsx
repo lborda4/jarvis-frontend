@@ -123,6 +123,8 @@ import { IMPORT_ROW_STATUS, type ImportRowStatus } from '../types/import'
 import {
   buildInitialRowAccounts,
   mergeSuggestedAccountsIntoOptions,
+  rematchRowAccountsToCatalog,
+  resolveSuggestedAccountOption,
 } from '../utils/siigoAccounts'
 import {
   isCreditPaymentMethod,
@@ -313,7 +315,10 @@ function buildInitialRowDocumentDiscounts(
  * vacía: sin este fallback, el ítem mostraba la cuenta de la IA (ver
  * buildPurchaseInvoiceItemDrafts) pero el botón "Enviar" seguía deshabilitado
  * porque ESTE estado nunca se enteraba de esa sugerencia (bug real
- * reportado: cuenta visible en el ítem, pero "Enviar" nunca se habilitaba). */
+ * reportado: cuenta visible en el ítem, pero "Enviar" nunca se habilitaba).
+ *
+ * Siempre se resuelve contra el catálogo usable: un código del historial que
+ * SIIGO ya no acepta en compras (padre, inactiva, etc.) no se precarga. */
 function buildInitialPurchaseInvoiceRowAccounts(
   documents: ElectronicDocumentListItem[],
   current: Record<string, SiigoAccountOption | null> = {},
@@ -326,17 +331,15 @@ function buildInitialPurchaseInvoiceRowAccounts(
       // (sin draft) y luego el fetch fresco, `current` ya tendría la
       // cuenta original y se ignoraría lo guardado.
       if (document.draft?.accountCode) {
-        const draftAccountCode = document.draft.accountCode
-        const catalogAccount = accountOptions.find(
-          (account) => account.code === draftAccountCode,
-        )
-
         return [
           document.id,
-          {
-            code: draftAccountCode,
-            description: catalogAccount?.description ?? draftAccountCode,
-          },
+          resolveSuggestedAccountOption(
+            {
+              code: document.draft.accountCode,
+              name: document.draft.accountCode,
+            },
+            accountOptions,
+          ),
         ]
       }
 
@@ -344,24 +347,47 @@ function buildInitialPurchaseInvoiceRowAccounts(
         return [document.id, current[document.id]]
       }
 
-      const accountCode =
-        document.suggestedItemConfig?.accountCode || document.suggestedAccount?.code
-      const accountName =
-        document.suggestedItemConfig?.accountCode
-          ? (document.suggestedItemConfig.accountName ?? accountCode)
-          : (document.suggestedAccount?.name ?? accountCode)
-
       return [
         document.id,
-        accountCode
-          ? {
-              code: accountCode,
-              description: accountName ?? accountCode,
-            }
-          : null,
+        resolveSuggestedAccountOption(
+          document.suggestedItemConfig?.accountCode
+            ? {
+                code: document.suggestedItemConfig.accountCode,
+                name:
+                  document.suggestedItemConfig.accountName ??
+                  document.suggestedItemConfig.accountCode,
+              }
+            : document.suggestedAccount,
+          accountOptions,
+        ),
       ]
     }),
   )
+}
+
+function resolvePurchaseInvoiceAccountSuggestion(
+  document: ElectronicDocumentListItem,
+): {
+  code?: string | null
+  name?: string | null
+} | null {
+  if (document.draft?.accountCode) {
+    return {
+      code: document.draft.accountCode,
+      name: document.draft.accountCode,
+    }
+  }
+
+  if (document.suggestedItemConfig?.accountCode) {
+    return {
+      code: document.suggestedItemConfig.accountCode,
+      name:
+        document.suggestedItemConfig.accountName ??
+        document.suggestedItemConfig.accountCode,
+    }
+  }
+
+  return document.suggestedAccount
 }
 
 /** Factura de compra: si el medio de pago del proveedor es fijo en su
@@ -953,26 +979,20 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   }, [selectedDocumentIds.size])
 
   useEffect(() => {
-    if (documents.length === 0 || config.key === 'purchaseInvoice') {
+    if (documents.length === 0 || accountOptions.length === 0) {
       return
     }
 
-    setRowAccounts((current) => {
-      const resolved = buildInitialRowAccounts(documents, accountOptions)
-      let changed = false
-      const next = { ...current }
-
-      for (const document of documents) {
-        const account = resolved[document.id]
-
-        if (account && !next[document.id]) {
-          next[document.id] = account
-          changed = true
-        }
-      }
-
-      return changed ? next : current
-    })
+    setRowAccounts((current) =>
+      rematchRowAccountsToCatalog(
+        documents,
+        accountOptions,
+        current,
+        config.key === 'purchaseInvoice'
+          ? resolvePurchaseInvoiceAccountSuggestion
+          : (document) => document.suggestedAccount,
+      ),
+    )
   }, [documents, accountOptions, config.key])
 
   useEffect(() => {

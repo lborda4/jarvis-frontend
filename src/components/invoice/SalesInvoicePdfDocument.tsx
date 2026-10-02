@@ -52,7 +52,10 @@ export function SalesInvoicePdfDocument({ data, qr }: { data: PurchaseInvoiceDow
       <View style={s.table}>
         <View style={s.tableRow} wrap={false}>{['#', 'Producto / servicio', 'Descripción', 'Cant.', 'Valor unitario', 'Descuento', 'IVA (%)', 'ReteFuente (%)', 'ReteICA (‰)', 'ReteIVA (%)', 'Valor total'].map((title, i) => <Text key={title} style={[s.cell, s.tableHead, { width: widths[i] }]}>{title}</Text>)}</View>
         {data.items.map((item, i) => {
-          const rate = (code: string) => item.withholdings?.find(t => t.dianTaxCode === code)?.percentage ?? 0
+          const rate = (code: string) =>
+            item.withholdings?.find((t) => t.dianTaxCode === code)?.percentage ||
+            data.withholdings.find((t) => t.dianTaxCode === code)?.percentage ||
+            0
           const lineTax = item.taxes?.reduce((sum, t) => sum + t.amount, 0) ?? (item.ivaAmount ?? 0)
           const withheld = item.withholdings?.reduce((sum, t) => sum + (t.amount ?? 0), 0) ?? 0
           const cells = [String(i + 1), item.name || item.code || item.description, item.description, String(item.quantity), money(item.unitValue), money(item.discount ?? 0), String(item.ivaPercentage ?? 0), String(rate('06')), String(rate('07')), String(rate('05')), money(item.total + lineTax - withheld)]

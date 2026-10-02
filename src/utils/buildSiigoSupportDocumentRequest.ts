@@ -1,4 +1,3 @@
-import { supportDocumentItemAccount } from './supportDocumentItemAccounts'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import {
   isNoneCostCenterOption,
@@ -79,7 +78,10 @@ export function buildSiigoSupportDocumentRequest(
 
   const items = sourceItems.map((item) => ({
     type: 'Account',
-    code: supportDocumentItemAccount(item)?.code || account.code,
+    // Solo accountMapping confirmado (Excel/draft) o la cuenta de la fila ya
+    // rematcheada al catálogo. Nunca suggestedAccount crudo: puede ser un
+    // padre/código que la UI mostraba pero SIIGO rechaza al enviar.
+    code: item.accountMapping?.code?.trim() || account.code,
     description: item.description,
     quantity: item.quantity > 0 ? item.quantity : 1,
     price: item.unitValue > 0 ? item.unitValue : item.total,

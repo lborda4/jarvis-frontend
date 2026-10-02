@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { JarvisTercero } from '../types/jarvis'
-import { terceroToForm } from './jarvisTerceroForm'
+import { entityTypeFromDocumentType, terceroToForm } from './jarvisTerceroForm'
 
 const tercero: JarvisTercero = {
   id: 'third-1', document_type: 'CC', document_number: '1016100663', name: 'Cliente',
@@ -26,3 +26,11 @@ it('permite editar campos vacíos sin enviar metadatos del registro', () => {
   expect(form).not.toHaveProperty('id')
   expect(form).not.toHaveProperty('created_at')
 })
+
+it('infiere persona jurídica para NIT y persona natural para cédula', () => {
+  expect(entityTypeFromDocumentType('NIT')).toBe('legal_entity')
+  expect(entityTypeFromDocumentType('CC')).toBe('natural_person')
+  expect(entityTypeFromDocumentType('CE')).toBe('natural_person')
+  expect(entityTypeFromDocumentType('PA')).toBe('natural_person')
+})
+
