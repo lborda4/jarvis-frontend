@@ -29,6 +29,7 @@ interface DatePickerProps {
   placeholder?: string
   minDate?: string
   className?: string
+  invalid?: boolean
 }
 
 function parseIsoDate(value: string): Date | null {
@@ -81,6 +82,7 @@ function DatePicker({
   placeholder = 'dd/mm/aaaa',
   minDate,
   className,
+  invalid = false,
 }: DatePickerProps) {
   const dialogId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -189,11 +191,17 @@ function DatePicker({
   }
 
   return (
-    <div className={['date-picker', className].filter(Boolean).join(' ')} ref={containerRef}>
+    <div
+      className={['date-picker', invalid ? 'date-picker--invalid' : '', className]
+        .filter(Boolean)
+        .join(' ')}
+      ref={containerRef}
+    >
       <button
         type="button"
         id={id}
         className="date-picker__trigger"
+        aria-invalid={invalid || undefined}
         onClick={() => !disabled && (isOpen ? setIsOpen(false) : openPanel())}
         onKeyDown={handleKeyDown}
         disabled={disabled}

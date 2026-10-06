@@ -66,6 +66,8 @@ interface PurchaseInvoiceItemsEditorProps {
    * documento no trae uno. */
   documentReference?: string | null
   disabled?: boolean
+  invalidItemCodes?: ReadonlySet<string>
+  invalidItemDescriptions?: ReadonlySet<string>
 }
 
 function PurchaseInvoiceItemsEditor({
@@ -78,6 +80,8 @@ function PurchaseInvoiceItemsEditor({
   documentTotal,
   documentReference = null,
   disabled = false,
+  invalidItemCodes,
+  invalidItemDescriptions,
 }: PurchaseInvoiceItemsEditorProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const selectedCount = items.filter((item) => selectedIds.has(item.localId)).length
@@ -243,6 +247,7 @@ function PurchaseInvoiceItemsEditor({
                         }
                         options={accountOptions}
                         disabled={disabled}
+                        invalid={invalidItemCodes?.has(item.localId)}
                         placeholder={editablePlaceholder('Buscar cuenta contable...')}
                       />
                     ) : item.tipo === 'Product' ? (
@@ -260,12 +265,14 @@ function PurchaseInvoiceItemsEditor({
                         }
                         options={productOptions}
                         disabled={disabled}
+                        invalid={invalidItemCodes?.has(item.localId)}
                         placeholder={editablePlaceholder('Buscar producto...')}
                       />
                     ) : (
                       <input
                         type="text"
-                        className="purchase-item-editor__input"
+                        className={`purchase-item-editor__input${invalidItemCodes?.has(item.localId) ? ' purchase-item-editor__input--invalid' : ''}`}
+                        aria-invalid={invalidItemCodes?.has(item.localId) || undefined}
                         value={item.producto}
                         onChange={(event) =>
                           updateItem(item.localId, { producto: event.target.value })
@@ -278,7 +285,8 @@ function PurchaseInvoiceItemsEditor({
                   <td data-label="Descripción" className="purchase-item-editor__cell--description">
                     <input
                       type="text"
-                      className="purchase-item-editor__input purchase-item-editor__input--wide"
+                      className={`purchase-item-editor__input purchase-item-editor__input--wide${invalidItemDescriptions?.has(item.localId) ? ' purchase-item-editor__input--invalid' : ''}`}
+                      aria-invalid={invalidItemDescriptions?.has(item.localId) || undefined}
                       value={item.description}
                       onChange={(event) =>
                         updateItem(item.localId, { description: event.target.value })

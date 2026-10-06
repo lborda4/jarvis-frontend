@@ -17,6 +17,8 @@ import type {
   UpdateCompanyDescriptionResponse,
   UpdateCompanyNextPymeTokenRequest,
   UpdateCompanyNextPymeTokenResponse,
+  UpdateCompanyTechnicalKeyRequest,
+  UpdateCompanyTechnicalKeyResponse,
   UpdateIntegrationSubscriptionRequest,
   UpdateIntegrationSubscriptionResponse,
   UpsertBoldCashRegisterRequest,
@@ -92,6 +94,18 @@ export async function updateCompanyNextPymeToken(
 ): Promise<UpdateCompanyNextPymeTokenResponse> {
   const response = await apiClient.patch<UpdateCompanyNextPymeTokenResponse>(
     `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/nextpyme-token`,
+    request,
+  )
+
+  return response.data
+}
+
+export async function updateCompanyTechnicalKey(
+  companyId: string,
+  request: UpdateCompanyTechnicalKeyRequest,
+): Promise<UpdateCompanyTechnicalKeyResponse> {
+  const response = await apiClient.patch<UpdateCompanyTechnicalKeyResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/technical-key`,
     request,
   )
 

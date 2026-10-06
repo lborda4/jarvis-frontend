@@ -11,6 +11,7 @@ import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDr
 import { formatSupportDocumentTableDate } from '../../utils/formatSupportDocumentTableDisplay'
 import { formatCurrency } from '../../utils/formatters'
 import { isCreditPaymentMethod } from '../../utils/siigoPaymentMethods'
+import type { SiigoSendFieldErrors } from '../../utils/supportDocumentSend'
 import PurchaseInvoiceDetailEditor, {
   type PurchaseInvoiceDetailEditorSave,
 } from './PurchaseInvoiceDetailEditor'
@@ -32,6 +33,7 @@ export interface DocumentRowDetailEditableProps {
   onSaveDraft?: (edits: PurchaseInvoiceDetailEditorSave) => void | Promise<void>
   isSavingDraft?: boolean
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
+  fieldErrors?: SiigoSendFieldErrors | null
 }
 
 interface DocumentRowDetailPanelProps {
@@ -112,6 +114,7 @@ export default function DocumentRowDetailPanel({
           onSaveDraft={editable.onSaveDraft}
           isSavingDraft={editable.isSavingDraft}
           onChange={editable.onChange}
+          fieldErrors={editable.fieldErrors}
         />
       </div>
     )

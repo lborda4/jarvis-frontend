@@ -156,6 +156,95 @@ export function buildNotSendableReason(
   return null
 }
 
+export type SiigoSendFieldErrors = {
+  account?: string
+  paymentMethod?: string
+  dueDate?: string
+  itemCodes: string[]
+  itemDescriptions: string[]
+}
+
+export function hasSiigoSendFieldErrors(errors: SiigoSendFieldErrors): boolean {
+  return Boolean(
+    errors.account ||
+      errors.paymentMethod ||
+      errors.dueDate ||
+      errors.itemCodes.length > 0 ||
+      errors.itemDescriptions.length > 0,
+  )
+}
+
+/** Marca los campos concretos que faltan para poder enviar a SIIGO. */
+export function collectSendFieldErrors(
+  document: ElectronicDocumentListItem,
+  documentId: string,
+  importStatus: ImportRowStatus | undefined,
+  rowAccounts: Record<string, SiigoAccountOption | null>,
+  rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>,
+  rowDueDates: Record<string, string | null>,
+  rowItems?: Record<string, PurchaseInvoiceItemDraft[]>,
+  options?: {
+    requiresAccount?: boolean
+    requiresPaymentMethod?: boolean
+  },
+): SiigoSendFieldErrors | null {
+  if (
+    isSupplierMissingInSiigo(document) ||
+    isSupplierCheckPending(document) ||
+    importStatus === IMPORT_ROW_STATUS.LISTA ||
+    importStatus === IMPORT_ROW_STATUS.EXISTENTE_EN_SIIGO ||
+    importStatus === IMPORT_ROW_STATUS.EN_PROCESO
+  ) {
+    return null
+  }
+
+  const errors: SiigoSendFieldErrors = {
+    itemCodes: [],
+    itemDescriptions: [],
+  }
+  const requiresAccount = options?.requiresAccount ?? true
+  const requiresPaymentMethod = options?.requiresPaymentMethod ?? true
+  const paymentMethod = rowPaymentMethods[documentId]
+  const items = rowItems?.[documentId]
+  const hasItems = Boolean(items && items.length > 0)
+
+  if (items) {
+    for (const item of items) {
+      if (!item.description.trim()) {
+        errors.itemDescriptions.push(item.localId)
+      }
+
+      const missingCode =
+        item.tipo === 'Product'
+          ? item.producto.trim().length === 0
+          : requiresAccount && item.producto.trim().length === 0
+
+      if (missingCode) {
+        errors.itemCodes.push(item.localId)
+      }
+    }
+  }
+
+  if (
+    requiresAccount &&
+    !hasItems &&
+    !rowAccounts[documentId] &&
+    !supportDocumentAccountsFallback(document)
+  ) {
+    errors.account = 'Falta asignar la cuenta contable.'
+  }
+
+  if (requiresPaymentMethod && !paymentMethod) {
+    errors.paymentMethod = 'Falta asignar el medio de pago.'
+  }
+
+  if (isCreditPaymentMethod(paymentMethod) && !rowDueDates[documentId]?.trim()) {
+    errors.dueDate = 'Falta la fecha de vencimiento.'
+  }
+
+  return hasSiigoSendFieldErrors(errors) ? errors : null
+}
+
 export function canSendDocument(
   document: ElectronicDocumentListItem,
   documentId: string,

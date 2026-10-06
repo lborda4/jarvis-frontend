@@ -18,6 +18,7 @@ import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import CreateProductModal from '../components/CreateProductModal'
 import DatePicker from '../components/DatePicker'
 import DocumentNotice from '../components/DocumentNotice'
+import DocumentSendOverlay from '../components/DocumentSendOverlay'
 import JarvisProductSearch from '../components/JarvisProductSearch'
 import { getApiErrorMessage } from '../services/apiClient'
 import {
@@ -33,6 +34,8 @@ import {
   fetchJarvisTaxes,
   type JarvisCatalogItem,
 } from '../services/jarvisService'
+import { fetchSiigoCredentialsStatus } from '../services/siigoService'
+import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { fetchProducts, type ProductResponse } from '../services/productService'
 import { getSalesInvoicePrices, type SalesInvoicePriceOption } from '../utils/salesInvoicePrices'
 import type { JarvisTercero } from '../types/jarvis'
@@ -165,6 +168,7 @@ type SubmitMode = 'save' | 'send'
 
 function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNote = false }: { supportDocument?: boolean; creditNote?: boolean; debitNote?: boolean }) {
   const isNote = creditNote || debitNote
+  const { isSiigoCompany } = useIntegrationSetup()
   const documentTitle = debitNote ? 'Nota débito' : isNote ? 'Nota crédito' : supportDocument ? 'Documento soporte' : 'Factura de venta'
   const newTitle = debitNote ? 'Nueva nota débito' : isNote ? 'Nueva nota crédito' : supportDocument ? 'Nuevo documento soporte' : 'Nueva factura de venta'
   const listPath = debitNote ? '/nota-debito' : isNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
@@ -228,9 +232,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const [paymentEntries, setPayments] = useState<PaymentEntry[]>([createEmptyPayment()])
   const [reteIcaId, setReteIcaId] = useState('')
 
-  const [nextConsecutive, setNextConsecutive] = useState<number | null>(null)
-  const [resolutionPrefix, setResolutionPrefix] = useState('')
-  const [manualCreditNumber, setManualCreditNumber] = useState(false)
+  const [nextConsecutive, setNextConsecutive] = useState<number | null>(
+    isNote ? 1 : null,
+  )
+  const [resolutionPrefix, setResolutionPrefix] = useState(
+    debitNote ? 'ND' : creditNote ? 'NC' : '',
+  )
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMode, setSubmitMode] = useState<SubmitMode | null>(null)
@@ -329,7 +336,18 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     let cancelled = false
     async function loadCatalogs() {
       try {
-        const [catalogs, status, savedTaxes, savedPaymentMethods, source] = await Promise.all([fetchJarvisCatalogs(), fetchJarvisCredentialsStatus(), fetchJarvisTaxes(), fetchJarvisPaymentMethods(), sourceInvoiceId ? fetchJarvisInvoiceDetail(sourceInvoiceId) : Promise.resolve(null)])
+        const [catalogs, jarvisStatus, savedTaxes, savedPaymentMethods, source, siigoStatus] = await Promise.all([
+          fetchJarvisCatalogs(),
+          isSiigoCompany && creditNote
+            ? Promise.resolve(null)
+            : fetchJarvisCredentialsStatus().catch(() => null),
+          fetchJarvisTaxes().catch(() => ({ items: [] as never[] })),
+          fetchJarvisPaymentMethods().catch(() => ({ items: [] as never[] })),
+          sourceInvoiceId ? fetchJarvisInvoiceDetail(sourceInvoiceId) : Promise.resolve(null),
+          isSiigoCompany && creditNote
+            ? fetchSiigoCredentialsStatus().catch(() => null)
+            : Promise.resolve(null),
+        ])
         if (cancelled) return
         const mergedTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
         setTaxes(mergedTaxes)
@@ -342,14 +360,21 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         if (!hasCop) { const fc = catalogs.currencies?.[0]?.code?.trim(); if (fc) setCurrency(fc.toUpperCase()) }
         const ivaDefault = mergedTaxes.find((tax) => tax.category === 'IMPUESTO' && isIvaTax(tax) && tax.percentage === DEFAULT_IVA_PERCENT)
         if (ivaDefault) setLines((current) => current.map((line) => line.taxChargeId ? line : { ...line, taxChargeId: String(ivaDefault.id), taxPercent: String(DEFAULT_IVA_PERCENT) }))
-        const resolution = debitNote ? status.debitNoteResolution : isNote ? status.creditNoteResolution : supportDocument ? status.supportDocumentResolution : status.electronicInvoiceResolution
-        if (creditNote) {
-          const consecutive = resolution?.nextConsecutive ?? resolution?.fromNumber
-          const configured = Boolean(resolution?.prefix?.trim() && resolution?.formNumber?.trim() && consecutive != null && consecutive >= 1 && (!Number.isFinite(resolution?.toNumber) || consecutive <= resolution!.toNumber))
-          setManualCreditNumber(!configured)
-        }
-        if (resolution?.nextConsecutive != null) setNextConsecutive(resolution.nextConsecutive)
+        const resolution = creditNote && siigoStatus?.creditNoteResolution
+          ? siigoStatus.creditNoteResolution
+          : debitNote
+            ? jarvisStatus?.debitNoteResolution
+            : isNote
+              ? jarvisStatus?.creditNoteResolution
+              : supportDocument
+                ? jarvisStatus?.supportDocumentResolution
+                : jarvisStatus?.electronicInvoiceResolution
+        const consecutive = resolution?.nextConsecutive ?? resolution?.fromNumber
+        if (consecutive != null) setNextConsecutive(consecutive)
+        else if (isNote) setNextConsecutive(1)
         if (resolution?.prefix?.trim()) setResolutionPrefix(resolution.prefix.trim())
+        else if (debitNote) setResolutionPrefix('ND')
+        else if (creditNote) setResolutionPrefix('NC')
         if (source) {
           const prefill = creditNotePrefill(source, mergedTaxes)
           setBillingNumber(prefill.billingNumber); setBillingUuid(prefill.billingUuid); setBillingDate(prefill.billingDate)
@@ -376,7 +401,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     void loadCatalogs()
     return () => { cancelled = true }
-  }, [supportDocument, isNote, debitNote, sourceInvoiceId])
+  }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, isSiigoCompany])
 
   const resetForm = useCallback(() => {
     setGeneralDiscount('0')
@@ -562,9 +587,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const methodId = isNote ? 0 : resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
     const formId = Number(paymentFormId)
     const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
-    if (creditNote && manualCreditNumber && (!Number.isSafeInteger(nextConsecutive) || nextConsecutive == null || nextConsecutive < 1)) throw new Error('Indique el consecutivo de la nota crédito.')
     return {
-      ...(creditNote && manualCreditNumber ? { number: nextConsecutive!, prefix: resolutionPrefix } : {}),
       ...(isNote ? {
         billingReference: { number: billingNumber.trim(), uuid: billingUuid.trim(), issueDate: billingDate },
         discrepancyResponseCode: Number(reasonCode), discrepancyResponseDescription: reasonDescription.trim(),
@@ -602,7 +625,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [manualCreditNumber, creditNote, nextConsecutive, resolutionPrefix, currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
+  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
 
   const handleSubmit = useCallback(async (mode: SubmitMode) => {
     if (sourceLoading) return
@@ -615,8 +638,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       const response = await (debitNote ? createJarvisDebitNote : isNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest())
       const consecutive = response.invoice?.consecutive || response.invoice?.number
       setSuccessMessage(`${documentTitle} ${consecutive ?? ""} ${supportDocument ? "enviado" : "enviada"} a DIAN.`)
-      if (typeof consecutive === 'number') setNextConsecutive(consecutive + 1)
-      else if (nextConsecutive != null) setNextConsecutive(nextConsecutive + 1)
+      const usedNumber = Number(response.invoice?.number)
+      setNextConsecutive(
+        Number.isFinite(usedNumber) && usedNumber >= 1
+          ? usedNumber + 1
+          : (nextConsecutive ?? 1) + 1,
+      )
       resetForm()
       if (!isNote && !supportDocument && response.invoice.historyId) {
         navigate(`/factura-venta/${encodeURIComponent(response.invoice.historyId)}/visualizar`)
@@ -662,18 +689,18 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           <h2>Factura afectada y motivo de la {documentTitle.toLowerCase()}</h2>
           <div className="ds-individual__info-grid">
             <div className="ds-individual__col">
-              <label className="ds-individual__field"><span>Número de factura *</span><input value={billingNumber} onChange={e => setBillingNumber(e.target.value)} placeholder="Prefijo y número de la factura" /></label>
-              <label className="ds-individual__field"><span>CUFE de la factura *</span><input value={billingUuid} onChange={e => setBillingUuid(e.target.value)} maxLength={96} placeholder="CUFE de la factura afectada" /></label>
-              <label className="ds-individual__field"><span>Fecha de la factura *</span><DatePicker value={billingDate} onChange={setBillingDate} /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Número de factura *</span><input value={billingNumber} onChange={e => setBillingNumber(e.target.value)} placeholder="Prefijo y número de la factura" /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>CUFE de la factura *</span><input value={billingUuid} onChange={e => setBillingUuid(e.target.value)} maxLength={96} placeholder="CUFE de la factura afectada" /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Fecha de la factura *</span><DatePicker value={billingDate} onChange={setBillingDate} invalid={Boolean(fieldErrors.reference)} /></label>
               {fieldErrors.reference && <p className="ds-individual__error" role="alert">{fieldErrors.reference}</p>}
             </div>
             <div className="ds-individual__col">
-              <label className="ds-individual__field"><span>Motivo *</span><select value={reasonCode} disabled={rejectionsLoading || !rejectionTypes.length} onChange={e => {
+              <label className={`ds-individual__field${fieldErrors.reason ? ' is-invalid' : ''}`}><span>Motivo *</span><select value={reasonCode} disabled={rejectionsLoading || !rejectionTypes.length} onChange={e => {
                 setReasonCode(e.target.value)
                 setReasonDescription(rejectionTypes.find(reason => reason.code === e.target.value)?.name ?? '')
               }}><option value="">{rejectionsLoading ? 'Cargando motivos…' : 'Selecciona un motivo'}</option>{rejectionTypes.map(reason => <option key={reason.id} value={reason.code!}>{reason.name}</option>)}</select></label>
               {rejectionsError && <div role="alert"><p>{rejectionsError}</p><button type="button" disabled={rejectionsLoading} onClick={() => { setRejectionsLoading(true); setRejectionsError(''); setRejectionsAttempt(value => value + 1) }}>Reintentar motivos</button></div>}
-              <label className="ds-individual__field"><span>Descripción del motivo *</span><textarea value={reasonDescription} onChange={e => setReasonDescription(e.target.value)} rows={3} /></label>
+              <label className={`ds-individual__field${fieldErrors.reason ? ' is-invalid' : ''}`}><span>Descripción del motivo *</span><textarea value={reasonDescription} onChange={e => setReasonDescription(e.target.value)} rows={3} /></label>
               {fieldErrors.reason && <p className="ds-individual__error" role="alert">{fieldErrors.reason}</p>}
               <label className="ds-individual__field"><span>Referencia adicional (opcional)</span><input value={seze} onChange={e => setSeze(e.target.value)} /></label>
             </div>
@@ -685,15 +712,15 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           <h2>Información general</h2>
           <div className="ds-individual__info-grid">
             <div className="ds-individual__col">
-              <label className="ds-individual__field ds-individual__field--date">
+              <label className={`ds-individual__field ds-individual__field--date${fieldErrors.issueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de elaboración <span className="ds-individual__required">*</span></span>
-                <DatePicker value={issueDate} onChange={(val) => { setIssueDate(val); if (!isCreditPayment) setDueDate(val) }} />
+                <DatePicker value={issueDate} onChange={(val) => { setIssueDate(val); if (!isCreditPayment) setDueDate(val) }} invalid={Boolean(fieldErrors.issueDate)} />
                 {fieldErrors.issueDate && <em className="ds-individual__error">{fieldErrors.issueDate}</em>}
               </label>
 
-              <div className="ds-individual__field ds-individual__field--customer">
+              <div className={`ds-individual__field ds-individual__field--customer${fieldErrors.customer ? ' is-invalid' : ''}`}>
                 <span>{partyLabel} <span className="ds-individual__required">*</span></span>
-                <div className="ds-individual__search" onBlur={(event) => {
+                <div className={`ds-individual__search${fieldErrors.customer ? ' is-invalid' : ''}`} onBlur={(event) => {
                   if (event.currentTarget.contains(event.relatedTarget)) return
                   if (customerBlurTimeoutRef.current) window.clearTimeout(customerBlurTimeoutRef.current)
                   customerBlurTimeoutRef.current = window.setTimeout(() => setIsCustomerMenuOpen(false), 150)
@@ -754,14 +781,11 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             <div className="ds-individual__col">
               <div className="ds-individual__field ds-individual__field--number">
                 <span>Número</span>
-                <>{creditNote && manualCreditNumber ? <>
-                  <label>Prefijo<input aria-label="Prefijo de nota crédito" value={resolutionPrefix} onChange={e => setResolutionPrefix(e.target.value)} /></label>
-                  <label>Consecutivo<input aria-label="Consecutivo de nota crédito" type="number" min="1" step="1" value={nextConsecutive ?? ''} onChange={e => setNextConsecutive(e.target.value === '' ? null : Number(e.target.value))} /></label>
-                </> : <p className="ds-individual__readonly">
+                <p className="ds-individual__readonly">
                   {nextConsecutive != null
-                    ? `${resolutionPrefix}${nextConsecutive} (Numeración automática)`
+                    ? `${resolutionPrefix}${isNote ? String(nextConsecutive).padStart(3, '0') : nextConsecutive} (Numeración automática)`
                     : 'Numeración automática'}
-                </p>}</>
+                </p>
               </div>
 
               <label className="ds-individual__field ds-individual__field--currency">
@@ -823,12 +847,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                         onCreateProduct={() => setProductCreationLineId(line.id)}
                       />
                     </td>
-                    <td className="ds-individual__td-desc">
+                    <td className={`ds-individual__td-desc${fieldErrors[`line-${index}-description`] ? ' is-invalid' : ''}`}>
                       {isNote && <input value={line.notes ?? ''} aria-label={`Notas del ítem ${index + 1}`} placeholder="Notas del ítem (opcional)" onChange={e => updateLine(line.id, { notes: e.target.value })} />}
                       <input type="text" value={line.description} placeholder="Descripción" onChange={(e) => updateLine(line.id, { description: e.target.value })} />
                       {fieldErrors[`line-${index}-description`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-description`]}</em>}
                     </td>
-                    <td className="ds-individual__td-qty">
+                    <td className={`ds-individual__td-qty${fieldErrors[`line-${index}-quantity`] ? ' is-invalid' : ''}`}>
                       <input type="text" inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.id, { quantity: e.target.value })} />
                       {fieldErrors[`line-${index}-quantity`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-quantity`]}</em>}
                     </td>
@@ -907,7 +931,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
               {fieldErrors.payment && <p role="alert">{fieldErrors.payment}</p>}
               {!availablePaymentMethods.length && <p>No hay medios de pago para {isCreditPayment ? 'crédito' : 'contado'}. Configúralos en el catálogo de formas de pago.</p>}
               {payments.map((payment, idx) => (
-                <div key={payment.id} className="ds-individual__field ds-individual__field--payment-method">
+                <div key={payment.id} className={`ds-individual__field ds-individual__field--payment-method${fieldErrors.payment ? ' is-invalid' : ''}`}>
                   <span>{idx === 0 ? 'Selecciona forma de pago' : payment.automatic ? 'Saldo restante' : 'Otra forma de pago'}</span>
                   <div className="ds-individual__payment-controls">
                     <select value={payment.methodId} onChange={(e) => updatePayment(payment.id, { methodId: e.target.value })}>
@@ -930,9 +954,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
               <p className="ds-individual__hint">Si reduces un importe, el saldo restante aparecerá en otra forma de pago.</p>
 
-              <label className="ds-individual__field ds-individual__field--due">
+              <label className={`ds-individual__field ds-individual__field--due${fieldErrors.dueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de vencimiento</span>
-                <DatePicker value={dueDate} onChange={setDueDate} disabled={!isCreditPayment} minDate={issueDate} />
+                <DatePicker value={dueDate} onChange={setDueDate} disabled={!isCreditPayment} minDate={issueDate} invalid={Boolean(fieldErrors.dueDate)} />
                 {!isCreditPayment && (
                   <p className="ds-individual__hint ds-individual__hint--info">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" strokeLinecap="round" /></svg>
@@ -1036,11 +1060,16 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
               <line x1="22" y1="2" x2="11" y2="13" strokeLinecap="round" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" strokeLinejoin="round" />
             </svg>
-            {isSubmitting && submitMode === 'send' ? 'Enviando...' : 'Guardar y enviar'}
+            Guardar y enviar
           </button>
         </footer>
         </fieldset>
       </form>
+
+      <DocumentSendOverlay
+        open={isSubmitting && submitMode === 'send'}
+        documentTitle={documentTitle}
+      />
 
       <CreateProductModal
         isOpen={productCreationLineId !== null}

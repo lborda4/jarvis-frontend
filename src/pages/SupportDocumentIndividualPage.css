@@ -773,6 +773,19 @@
   font-style: normal;
 }
 
+.ds-individual__field.is-invalid input:not([type='checkbox']),
+.ds-individual__field.is-invalid select,
+.ds-individual__field.is-invalid textarea,
+.ds-individual__field.is-invalid .date-picker__trigger,
+.ds-individual__search.is-invalid input,
+.ds-individual__td-desc.is-invalid input,
+.ds-individual__td-qty.is-invalid input,
+.ds-individual__field--payment-method.is-invalid select,
+.ds-individual__field--payment-method.is-invalid input {
+  border-color: var(--jarvis-danger);
+  box-shadow: 0 0 0 3px var(--jarvis-danger-ring);
+}
+
 /* ─── Botón agregar fila ─── */
 .ds-individual__add-line {
   border: 1px solid var(--jarvis-border);

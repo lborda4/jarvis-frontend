@@ -69,6 +69,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     isSupportDocumentEnabled,
     isPurchaseInvoiceEnabled,
     isSalesInvoiceEnabled,
+    isCreditNoteEnabled,
     hasSupportDocumentAccess,
     hasPurchaseInvoiceAccess,
     requiresSetup,
@@ -144,18 +145,31 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             featureEnabled: isSalesInvoiceEnabled,
           },
           { label: 'Nota débito', to: '/nota-debito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
-          { label: 'Nota crédito', to: '/nota-credito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
         ]
       : []),
-    ...(!isAdminRole(user?.role) && isJarvisCompany
+    ...(isCreditNoteEnabled
+      ? [
+          {
+            label: 'Nota crédito',
+            to: '/nota-credito',
+            icon: DocumentIcon,
+            featureEnabled: isCreditNoteEnabled,
+          },
+        ]
+      : []),
+    ...(!isAdminRole(user?.role) && (isJarvisCompany || isCreditNoteEnabled)
       ? [{
           label: 'Categorías',
           to: 'categorias',
           icon: PackageIcon,
           children: [
-            { label: 'Productos', to: '/productos/listar' },
-            { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
-            { label: 'Formas de pago', to: '/formas-de-pago' },
+            ...(isJarvisCompany
+              ? [
+                  { label: 'Productos', to: '/productos/listar' },
+                  { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
+                  { label: 'Formas de pago', to: '/formas-de-pago' },
+                ]
+              : []),
             { label: 'Terceros', to: '/terceros' },
           ],
         }]

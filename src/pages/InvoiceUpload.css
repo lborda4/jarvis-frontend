@@ -439,6 +439,11 @@
   border-color: var(--jarvis-primary);
 }
 
+.account-autocomplete--invalid .account-autocomplete__input {
+  border-color: var(--jarvis-danger);
+  box-shadow: 0 0 0 3px var(--jarvis-danger-ring);
+}
+
 .account-autocomplete.account-autocomplete--clearable .account-autocomplete__input {
   padding-right: 2.25rem;
 }

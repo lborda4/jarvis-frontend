@@ -46,7 +46,7 @@ describe('impuestos de factura de venta', () => {
     expect(options.filter(tax => tax.type === 'Retefuente').map(tax => tax.percentage)).toEqual([1, 2, 2.5, 3.5, 4, 6, 10, 11])
     expect(options.find(tax => tax.type === 'ReteIVA' && tax.percentage === 100)).toMatchObject({ catalogId: 5, category: 'RETENCION' })
     expect(options.find(tax => tax.type === 'INC')).toMatchObject({ catalogId: 4, category: 'IMPUESTO' })
-    expect(formatSalesInvoiceTaxLabel(options.find(tax => tax.type === 'ReteICA' && tax.percentage === 7)!)).toBe('ReteICA | 7,00 x 1.000')
+    expect(formatSalesInvoiceTaxLabel(options.find(tax => tax.type === 'ReteICA' && tax.percentage === 7)!)).toBe('ReteICA | 7,00')
   })
 
   it('separa cargos y retenciones según la categoría y usa el ID del catálogo al enviar', () => {

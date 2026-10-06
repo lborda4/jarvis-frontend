@@ -65,10 +65,6 @@ function JarvisIntegrationSettings() {
     isParsingResolution,
     isSavingResolution,
     availableResolutions,
-    creditResolutionOptions,
-    debitResolutionOptions,
-    selectedDebitResolutionId,
-    selectedCreditResolutionId,
     invoiceResolutionOptions,
     supportResolutionOptions,
     isLoadingResolutions,
@@ -142,7 +138,7 @@ function JarvisIntegrationSettings() {
   // Basta con UNA resolución elegida: se puede configurar un tipo hoy y el
   // otro después. Cada sección del menú se habilita por su cuenta cuando su
   // resolución queda guardada, así que no hay nada que esperar.
-  const canSaveResolutions = Boolean(selectedDebitResolutionId) || Boolean(selectedCreditResolutionId) ||
+  const canSaveResolutions =
     (hasPurchaseInvoiceAccess && Boolean(selectedInvoiceResolutionId)) ||
     (hasSupportDocumentAccess && Boolean(selectedSupportResolutionId))
 
@@ -184,14 +180,14 @@ function JarvisIntegrationSettings() {
    * y un selector, que lista SOLO las resoluciones del tipo de documento de
    * la tarjeta. */
   const renderResolutionPicker = (
-    kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT' | 'CREDIT_NOTE' | 'DEBIT_NOTE',
+    kind: 'ELECTRONIC_INVOICE' | 'SUPPORT_DOCUMENT',
     iconLabel: string,
     title: string,
     description: string,
   ) => {
     const selectId = `jarvis-resolution-${kind.toLowerCase()}`
     const selectedId =
-      kind === 'DEBIT_NOTE' ? selectedDebitResolutionId : kind === 'CREDIT_NOTE' ? selectedCreditResolutionId : kind === 'SUPPORT_DOCUMENT'
+      kind === 'SUPPORT_DOCUMENT'
         ? selectedSupportResolutionId
         : selectedInvoiceResolutionId
     const iconModifier =
@@ -199,7 +195,7 @@ function JarvisIntegrationSettings() {
         ? 'settings-document-type-card__icon--support'
         : 'settings-document-type-card__icon--purchase'
     const options =
-      kind === 'DEBIT_NOTE' ? debitResolutionOptions : kind === 'CREDIT_NOTE' ? creditResolutionOptions : kind === 'SUPPORT_DOCUMENT'
+      kind === 'SUPPORT_DOCUMENT'
         ? supportResolutionOptions
         : invoiceResolutionOptions
 
@@ -577,9 +573,10 @@ function JarvisIntegrationSettings() {
               <div className="settings-accordion__body-inner">
                 <div className="settings-accordion__content">
                   <p className="settings-card__description">
-                    Seleccione la resolución DIAN que desea utilizar para cada
-                    tipo de documento. Podrá cambiarlas posteriormente cuando
-                    lo necesite.
+                    Seleccione la resolución DIAN de factura y documento
+                    soporte. Las notas crédito y débito se numeran solas
+                    desde 1. Podrá cambiar estas resoluciones cuando lo
+                    necesite.
                   </p>
 
                   {!isStepUnlocked('resolutions') ? (
@@ -620,8 +617,6 @@ function JarvisIntegrationSettings() {
                         )}
 
                       <div className="settings-document-types">
-                        {renderResolutionPicker('CREDIT_NOTE', 'NC', 'Nota crédito', 'Numeración para notas crédito')}
-                        {renderResolutionPicker('DEBIT_NOTE', 'ND', 'Nota débito', 'Numeración para notas débito')}
                         {hasPurchaseInvoiceAccess &&
                           renderResolutionPicker(
                             'ELECTRONIC_INVOICE',

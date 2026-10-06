@@ -1,0 +1,133 @@
+.document-send-overlay {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgb(8 23 38 / 52%);
+  backdrop-filter: blur(8px);
+  opacity: 1;
+  transition: opacity 180ms var(--ease-out);
+}
+
+.document-send-overlay__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 22rem);
+  padding: 2.25rem 2rem 1.75rem;
+  border-radius: var(--r-lg);
+  background-color: #ffffff;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+.document-send-overlay[data-closing] {
+  opacity: 0;
+}
+
+.document-send-overlay[data-closing] .document-send-overlay__card {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+@starting-style {
+  .document-send-overlay {
+    opacity: 0;
+  }
+
+  .document-send-overlay__card {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.document-send-overlay__mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 1.25rem;
+  color: var(--jarvis-primary);
+}
+
+.document-send-overlay__halo {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--jarvis-primary-soft) 0%, transparent 70%);
+}
+
+.document-send-overlay__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.document-send-overlay__ring--outer {
+  inset: 0;
+  border-top-color: var(--jarvis-primary);
+  border-right-color: var(--jarvis-primary);
+  animation: document-send-spin 0.7s linear infinite;
+}
+
+.document-send-overlay__ring--inner {
+  inset: 8px;
+  border-bottom-color: var(--jarvis-navy);
+  border-left-color: var(--jarvis-navy);
+  opacity: 0.45;
+  animation: document-send-spin 1.05s linear infinite reverse;
+}
+
+.document-send-overlay__mark svg {
+  position: relative;
+  z-index: 1;
+}
+
+.document-send-overlay__title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--jarvis-navy);
+}
+
+.document-send-overlay__copy {
+  margin: 0.35rem 0 0;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.document-send-overlay__hint {
+  margin: 1rem 0 0;
+  color: var(--jarvis-gray-500);
+  font-size: var(--text-xs);
+}
+
+@keyframes document-send-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .document-send-overlay,
+  .document-send-overlay__card {
+    transition-duration: 0ms;
+  }
+
+  .document-send-overlay__ring--outer,
+  .document-send-overlay__ring--inner {
+    animation: none;
+    opacity: 0.7;
+  }
+}

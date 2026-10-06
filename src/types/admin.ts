@@ -71,6 +71,7 @@ export interface AdminCompanyListItem {
   createdAt: string
   inviteCode: string
   nextPymeToken: string | null
+  technicalKey: string | null
   cityCode: string | null
   cityName: string | null
   integrations: AdminIntegrationItem[]
@@ -116,6 +117,7 @@ export interface CreateAdminCompanyRequest {
    * jarvisCredentials.tokenNextPyme) — si se omite, la consulta de factura
    * de compra por CUFE usa el token global. */
   nextPymeToken?: string
+  technicalKey?: string
 }
 
 export interface JarvisCredentialsSeed {
@@ -133,6 +135,7 @@ export interface JarvisCredentialsSeed {
   address?: string
   phone?: string
   idSoftware?: string
+  technicalKey?: string
   tokenNextPyme?: string
 }
 
@@ -160,6 +163,14 @@ export interface UpdateCompanyNextPymeTokenRequest {
 }
 
 export interface UpdateCompanyNextPymeTokenResponse {
+  company: AdminCompanyListItem
+}
+
+export interface UpdateCompanyTechnicalKeyRequest {
+  technicalKey: string | null
+}
+
+export interface UpdateCompanyTechnicalKeyResponse {
   company: AdminCompanyListItem
 }
 

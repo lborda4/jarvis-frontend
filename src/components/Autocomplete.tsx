@@ -30,6 +30,7 @@ export interface AutocompleteProps<T> {
   className?: string
   clearLabel?: string
   selectOnFocus?: boolean
+  invalid?: boolean
 }
 
 /**
@@ -53,6 +54,7 @@ function Autocomplete<T>({
   className = 'account-autocomplete',
   clearLabel,
   selectOnFocus = false,
+  invalid = false,
 }: AutocompleteProps<T>) {
   const listboxId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -219,12 +221,13 @@ function Autocomplete<T>({
   const selectedKey = value ? getOptionKey(value) : null
 
   return (
-    <div className={`${className}${clearLabel ? ' account-autocomplete--clearable' : ''}`} ref={containerRef}>
+    <div className={`${className}${clearLabel ? ' account-autocomplete--clearable' : ''}${invalid ? ' account-autocomplete--invalid' : ''}`} ref={containerRef}>
       <input
         ref={inputRef}
         id={id}
         type="text"
         className="account-autocomplete__input"
+        aria-invalid={invalid || undefined}
         value={inputValue}
         onChange={(event) => handleInputChange(event.target.value)}
         onFocus={(event) => {

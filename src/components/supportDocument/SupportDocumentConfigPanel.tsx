@@ -67,6 +67,9 @@ interface SupportDocumentConfigPanelProps {
   /** Solo se usa en modo actionsOnly (Factura de compra) — deselecciona
    * todos los documentos de una vez ("Quitar selección"). */
   onClearSelection?: () => void
+  invalidAccount?: boolean
+  invalidPaymentMethod?: boolean
+  invalidDueDate?: boolean
 }
 
 function formatRetentionTypeLabel(taxType: string): string {
@@ -124,6 +127,9 @@ function SupportDocumentConfigPanel({
   onDelete,
   onCreateTerceros,
   onClearSelection,
+  invalidAccount = false,
+  invalidPaymentMethod = false,
+  invalidDueDate = false,
 }: SupportDocumentConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const isBusy = isSending || isDeleting
@@ -206,7 +212,9 @@ function SupportDocumentConfigPanel({
                 ? (progressLabel ?? (isRetry ? 'Reintentando...' : 'Enviando...'))
                 : isRetry
                   ? 'Reintentar'
-                  : `Enviar ${sendableCount} documento${sendableCount === 1 ? '' : 's'}`}
+                  : sendableCount > 0
+                    ? `Enviar ${sendableCount} documento${sendableCount === 1 ? '' : 's'}`
+                    : 'Enviar'}
             </Button>
           )}
         </div>
@@ -265,8 +273,12 @@ function SupportDocumentConfigPanel({
                     onChange={onAccountChange}
                     options={accountOptions}
                     disabled={controlsDisabled}
+                    invalid={invalidAccount}
                     placeholder="Buscar cuenta (código o nombre)..."
                   />
+                  {invalidAccount && (
+                    <em className="support-field-error">Falta asignar la cuenta contable.</em>
+                  )}
                 </div>
               )}
 
@@ -280,8 +292,12 @@ function SupportDocumentConfigPanel({
                   onChange={onPaymentMethodChange}
                   options={paymentMethodOptions}
                   disabled={controlsDisabled}
+                  invalid={invalidPaymentMethod}
                   placeholder="Buscar medio de pago..."
                 />
+                {invalidPaymentMethod && (
+                  <em className="support-field-error">Falta asignar el medio de pago.</em>
+                )}
               </div>
 
               <div className="support-config-panel__field">
@@ -331,7 +347,11 @@ function SupportDocumentConfigPanel({
                   value={selectedDueDate}
                   onChange={onDueDateChange}
                   disabled={controlsDisabled || !isCreditSelected}
+                  invalid={invalidDueDate}
                 />
+                {invalidDueDate && (
+                  <em className="support-field-error">Falta la fecha de vencimiento.</em>
+                )}
               </div>
 
               <div className="support-config-panel__field">

@@ -12,6 +12,7 @@ interface PaymentMethodAutocompleteProps {
   disabled?: boolean
   placeholder?: string
   options?: SiigoPaymentMethodOption[]
+  invalid?: boolean
 }
 
 function PaymentMethodAutocomplete({
@@ -21,6 +22,7 @@ function PaymentMethodAutocomplete({
   disabled = false,
   placeholder = 'Buscar medio de pago...',
   options = [],
+  invalid = false,
 }: PaymentMethodAutocompleteProps) {
   const isOptionMatch = useCallback(
     (paymentMethod: SiigoPaymentMethodOption, query: string) => {
@@ -42,6 +44,7 @@ function PaymentMethodAutocomplete({
       options={options}
       disabled={disabled}
       placeholder={placeholder}
+      invalid={invalid}
       emptyMessage="No se encontraron medios de pago"
       getOptionKey={(paymentMethod) => paymentMethod.id}
       getOptionLabel={formatPaymentMethodOptionLabel}

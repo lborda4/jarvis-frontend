@@ -21,6 +21,7 @@ import {
   updateCompanyCity,
   updateCompanyDescription,
   updateCompanyNextPymeToken,
+  updateCompanyTechnicalKey,
   updateIntegrationSubscription,
 } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -132,6 +133,11 @@ function AdminPage() {
   const [savingTokenCompanyId, setSavingTokenCompanyId] = useState<
     string | null
   >(null)
+  const [editingTechnicalKeyCompanyId, setEditingTechnicalKeyCompanyId] =
+    useState<string | null>(null)
+  const [technicalKeyDraft, setTechnicalKeyDraft] = useState('')
+  const [savingTechnicalKeyCompanyId, setSavingTechnicalKeyCompanyId] =
+    useState<string | null>(null)
   const [editingCityCompanyId, setEditingCityCompanyId] = useState<
     string | null
   >(null)
@@ -161,6 +167,7 @@ function AdminPage() {
   const [jarvisCredentials, setJarvisCredentials] =
     useState<JarvisCredentialsSeed | undefined>()
   const [idSoftware, setIdSoftware] = useState('')
+  const [technicalKey, setTechnicalKey] = useState('')
   const [selectedCity, setSelectedCity] = useState<AdminCityOption | null>(
     null,
   )
@@ -339,12 +346,16 @@ function AdminPage() {
         INTEGRATION_PROVIDER.JARVIS,
       )
       const trimmedIdSoftware = idSoftware.trim()
+      const trimmedTechnicalKey = technicalKey.trim()
       const trimmedTokenNextPyme = companyNextPymeToken.trim()
       const mergedJarvisCredentials: JarvisCredentialsSeed | undefined =
         includesJarvis
           ? {
               ...(jarvisCredentials ?? {}),
               ...(trimmedIdSoftware ? { idSoftware: trimmedIdSoftware } : {}),
+              ...(trimmedTechnicalKey
+                ? { technicalKey: trimmedTechnicalKey }
+                : {}),
               ...(trimmedTokenNextPyme
                 ? { tokenNextPyme: trimmedTokenNextPyme }
                 : {}),
@@ -397,6 +408,7 @@ function AdminPage() {
         ...(companyNextPymeToken.trim()
           ? { nextPymeToken: companyNextPymeToken.trim() }
           : {}),
+        ...(trimmedTechnicalKey ? { technicalKey: trimmedTechnicalKey } : {}),
       })
 
       setCompanies((current) => [response.company, ...current])
@@ -416,6 +428,7 @@ function AdminPage() {
       setRutWarnings([])
       setJarvisCredentials(undefined)
       setIdSoftware('')
+      setTechnicalKey('')
       setCompanyNextPymeToken('')
       setSelectedCity(null)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
@@ -601,6 +614,47 @@ function AdminPage() {
       )
     } finally {
       setSavingTokenCompanyId(null)
+    }
+  }
+
+  const handleStartEditTechnicalKey = (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setEditingTechnicalKeyCompanyId(company.id)
+    setTechnicalKeyDraft(company.technicalKey ?? '')
+  }
+
+  const handleCancelEditTechnicalKey = () => {
+    setEditingTechnicalKeyCompanyId(null)
+    setTechnicalKeyDraft('')
+  }
+
+  const handleSaveTechnicalKey = async (company: AdminCompanyListItem) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setSavingTechnicalKeyCompanyId(company.id)
+
+    try {
+      const response = await updateCompanyTechnicalKey(company.id, {
+        technicalKey: technicalKeyDraft.trim() || null,
+      })
+
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === company.id
+            ? { ...item, technicalKey: response.company.technicalKey }
+            : item,
+        ),
+      )
+      setSuccessMessage(`Clave técnica actualizada para ${company.name}.`)
+      setEditingTechnicalKeyCompanyId(null)
+      setTechnicalKeyDraft('')
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error, 'No se pudo actualizar la clave técnica.'),
+      )
+    } finally {
+      setSavingTechnicalKeyCompanyId(null)
     }
   }
 
@@ -1025,6 +1079,23 @@ function AdminPage() {
 
               {(includesSiigo || includesJarvis) && (
                 <div className="admin-form__field">
+                  <label htmlFor="admin-company-technical-key">
+                    technical_key
+                  </label>
+                  <input
+                    id="admin-company-technical-key"
+                    type="text"
+                    value={technicalKey}
+                    onChange={(event) => setTechnicalKey(event.target.value)}
+                    placeholder="Clave técnica DIAN"
+                    disabled={isSubmitting}
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+
+              {(includesSiigo || includesJarvis) && (
+                <div className="admin-form__field">
                   <label htmlFor="admin-company-nextpyme-token">
                     Token NextPyme (opcional)
                   </label>
@@ -1162,6 +1233,7 @@ function AdminPage() {
                   <th>Suscripción</th>
                   <th>Creada</th>
                   <th>Token NextPyme</th>
+                  <th>technical_key</th>
                   <th>Ciudad</th>
                 </tr>
               </thead>
@@ -1260,11 +1332,11 @@ function AdminPage() {
                             </button>
                           </div>
                         )}
-                      </td>
+                    </td>
                       <td>{formatPersonType(company.personType)}</td>
                     <td>{formatResponsible(company.responsible)}</td>
-                      <td>{formatIntegrations(company)}</td>
-                      <td>
+                    <td>{formatIntegrations(company)}</td>
+                    <td>
                         {company.integrations.length === 0 ? (
                           '—'
                         ) : (
@@ -1502,6 +1574,64 @@ function AdminPage() {
                               onClick={() => handleStartEditToken(company)}
                             >
                               {company.nextPymeToken ? 'Editar' : 'Configurar'}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {editingTechnicalKeyCompanyId === company.id ? (
+                          <div className="admin-nextpyme-token admin-nextpyme-token--editing">
+                            <input
+                              type="text"
+                              value={technicalKeyDraft}
+                              onChange={(event) =>
+                                setTechnicalKeyDraft(event.target.value)
+                              }
+                              placeholder="Clave técnica DIAN"
+                              disabled={
+                                savingTechnicalKeyCompanyId === company.id
+                              }
+                              autoComplete="off"
+                            />
+                            <div className="admin-nextpyme-token__actions">
+                              <button
+                                type="button"
+                                disabled={
+                                  savingTechnicalKeyCompanyId === company.id
+                                }
+                                onClick={() =>
+                                  void handleSaveTechnicalKey(company)
+                                }
+                              >
+                                {savingTechnicalKeyCompanyId === company.id
+                                  ? 'Guardando...'
+                                  : 'Guardar'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  savingTechnicalKeyCompanyId === company.id
+                                }
+                                onClick={handleCancelEditTechnicalKey}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="admin-nextpyme-token">
+                            <span className="admin-nextpyme-token__value">
+                              {company.technicalKey
+                                ? `•••• ${company.technicalKey.slice(-4)}`
+                                : 'Sin clave técnica'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleStartEditTechnicalKey(company)
+                              }
+                            >
+                              {company.technicalKey ? 'Editar' : 'Configurar'}
                             </button>
                           </div>
                         )}

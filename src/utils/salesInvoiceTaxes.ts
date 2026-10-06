@@ -1,6 +1,6 @@
 import type { JarvisCatalogItem } from '../services/jarvisService'
 import type { JarvisTax, JarvisTaxCategory } from '../types/jarvis'
-import { JARVIS_TAX_RATES, normalizeJarvisTaxType, taxPresetLabel } from './jarvisTaxPresets'
+import { JARVIS_TAX_RATES, normalizeJarvisTaxType, stripReteIcaThousandSuffix, taxPresetLabel } from './jarvisTaxPresets'
 
 export interface SalesInvoiceTaxOption {
   id: string
@@ -51,10 +51,12 @@ export function buildSalesInvoiceTaxOptions(
 }
 
 export function formatSalesInvoiceTaxLabel(tax: SalesInvoiceTaxOption): string {
-  if (tax.percentage == null) return tax.name
-  if (tax.name === taxPresetLabel(tax.type, tax.percentage)) return tax.name
-  if (tax.id.startsWith('default:')) return taxPresetLabel(tax.type, tax.percentage)
-  if (tax.type.toLowerCase() === 'reteica') return `${tax.name} · ${tax.percentage} x 1.000`
+  if (tax.percentage == null) return stripReteIcaThousandSuffix(tax.name)
+  const preset = taxPresetLabel(tax.type, tax.percentage)
+  const cleanedName = stripReteIcaThousandSuffix(tax.name)
+  if (cleanedName === preset || tax.name === preset) return cleanedName
+  if (tax.id.startsWith('default:')) return preset
+  if (tax.type.toLowerCase() === 'reteica') return `${cleanedName} · ${tax.percentage}`
   if (tax.name.includes('%')) return `${tax.name} · tarifa ${tax.percentage}%`
   return `${tax.name} (${tax.percentage}%)`
 }

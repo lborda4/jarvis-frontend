@@ -10,10 +10,15 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import DatePicker from '../components/DatePicker'
+import DocumentSendOverlay from '../components/DocumentSendOverlay'
 import ErrorMessage from '../components/ErrorMessage'
 import JarvisProductSearch from '../components/JarvisProductSearch'
 import SuccessMessage from '../components/SuccessMessage'
 import { getApiErrorMessage } from '../services/apiClient'
+import {
+  AUTO_DISMISS_ERROR_MS,
+  useAutoDismissMessage,
+} from '../hooks/useAutoDismissMessage'
 import {
   createManualJarvisSupportDocument,
   fetchJarvisCatalogs,
@@ -27,6 +32,7 @@ import {
   findProductIvaTax,
   findProductRetefuenteTax,
 } from '../utils/productTaxes'
+import { stripReteIcaThousandSuffix } from '../utils/jarvisTaxPresets'
 import {
   addDaysToLocalDate,
   daysBetweenLocalDates,
@@ -191,7 +197,9 @@ function SupportDocumentIndividualPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMode, setSubmitMode] = useState<SubmitMode | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useAutoDismissMessage(
+    AUTO_DISMISS_ERROR_MS,
+  )
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
@@ -561,15 +569,15 @@ function SupportDocumentIndividualPage() {
           <div className="ds-individual__info-grid">
 
             <div className="ds-individual__col">
-              <label className="ds-individual__field">
+              <label className={`ds-individual__field${fieldErrors.issueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de elaboración <span className="ds-individual__required">*</span></span>
-                <DatePicker value={issueDate} onChange={(val) => { setIssueDate(val); if (!isCreditPayment) setDueDate(val) }} />
+                <DatePicker value={issueDate} onChange={(val) => { setIssueDate(val); if (!isCreditPayment) setDueDate(val) }} invalid={Boolean(fieldErrors.issueDate)} />
                 {fieldErrors.issueDate && <em className="ds-individual__error">{fieldErrors.issueDate}</em>}
               </label>
 
-              <div className="ds-individual__field">
+              <div className={`ds-individual__field${fieldErrors.supplier ? ' is-invalid' : ''}`}>
                 <span>Proveedor <span className="ds-individual__required">*</span></span>
-                <div className="ds-individual__search">
+                <div className={`ds-individual__search${fieldErrors.supplier ? ' is-invalid' : ''}`}>
                   <input
                     type="search" placeholder="Buscar proveedor..." value={supplierQuery} autoComplete="off"
                     onFocus={() => setIsSupplierMenuOpen(true)}
@@ -632,7 +640,7 @@ function SupportDocumentIndividualPage() {
                 </p>
               </div>
 
-              <div className="ds-individual__field">
+              <div className={`ds-individual__field${fieldErrors.documentNumber ? ' is-invalid' : ''}`}>
                 <span>No. comprobante proveedor</span>
                 <div className="ds-individual__prefix-row">
                   <div className="ds-individual__prefix-group">
@@ -703,11 +711,11 @@ function SupportDocumentIndividualPage() {
                         }
                       />
                     </td>
-                    <td className="ds-individual__td-desc">
+                    <td className={`ds-individual__td-desc${fieldErrors[`line-${index}-description`] ? ' is-invalid' : ''}`}>
                       <input type="text" value={line.description} placeholder="Descripción" onChange={(e) => updateLine(line.id, { description: e.target.value })} />
                       {fieldErrors[`line-${index}-description`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-description`]}</em>}
                     </td>
-                    <td className="ds-individual__td-qty">
+                    <td className={`ds-individual__td-qty${fieldErrors[`line-${index}-quantity`] ? ' is-invalid' : ''}`}>
                       <input type="text" inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.id, { quantity: e.target.value })} />
                       {fieldErrors[`line-${index}-quantity`] && <em className="ds-individual__error">{fieldErrors[`line-${index}-quantity`]}</em>}
                     </td>
@@ -779,9 +787,9 @@ function SupportDocumentIndividualPage() {
                 + Agregar otra forma de pago
               </button>
 
-              <label className="ds-individual__field">
+              <label className={`ds-individual__field${fieldErrors.dueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de vencimiento</span>
-                <DatePicker value={dueDate} onChange={setDueDate} disabled={!isCreditPayment} minDate={issueDate} />
+                <DatePicker value={dueDate} onChange={setDueDate} disabled={!isCreditPayment} minDate={issueDate} invalid={Boolean(fieldErrors.dueDate)} />
                 {!isCreditPayment && (
                   <p className="ds-individual__hint ds-individual__hint--info">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" strokeLinecap="round" /></svg>
@@ -812,7 +820,7 @@ function SupportDocumentIndividualPage() {
                   <div className="ds-individual__reteica-group">
                     <select value={reteIcaId} onChange={(e) => setReteIcaId(e.target.value)} className="ds-individual__reteica-select">
                       <option value="">Seleccionar</option>
-                      {retentionTaxes.filter((t) => (t.name ?? '').toUpperCase().includes('ICA')).map((tax) => <option key={tax.id} value={tax.id}>{tax.name}</option>)}
+                      {retentionTaxes.filter((t) => (t.name ?? '').toUpperCase().includes('ICA')).map((tax) => <option key={tax.id} value={tax.id}>{stripReteIcaThousandSuffix(tax.name)}</option>)}
                     </select>
                     <strong>{formatMoney(reteIcaTax)}</strong>
                   </div>
@@ -882,10 +890,15 @@ function SupportDocumentIndividualPage() {
               <line x1="22" y1="2" x2="11" y2="13" strokeLinecap="round" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" strokeLinejoin="round" />
             </svg>
-            {isSubmitting && submitMode === 'send' ? 'Enviando...' : 'Guardar y enviar'}
+            Guardar y enviar
           </button>
         </footer>
       </form>
+
+      <DocumentSendOverlay
+        open={isSubmitting && submitMode === 'send'}
+        documentTitle="Documento soporte"
+      />
 
       <CreateJarvisTerceroModal
         isOpen={isCreateSupplierOpen}

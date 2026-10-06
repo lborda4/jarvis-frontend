@@ -15,8 +15,12 @@ export function taxPresetRates(type: string): readonly number[] {
   return Object.entries(JARVIS_TAX_RATES).find(([name]) => normalizeJarvisTaxType(name) === normalizeJarvisTaxType(type))?.[1] ?? []
 }
 
+export function stripReteIcaThousandSuffix(label: string): string {
+  return label.replace(/\s*x\s*1[.\s]?000\s*$/i, '').trim()
+}
+
 export function taxPresetLabel(type: string, rate: number): string {
   const isIca = normalizeJarvisTaxType(type) === 'reteica'
   const formatted = rate.toLocaleString('es-CO', { minimumFractionDigits: isIca ? 2 : 0, maximumFractionDigits: 4 })
-  return `${type} | ${formatted}${isIca ? ' x 1.000' : '%'}`
+  return `${type} | ${formatted}${isIca ? '' : '%'}`
 }

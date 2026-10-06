@@ -14,6 +14,7 @@ interface AccountAutocompleteProps {
   placeholder?: string
   options?: SiigoAccountOption[]
   suggestedCode?: string | null
+  invalid?: boolean
 }
 
 function AccountAutocomplete({
@@ -24,6 +25,7 @@ function AccountAutocomplete({
   placeholder = 'Buscar cuenta por código o descripción',
   options = SIIGO_ACCOUNT_CATALOG,
   suggestedCode = null,
+  invalid = false,
 }: AccountAutocompleteProps) {
   const formatValueLabel = useCallback(
     (account: SiigoAccountOption | null) => {
@@ -58,6 +60,7 @@ function AccountAutocomplete({
       emptyMessage="No se encontraron cuentas"
       clearLabel="Borrar cuenta contable"
       selectOnFocus
+      invalid={invalid}
       getOptionKey={(account) => account.code}
       getOptionLabel={formatAccountOptionLabel}
       formatValueLabel={formatValueLabel}

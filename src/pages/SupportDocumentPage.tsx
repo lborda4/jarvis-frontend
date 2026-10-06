@@ -150,6 +150,9 @@ import {
 import {
   buildNotSendableReason,
   canSendDocument,
+  collectSendFieldErrors,
+  hasSiigoSendFieldErrors,
+  type SiigoSendFieldErrors,
   countDeletableDocuments,
   countSendableDocuments,
   isDocumentDeletable,
@@ -696,6 +699,9 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   // mismo catálogo, ver retefuenteOptions en PurchaseInvoiceDetailEditor.
   const retefuenteOptions =
     retentionOptionsByType[SUPPORT_DOCUMENT_RETEFUENTE_TAX_TYPE] ?? []
+  const [sendFieldErrorsById, setSendFieldErrorsById] = useState<
+    Record<string, SiigoSendFieldErrors>
+  >({})
   const [rowAccounts, setRowAccounts] = useState<
     Record<string, SiigoAccountOption | null>
   >({})
@@ -1672,6 +1678,103 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const canSendSelected = sendableSelectedCount > 0
   const canDeleteSelected = deletableSelectedCount > 0
 
+  const collectRowSendFieldErrors = useCallback(
+    (documentId: string) => {
+      const document = documentsById[documentId]
+      if (!document) return null
+
+      return collectSendFieldErrors(
+        document,
+        documentId,
+        importStatuses[documentId],
+        rowAccounts,
+        rowPaymentMethods,
+        rowDueDates,
+        effectiveRowItems,
+        {
+          requiresAccount: config.requiresAccount,
+          requiresPaymentMethod: config.requiresPaymentMethod,
+        },
+      )
+    },
+    [
+      documentsById,
+      importStatuses,
+      rowAccounts,
+      rowPaymentMethods,
+      rowDueDates,
+      effectiveRowItems,
+      config.requiresAccount,
+      config.requiresPaymentMethod,
+    ],
+  )
+
+  const revealSendFieldErrors = useCallback(
+    (documentIds: string[]) => {
+      setSendFieldErrorsById((current) => {
+        const next = { ...current }
+        for (const documentId of documentIds) {
+          const errors = collectRowSendFieldErrors(documentId)
+          if (errors) next[documentId] = errors
+          else delete next[documentId]
+        }
+        return next
+      })
+    },
+    [collectRowSendFieldErrors],
+  )
+
+  useEffect(() => {
+    setSendFieldErrorsById((current) => {
+      const ids = Object.keys(current)
+      if (ids.length === 0) return current
+
+      let changed = false
+      const next: Record<string, SiigoSendFieldErrors> = {}
+      for (const documentId of ids) {
+        const errors = collectRowSendFieldErrors(documentId)
+        if (errors && hasSiigoSendFieldErrors(errors)) {
+          next[documentId] = errors
+          if (
+            errors.account !== current[documentId].account ||
+            errors.paymentMethod !== current[documentId].paymentMethod ||
+            errors.dueDate !== current[documentId].dueDate ||
+            errors.itemCodes.join() !== current[documentId].itemCodes.join() ||
+            errors.itemDescriptions.join() !==
+              current[documentId].itemDescriptions.join()
+          ) {
+            changed = true
+          }
+        } else {
+          changed = true
+        }
+      }
+
+      return changed ? next : current
+    })
+  }, [collectRowSendFieldErrors])
+
+  const selectedNeedFields = useMemo(() => {
+    for (const documentId of selectedDocumentIds) {
+      if (collectRowSendFieldErrors(documentId)) {
+        return true
+      }
+    }
+    return false
+  }, [selectedDocumentIds, collectRowSendFieldErrors])
+
+  const panelSendFieldErrors = useMemo(() => {
+    const selectedErrors = [...selectedDocumentIds]
+      .map((documentId) => sendFieldErrorsById[documentId])
+      .filter(Boolean)
+
+    return {
+      account: selectedErrors.some((errors) => errors.account),
+      paymentMethod: selectedErrors.some((errors) => errors.paymentMethod),
+      dueDate: selectedErrors.some((errors) => errors.dueDate),
+    }
+  }, [selectedDocumentIds, sendFieldErrorsById])
+
   const isRetrySelected = useMemo(() => {
     if (sendableSelectedCount === 0) {
       return false
@@ -1816,8 +1919,23 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   )
 
   const handleSendSelected = useCallback(() => {
+    const incompleteIds = [...selectedDocumentIds].filter((documentId) =>
+      Boolean(collectRowSendFieldErrors(documentId)),
+    )
+    const sendableIds = [...selectedDocumentIds].filter(
+      (documentId) => !incompleteIds.includes(documentId),
+    )
+
+    if (incompleteIds.length > 0) {
+      revealSendFieldErrors(incompleteIds)
+    }
+
+    if (sendableIds.length === 0) {
+      return
+    }
+
     void sendDocuments({
-      documentIds: [...selectedDocumentIds],
+      documentIds: sendableIds,
       documentsById,
       importStatuses,
       rowAccounts,
@@ -1844,6 +1962,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     rowRetentions,
     selectedDocumentIds,
     sendDocuments,
+    collectRowSendFieldErrors,
+    revealSendFieldErrors,
   ])
 
   const requestDeleteSelected = useCallback(() => {
@@ -2033,6 +2153,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
   const handleSendDocument = useCallback(
     (document: ElectronicDocumentListItem) => {
+      if (collectRowSendFieldErrors(document.id)) {
+        revealSendFieldErrors([document.id])
+        return
+      }
+
       void sendDocuments({
         documentIds: [document.id],
         documentsById,
@@ -2061,6 +2186,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       rowPaymentMethods,
       rowRetentions,
       sendDocuments,
+      collectRowSendFieldErrors,
+      revealSendFieldErrors,
     ],
   )
 
@@ -2974,7 +3101,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           selectedPlazoDays={selectedPlazoDays}
           selectedDueDate={selectedDueDate}
           showAccountField={config.requiresAccount}
-          canSend={canSendSelected}
+          canSend={canSendSelected || selectedNeedFields}
+          invalidAccount={panelSendFieldErrors.account}
+          invalidPaymentMethod={panelSendFieldErrors.paymentMethod}
+          invalidDueDate={panelSendFieldErrors.dueDate}
           canDelete={canDeleteSelected}
           canCreateTerceros={selectedRequiereProveedorCount > 0}
           pendingTercerosCount={selectedRequiereProveedorCount}
@@ -3052,6 +3182,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         canSendRow={canSendRow}
         canDeleteRow={canDeleteRow}
         getNotSendableReason={getRowNotSendableReason}
+        sendFieldErrorsById={sendFieldErrorsById}
+        onRevealSendErrors={(documentId) => revealSendFieldErrors([documentId])}
         documentsById={documentsById}
         sendProcessingLabel={
           queueProgress?.label ?? config.sendProcessingLabel

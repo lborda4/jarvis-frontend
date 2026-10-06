@@ -17,6 +17,7 @@ import {
 } from '../../constants/siigoTaxCatalog'
 import type { ElectronicDocumentListItem } from '../../types/electronicDocument'
 import type { PurchaseInvoiceItemDraft } from '../../types/purchaseInvoiceItemDraft'
+import type { SiigoSendFieldErrors } from '../../utils/supportDocumentSend'
 import { isCreditPaymentMethod } from '../../utils/siigoPaymentMethods'
 import { addDaysToLocalDate, resolvePlazoDays } from '../../utils/supportDocumentDate'
 import { formatInvoiceCurrency as formatCurrency } from '../../utils/formatters'
@@ -73,6 +74,7 @@ interface PurchaseInvoiceDetailEditorProps {
    * fila del listado (el Total de la fila colapsada sigue al "Total neto" de
    * este panel). Persistir es otra cosa: eso lo hace onSaveDraft. */
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
+  fieldErrors?: SiigoSendFieldErrors | null
 }
 
 function PurchaseInvoiceDetailEditor({
@@ -96,6 +98,7 @@ function PurchaseInvoiceDetailEditor({
   onSaveDraft,
   isSavingDraft = false,
   onChange,
+  fieldErrors = null,
 }: PurchaseInvoiceDetailEditorProps) {
   const sidebarRetentionTypes = retentionCatalogTypes.filter(
     (taxType) => taxType !== RETEFUENTE_TAX_TYPE,
@@ -265,6 +268,8 @@ function PurchaseInvoiceDetailEditor({
           document.invoiceNumber?.trim() || document.cufe?.trim() || null
         }
         disabled={disabled}
+        invalidItemCodes={fieldErrors ? new Set(fieldErrors.itemCodes) : undefined}
+        invalidItemDescriptions={fieldErrors ? new Set(fieldErrors.itemDescriptions) : undefined}
       />
 
       <div className="purchase-invoice-editor__lower">
@@ -281,7 +286,11 @@ function PurchaseInvoiceDetailEditor({
                 // Ver editablePlaceholder: con la factura ya en SIIGO no hay
                 // nada que buscar, y el texto se lee como si fuera un dato.
                 placeholder={editablePlaceholder('Buscar medio de pago...')}
+                invalid={Boolean(fieldErrors?.paymentMethod)}
               />
+              {fieldErrors?.paymentMethod && (
+                <em className="support-field-error">{fieldErrors.paymentMethod}</em>
+              )}
             </div>
 
             <div className="purchase-invoice-editor__field purchase-invoice-editor__field--plazo">
@@ -305,9 +314,9 @@ function PurchaseInvoiceDetailEditor({
             </div>
           </div>
 
-          {(showDueDateFields || onCostCenterChange) && (
+          {(showDueDateFields || onCostCenterChange || fieldErrors?.dueDate) && (
             <div className="purchase-invoice-editor__field-row purchase-invoice-editor__field-row--due-date">
-              {showDueDateFields && (
+              {(showDueDateFields || fieldErrors?.dueDate) && (
                 <div className="purchase-invoice-editor__field">
                   <label htmlFor={`purchase-due-date-${document.id}`}>
                     Fecha de vencimiento
@@ -317,7 +326,11 @@ function PurchaseInvoiceDetailEditor({
                     value={draftDueDate ?? ''}
                     onChange={(value) => setDraftDueDate(value || null)}
                     disabled={disabled}
+                    invalid={Boolean(fieldErrors?.dueDate)}
                   />
+                  {fieldErrors?.dueDate && (
+                    <em className="support-field-error">{fieldErrors.dueDate}</em>
+                  )}
                 </div>
               )}
               {onCostCenterChange && (

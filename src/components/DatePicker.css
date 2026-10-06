@@ -28,6 +28,11 @@
   border-color: var(--jarvis-primary);
 }
 
+.date-picker--invalid .date-picker__trigger {
+  border-color: var(--jarvis-danger);
+  box-shadow: 0 0 0 3px var(--jarvis-danger-ring);
+}
+
 .date-picker__trigger:disabled {
   opacity: 0.6;
   cursor: not-allowed;

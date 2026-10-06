@@ -39,6 +39,7 @@ import {
 import { formatCurrency, normalizeStatusClass } from '../../utils/formatters'
 import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
 import { calculatePurchaseInvoiceRowSummary } from '../../utils/purchaseInvoiceRowSummary'
+import type { SiigoSendFieldErrors } from '../../utils/supportDocumentSend'
 import DocumentRowDetailPanel from './DocumentRowDetailPanel'
 import PurchaseInvoiceDownloadButton from './PurchaseInvoiceDownloadButton'
 
@@ -136,6 +137,8 @@ interface SupportDocumentTableProps {
   supplierMissingLabel?: string
   onToggleRow: (id: string) => void
   onSelectRows: (ids: string[]) => void
+  sendFieldErrorsById?: Record<string, SiigoSendFieldErrors>
+  onRevealSendErrors?: (documentId: string) => void
   onSendDocument: (document: ElectronicDocumentListItem) => void
   onDeleteDocument: (document: ElectronicDocumentListItem) => void
   onCreateSupplier?: (document: ElectronicDocumentListItem) => void
@@ -298,6 +301,8 @@ function SupportDocumentTable({
   canSendRow,
   canDeleteRow,
   getNotSendableReason,
+  sendFieldErrorsById = {},
+  onRevealSendErrors,
   sendProcessingLabel,
   supplierMissingLabel = 'Debe crear el proveedor en SIIGO',
   onToggleRow,
@@ -393,6 +398,24 @@ function SupportDocumentTable({
   }
 
   const hasExpandedRows = rows.some((row) => expandedRowIds.has(row.id))
+
+  useEffect(() => {
+    const ids = Object.keys(sendFieldErrorsById)
+    if (ids.length === 0) return
+
+    setExpandedRowIds((current) => {
+      const next = new Set(current)
+      let added = false
+      for (const id of ids) {
+        if (!next.has(id)) {
+          next.add(id)
+          added = true
+        }
+      }
+      return added ? next : current
+    })
+  }, [sendFieldErrorsById])
+
   const toggleAllRowsExpanded = () => {
     setExpandedRowIds((current) =>
       rows.some((row) => current.has(row.id))
@@ -666,12 +689,15 @@ function SupportDocumentTable({
                 isSending ||
                 isDeleting ||
                 isProcessing ||
-                (isSendAction && !canSendRow(row.id)) ||
                 (isDeleteAction && !canDeleteRow(row.id))
 
               const handleAction = () => {
                 if (!document) return
                 if (row.action === 'send') {
+                  if (!canSendRow(row.id)) {
+                    onRevealSendErrors?.(row.id)
+                    return
+                  }
                   void onSendDocument(document)
                   return
                 }
@@ -748,12 +774,12 @@ function SupportDocumentTable({
                     </div>
                   </td>
                   {!showSummaryColumns && (
-                    <td data-label="Cuenta contable" className="support-table__cell-config">
+                    <td data-label="Cuenta contable" className={`support-table__cell-config${sendFieldErrorsById[row.id]?.account ? ' support-table__cell-config--invalid' : ''}`}>
                       {formatSupportDocumentTableAccount(rowAccounts[row.id])}
                     </td>
                   )}
                   {!showSummaryColumns && (
-                    <td data-label="Medio de pago" className="support-table__cell-config">
+                    <td data-label="Medio de pago" className={`support-table__cell-config${sendFieldErrorsById[row.id]?.paymentMethod ? ' support-table__cell-config--invalid' : ''}`}>
                       {formatSupportDocumentTablePaymentMethod(
                         rowPaymentMethods[row.id],
                       )}
@@ -907,6 +933,7 @@ function SupportDocumentTable({
                                 // no es lo que habilita nada.
                                 onChange: (edits) =>
                                   onSaveRowEdits?.(row.id, edits),
+                                fieldErrors: sendFieldErrorsById[row.id] ?? null,
                               }
                             : undefined
                         }

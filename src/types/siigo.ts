@@ -418,6 +418,16 @@ export interface SiigoCredentialsStatusResponse {
   partner_id?: string
   supportDocumentTypeId?: number | null
   purchaseInvoiceTypeId?: number | null
+  creditNoteEnabled?: boolean
+  creditNoteResolution?: {
+    kind: 'CREDIT_NOTE'
+    prefix: string
+    fromNumber: number
+    toNumber: number
+    nextConsecutive: number
+    formNumber: null
+    documentTypeLabel: string
+  } | null
 }
 
 export interface SiigoDocumentTypeCatalogItem {

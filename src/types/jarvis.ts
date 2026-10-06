@@ -147,10 +147,36 @@ export const JARVIS_RESOLUTION_DOCUMENT_TYPES = {
   },
 } as const
 
-/** true si la resolución pertenece a ese tipo de documento. Sin id ni nombre
- * reconocibles devuelve false: es preferible que el selector quede vacío —y
- * se note— a ofrecer una resolución de nómina o de nota crédito para
- * facturar. */
+function matchesDocumentTypeLabel(
+  label: string | null | undefined,
+  documentType: (typeof JARVIS_RESOLUTION_DOCUMENT_TYPES)[keyof typeof JARVIS_RESOLUTION_DOCUMENT_TYPES],
+): boolean {
+  const normalized = label?.trim().toLowerCase() ?? ''
+  if (!normalized) {
+    return false
+  }
+
+  if (documentType.id === JARVIS_RESOLUTION_DOCUMENT_TYPES.SUPPORT_DOCUMENT.id) {
+    return (
+      normalized.includes('documento soporte') &&
+      !normalized.includes('ajuste')
+    )
+  }
+
+  if (documentType.id === JARVIS_RESOLUTION_DOCUMENT_TYPES.ELECTRONIC_INVOICE.id) {
+    return (
+      normalized.includes('factura electrónica de venta') &&
+      !normalized.includes('exportación')
+    )
+  }
+
+  return normalized === documentType.label
+}
+
+/** true si la resolución pertenece a ese tipo de documento.
+ * Los rangos crudos de GetNumberingRange casi nunca traen type_document_id
+ * ni el label de NextPyme: en factura vs documento soporte se usa la clave
+ * técnica (la DIAN solo se la asigna a la factura electrónica). */
 export function isResolutionOfDocumentType(
   resolution: JarvisAvailableResolution,
   documentType: (typeof JARVIS_RESOLUTION_DOCUMENT_TYPES)[keyof typeof JARVIS_RESOLUTION_DOCUMENT_TYPES],
@@ -159,9 +185,20 @@ export function isResolutionOfDocumentType(
     return resolution.typeDocumentId === documentType.id
   }
 
-  return (
-    resolution.documentTypeLabel?.trim().toLowerCase() === documentType.label
-  )
+  if (matchesDocumentTypeLabel(resolution.documentTypeLabel, documentType)) {
+    return true
+  }
+
+  const hasTechnicalKey = Boolean(resolution.technicalKey?.trim())
+  if (documentType.id === JARVIS_RESOLUTION_DOCUMENT_TYPES.SUPPORT_DOCUMENT.id) {
+    return !hasTechnicalKey
+  }
+
+  if (documentType.id === JARVIS_RESOLUTION_DOCUMENT_TYPES.ELECTRONIC_INVOICE.id) {
+    return hasTechnicalKey
+  }
+
+  return false
 }
 
 export interface JarvisCredentialsStatusResponse {

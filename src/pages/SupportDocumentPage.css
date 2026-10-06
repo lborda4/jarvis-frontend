@@ -2782,3 +2782,23 @@
     min-width: 0;
   }
 }
+
+.support-field-error {
+  display: block;
+  margin: 0.2rem 0 0;
+  color: var(--jarvis-danger);
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.purchase-item-editor__input--invalid {
+  border-color: var(--jarvis-danger) !important;
+  box-shadow: 0 0 0 3px var(--jarvis-danger-ring);
+}
+
+.support-table__cell-config--invalid {
+  border: 1px solid var(--jarvis-danger);
+  border-radius: var(--r-sm);
+  padding: 0.25rem 0.4rem;
+  box-shadow: 0 0 0 3px var(--jarvis-danger-ring);
+}

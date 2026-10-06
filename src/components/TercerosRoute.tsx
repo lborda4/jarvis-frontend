@@ -8,6 +8,7 @@ function TercerosRoute() {
   const {
     isCheckingSetup,
     isJarvisCompany,
+    isCreditNoteEnabled,
     isConfigured,
     integrationMode,
     setupPath,
@@ -21,7 +22,7 @@ function TercerosRoute() {
     )
   }
 
-  if (!isJarvisCompany) {
+  if (!isJarvisCompany && !isCreditNoteEnabled) {
     return <Navigate to={setupPath} replace />
   }
 

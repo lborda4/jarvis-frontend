@@ -12,6 +12,7 @@ interface ProductAutocompleteProps {
   disabled?: boolean
   placeholder?: string
   options?: SiigoProductOption[]
+  invalid?: boolean
 }
 
 function ProductAutocomplete({
@@ -21,6 +22,7 @@ function ProductAutocomplete({
   disabled = false,
   placeholder = 'Buscar producto por código o nombre',
   options = [],
+  invalid = false,
 }: ProductAutocompleteProps) {
   const isOptionMatch = useCallback(
     (product: SiigoProductOption, query: string) => {
@@ -42,6 +44,7 @@ function ProductAutocomplete({
       options={options}
       disabled={disabled}
       placeholder={placeholder}
+      invalid={invalid}
       emptyMessage="No se encontraron productos"
       getOptionKey={(product) => product.code}
       getOptionLabel={formatProductOptionLabel}

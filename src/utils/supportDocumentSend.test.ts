@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildNotSendableReason,
   canSendDocument,
+  collectSendFieldErrors,
   isDocumentDeletable,
   isDocumentDeletableFromSiigo,
   isDocumentRemovableFromDatabase,
@@ -276,6 +277,39 @@ describe('buildNotSendableReason', () => {
 
     expect(canSendDocument(...args)).toBe(false)
     expect(buildNotSendableReason(...args)).not.toBeNull()
+  })
+
+  it('collectSendFieldErrors marca medio de pago y cuenta cuando faltan', () => {
+    const errors = collectSendFieldErrors(
+      buildDocument(),
+      'doc-1',
+      IMPORT_ROW_STATUS.PENDIENTE,
+      { 'doc-1': null },
+      { 'doc-1': null },
+      { 'doc-1': null },
+    )
+
+    expect(errors?.account).toBe('Falta asignar la cuenta contable.')
+    expect(errors?.paymentMethod).toBe('Falta asignar el medio de pago.')
+  })
+
+  it('collectSendFieldErrors marca el ítem sin descripción o código', () => {
+    const items: PurchaseInvoiceItemDraft[] = [
+      buildItem({ localId: 'item-1', tipo: 'Product', producto: '', description: '' }),
+    ]
+
+    const errors = collectSendFieldErrors(
+      buildDocument(),
+      'doc-1',
+      IMPORT_ROW_STATUS.PENDIENTE,
+      { 'doc-1': ACCOUNT },
+      { 'doc-1': PAYMENT_METHOD },
+      { 'doc-1': null },
+      { 'doc-1': items },
+    )
+
+    expect(errors?.itemCodes).toEqual(['item-1'])
+    expect(errors?.itemDescriptions).toEqual(['item-1'])
   })
 })
 
