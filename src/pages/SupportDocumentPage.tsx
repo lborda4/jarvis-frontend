@@ -552,6 +552,7 @@ function resolvePurchaseInvoiceItemsFallback(
   productOptions: SiigoProductOption[],
   ivaOptions: SiigoTaxOption[],
   retefuenteOptions: SiigoTaxOption[],
+  fixedAssetOptions: SiigoProductOption[] = [],
 ): PurchaseInvoiceItemDraft[] {
   if (draftItemsHaveAssignedCodes(document.draft?.items)) {
     return buildPurchaseInvoiceItemDraftsFromDraft(
@@ -568,6 +569,7 @@ function resolvePurchaseInvoiceItemsFallback(
     accountOptions,
     productOptions,
     ivaOptions,
+    fixedAssetOptions,
   )
 }
 
@@ -689,6 +691,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     ivaOptions,
     costCenterOptions,
     productOptions,
+    fixedAssetOptions,
     accountsError,
     paymentMethodsError,
     costCentersError,
@@ -1150,6 +1153,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         productOptions,
         ivaOptions,
         retefuenteOptions,
+        fixedAssetOptions,
       )
       merged[document.id] = mergeLateItemSuggestions(rowItems[document.id], fresh)
     }
@@ -1164,6 +1168,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     productOptions,
     ivaOptions,
     retefuenteOptions,
+    fixedAssetOptions,
   ])
 
   const pageTableRows = useMemo(
@@ -3150,6 +3155,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         rowItems={effectiveRowItems}
         paymentMethodOptions={paymentMethodOptions}
         productOptions={productOptions}
+        fixedAssetOptions={fixedAssetOptions}
         ivaOptions={ivaOptions}
         retentionCatalogTypes={config.retentionCatalogTypes}
         retentionOptionsByType={retentionOptionsByType}

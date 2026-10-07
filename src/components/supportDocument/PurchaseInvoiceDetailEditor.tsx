@@ -54,6 +54,7 @@ interface PurchaseInvoiceDetailEditorProps {
   paymentMethodOptions: SiigoPaymentMethodOption[]
   accountOptions: SiigoAccountOption[]
   productOptions: SiigoProductOption[]
+  fixedAssetOptions: SiigoProductOption[]
   dueDate: string | null
   issueDate: string
   observations: string
@@ -87,6 +88,7 @@ function PurchaseInvoiceDetailEditor({
   paymentMethodOptions,
   accountOptions,
   productOptions,
+  fixedAssetOptions,
   dueDate,
   issueDate,
   observations,
@@ -263,6 +265,7 @@ function PurchaseInvoiceDetailEditor({
         retefuenteOptions={retentionOptionsByType[RETEFUENTE_TAX_TYPE] ?? []}
         accountOptions={accountOptions}
         productOptions={productOptions}
+        fixedAssetOptions={fixedAssetOptions}
         documentTotal={document.total}
         documentReference={
           document.invoiceNumber?.trim() || document.cufe?.trim() || null

@@ -1009,3 +1009,29 @@ describe('Producto sugerido desde el catálogo SIIGO', () => {
     ])[0].producto).toBe('SIIGO-1')
   })
 })
+
+describe('buildPurchaseInvoiceItemDrafts — activos fijos', () => {
+  it('usa el catálogo de activos fijos y descarta el código del vendedor si no coincide', () => {
+    const document = buildDocument({
+      items: [{
+        description: 'Computador',
+        quantity: 1,
+        unitValue: 100,
+        total: 100,
+        code: 'SKU-PROVEEDOR',
+        itemType: 'FixedAsset',
+        productMapping: { code: 'AF-001' },
+      }],
+    })
+
+    expect(
+      buildPurchaseInvoiceItemDrafts(
+        document,
+        [],
+        [],
+        [],
+        [{ code: 'AF-001', description: 'Portátil' }],
+      )[0],
+    ).toMatchObject({ tipo: 'FixedAsset', producto: 'AF-001' })
+  })
+})

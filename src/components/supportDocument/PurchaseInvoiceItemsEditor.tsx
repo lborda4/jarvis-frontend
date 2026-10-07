@@ -39,7 +39,7 @@ function selectAllOnFocus(event: React.FocusEvent<HTMLInputElement>) {
 const ITEM_TYPE_OPTIONS: Array<{ value: PurchaseInvoiceItemType; label: string }> = [
   { value: 'Account', label: 'Cuenta' },
   { value: 'Product', label: 'Producto' },
-  { value: 'FixedAsset', label: 'Activo' },
+  { value: 'FixedAsset', label: 'Activos fijos' },
 ]
 
 interface PurchaseInvoiceItemsEditorProps {
@@ -53,9 +53,10 @@ interface PurchaseInvoiceItemsEditorProps {
   accountOptions: SiigoAccountOption[]
   /** Catálogo de productos SIIGO (GET /v1/products) — se usa para buscar
    * código y nombre en la columna "Producto" cuando el ítem es de tipo
-   * "Producto". Activo fijo sigue siendo texto libre (SIIGO no expone un
-   * catálogo de activos fijos por esta vía). */
+   * "Producto". */
   productOptions: SiigoProductOption[]
+  /** Catálogo de activos fijos SIIGO (GET /v1/fixed-assets). */
+  fixedAssetOptions: SiigoProductOption[]
   /** payload.totals.total del documento (payable_amount certificado por la
    * DIAN) — la columna "Valor total" reparte este monto entre las líneas en
    * vez de sumar cantidad × valor unitario + IVA por línea. */
@@ -77,6 +78,7 @@ function PurchaseInvoiceItemsEditor({
   retefuenteOptions,
   accountOptions,
   productOptions,
+  fixedAssetOptions,
   documentTotal,
   documentReference = null,
   disabled = false,
@@ -269,16 +271,23 @@ function PurchaseInvoiceItemsEditor({
                         placeholder={editablePlaceholder('Buscar producto...')}
                       />
                     ) : (
-                      <input
-                        type="text"
-                        className={`purchase-item-editor__input${invalidItemCodes?.has(item.localId) ? ' purchase-item-editor__input--invalid' : ''}`}
-                        aria-invalid={invalidItemCodes?.has(item.localId) || undefined}
-                        value={item.producto}
-                        onChange={(event) =>
-                          updateItem(item.localId, { producto: event.target.value })
+                      <ProductAutocomplete
+                        value={
+                          fixedAssetOptions.find(
+                            (asset) => asset.code === item.producto,
+                          ) ??
+                          (item.producto
+                            ? { code: item.producto, description: item.producto }
+                            : null)
                         }
+                        onChange={(asset) =>
+                          updateItem(item.localId, { producto: asset?.code ?? '' })
+                        }
+                        options={fixedAssetOptions}
                         disabled={disabled}
-                        placeholder={editablePlaceholder('Código SIIGO')}
+                        invalid={invalidItemCodes?.has(item.localId)}
+                        placeholder={editablePlaceholder('Buscar activo fijo...')}
+                        emptyMessage="No se encontraron activos fijos"
                       />
                     )}
                   </td>

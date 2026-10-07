@@ -85,6 +85,9 @@ interface SupportDocumentTableProps {
   /** Catálogo de productos SIIGO para el buscador de producto por ítem
    * (Factura de compra, cuando el tipo del ítem es "Producto"). */
   productOptions?: SiigoProductOption[]
+  /** Catálogo de activos fijos SIIGO para el buscador por ítem
+   * (Factura de compra, cuando el tipo del ítem es "Activos fijos"). */
+  fixedAssetOptions?: SiigoProductOption[]
   rowPaymentMethods: Record<string, SiigoPaymentMethodOption | null>
   rowRetentions: Record<string, SiigoTaxOption[]>
   rowIva: Record<string, SiigoTaxOption | null>
@@ -270,6 +273,7 @@ function SupportDocumentTable({
   rowAccounts,
   accountOptions = [],
   productOptions = [],
+  fixedAssetOptions = [],
   rowPaymentMethods,
   rowRetentions,
   rowIva,
@@ -644,6 +648,7 @@ function SupportDocumentTable({
                       accountOptions,
                       productOptions,
                       ivaOptions,
+                      fixedAssetOptions,
                     )
                 : undefined
               const effectivePurchaseInvoiceItems = suggestedPurchaseInvoiceItems
@@ -902,11 +907,13 @@ function SupportDocumentTable({
                                     accountOptions,
                                     productOptions,
                                     ivaOptions,
+                                    fixedAssetOptions,
                                   ),
                                 paymentMethod: rowPaymentMethods[row.id] ?? null,
                                 paymentMethodOptions,
                                 accountOptions,
                                 productOptions,
+                                fixedAssetOptions,
                                 dueDate: rowDueDates[row.id] ?? null,
                                 issueDate: rowDates[row.id] ?? '',
                                 ivaOptions,

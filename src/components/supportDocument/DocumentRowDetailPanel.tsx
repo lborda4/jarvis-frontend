@@ -22,6 +22,7 @@ export interface DocumentRowDetailEditableProps {
   paymentMethodOptions: SiigoPaymentMethodOption[]
   accountOptions: SiigoAccountOption[]
   productOptions: SiigoProductOption[]
+  fixedAssetOptions: SiigoProductOption[]
   dueDate: string | null
   issueDate: string
   ivaOptions: SiigoTaxOption[]
@@ -102,6 +103,7 @@ export default function DocumentRowDetailPanel({
           paymentMethodOptions={editable.paymentMethodOptions}
           accountOptions={editable.accountOptions}
           productOptions={editable.productOptions}
+          fixedAssetOptions={editable.fixedAssetOptions}
           dueDate={editable.dueDate}
           issueDate={editable.issueDate}
           observations={resolvedObservations}

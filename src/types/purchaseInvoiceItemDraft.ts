@@ -161,6 +161,7 @@ export function buildPurchaseInvoiceItemDrafts(
   accountOptions: SiigoAccountOption[] = [],
   productOptions: SiigoProductOption[] = [],
   ivaOptions: SiigoTaxOption[] = [],
+  fixedAssetOptions: SiigoProductOption[] = [],
 ): PurchaseInvoiceItemDraft[] {
   const items = document.items ?? []
   const supplierConfig = document.suggestedItemConfig ?? null
@@ -223,7 +224,12 @@ export function buildPurchaseInvoiceItemDrafts(
               [supplierConfig?.productCode, aiSuggestedProductCode],
               productOptions,
             ) ?? '')
-          : (supplierConfig?.accountCode ?? aiSuggestedAccountCode ?? '')
+          : effectiveTipo === 'FixedAsset'
+            ? (resolveValidatedProductCode(
+                [supplierConfig?.productCode],
+                fixedAssetOptions,
+              ) ?? '')
+            : (supplierConfig?.accountCode ?? aiSuggestedAccountCode ?? '')
 
     return [
       {
@@ -262,18 +268,14 @@ export function buildPurchaseInvoiceItemDrafts(
     const savedProducto =
       itemTipo === 'Account'
         ? savedAccountCode
-        : itemTipo === 'Product'
+        : itemTipo === 'Product' || itemTipo === 'FixedAsset'
           ? (item.productMapping?.code?.trim() || null)
-          : itemTipo === 'FixedAsset' && savedItemType
-            ? rawItemCode
-            : null
+          : null
     // El código de la factura importada (item.code) es SIEMPRE del VENDEDOR
     // (su SKU o código de barras), no un código del comprador — cuando el
-    // tipo es 'Account' o 'Product', solo se usa si coincide LITERALMENTE
-    // con el catálogo correspondiente (ver resolveValidatedAccountCode /
-    // resolveValidatedProductCode); si no, se descarta y cae a la
-    // sugerencia de IA. Solo 'FixedAsset' queda como código libre — SIIGO no
-    // expone un catálogo de activos fijos por esta vía.
+    // tipo es 'Account', 'Product' o 'FixedAsset', solo se usa si coincide
+    // LITERALMENTE con el catálogo correspondiente; si no, se descarta y cae
+    // a la sugerencia de IA.
     const producto =
       savedProducto ??
       (itemTipo === 'Account'
@@ -295,7 +297,12 @@ export function buildPurchaseInvoiceItemDrafts(
               ],
               productOptions,
             ) ?? '')
-          : (supplierConfig?.accountCode ?? rawItemCode ?? ''))
+          : itemTipo === 'FixedAsset'
+            ? (resolveValidatedProductCode(
+                [rawItemCode, supplierConfig?.productCode],
+                fixedAssetOptions,
+              ) ?? '')
+            : (supplierConfig?.accountCode ?? rawItemCode ?? ''))
 
     return {
       localId: createLocalId(),

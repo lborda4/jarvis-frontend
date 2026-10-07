@@ -459,6 +459,8 @@ export interface SiigoProductCatalogItem {
   name: string
 }
 
+export type SiigoFixedAssetCatalogItem = SiigoProductCatalogItem
+
 export interface SiigoPaymentMethodCatalogItem {
   id: number
   name: string

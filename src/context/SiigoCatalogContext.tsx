@@ -26,6 +26,7 @@ import {
   fetchSiigoCostCenters,
   fetchSiigoPaymentMethods,
   fetchSiigoProducts,
+  fetchSiigoFixedAssets,
   fetchSiigoTaxes,
   syncSiigoCatalogs,
 } from '../services/siigoService'
@@ -74,11 +75,13 @@ type SiigoCatalogBundle = {
   retentionOptionsByTaxType: Record<string, SiigoTaxOption[]>
   costCenterOptions: SiigoCostCenterOption[]
   productOptions: SiigoProductOption[]
+  fixedAssetOptions: SiigoProductOption[]
   accountsError: string | null
   paymentMethodsError: string | null
   costCentersError: string | null
   retentionsError: string | null
   productsError: string | null
+  fixedAssetsError: string | null
 }
 
 const EMPTY_CATALOGS: SiigoCatalogBundle = {
@@ -87,11 +90,13 @@ const EMPTY_CATALOGS: SiigoCatalogBundle = {
   retentionOptionsByTaxType: {},
   costCenterOptions: [],
   productOptions: [],
+  fixedAssetOptions: [],
   accountsError: null,
   paymentMethodsError: null,
   costCentersError: null,
   retentionsError: null,
   productsError: null,
+  fixedAssetsError: null,
 }
 
 interface SiigoCatalogContextValue {
@@ -101,11 +106,13 @@ interface SiigoCatalogContextValue {
   retentionOptionsByTaxType: Record<string, SiigoTaxOption[]>
   costCenterOptions: SiigoCostCenterOption[]
   productOptions: SiigoProductOption[]
+  fixedAssetOptions: SiigoProductOption[]
   accountsError: string | null
   paymentMethodsError: string | null
   costCentersError: string | null
   retentionsError: string | null
   productsError: string | null
+  fixedAssetsError: string | null
   refreshCatalogs: (options?: { force?: boolean }) => Promise<void>
 }
 
@@ -122,6 +129,7 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
     retentionResults,
     costCentersResult,
     productsResult,
+    fixedAssetsResult,
   ] = await Promise.all([
     fetchSiigoAccounts()
       .then((items) => ({
@@ -201,6 +209,18 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
           'No se pudo cargar el catálogo de productos.',
         ),
       })),
+    fetchSiigoFixedAssets()
+      .then((items) => ({
+        fixedAssetOptions: mapCatalogToProductOptions(items),
+        fixedAssetsError: null as string | null,
+      }))
+      .catch((error) => ({
+        fixedAssetOptions: [] as SiigoProductOption[],
+        fixedAssetsError: getApiErrorMessage(
+          error,
+          'No se pudo cargar el catálogo de activos fijos.',
+        ),
+      })),
   ])
 
   const paymentMethodOptionsByDocumentType: Record<
@@ -232,6 +252,7 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
     retentionOptionsByTaxType,
     costCenterOptions: costCentersResult.costCenterOptions,
     productOptions: productsResult.productOptions,
+    fixedAssetOptions: fixedAssetsResult.fixedAssetOptions,
     accountsError: accountsResult.accountsError,
     paymentMethodsError:
       paymentMethodErrors.length === PAYMENT_DOCUMENT_TYPES.length
@@ -243,6 +264,7 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
         ? 'No se pudieron cargar los catálogos de retenciones.'
         : retentionErrors[0] ?? null,
     productsError: productsResult.productsError,
+    fixedAssetsError: fixedAssetsResult.fixedAssetsError,
   }
 }
 
@@ -279,6 +301,9 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
   const [productOptions, setProductOptions] = useState<SiigoProductOption[]>(
     () => cachedBundle?.productOptions ?? [],
   )
+  const [fixedAssetOptions, setFixedAssetOptions] = useState<SiigoProductOption[]>(
+    () => cachedBundle?.fixedAssetOptions ?? [],
+  )
   const [accountsError, setAccountsError] = useState<string | null>(
     () => cachedBundle?.accountsError ?? null,
   )
@@ -294,6 +319,9 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
   const [productsError, setProductsError] = useState<string | null>(
     () => cachedBundle?.productsError ?? null,
   )
+  const [fixedAssetsError, setFixedAssetsError] = useState<string | null>(
+    () => cachedBundle?.fixedAssetsError ?? null,
+  )
 
   const applyCatalogState = useCallback((catalogs: SiigoCatalogBundle) => {
     setAccountOptions(catalogs.accountOptions)
@@ -303,11 +331,13 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
     setRetentionOptionsByTaxType(catalogs.retentionOptionsByTaxType)
     setCostCenterOptions(catalogs.costCenterOptions)
     setProductOptions(catalogs.productOptions)
+    setFixedAssetOptions(catalogs.fixedAssetOptions)
     setAccountsError(catalogs.accountsError)
     setPaymentMethodsError(catalogs.paymentMethodsError)
     setCostCentersError(catalogs.costCentersError)
     setRetentionsError(catalogs.retentionsError)
     setProductsError(catalogs.productsError)
+    setFixedAssetsError(catalogs.fixedAssetsError)
   }, [])
 
   const refreshCatalogs = useCallback(async (options?: { force?: boolean }) => {
@@ -331,6 +361,7 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
           catalogs.costCentersError,
           catalogs.retentionsError,
           catalogs.productsError,
+          catalogs.fixedAssetsError,
         ].filter(Boolean)
         if (errors.length) {
           throw new Error(errors.join(' '))
@@ -411,11 +442,13 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
       retentionOptionsByTaxType,
       costCenterOptions,
       productOptions,
+      fixedAssetOptions,
       accountsError,
       paymentMethodsError,
       costCentersError,
       retentionsError,
       productsError,
+      fixedAssetsError,
       refreshCatalogs,
     }),
     [
@@ -425,11 +458,13 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
       retentionOptionsByTaxType,
       costCenterOptions,
       productOptions,
+      fixedAssetOptions,
       accountsError,
       paymentMethodsError,
       costCentersError,
       retentionsError,
       productsError,
+      fixedAssetsError,
       refreshCatalogs,
     ],
   )
@@ -613,6 +648,7 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
     costCenterOptions:
       config.provider === 'JARVIS' ? [] : catalog.costCenterOptions,
     productOptions: config.provider === 'JARVIS' ? [] : catalog.productOptions,
+    fixedAssetOptions: config.provider === 'JARVIS' ? [] : catalog.fixedAssetOptions,
     accountsError: config.provider === 'JARVIS' ? null : catalog.accountsError,
     paymentMethodsError:
       config.provider === 'JARVIS'
@@ -625,6 +661,7 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
         ? jarvisCatalogError
         : catalog.retentionsError,
     productsError: config.provider === 'JARVIS' ? null : catalog.productsError,
+    fixedAssetsError: config.provider === 'JARVIS' ? null : catalog.fixedAssetsError,
     refreshCatalogs: catalog.refreshCatalogs,
   }
 }
