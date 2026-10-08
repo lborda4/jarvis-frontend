@@ -390,7 +390,11 @@ function resolvePurchaseInvoiceAccountSuggestion(
     }
   }
 
-  return document.suggestedAccount ?? null
+  if (!document.suggestedAccount) return null
+  return {
+    code: document.suggestedAccount.code,
+    name: document.suggestedAccount.name,
+  }
 }
 
 /** Factura de compra: si el medio de pago del proveedor es fijo en su
