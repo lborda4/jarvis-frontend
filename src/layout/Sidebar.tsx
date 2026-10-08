@@ -3,6 +3,7 @@ import { type ChangeEvent, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
+import { PRIVACY_POLICY_URL } from '../constants/privacyPolicy'
 import {
   AdminIcon,
   ChevronDownIcon,
@@ -474,6 +475,14 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                   className="app-sidebar__help-link"
                 >
                   Escríbenos por WhatsApp
+                </a>
+                <a
+                  href={PRIVACY_POLICY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="app-sidebar__help-link"
+                >
+                  Política de datos
                 </a>
               </div>
             </div>

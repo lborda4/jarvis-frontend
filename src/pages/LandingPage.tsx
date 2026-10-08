@@ -4,6 +4,7 @@ import LoadingIndicator from '../components/LoadingIndicator'
 import { CloseIcon, MenuIcon } from '../components/icons/SidebarIcons'
 import { useAuth } from '../context/AuthContext'
 import { WHATSAPP_DEMO_HREF } from '../constants/contact'
+import { PRIVACY_POLICY_URL } from '../constants/privacyPolicy'
 import './LandingPage.css'
 
 const APP_ENTRY_PATH = '/documento-soporte'
@@ -497,7 +498,11 @@ function LandingPage() {
               Términos y condiciones
             </a>
             <span aria-hidden="true"> · </span>
-            <a href="mailto:jarviscol2025@gmail.com?subject=Pol%C3%ADtica%20de%20privacidad">
+            <a
+              href={PRIVACY_POLICY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Política de privacidad
             </a>
           </p>

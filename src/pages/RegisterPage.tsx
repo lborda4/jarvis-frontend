@@ -2,6 +2,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { type FormEvent, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
+import PrivacyPolicyConsent from '../components/PrivacyPolicyConsent'
 import { getAuthErrorMessage, useAuth } from '../context/AuthContext'
 import { useBackendWakeup } from '../hooks/useBackendWakeup'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
@@ -18,6 +19,7 @@ function RegisterPage() {
   const [nit, setNit] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [acceptedPrivacyPolicy, setAcceptedPrivacyPolicy] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitIsSlow, setSubmitIsSlow] = useState(false)
 
@@ -28,6 +30,14 @@ function RegisterPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
+
+    if (!acceptedPrivacyPolicy) {
+      setErrorMessage(
+        'Debes abrir y aceptar la política de tratamiento de datos para registrarte.',
+      )
+      return
+    }
+
     setIsSubmitting(true)
     setSubmitIsSlow(false)
 
@@ -43,6 +53,7 @@ function RegisterPage() {
         password,
         nit: nit.trim(),
         inviteCode: inviteCode.trim(),
+        acceptPrivacyPolicy: true,
       })
       setAuthEntryMode('register')
       navigate('/documento-soporte', { replace: true })
@@ -158,10 +169,16 @@ function RegisterPage() {
 
           {errorMessage && <ErrorMessage message={errorMessage} />}
 
+          <PrivacyPolicyConsent
+            accepted={acceptedPrivacyPolicy}
+            onAccepted={() => setAcceptedPrivacyPolicy(true)}
+            disabled={isSubmitting}
+          />
+
           <button
             type="submit"
             className="auth-form__submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !acceptedPrivacyPolicy}
           >
             {isSubmitting
               ? submitIsSlow || isSlow

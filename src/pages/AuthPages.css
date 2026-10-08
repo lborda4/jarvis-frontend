@@ -306,6 +306,23 @@
   text-decoration: underline;
 }
 
+.auth-login-shell__legal {
+  margin: -0.35rem 0 0;
+  color: rgba(226, 232, 240, 0.62);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.auth-login-shell__legal a {
+  color: rgba(226, 232, 240, 0.86);
+  text-decoration: none;
+}
+
+.auth-login-shell__legal a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
 .auth-login-form__field {
   display: flex;
   flex-direction: column;
@@ -558,6 +575,71 @@
 
 .auth-form__hint a:hover {
   text-decoration: underline;
+}
+
+.auth-privacy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-sm);
+  background-color: var(--jarvis-gray-50);
+}
+
+.auth-privacy__copy {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.auth-privacy__copy a {
+  color: var(--jarvis-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-privacy__copy a:hover {
+  text-decoration: underline;
+}
+
+.auth-privacy__accept {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--jarvis-primary);
+  border-radius: var(--r-sm);
+  background-color: #ffffff;
+  color: var(--jarvis-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.auth-privacy__accept:hover:not(:disabled) {
+  background-color: var(--jarvis-primary-soft);
+}
+
+.auth-privacy__accept--done {
+  border-color: var(--jarvis-primary);
+  background-color: var(--jarvis-primary);
+  color: #ffffff;
+}
+
+.auth-privacy__accept:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-privacy__hint {
+  margin: 0;
+  color: var(--jarvis-warning);
+  font-size: var(--text-sm);
+  line-height: 1.45;
 }
 
 .auth-form__submit {

@@ -34,6 +34,7 @@ export interface RegisterRequest {
   password: string
   nit: string
   inviteCode: string
+  acceptPrivacyPolicy: boolean
 }
 
 export interface RefreshTokenRequest {

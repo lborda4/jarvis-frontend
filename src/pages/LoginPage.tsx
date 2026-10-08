@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useBackendWakeup } from '../hooks/useBackendWakeup'
 import { isAdminRole } from '../constants/userRole'
 import { resetBackendWake } from '../services/healthService'
+import { PRIVACY_POLICY_URL } from '../constants/privacyPolicy'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
 import {
   resolveLoginError,
@@ -283,6 +284,15 @@ function LoginPage() {
 
         <p className="auth-login-shell__footer">
           ¿No tienes cuenta? <Link to="/registro">Crear cuenta</Link>
+        </p>
+        <p className="auth-login-shell__legal">
+          <a
+            href={PRIVACY_POLICY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Política de tratamiento de datos
+          </a>
         </p>
       </div>
     </main>

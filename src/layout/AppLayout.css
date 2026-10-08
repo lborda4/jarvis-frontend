@@ -552,6 +552,11 @@
   text-decoration: underline;
 }
 
+.app-sidebar__help-link + .app-sidebar__help-link {
+  display: block;
+  margin-top: 0.2rem;
+}
+
 .app-sidebar__profile {
   display: flex;
   align-items: center;
