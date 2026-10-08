@@ -10,6 +10,9 @@ import type {
   PurchaseInvoiceDownload,
   PurchaseInvoiceDownloadParty,
 } from '../../types/electronicDocument'
+import { disablePdfHyphenation, keepPdfWordIntact } from '../../utils/pdfTextWrap'
+
+disablePdfHyphenation()
 
 // Layout adapted from FV1195-representacion-JARVIS.html supplied by the user.
 // React PDF keeps text selectable and paginates long invoices without rasterizing HTML.
@@ -173,9 +176,20 @@ const textBreaks = (word: string) =>
 // Explicit line breaks preserve the identifier without adding hyphens.
 const wrapItemCode = (code: string) => code.match(/.{1,7}/gu)?.join('\n') ?? ''
 const preserveCodeCharacters = (word: string) => [word]
-function Field({ label, value }: { label: string; value?: string | null }) {
+function Field({
+  label,
+  value,
+  keepWord,
+}: {
+  label: string
+  value?: string | null
+  keepWord?: boolean
+}) {
   return (
-    <Text style={styles.field} hyphenationCallback={textBreaks}>
+    <Text
+      style={styles.field}
+      hyphenationCallback={keepWord ? keepPdfWordIntact : textBreaks}
+    >
       <Text style={styles.label}>{label} </Text>
       {value ?? ''}
     </Text>
@@ -216,9 +230,10 @@ function Party({
         <Field
           label={issuer ? 'Razón Social:' : 'Nombre o Razón Social:'}
           value={p.name}
+          keepWord
         />
         {issuer ? (
-          <Field label="Nombre Comercial:" value={p.tradeName} />
+          <Field label="Nombre Comercial:" value={p.tradeName} keepWord />
         ) : (
           <Field label="Tipo de Documento:" value={p.documentType} />
         )}

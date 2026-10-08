@@ -27,17 +27,13 @@ const PRODUCTS_ROOT = '/productos'
 
 const SIDEBAR_LOGO_SRC = '/logo5.png'
 
-interface NavItemChild {
-  label: string
-  to: string
-}
-
 interface NavItem {
   label: string
   to: string
-  icon: (props: { className?: string }) => React.JSX.Element
+  icon?: (props: { className?: string }) => React.JSX.Element
   featureEnabled?: boolean
-  children?: NavItemChild[]
+  section?: boolean
+  children?: NavItem[]
 }
 
 interface SidebarProps {
@@ -114,50 +110,72 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       to: setupPath,
       icon: SettingsIcon,
     },
-    ...(hasSupportDocumentAccess
-      ? [
-          {
-            label: 'Documento soporte',
-            to: '/documento-soporte',
-            icon: DocumentIcon,
-            featureEnabled: isSupportDocumentEnabled,
-          },
-        ]
-      : []),
-    // Factura de compra es el flujo de SIIGO; en Jarvis ese mismo tipo de
-    // documento del plan corresponde a Factura de venta (la que se emite con
-    // la resolución de factura electrónica).
-    ...(hasPurchaseInvoiceAccess && !isJarvisCompany
-      ? [
-          {
-            label: 'Factura de compra',
-            to: '/factura-compra',
-            icon: DocumentIcon,
-            featureEnabled: isPurchaseInvoiceEnabled,
-          },
-        ]
-      : []),
     ...(isJarvisCompany
       ? [
           {
-            label: 'Factura de venta',
-            to: '/factura-venta',
+            label: 'Documentos electrónicos',
+            to: 'documentos-electronicos',
             icon: DocumentIcon,
-            featureEnabled: isSalesInvoiceEnabled,
+            section: true,
+            children: [
+              {
+                label: 'Factura de venta',
+                to: 'factura-venta-grupo',
+                icon: DocumentIcon,
+                children: [
+                  { label: 'Facturas de venta', to: '/factura-venta', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
+                  { label: 'Notas crédito', to: '/nota-credito', icon: DocumentIcon, featureEnabled: isCreditNoteEnabled },
+                  { label: 'Notas débito', to: '/nota-debito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
+                ],
+              },
+              ...(hasSupportDocumentAccess
+                ? [
+                    {
+                      label: 'Documento soporte',
+                      to: 'documento-soporte-grupo',
+                      icon: DocumentIcon,
+                      children: [
+                        { label: 'Documentos soporte', to: '/documento-soporte', icon: DocumentIcon, featureEnabled: isSupportDocumentEnabled },
+                        { label: 'Notas de ajuste', to: '/nota-ajuste', icon: DocumentIcon, featureEnabled: isSupportDocumentEnabled },
+                      ],
+                    },
+                  ]
+                : []),
+            ],
           },
-          { label: 'Nota débito', to: '/nota-debito', icon: DocumentIcon, featureEnabled: isSalesInvoiceEnabled },
         ]
-      : []),
-    ...(isCreditNoteEnabled
-      ? [
-          {
-            label: 'Nota crédito',
-            to: '/nota-credito',
-            icon: DocumentIcon,
-            featureEnabled: isCreditNoteEnabled,
-          },
-        ]
-      : []),
+      : [
+          ...(hasSupportDocumentAccess
+            ? [
+                {
+                  label: 'Documento soporte',
+                  to: '/documento-soporte',
+                  icon: DocumentIcon,
+                  featureEnabled: isSupportDocumentEnabled,
+                },
+              ]
+            : []),
+          ...(hasPurchaseInvoiceAccess
+            ? [
+                {
+                  label: 'Factura de compra',
+                  to: '/factura-compra',
+                  icon: DocumentIcon,
+                  featureEnabled: isPurchaseInvoiceEnabled,
+                },
+              ]
+            : []),
+          ...(isCreditNoteEnabled
+            ? [
+                {
+                  label: 'Nota crédito',
+                  to: '/nota-credito',
+                  icon: DocumentIcon,
+                  featureEnabled: isCreditNoteEnabled,
+                },
+              ]
+            : []),
+        ]),
     ...(!isAdminRole(user?.role) && (isJarvisCompany || isCreditNoteEnabled)
       ? [{
           label: 'Categorías',
@@ -205,159 +223,129 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   }
 
   const isActive = (to: string) => {
-    if (to === '/documento-soporte') {
-      return location.pathname.startsWith('/documento-soporte')
-    }
-
-    if (to === '/factura-compra') {
-      return location.pathname.startsWith('/factura-compra')
-    }
-
-    if (to === '/terceros') {
-      return location.pathname.startsWith('/terceros')
-    }
-
-    if (to === '/productos/listar') {
-      // También queda activo en "Crear producto" (accesible desde el botón
-      // del listado, ya no desde un submenú acá) — sigue siendo la misma
-      // sección para el usuario.
-      return location.pathname.startsWith(PRODUCTS_ROOT)
-    }
-
+    if (to === '/documento-soporte') return location.pathname.startsWith('/documento-soporte')
+    if (to === '/factura-compra') return location.pathname.startsWith('/factura-compra')
+    if (to === '/factura-venta') return location.pathname === '/factura-venta' || location.pathname.startsWith('/factura-venta/')
+    if (to === '/nota-credito') return location.pathname.startsWith('/nota-credito')
+    if (to === '/nota-debito') return location.pathname.startsWith('/nota-debito')
+    if (to === '/nota-ajuste') return location.pathname.startsWith('/nota-ajuste')
+    if (to === '/terceros') return location.pathname.startsWith('/terceros')
+    if (to === '/productos/listar') return location.pathname.startsWith(PRODUCTS_ROOT)
     return location.pathname === to
   }
 
-  const renderNavItems = (iconOnly: boolean) =>
-    navItems.map((item) => {
-      const Icon = item.icon
+  const isItemDisabled = (item: NavItem) => item.featureEnabled === false
 
-      if ('children' in item && item.children) {
-        const groupActive = item.children.some(child => isActive(child.to))
-        const groupKey = location.pathname + ':' + item.to
-        const isExpanded = expandedGroups[groupKey] ?? groupActive
-        const groupId = 'sidebar-group-' + item.to
+  const isBranchActive = (item: NavItem): boolean =>
+    item.children?.some(isBranchActive) || (!item.children && !isItemDisabled(item) && isActive(item.to))
 
-        if (iconOnly) {
-          return (
-            <button
-              key={item.to}
-              type="button"
-              className="app-sidebar__link app-sidebar__link--icon-only app-sidebar__group-toggle"
-              title={item.label}
-              aria-label={`Abrir ${item.label}`}
-              aria-expanded={false}
-              onClick={() => {
-                setExpandedGroups(current => ({ ...current, [groupKey]: true }))
-                onOpen()
-              }}
-            >
-              <Icon className="app-sidebar__link-icon" />
-            </button>
-          )
-        }
+  const renderNavItem = (item: NavItem, iconOnly: boolean, nested = false) => {
+    const Icon = item.icon ?? DocumentIcon
 
+    if (item.children) {
+      const groupActive = isBranchActive(item)
+      const isExpanded = expandedGroups[item.to] ?? groupActive
+      const groupId = 'sidebar-group-' + item.to
+
+      if (iconOnly) {
         return (
-          <div key={item.to} className="app-sidebar__group">
-            <button
-              type="button"
-              className={[
-                'app-sidebar__link',
-                'app-sidebar__group-toggle',
-                groupActive ? 'app-sidebar__group-toggle--active' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => setExpandedGroups(current => ({ ...current, [groupKey]: !isExpanded }))}
-              aria-controls={isExpanded ? groupId : undefined}
-              aria-expanded={isExpanded}
-            >
-              <Icon className="app-sidebar__link-icon" />
-              <span>{item.label}</span>
-              <ChevronDownIcon
-                className={[
-                  'app-sidebar__group-chevron',
-                  isExpanded ? 'app-sidebar__group-chevron--open' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              />
-            </button>
-
-            {isExpanded && (
-              <div id={groupId} className="app-sidebar__group-children">
-                {item.children.map((child) => (
-                  <NavLink
-                    key={child.to}
-                    to={child.to}
-                    className={() =>
-                      [
-                        'app-sidebar__child-link',
-                        isActive(child.to) ? 'app-sidebar__child-link--active' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')
-                    }
-                  >
-                    <span className="app-sidebar__child-dot" aria-hidden="true" />
-                    {child.label}
-                  </NavLink>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      const isDisabledByFeature =
-        'featureEnabled' in item && item.featureEnabled === false
-      const isDisabledByJarvis =
-        'requiresJarvisSetup' in item &&
-        item.requiresJarvisSetup &&
-        !isConfigured
-      const isDisabled = isDisabledByFeature || isDisabledByJarvis
-      const active = !isDisabled && isActive(item.to)
-      const linkClass = [
-        'app-sidebar__link',
-        iconOnly ? 'app-sidebar__link--icon-only' : '',
-        active ? 'app-sidebar__link--active' : '',
-        isDisabled ? 'app-sidebar__link--disabled' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
-
-      if (isDisabled) {
-        return (
-          <span
-            key={item.label}
-            className={linkClass}
-            aria-disabled="true"
-            title={
-              isDisabledByJarvis
-                ? 'Complete todos los pasos de configuración Jarvis para continuar'
-                : isJarvisCompany
-                  ? 'Requiere plan activo y configuración completa de Jarvis'
-                  : 'Requiere plan activo, credenciales SIIGO y cuentas sincronizadas'
-            }
+          <button
+            key={item.to}
+            type="button"
+            className="app-sidebar__link app-sidebar__link--icon-only app-sidebar__group-toggle"
+            title={item.label}
+            aria-label={`Abrir ${item.label}`}
+            aria-expanded={false}
+            onClick={() => {
+              setExpandedGroups(current => ({ ...current, [item.to]: true }))
+              onOpen()
+            }}
           >
             <Icon className="app-sidebar__link-icon" />
-            {!iconOnly && <span>{item.label}</span>}
-          </span>
+          </button>
         )
       }
 
       return (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          className={linkClass}
-          title={iconOnly ? item.label : undefined}
-          aria-label={iconOnly ? item.label : undefined}
-        >
-          <Icon className="app-sidebar__link-icon" />
-          {!iconOnly && <span>{item.label}</span>}
-        </NavLink>
+        <div key={item.to} className={`app-sidebar__group${item.section ? ' app-sidebar__group--section' : ''}${nested ? ' app-sidebar__group--nested' : ''}`}>
+          <button
+            type="button"
+            className={[
+              'app-sidebar__link',
+              'app-sidebar__group-toggle',
+              item.section ? 'app-sidebar__group-toggle--section' : '',
+              groupActive ? 'app-sidebar__group-toggle--active' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => setExpandedGroups(current => ({ ...current, [item.to]: !isExpanded }))}
+            aria-controls={isExpanded ? groupId : undefined}
+            aria-expanded={isExpanded}
+          >
+            {!item.section && <Icon className="app-sidebar__link-icon" />}
+            <span>{item.label}</span>
+            <ChevronDownIcon
+              className={[
+                'app-sidebar__group-chevron',
+                isExpanded ? 'app-sidebar__group-chevron--open' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            />
+          </button>
+
+          {isExpanded && (
+            <div id={groupId} className="app-sidebar__group-children">
+              {item.children.map((child) => renderNavItem(child, false, true))}
+            </div>
+          )}
+        </div>
       )
-    })
+    }
+
+    const isDisabled = isItemDisabled(item)
+    const active = !isDisabled && isActive(item.to)
+    const linkClass = [
+      nested ? 'app-sidebar__child-link' : 'app-sidebar__link',
+      iconOnly ? 'app-sidebar__link--icon-only' : '',
+      active ? (nested ? 'app-sidebar__child-link--active' : 'app-sidebar__link--active') : '',
+      isDisabled ? 'app-sidebar__link--disabled' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+    const disabledTitle = isJarvisCompany
+      ? 'Requiere plan activo y configuración completa de Jarvis'
+      : 'Requiere plan activo, credenciales SIIGO y cuentas sincronizadas'
+
+    if (isDisabled) {
+      return (
+        <span
+          key={item.label}
+          className={linkClass}
+          aria-disabled="true"
+          title={disabledTitle}
+        >
+          {nested && !item.icon ? <span className="app-sidebar__child-dot" aria-hidden="true" /> : <Icon className="app-sidebar__link-icon" />}
+          {!iconOnly && <span>{item.label}</span>}
+        </span>
+      )
+    }
+
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        className={linkClass}
+        title={iconOnly ? item.label : undefined}
+        aria-label={iconOnly ? item.label : undefined}
+      >
+        {nested && !item.icon ? <span className="app-sidebar__child-dot" aria-hidden="true" /> : <Icon className="app-sidebar__link-icon" />}
+        {!iconOnly && <span>{item.label}</span>}
+      </NavLink>
+    )
+  }
+
+  const renderNavItems = (iconOnly: boolean) => navItems.map((item) => renderNavItem(item, iconOnly))
 
   return (
     <aside

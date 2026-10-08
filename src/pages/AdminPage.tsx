@@ -1,5 +1,6 @@
 import AdminSidebar from '../components/AdminSidebar'
 import AdminBoldSettings from '../components/AdminBoldSettings'
+import AdminJarvisCatalog from '../components/AdminJarvisCatalog'
 import AdminTracking from '../components/AdminTracking'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
@@ -108,7 +109,7 @@ function formatResponsible(
 }
 
 function AdminPage() {
-  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking'>('jarvis')
+  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'catalog' | 'bold' | 'tracking'>('jarvis')
   const [commercial, setCommercial] = useState('')
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
   const { logout } = useAuth()
@@ -817,13 +818,16 @@ function AdminPage() {
   return (
     <div className="admin-shell">
       <AdminSidebar active={activeAdminTab} onChange={setActiveAdminTab} onLogout={handleLogout} />
-    <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}`}>
-      <PageHeader
+    <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}${activeAdminTab === 'catalog' ? ' admin-page--catalog' : ''}`}>
+      {activeAdminTab !== 'catalog' && <PageHeader
         eyebrow="Panel interno"
         title="Administración de empresas"
         description="Gestione empresas, integraciones, planes y suscripciones."
-      />
+      />}
 
+      <div id="admin-panel-catalog" role="tabpanel" aria-labelledby="admin-tab-catalog" hidden={activeAdminTab !== 'catalog'}>
+        {activeAdminTab === 'catalog' && <AdminJarvisCatalog companies={companies} loading={isLoading} />}
+      </div>
       <div id="admin-panel-bold" role="tabpanel" aria-labelledby="admin-tab-bold" hidden={activeAdminTab !== 'bold'}>
         {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
       </div>

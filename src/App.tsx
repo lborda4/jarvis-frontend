@@ -60,14 +60,23 @@ function App() {
                   path="/documento-soporte/historial"
                   element={<Navigate to="/documento-soporte" replace />}
                 />
+                <Route
+                  path="/documento-soporte/:id/visualizar"
+                  element={<SalesInvoicePreviewPage supportDocument />}
+                />
 
                 <Route path="/factura-compra" element={<PurchaseInvoiceRoute />} />
                 <Route path="/factura-venta" element={<SalesInvoiceListPage />} />
                 <Route path="/factura-venta/:id/visualizar" element={<SalesInvoicePreviewPage />} />
                 <Route path="/nota-debito" element={<SalesInvoiceListPage key="debit-list" debitNote />} />
                 <Route path="/nota-debito/nueva" element={<SalesInvoicePage key="debit-form" debitNote />} />
+                <Route path="/nota-debito/:id/visualizar" element={<SalesInvoicePreviewPage debitNote />} />
                 <Route path="/nota-credito" element={<SalesInvoiceListPage key="credit-list" creditNote />} />
                 <Route path="/nota-credito/nueva" element={<SalesInvoicePage key="credit-form" creditNote />} />
+                <Route path="/nota-credito/:id/visualizar" element={<SalesInvoicePreviewPage creditNote />} />
+                <Route path="/nota-ajuste" element={<SalesInvoiceListPage key="adjustment-list" adjustmentNote />} />
+                <Route path="/nota-ajuste/nueva" element={<SalesInvoicePage key="adjustment-form" adjustmentNote />} />
+                <Route path="/nota-ajuste/:id/visualizar" element={<SalesInvoicePreviewPage adjustmentNote />} />
                 <Route path="/factura-venta/nueva" element={<SalesInvoicePage />} />
 
                 <Route path="/terceros" element={<TercerosRoute />} />

@@ -32,6 +32,17 @@ describe('sales invoice HTML template adaptation', () => {
     expect(text).toContain('-260,00')
   })
 
+  it('adapta título, tercero y código único según el tipo de documento', () => {
+    const text = textContent(SalesInvoicePdfDocument({
+      data: { ...data, documentKind: 'SUPPORT_CREDIT_NOTE' },
+      qr: '',
+    }))
+    expect(text).toContain('Nota de Ajuste')
+    expect(text).toContain('CUDS:')
+    expect(text).toContain('nota de ajuste al documento soporte electrónico')
+    expect(text).not.toContain('CUFE:')
+  })
+
   it('oculta el vencimiento en contado aunque el XML incluya una fecha', () => {
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, isCreditPayment: false }, qr: '' }))
     expect(text).not.toContain('Fecha de vencimiento:')
@@ -42,6 +53,17 @@ describe('sales invoice HTML template adaptation', () => {
     const text = textContent(SalesInvoicePdfDocument({ data, qr: '' }))
     expect(text).toContain('Fecha de vencimiento: 2026-10-01')
   })
+
+  it('envuelve un nombre largo en otra línea sin cortar la palabra', async () => {
+    const longName = 'BORDA BELTRAN LAURA SOFIA'
+    const buffer = await renderToBuffer(<SalesInvoicePdfDocument data={{
+      ...data,
+      issuer: { ...party, name: longName, tradeName: longName },
+    }} qr="" />)
+    const raw = buffer.toString('latin1')
+    expect(raw).not.toMatch(/LAU-/)
+    expect(raw).toContain('LAURA')
+  }, 30000)
 
   it('renders the company logo in a real PDF', async () => {
     const logoDataUrl = await QRCode.toDataURL('company-logo-fixture')

@@ -5,14 +5,14 @@ import './InvoicePdfPreview.css'
 
 const JarvisPdfViewer = lazy(() => import('./JarvisPdfViewer'))
 
-export default function InvoicePdfPreview({ number, pdfUrl, onClose, standalone = false }: {
-  number: string; pdfUrl?: string; onClose: () => void; standalone?: boolean
+export default function InvoicePdfPreview({ number, pdfUrl, onClose, standalone = false, documentLabel = 'Factura' }: {
+  number: string; pdfUrl?: string; onClose: () => void; standalone?: boolean; documentLabel?: string
 }) {
   const Title = standalone ? 'h1' : 'h2'
   const content = <>
     <header className="invoice-pdf__header">
-      <Title id="invoice-pdf-title">Factura {number}</Title>
-      {pdfUrl ? <a className="invoice-pdf__download" href={pdfUrl} download={`Factura-${number}.pdf`}>
+      <Title id="invoice-pdf-title">{documentLabel} {number}</Title>
+      {pdfUrl ? <a className="invoice-pdf__download" href={pdfUrl} download={`${documentLabel}-${number}.pdf`}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         Descargar PDF</a>
         : <button className="invoice-pdf__download" disabled title="El PDF todavía no está disponible">Descargar PDF</button>}

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AdminIcon, HomeIcon, PackageIcon } from './icons/SidebarIcons'
+import { AdminIcon, DocumentIcon, HomeIcon, PackageIcon } from './icons/SidebarIcons'
 import './AdminSidebar.css'
 
 const sections = [
   { id: 'jarvis', label: 'Jarvis', Icon: PackageIcon },
+  { id: 'catalog', label: 'Catálogo', Icon: DocumentIcon },
   { id: 'bold', label: 'Bold', Icon: HomeIcon },
   { id: 'tracking', label: 'Seguimiento', Icon: AdminIcon },
 ] as const

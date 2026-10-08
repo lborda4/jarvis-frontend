@@ -338,6 +338,7 @@ export interface PurchaseInvoiceDownload {
   authorization?: { number: string | null; from: string | null; to: string | null; startDate: string | null; endDate: string | null };
 
   id: string
+  documentKind?: string | null
   cufe: string
   invoiceNumber: string | null
   prefix: string | null

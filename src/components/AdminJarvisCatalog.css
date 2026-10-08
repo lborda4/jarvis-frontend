@@ -1,0 +1,58 @@
+.admin-page.admin-page--catalog {
+  width: min(100%, 1280px);
+}
+
+.admin-jarvis-catalog__company {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 240px;
+  color: var(--jarvis-gray-700);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.admin-jarvis-catalog__company select {
+  min-height: 2.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--jarvis-gray-200);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--jarvis-text);
+  font: inherit;
+  font-weight: 500;
+}
+
+.admin-jarvis-catalog__views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.admin-jarvis-catalog__views button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--jarvis-gray-200);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--jarvis-gray-700);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-jarvis-catalog__views button:hover {
+  background: var(--jarvis-gray-50, #f5f8fa);
+}
+
+.admin-jarvis-catalog__views button[aria-selected='true'] {
+  border-color: var(--jarvis-primary);
+  background: var(--jarvis-primary);
+  color: #fff;
+}
+
+.admin-jarvis-catalog__page :is(main, .integration-page) {
+  padding: 0;
+  width: 100%;
+}
