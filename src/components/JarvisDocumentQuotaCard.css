@@ -1,0 +1,38 @@
+.jarvis-document-quota {
+  margin-bottom: 1.25rem;
+}
+
+.jarvis-document-quota .settings-card__title {
+  margin-bottom: 0.35rem;
+}
+
+.jarvis-document-quota .settings-card__description + .jarvis-document-quota__remaining {
+  margin-top: 0.85rem;
+}
+
+.jarvis-document-quota__remaining {
+  margin: 0;
+  color: var(--jarvis-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.jarvis-document-quota__remaining small {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.jarvis-document-quota__bar {
+  width: min(100%, 22rem);
+  height: 0.45rem;
+  margin: 0.7rem 0 0.55rem;
+  border-radius: var(--r-sm);
+  background-color: var(--jarvis-gray-200);
+  overflow: hidden;
+}
+
+.jarvis-document-quota__bar-fill {
+  height: 100%;
+  border-radius: var(--r-sm);
+  background-color: var(--jarvis-primary);
+}

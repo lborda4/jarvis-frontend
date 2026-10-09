@@ -83,7 +83,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const userName = user?.name?.trim() || 'Usuario'
   const userEmail = user?.email?.trim() || ''
   const settingsLabel = isJarvisCompany ? 'Configuración' : 'Configuración SIIGO'
-  const showUsageIndicator = isConfigured && isSubscriptionActive
+  const showUsageIndicator = isConfigured && isSubscriptionActive && !isJarvisCompany
   const activeQuota = !isJarvisCompany ? documentQuotas[location.pathname.startsWith('/factura-compra') ? 'PURCHASE_INVOICE' : 'SUPPORT_DOCUMENT'] : undefined
   const documentLimit = activeQuota ? activeQuota.documentLimit : totalDocumentLimit
   const documentsUsed = activeQuota ? activeQuota.documentsUsed : totalDocumentsUsed
