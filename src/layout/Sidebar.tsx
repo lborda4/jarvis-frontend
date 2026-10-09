@@ -32,7 +32,6 @@ interface NavItem {
   to: string
   icon?: (props: { className?: string }) => React.JSX.Element
   featureEnabled?: boolean
-  section?: boolean
   children?: NavItem[]
 }
 
@@ -116,7 +115,6 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             label: 'Documentos electrónicos',
             to: 'documentos-electronicos',
             icon: DocumentIcon,
-            section: true,
             children: [
               {
                 label: 'Factura de venta',
@@ -267,13 +265,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       }
 
       return (
-        <div key={item.to} className={`app-sidebar__group${item.section ? ' app-sidebar__group--section' : ''}${nested ? ' app-sidebar__group--nested' : ''}`}>
+        <div key={item.to} className={`app-sidebar__group${nested ? ' app-sidebar__group--nested' : ''}`}>
           <button
             type="button"
             className={[
               'app-sidebar__link',
               'app-sidebar__group-toggle',
-              item.section ? 'app-sidebar__group-toggle--section' : '',
               groupActive ? 'app-sidebar__group-toggle--active' : '',
             ]
               .filter(Boolean)
@@ -282,7 +279,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             aria-controls={isExpanded ? groupId : undefined}
             aria-expanded={isExpanded}
           >
-            {!item.section && <Icon className="app-sidebar__link-icon" />}
+            <Icon className="app-sidebar__link-icon" />
             <span>{item.label}</span>
             <ChevronDownIcon
               className={[
