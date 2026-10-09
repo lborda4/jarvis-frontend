@@ -34,6 +34,7 @@ describe('Notas de ajuste Jarvis', () => {
       billingReference: { number: 'DS1', uuid: 'b'.repeat(96), issueDate: '2026-09-01' },
       discrepancyResponseCode: 2, discrepancyResponseDescription: 'Motivo',
       items: [{ description: 'Comisión', quantity: 1, unitValue: 200 }],
+      payment: { id: 1, payment_form_id: 1, due_date: '2026-09-30' },
     }
     api.get.mockResolvedValue({ data: { items: [], total: 0 } })
     api.post.mockResolvedValue({ data: { success: true, invoice: { id: 'NDS1' } } })

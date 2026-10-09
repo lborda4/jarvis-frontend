@@ -23,6 +23,7 @@ describe('Notas débito Jarvis', () => {
       billingReference: { number: 'FV1', uuid: 'a'.repeat(96), issueDate: '2026-09-01' },
       discrepancyResponseCode: 3, discrepancyResponseDescription: 'Motivo',
       items: [{ description: 'Servicio', quantity: 1, unitValue: 100 }],
+      payment: { id: 1, payment_form_id: 1, due_date: '2026-09-30' },
     }
     api.get.mockResolvedValue({ data: { items: [], total: 0 } })
     api.post.mockResolvedValue({ data: { success: true, invoice: { id: 'ND1' } } })

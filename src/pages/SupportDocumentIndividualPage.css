@@ -1,8 +1,10 @@
 /* ─── Contenedor principal ─── */
 .ds-individual__create-option-row {
+  flex-shrink: 0;
   border-top: 1px solid var(--jarvis-border);
   margin-top: 0.3rem;
   padding-top: 0.3rem;
+  background: #ffffff;
 }
 
 .ds-individual__supplier-option.ds-individual__create-option {
@@ -626,6 +628,21 @@
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 31, 51, 0.12);
+}
+
+.ds-individual__supplier-list--pinned-action {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ds-individual__supplier-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .ds-individual__supplier-option {

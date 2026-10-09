@@ -13,7 +13,7 @@ import {
   useState,
 } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { creditNotePrefill } from '../utils/creditNotePrefill'
+import { creditNotePrefill, resolveInvoicePaymentPrefill } from '../utils/creditNotePrefill'
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import CreateProductModal from '../components/CreateProductModal'
 import DatePicker from '../components/DatePicker'
@@ -396,6 +396,10 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             setCustomerQuery(`${request.customerIdentification} — ${request.customerName || source.customerName}`)
             setLines(prefill.lines.length ? prefill.lines : [createEmptyLine()])
             setNotes(request.observations ?? ''); setHeadNote(request.headNote ?? ''); setFootNote(request.footNote ?? '')
+            const paymentPrefill = resolveInvoicePaymentPrefill(request.payment, savedPaymentMethods.items, catalogs.paymentForms ?? [])
+            if (paymentPrefill?.paymentFormId) setPaymentFormId(paymentPrefill.paymentFormId)
+            if (paymentPrefill?.methodId) setPayments([{ ...createEmptyPayment(), methodId: paymentPrefill.methodId }])
+            if (paymentPrefill?.dueDate) setDueDate(paymentPrefill.dueDate)
           } else {
             setCustomerQuery(`${source.customerIdentification} — ${source.customerName}`)
             setLines([createEmptyLine()])
@@ -562,15 +566,15 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const nextErrors: Record<string, string> = {}
     if (!selectedCustomer) nextErrors.customer = `Debe seleccionar un ${partyLabel.toLowerCase()}.`
     if (!issueDate.trim()) nextErrors.issueDate = 'La fecha es obligatoria.'
-    if (!isNote && payments.some(payment => !paymentMethods.some(method => method.id === payment.methodId))) nextErrors.payment = 'Selecciona una forma de pago para cada importe. Puedes crearlas en el catálogo de formas de pago.'
-    if (!isNote && (payments.some(payment => parseAmount(payment.amount) < 0) || Math.round(payments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0) * 100) !== Math.round(documentTotal * 100))) nextErrors.payment = 'Los importes de las formas de pago deben sumar el total del documento.'
+    if (payments.some(payment => !paymentMethods.some(method => method.id === payment.methodId))) nextErrors.payment = 'Selecciona una forma de pago para cada importe. Puedes crearlas en el catálogo de formas de pago.'
+    if (payments.some(payment => parseAmount(payment.amount) < 0) || Math.round(payments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0) * 100) !== Math.round(documentTotal * 100)) nextErrors.payment = 'Los importes de las formas de pago deben sumar el total del documento.'
     const hasValidLine = lines.some((line) => line.description.trim() && parseAmount(line.quantity) > 0 && parseAmount(line.unitValue) > 0)
     if (!hasValidLine) nextErrors.lines = 'Agrega al menos un ítem con descripción, cantidad y valor.'
     lines.forEach((line, index) => {
       if (!line.description.trim()) nextErrors[`line-${index}-description`] = 'No puede estar vacío'
       if (parseAmount(line.quantity) <= 0) nextErrors[`line-${index}-quantity`] = 'Cantidad inválida'
     })
-    if (!isNote && isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
+    if (isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
     if (debitNote && (parseAmount(generalDiscount) < 0 || parseAmount(generalDiscount) > documentSubtotal + documentTax - reteIcaTax - itemRetentionsTotal)) nextErrors.generalDiscount = 'El descuento general no puede superar el valor de la nota.'
     if (isNote) {
       if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > issueDate) nextErrors.reference = `Indica el número, ${affectedCodeLabel} y fecha del ${affectedDocumentLabel} afectado.`
@@ -593,7 +597,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     const uniqueRetentions = Array.from(new Map(retentions.map((item) => [item.id, item])).values())
     const firstPayment = payments[0]
-    const methodId = isNote ? 0 : resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
+    const methodId = resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
     const formId = Number(paymentFormId)
     const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
     return {
@@ -748,34 +752,36 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                     </svg>
                   </span>
                   {isCustomerMenuOpen && (
-                    <ul className="ds-individual__supplier-list" role="listbox">
-                      {isLoadingCustomers ? (
-                        <li className="ds-individual__supplier-empty">Cargando terceros...</li>
-                      ) : filteredCustomers.length === 0 ? (
-                        <li className="ds-individual__supplier-empty">
-                          {allCustomers.length === 0 ? 'No hay terceros creados aún.' : 'No hay coincidencias con esa búsqueda.'}
-                        </li>
-                      ) : filteredCustomers.slice(0, 50).map((item) => (
-                        <li key={item.id}>
-                          <button
-                            type="button"
-                            className={`ds-individual__supplier-option${selectedCustomer?.id === item.id ? ' is-selected' : ''}`}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => selectCustomer(item)}
-                          >
-                            <strong>{item.name}</strong>
-                            <span>{item.document_type} {item.document_number}{item.check_digit ? `-${item.check_digit}` : ''}</span>
-                          </button>
-                        </li>
-                      ))}
-                      <li className="ds-individual__create-option-row">
+                    <div className="ds-individual__supplier-list ds-individual__supplier-list--pinned-action">
+                      <ul className="ds-individual__supplier-results" role="listbox">
+                        {isLoadingCustomers ? (
+                          <li className="ds-individual__supplier-empty">Cargando terceros...</li>
+                        ) : filteredCustomers.length === 0 ? (
+                          <li className="ds-individual__supplier-empty">
+                            {allCustomers.length === 0 ? 'No hay terceros creados aún.' : 'No hay coincidencias con esa búsqueda.'}
+                          </li>
+                        ) : filteredCustomers.slice(0, 50).map((item) => (
+                          <li key={item.id}>
+                            <button
+                              type="button"
+                              className={`ds-individual__supplier-option${selectedCustomer?.id === item.id ? ' is-selected' : ''}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectCustomer(item)}
+                            >
+                              <strong>{item.name}</strong>
+                              <span>{item.document_type} {item.document_number}{item.check_digit ? `-${item.check_digit}` : ''}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="ds-individual__create-option-row">
                         <button type="button" className="ds-individual__supplier-option ds-individual__create-option"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => { setIsCustomerMenuOpen(false); setIsCreateCustomerOpen(true) }}>
                           <span aria-hidden="true">＋</span> Crear tercero
                         </button>
-                      </li>
-                    </ul>
+                      </div>
+                    </div>
                   )}
                 </div>
                 {fieldErrors.customer && <em className="ds-individual__error">{fieldErrors.customer}</em>}
@@ -923,7 +929,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         {/* Formas de pago + Totales */}
         <section className="ds-individual__section">
           <div className="ds-individual__payment-totals-grid">
-            {!isNote && <div className="ds-individual__payment-col">
+            <div className="ds-individual__payment-col">
               <h2>Formas de pago</h2>
               <label className="ds-individual__field">
                 <span>Forma de negociación</span>
@@ -984,7 +990,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                   </div>
                 </label>
               )}
-            </div>}
+            </div>
             <div className="ds-individual__totals-col">
               <div className="ds-individual__totals">
                 <div className="ds-individual__totals-row"><span>Total bruto:</span><strong>{formatMoney(documentGross)}</strong></div>

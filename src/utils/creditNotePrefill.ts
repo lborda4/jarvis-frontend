@@ -1,5 +1,26 @@
-import type { JarvisInvoiceDetail } from '../services/jarvisService'
+import type { CreateJarvisInvoiceRequest, JarvisInvoiceDetail } from '../services/jarvisService'
+import type { JarvisPaymentMethod } from '../services/jarvisPaymentMethodService'
+import { isCreditPaymentMethod } from './paymentNegotiation'
 import type { SalesInvoiceTaxOption } from './salesInvoiceTaxes'
+
+export function resolveInvoicePaymentPrefill(
+  payment: CreateJarvisInvoiceRequest['payment'] | undefined,
+  methods: JarvisPaymentMethod[],
+  forms: Array<{ id: number | string; name?: string }>,
+) {
+  if (!payment) return null
+  const method = methods.find((item) => item.nextpymeMethodId === payment.id)
+  let paymentFormId: string | undefined
+  if (payment.payment_form_id != null) {
+    const form = forms.find((item) => Number(item.id) === payment.payment_form_id)
+    paymentFormId = form ? String(form.id) : String(payment.payment_form_id)
+  } else if (method && forms.length) {
+    const credit = isCreditPaymentMethod(method)
+    const form = forms.find((item) => (item.name?.toLowerCase().includes('cr') ?? false) === credit)
+    if (form) paymentFormId = String(form.id)
+  }
+  return { paymentFormId, methodId: method?.id, dueDate: payment.due_date }
+}
 
 export function creditNotePrefill(invoice: JarvisInvoiceDetail, catalog: SalesInvoiceTaxOption[]) {
   const request = invoice.sourceRequest

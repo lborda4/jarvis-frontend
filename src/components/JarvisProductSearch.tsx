@@ -232,67 +232,69 @@ export default function JarvisProductSearch({
       </span>
 
       {isOpen && !disabled && (
-        <ul
+        <div
           id={listboxId}
-          className="ds-individual__supplier-list ds-individual__product-list"
+          className={`ds-individual__supplier-list ds-individual__product-list${onCreateProduct ? ' ds-individual__supplier-list--pinned-action' : ''}`}
           style={floatingStyle}
           role="listbox"
         >
-          {isLoading ? (
-            <li className="ds-individual__supplier-empty">Cargando productos y servicios...</li>
-          ) : filteredProducts.length === 0 ? (
-            <li className="ds-individual__supplier-empty">
-              {products.length === 0
-                ? 'No hay productos o servicios creados aún.'
-                : 'No hay coincidencias con esa búsqueda.'}
-            </li>
-          ) : (
-            filteredProducts.slice(0, 50).map((product, idx) => {
-              const mainPrice = resolveProductMainPrice(product)
-              const ivaTax = findProductIvaTax(product)
-              const isSelected = idx === activeHighlightedIndex
+          <ul className="ds-individual__supplier-results">
+            {isLoading ? (
+              <li className="ds-individual__supplier-empty">Cargando productos y servicios...</li>
+            ) : filteredProducts.length === 0 ? (
+              <li className="ds-individual__supplier-empty">
+                {products.length === 0
+                  ? 'No hay productos o servicios creados aún.'
+                  : 'No hay coincidencias con esa búsqueda.'}
+              </li>
+            ) : (
+              filteredProducts.slice(0, 50).map((product, idx) => {
+                const mainPrice = resolveProductMainPrice(product)
+                const ivaTax = findProductIvaTax(product)
+                const isSelected = idx === activeHighlightedIndex
 
-              return (
-                <li key={product.id}>
-                  <button
-                    type="button"
-                    className={`ds-individual__supplier-option ds-individual__product-option${
-                      isSelected ? ' is-selected' : ''
-                    }`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSelect(product)}
-                  >
-                    <div className="ds-individual__product-option-head">
-                      <strong>{product.name}</strong>
-                      <span
-                        className={`ds-individual__product-badge ds-individual__product-badge--${product.kind}`}
-                      >
-                        {product.kind === 'service' ? 'Servicio' : 'Producto'}
-                      </span>
-                    </div>
-                    <div className="ds-individual__product-option-meta">
-                      {product.sku && (
-                        <span className="ds-individual__product-sku">{product.sku}</span>
-                      )}
-                      {product.unit && <span>· {product.unit}</span>}
-                      {mainPrice != null && (
-                        <span className="ds-individual__product-price">
-                          · ${mainPrice.toLocaleString('es-CO')}
+                return (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      className={`ds-individual__supplier-option ds-individual__product-option${
+                        isSelected ? ' is-selected' : ''
+                      }`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSelect(product)}
+                    >
+                      <div className="ds-individual__product-option-head">
+                        <strong>{product.name}</strong>
+                        <span
+                          className={`ds-individual__product-badge ds-individual__product-badge--${product.kind}`}
+                        >
+                          {product.kind === 'service' ? 'Servicio' : 'Producto'}
                         </span>
-                      )}
-                      {ivaTax && (
-                        <span className="ds-individual__product-tax">
-                          · IVA {ivaTax.rate ?? 19}%
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              )
-            })
-          )}
+                      </div>
+                      <div className="ds-individual__product-option-meta">
+                        {product.sku && (
+                          <span className="ds-individual__product-sku">{product.sku}</span>
+                        )}
+                        {product.unit && <span>· {product.unit}</span>}
+                        {mainPrice != null && (
+                          <span className="ds-individual__product-price">
+                            · ${mainPrice.toLocaleString('es-CO')}
+                          </span>
+                        )}
+                        {ivaTax && (
+                          <span className="ds-individual__product-tax">
+                            · IVA {ivaTax.rate ?? 19}%
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
           {onCreateProduct && (
-            <li className="ds-individual__create-option-row">
+            <div className="ds-individual__create-option-row">
               <button
                 type="button"
                 className={`ds-individual__supplier-option ds-individual__create-option${activeHighlightedIndex === Math.min(filteredProducts.length, 50) ? ' is-selected' : ''}`}
@@ -301,9 +303,9 @@ export default function JarvisProductSearch({
               >
                 <span aria-hidden="true">＋</span> Crear producto
               </button>
-            </li>
+            </div>
           )}
-        </ul>
+        </div>
       )}
     </div>
   )
