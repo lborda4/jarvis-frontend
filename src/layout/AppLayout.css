@@ -1,8 +1,19 @@
+/* El panel ocupa exactamente la ventana. Sin min-height: 100vh: en Windows
+ * 100vh puede ser más alto que el área visible y el botón flotante se iba
+ * abajo, generando un scroll de la página. */
+html:has(.app-layout),
+body:has(.app-layout),
+#root:has(.app-layout) {
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
 .app-layout {
+  position: relative;
   display: flex;
-  height: 100vh;
   height: 100dvh;
-  min-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   background-color: var(--jarvis-surface);
   --app-content-max-width: 1280px;
