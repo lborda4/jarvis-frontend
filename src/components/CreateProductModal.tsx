@@ -18,15 +18,25 @@ import { ensureDefaultProductIva, fetchJarvisTaxes } from '../services/jarvisSer
 import {
   createProduct,
   createProductCategory,
-  fetchNextSku,
   fetchProductCategories,
+  fetchSkuNumbering,
   fetchUnitMeasures,
+  readAutomaticSkuPreference,
+  saveSkuNumbering,
   updateProductCategory,
   updateProduct,
+  writeAutomaticSkuPreference,
   type CreateProductRequest,
   type ProductResponse,
+  type SkuNumbering,
   type UnitMeasure,
 } from '../services/productService'
+import {
+  DEFAULT_SKU_NUMBERING,
+  formatSkuSequence,
+  incrementSkuSequence,
+  skuSequenceForKind,
+} from '../utils/skuNumbering'
 import { buildProductTaxOptions, DEFAULT_PRODUCT_IVA_ID, type ProductTaxOption } from '../utils/productTaxes'
 import { parseProductPrice as parsePrice } from '../utils/productPriceInput'
 import '../pages/CreateProductPage.css'
@@ -113,9 +123,11 @@ function ProductForm({
   const [isCancelOpen, setIsCancelOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [categories, setCategories] = useState<ProductCategory[]>([])
-  const [skuSuggestion, setSkuSuggestion] = useState<{ kind: ProductFormState['kind']; sku: string } | null>(null)
-  const suggestedSku = !product && skuSuggestion?.kind === form.kind ? skuSuggestion.sku : ''
-  const effectiveSku = form.sku.trim() || suggestedSku
+  const [useAutomaticSku, setUseAutomaticSku] = useState(() => !product && readAutomaticSkuPreference())
+  const [skuNumbering, setSkuNumbering] = useState<SkuNumbering>(DEFAULT_SKU_NUMBERING)
+  const [isSavingNumbering, setIsSavingNumbering] = useState(false)
+  const [numberingStatus, setNumberingStatus] = useState<string | null>(null)
+  const effectiveSku = form.sku.trim()
   // Sembrado con la opción por defecto para que "Unidad - 94" se vea al
   // instante, antes de que responda el catálogo de NextPyme.
   const [unitMeasures, setUnitMeasures] = useState<UnitMeasure[]>([
@@ -169,27 +181,27 @@ function ProductForm({
     }
   }, [isOpen])
 
-  // La sugerencia se muestra como placeholder y se usa al guardar si no se
-  // escribe otro código. Nunca reemplaza el texto que está editando el usuario.
   useEffect(() => {
     if (!isOpen || product) return
-
     let active = true
-
-    fetchNextSku(form.kind)
-      .then((sku) => {
-        if (active) {
-          setSkuSuggestion({ kind: form.kind, sku })
-        }
+    fetchSkuNumbering()
+      .then((numbering) => {
+        if (!active) return
+        setSkuNumbering(numbering)
       })
       .catch(() => {
-        // Sin sugerencia: el usuario puede escribir el SKU manualmente.
+        // Queda la numeración por defecto; el usuario puede ajustarla y guardarla.
       })
-
     return () => {
       active = false
     }
-  }, [isOpen, form.kind, product])
+  }, [isOpen, product])
+
+  useEffect(() => {
+    if (!isOpen || product || !useAutomaticSku) return
+    const sku = formatSkuSequence(skuSequenceForKind(skuNumbering, form.kind))
+    setForm((current) => (current.sku === sku ? current : { ...current, sku }))
+  }, [form.kind, isOpen, product, skuNumbering, useAutomaticSku])
 
   // Catálogo de impuestos y retenciones de la empresa, al abrir el modal.
   // OJO: `isLoadingTaxes` NO va en las dependencias — tenerlo ahí (y
@@ -253,6 +265,36 @@ function ProductForm({
 
   const patchForm = (partial: Partial<ProductFormState>) => {
     setForm((current) => ({ ...current, ...partial }))
+  }
+
+  const setAutomaticSku = (enabled: boolean) => {
+    setUseAutomaticSku(enabled)
+    writeAutomaticSkuPreference(enabled)
+    if (enabled && !product) {
+      patchForm({ sku: formatSkuSequence(skuSequenceForKind(skuNumbering, form.kind)) })
+    }
+  }
+
+  const updateSkuSequence = (kind: ProductKind, patch: Partial<SkuNumbering['product']>) => {
+    setSkuNumbering((current) => ({
+      ...current,
+      [kind]: { ...current[kind], ...patch },
+    }))
+    setNumberingStatus(null)
+  }
+
+  const handleSaveNumbering = async () => {
+    setIsSavingNumbering(true)
+    setNumberingStatus(null)
+    try {
+      const saved = await saveSkuNumbering(skuNumbering)
+      setSkuNumbering(saved)
+      setNumberingStatus('Numeración guardada.')
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, 'No se pudo guardar la numeración.'))
+    } finally {
+      setIsSavingNumbering(false)
+    }
   }
 
   const updatePriceList = (
@@ -375,6 +417,12 @@ function ProductForm({
       const response = product
         ? await updateProduct(product.id, request)
         : await createProduct(request)
+      if (!product && useAutomaticSku) {
+        await saveSkuNumbering({
+          ...skuNumbering,
+          [form.kind]: incrementSkuSequence(skuSequenceForKind(skuNumbering, form.kind)),
+        }).catch(() => undefined)
+      }
       onCreated(response.product)
       onClose()
     } catch (error) {
@@ -457,7 +505,12 @@ function ProductForm({
                           name="product-kind"
                           value={option.value}
                           checked={selected}
-                          onChange={() => patchForm({ kind: option.value })}
+                          onChange={() => {
+                            const sku = useAutomaticSku && !product
+                              ? formatSkuSequence(skuSequenceForKind(skuNumbering, option.value))
+                              : form.sku
+                            patchForm({ kind: option.value, sku })
+                          }}
                         />
                         <span className="product-radio" aria-hidden="true" />
                         {option.label}
@@ -467,13 +520,39 @@ function ProductForm({
                 </div>
               </fieldset>
 
-              <label className="create-product-field">
-                <span>
-                  Código / SKU <span className="create-product-req">*</span>
-                </span>
+              <div className="create-product-field create-product-field--sku">
+                <div className="create-product-sku-head">
+                  <span>
+                    Código / SKU <span className="create-product-req">*</span>
+                  </span>
+                  {!product && (
+                    <fieldset className="create-product-auto-sku">
+                      <legend>Código automático</legend>
+                      <label>
+                        <input
+                          type="radio"
+                          name="automatic-sku"
+                          checked={useAutomaticSku}
+                          onChange={() => setAutomaticSku(true)}
+                        />
+                        Sí
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name="automatic-sku"
+                          checked={!useAutomaticSku}
+                          onChange={() => setAutomaticSku(false)}
+                        />
+                        No
+                      </label>
+                    </fieldset>
+                  )}
+                </div>
                 <input
                   value={form.sku}
-                  placeholder={suggestedSku}
+                  placeholder={useAutomaticSku ? formatSkuSequence(skuSequenceForKind(skuNumbering, form.kind)) : 'PROD-0001'}
+                  readOnly={useAutomaticSku}
                   onChange={(event) => {
                     patchForm({ sku: event.target.value })
                   }}
@@ -482,7 +561,43 @@ function ProductForm({
                 {fieldErrors.sku && (
                   <em className="create-product-error">{fieldErrors.sku}</em>
                 )}
-              </label>
+              </div>
+
+              {useAutomaticSku && !product && (
+                <div className="create-product-field create-product-field--wide create-product-numbering">
+                  <span>Numeración de producto y servicio</span>
+                  <p>Se guarda para la empresa. Al elegir el tipo se llena el código.</p>
+                  {PRODUCT_KIND_OPTIONS.map((option) => {
+                    const sequence = skuSequenceForKind(skuNumbering, option.value)
+                    return (
+                      <div key={option.value} className="create-product-numbering__row">
+                        <strong>{option.label}</strong>
+                        <input
+                          value={sequence.prefix}
+                          onChange={(event) => updateSkuSequence(option.value, { prefix: event.target.value })}
+                          placeholder="Prefijo"
+                          aria-label={`Prefijo de ${option.label.toLowerCase()}`}
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={sequence.nextNumber}
+                          onChange={(event) => updateSkuSequence(option.value, { nextNumber: Number(event.target.value) })}
+                          aria-label={`Siguiente número de ${option.label.toLowerCase()}`}
+                        />
+                        <em>{formatSkuSequence(sequence)}</em>
+                      </div>
+                    )
+                  })}
+                  <div className="create-product-numbering__actions">
+                    <Button type="button" variant="outline" onClick={() => void handleSaveNumbering()} disabled={isSavingNumbering}>
+                      {isSavingNumbering ? 'Guardando...' : 'Guardar numeración'}
+                    </Button>
+                    {numberingStatus && <span role="status">{numberingStatus}</span>}
+                  </div>
+                </div>
+              )}
 
               <label className="create-product-field">
                 <span>

@@ -1,7 +1,14 @@
+import axios from 'axios'
+import {
+  normalizeSkuNumbering,
+  parseSkuSequence,
+  type SkuNumbering,
+} from '../utils/skuNumbering'
 import { apiClient } from './apiClient'
 import {
   cachedQuery,
   companyQueryKey,
+  getActiveCompanyId,
   invalidateQueryCache,
   QUERY_STALE_MS,
 } from './queryCache'
@@ -115,6 +122,89 @@ export async function fetchNextSku(
   )
   return data.sku
 }
+
+const SKU_NUMBERING_STORAGE = 'jarvis.sku-numbering'
+const SKU_AUTO_PREF_STORAGE = 'jarvis.sku-automatic'
+
+function skuNumberingStorageKey() {
+  return `${SKU_NUMBERING_STORAGE}.${getActiveCompanyId() ?? 'company'}`
+}
+
+function readLocalSkuNumbering(): SkuNumbering | null {
+  try {
+    const raw = localStorage.getItem(skuNumberingStorageKey())
+    return raw ? normalizeSkuNumbering(JSON.parse(raw) as SkuNumbering) : null
+  } catch {
+    return null
+  }
+}
+
+function writeLocalSkuNumbering(numbering: SkuNumbering) {
+  localStorage.setItem(skuNumberingStorageKey(), JSON.stringify(numbering))
+}
+
+export function readAutomaticSkuPreference(): boolean {
+  return localStorage.getItem(`${SKU_AUTO_PREF_STORAGE}.${getActiveCompanyId() ?? 'company'}`) === '1'
+}
+
+export function writeAutomaticSkuPreference(enabled: boolean) {
+  localStorage.setItem(`${SKU_AUTO_PREF_STORAGE}.${getActiveCompanyId() ?? 'company'}`, enabled ? '1' : '0')
+}
+
+function isMissingSkuNumberingEndpoint(error: unknown) {
+  return axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 501)
+}
+
+async function seedSkuNumberingFromNextSku(): Promise<SkuNumbering> {
+  const [productSku, serviceSku] = await Promise.all([
+    fetchNextSku('product').catch(() => formatFallback('PROD')),
+    fetchNextSku('service').catch(() => formatFallback('SERV')),
+  ])
+  return normalizeSkuNumbering({
+    product: parseSkuSequence(productSku, 'PROD'),
+    service: parseSkuSequence(serviceSku, 'SERV'),
+  })
+}
+
+function formatFallback(prefix: string) {
+  return `${prefix}-0001`
+}
+
+export async function fetchSkuNumbering(): Promise<SkuNumbering> {
+  try {
+    const { data } = await apiClient.get<SkuNumbering>(`${PRODUCTS_ENDPOINT}/sku-numbering`)
+    const numbering = normalizeSkuNumbering(data)
+    writeLocalSkuNumbering(numbering)
+    return numbering
+  } catch (error) {
+    const local = readLocalSkuNumbering()
+    if (local) return local
+    if (!isMissingSkuNumberingEndpoint(error)) {
+      const seeded = await seedSkuNumberingFromNextSku()
+      writeLocalSkuNumbering(seeded)
+      return seeded
+    }
+    const seeded = await seedSkuNumberingFromNextSku()
+    writeLocalSkuNumbering(seeded)
+    return seeded
+  }
+}
+
+export async function saveSkuNumbering(numbering: SkuNumbering): Promise<SkuNumbering> {
+  const normalized = normalizeSkuNumbering(numbering)
+  writeLocalSkuNumbering(normalized)
+  try {
+    const { data } = await apiClient.put<SkuNumbering>(`${PRODUCTS_ENDPOINT}/sku-numbering`, normalized)
+    const saved = normalizeSkuNumbering(data)
+    writeLocalSkuNumbering(saved)
+    return saved
+  } catch (error) {
+    if (!isMissingSkuNumberingEndpoint(error)) throw error
+    return normalized
+  }
+}
+
+export type { SkuNumbering }
 
 export interface UnitMeasure {
   code: string

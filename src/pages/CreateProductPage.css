@@ -47,6 +47,100 @@
   grid-column: 1 / -1;
 }
 
+.create-product-sku-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.create-product-auto-sku {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.create-product-auto-sku legend {
+  position: static;
+  padding: 0;
+  margin-right: 0.15rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.create-product-auto-sku label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.create-product-auto-sku input {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  accent-color: var(--jarvis-primary);
+}
+
+.create-product-field--sku input:read-only {
+  background: var(--jarvis-gray-50);
+}
+
+.create-product-numbering {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  background: var(--jarvis-gray-50);
+}
+
+.create-product-numbering > p {
+  margin: 0 0 0.7rem;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-sm);
+}
+
+.create-product-numbering__row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) 6.5rem auto;
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.create-product-numbering__row strong {
+  color: var(--jarvis-navy);
+  font-size: var(--text-sm);
+}
+
+.create-product-numbering__row em {
+  color: var(--jarvis-primary);
+  font-size: var(--text-sm);
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.create-product-numbering__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.create-product-numbering__actions span {
+  color: var(--jarvis-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .create-product-field > span:first-child,
 .create-product-field > legend {
   color: var(--jarvis-text-muted);
@@ -402,6 +496,15 @@
 
   .create-product-grid {
     grid-template-columns: 1fr;
+  }
+
+  .create-product-numbering__row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .create-product-numbering__row strong,
+  .create-product-numbering__row em {
+    grid-column: 1 / -1;
   }
 
   .create-product-taxes-item {
