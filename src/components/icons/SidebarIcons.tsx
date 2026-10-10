@@ -132,6 +132,27 @@ export function HelpIcon({ className }: IconProps) {
   )
 }
 
+export function HeadsetIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 12a7 7 0 0 1 14 0"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <rect x="3.2" y="11.2" width="3.6" height="5.4" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="17.2" y="11.2" width="3.6" height="5.4" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M12 19.2v1.1a2 2 0 0 0 2 2h1.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export function ChevronDownIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">

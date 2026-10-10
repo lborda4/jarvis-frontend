@@ -521,34 +521,9 @@ function ProductForm({
               </fieldset>
 
               <div className="create-product-field create-product-field--sku">
-                <div className="create-product-sku-head">
-                  <span>
-                    Código / SKU <span className="create-product-req">*</span>
-                  </span>
-                  {!product && (
-                    <fieldset className="create-product-auto-sku">
-                      <legend>Código automático</legend>
-                      <label>
-                        <input
-                          type="radio"
-                          name="automatic-sku"
-                          checked={useAutomaticSku}
-                          onChange={() => setAutomaticSku(true)}
-                        />
-                        Sí
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name="automatic-sku"
-                          checked={!useAutomaticSku}
-                          onChange={() => setAutomaticSku(false)}
-                        />
-                        No
-                      </label>
-                    </fieldset>
-                  )}
-                </div>
+                <span>
+                  Código / SKU <span className="create-product-req">*</span>
+                </span>
                 <input
                   value={form.sku}
                   placeholder={useAutomaticSku ? formatSkuSequence(skuSequenceForKind(skuNumbering, form.kind)) : 'PROD-0001'}
@@ -558,6 +533,29 @@ function ProductForm({
                   }}
                   aria-invalid={Boolean(fieldErrors.sku)}
                 />
+                {!product && (
+                  <fieldset className="create-product-auto-sku">
+                    <legend>Código automático</legend>
+                    <label>
+                      <input
+                        type="radio"
+                        name="automatic-sku"
+                        checked={useAutomaticSku}
+                        onChange={() => setAutomaticSku(true)}
+                      />
+                      Sí
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="automatic-sku"
+                        checked={!useAutomaticSku}
+                        onChange={() => setAutomaticSku(false)}
+                      />
+                      No
+                    </label>
+                  </fieldset>
+                )}
                 {fieldErrors.sku && (
                   <em className="create-product-error">{fieldErrors.sku}</em>
                 )}
@@ -566,7 +564,6 @@ function ProductForm({
               {useAutomaticSku && !product && (
                 <div className="create-product-field create-product-field--wide create-product-numbering">
                   <span>Numeración de producto y servicio</span>
-                  <p>Se guarda para la empresa. Al elegir el tipo se llena el código.</p>
                   {PRODUCT_KIND_OPTIONS.map((option) => {
                     const sequence = skuSequenceForKind(skuNumbering, option.value)
                     return (

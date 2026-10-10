@@ -41,6 +41,10 @@
   transform: rotate(180deg);
 }
 
+.app-layout--jarvis .scroll-to-top {
+  bottom: 5.25rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scroll-to-top {
     transition: none;

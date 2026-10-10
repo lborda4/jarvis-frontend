@@ -31,6 +31,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem 1.25rem;
+  align-items: start;
 }
 
 .create-product-field {
@@ -47,19 +48,11 @@
   grid-column: 1 / -1;
 }
 
-.create-product-sku-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
 .create-product-auto-sku {
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  margin: 0;
+  margin: 0.15rem 0 0;
   padding: 0;
   border: none;
   color: var(--jarvis-text);

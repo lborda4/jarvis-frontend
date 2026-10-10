@@ -449,28 +449,39 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           )}
 
           <div className="app-sidebar__footer">
-            <div className="app-sidebar__help">
-              <HelpIcon className="app-sidebar__help-icon" />
-              <div>
-                <p className="app-sidebar__help-title">¿Necesitas ayuda?</p>
-                <a
-                  href={WHATSAPP_SUPPORT_HREF}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="app-sidebar__help-link"
-                >
-                  Escríbenos por WhatsApp
-                </a>
-                <a
-                  href={PRIVACY_POLICY_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="app-sidebar__help-link"
-                >
-                  Política de datos
-                </a>
+            {isJarvisCompany ? (
+              <a
+                href={PRIVACY_POLICY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="app-sidebar__help-link"
+              >
+                Política de datos
+              </a>
+            ) : (
+              <div className="app-sidebar__help">
+                <HelpIcon className="app-sidebar__help-icon" />
+                <div>
+                  <p className="app-sidebar__help-title">¿Necesitas ayuda?</p>
+                  <a
+                    href={WHATSAPP_SUPPORT_HREF}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="app-sidebar__help-link"
+                  >
+                    Escríbenos por WhatsApp
+                  </a>
+                  <a
+                    href={PRIVACY_POLICY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="app-sidebar__help-link"
+                  >
+                    Política de datos
+                  </a>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="app-sidebar__profile">
               <span className="app-sidebar__avatar" aria-hidden="true">
