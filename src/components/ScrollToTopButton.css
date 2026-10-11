@@ -42,8 +42,7 @@
 }
 
 .app-layout--jarvis .scroll-to-top {
-  position: absolute;
-  bottom: calc(3.25rem + 1rem + 0.75rem);
+  bottom: calc(3.25rem + 1.25rem + 0.75rem);
 }
 
 @media (prefers-reduced-motion: reduce) {
