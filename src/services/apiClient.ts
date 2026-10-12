@@ -70,6 +70,14 @@ async function refreshAccessToken(): Promise<string | null> {
 
 apiClient.interceptors.request.use((config) => {
   const requestUrl = config.url ?? ''
+  if (/\/bold(?:[/?#]|$)/i.test(requestUrl)) {
+    const providers = peekCachedQuery<{ providers: string[] }>(
+      companyQueryKey(['integrations', 'providers']),
+    )?.providers
+    if (providers?.includes('JARVIS') && !providers.includes('SIIGO')) {
+      throw new axios.CanceledError('La integración Jarvis no permite peticiones a Bold.')
+    }
+  }
   // No sale ninguna petición SIIGO sin integración confirmada para la empresa activa.
   if (/\/integrations\/siigo(?:[/?#]|$)/.test(requestUrl)) {
     const providers = peekCachedQuery<{ providers: string[] }>(

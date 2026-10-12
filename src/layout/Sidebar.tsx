@@ -174,19 +174,15 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               ]
             : []),
         ]),
-    ...(!isAdminRole(user?.role) && (isJarvisCompany || isCreditNoteEnabled)
+    ...(!isAdminRole(user?.role) && isJarvisCompany
       ? [{
           label: 'Categorías',
           to: 'categorias',
           icon: PackageIcon,
           children: [
-            ...(isJarvisCompany
-              ? [
-                  { label: 'Productos', to: '/productos/listar' },
-                  { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
-                  { label: 'Formas de pago', to: '/formas-de-pago' },
-                ]
-              : []),
+            { label: 'Productos', to: '/productos/listar' },
+            { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
+            { label: 'Formas de pago', to: '/formas-de-pago' },
             { label: 'Terceros', to: '/terceros' },
           ],
         }]

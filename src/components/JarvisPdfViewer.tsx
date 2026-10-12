@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getDocument, GlobalWorkerOptions, TextLayer, type PDFDocumentProxy, type RenderTask } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import './JarvisPdfViewer.css'
+import PdfPreviewError from './PdfPreviewError'
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -108,7 +109,7 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
       </div>
     </div>
     <div ref={viewportRef} className="jarvis-pdf__viewport" tabIndex={0} aria-label="Contenido de la factura" aria-busy={!error && rendered !== renderKey}>
-      {error ? <div className="jarvis-pdf__message" role="alert"><p>{error}</p><button type="button" onClick={() => { setError(''); setPdf(null); setRendered(''); setAttempt(value => value + 1) }}>Reintentar</button></div>
+      {error ? <PdfPreviewError onRetry={() => { setError(''); setPdf(null); setRendered(''); setAttempt(value => value + 1) }} />
         : <>{rendered !== renderKey && <div className="jarvis-pdf__loading" role="status">Preparando página…</div>}<div className="jarvis-pdf__paper" ref={paperRef} /></>}
     </div>
   </div>

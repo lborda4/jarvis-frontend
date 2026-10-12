@@ -1,0 +1,5 @@
+.pdf-preview-error { padding: 2rem; border: 1px solid var(--jarvis-border); border-radius: 12px; background: white; color: var(--jarvis-text); }
+.pdf-preview-error h2 { margin: 0 0 1rem; font-size: 1.2rem; }
+.pdf-preview-error p { color: var(--jarvis-text-muted); line-height: 1.5; }
+.pdf-preview-error__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; }
+.pdf-preview-error__actions a { color: var(--jarvis-primary); font-weight: 600; }

@@ -1,6 +1,7 @@
 import { peekCachedQuery } from '../services/queryCache'
 import PageHeader from '../components/PageHeader'
 import InvoiceNoteActions from '../components/InvoiceNoteActions'
+import DocumentEmailModal, { MailIcon } from '../components/DocumentEmailModal'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../components/Button'
@@ -36,6 +37,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
   const [isLoading, setIsLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [emailDocument, setEmailDocument] = useState<JarvisSalesInvoiceList['items'][number] | null>(null)
   const isSalesInvoice = !supportDocument && !creditNote && !debitNote && !adjustmentNote
   const showNoteActions = isSalesInvoice || supportDocument
   const listPath = debitNote ? '/nota-debito' : adjustmentNote ? '/nota-ajuste' : creditNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
@@ -116,6 +118,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                   <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar`} aria-label={`Visualizar ${documentLabel} ${invoice.prefix}${invoice.number}`}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg> Visualizar
                   </Link>
+                  <button type="button" className="sales-history__view" title="Enviar a correo" aria-label={`Enviar a correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
                   {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`} />}
                 </div></td>
               </tr>)}</tbody>
@@ -124,5 +127,6 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
           </>}
       </div>
     </section>
+    {emailDocument && <DocumentEmailModal key={emailDocument.id} id={emailDocument.id} number={emailDocument.number.startsWith(emailDocument.prefix) ? emailDocument.number : `${emailDocument.prefix}${emailDocument.number}`} documentLabel={documentLabel} partyLabel={partyLabel} onClose={() => setEmailDocument(null)} />}
   </main>
 }

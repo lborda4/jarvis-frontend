@@ -186,6 +186,11 @@ export async function fetchJarvisInvoicePdfData(id: string): Promise<import('../
   return data
 }
 
+export async function sendJarvisDocumentEmail(id: string, request: { additionalEmails: string[]; message: string }): Promise<{ success: boolean }> {
+  const { data } = await apiClient.post<{ success: boolean }>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/send-email`, request)
+  return data
+}
+
 export async function fetchJarvisInvoiceDetail(id: string): Promise<JarvisInvoiceDetail> {
   const { data } = await apiClient.get<JarvisInvoiceDetail>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}`)
   return data
