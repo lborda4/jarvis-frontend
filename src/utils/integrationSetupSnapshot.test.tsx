@@ -67,3 +67,18 @@ it('mantiene la comprobación inicial cuando la copia corresponde a otra empresa
   saveIntegrationSetupSnapshot('user-1', 'other-company', snapshot)
   expect(renderToStaticMarkup(<IntegrationSetupProvider><Probe /></IntegrationSetupProvider>)).toContain('unknown:loading:unconfigured:sales-disabled')
 })
+
+it.each([[true, false], [false, true], [true, true], [false, false]])(
+  'habilita cada documento con su resolución: venta=%s soporte=%s', (sales, support) => {
+    saveIntegrationSetupSnapshot('user-1', 'company-1', {
+      ...snapshot, includedDocumentTypes: ['PURCHASE_INVOICE', 'SUPPORT_DOCUMENT'],
+      isElectronicInvoiceResolutionConfigured: sales, isSupportDocumentResolutionConfigured: support,
+    })
+    function DocumentAccessProbe() {
+      const setup = useIntegrationSetup()
+      return <p>{String(setup.isSalesInvoiceEnabled)}:{String(setup.isSupportDocumentEnabled)}:{String(setup.requiresSetup)}</p>
+    }
+    expect(renderToStaticMarkup(<IntegrationSetupProvider><DocumentAccessProbe /></IntegrationSetupProvider>))
+      .toContain(`${sales}:${support}:${!sales && !support}`)
+  },
+)

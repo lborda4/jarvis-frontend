@@ -80,31 +80,14 @@ const JARVIS_SETUP_PATH = '/configuracion/integracion-jarvis'
 
 function isJarvisSetupComplete({
   companyConfigured,
-  documentTypes,
   supportResolutionConfigured,
   invoiceResolutionConfigured,
 }: {
   companyConfigured: boolean
-  documentTypes: string[]
   supportResolutionConfigured: boolean
   invoiceResolutionConfigured: boolean
 }): boolean {
-  if (!companyConfigured) {
-    return false
-  }
-
-  const needsSupport = documentTypes.length === 0 || documentTypes.includes('SUPPORT_DOCUMENT')
-  const needsInvoice = documentTypes.length === 0 || documentTypes.includes('PURCHASE_INVOICE')
-
-  if (needsSupport && !supportResolutionConfigured) {
-    return false
-  }
-
-  if (needsInvoice && !invoiceResolutionConfigured) {
-    return false
-  }
-
-  return true
+  return companyConfigured && (supportResolutionConfigured || invoiceResolutionConfigured)
 }
 
 export function IntegrationSetupProvider({ children }: { children: ReactNode }) {
@@ -256,7 +239,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         )
         const fullyConfigured = isJarvisSetupComplete({
           companyConfigured,
-          documentTypes,
           supportResolutionConfigured,
           invoiceResolutionConfigured,
         })
@@ -352,7 +334,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     isSiigoConfigured && hasSiigoAccounts && hasSiigoDocumentTypesConfigured
   const isJarvisFullyConfigured = isJarvisSetupComplete({
     companyConfigured: isJarvisCompanyConfigured,
-    documentTypes: includedDocumentTypes,
     supportResolutionConfigured: isSupportDocumentResolutionConfigured,
     invoiceResolutionConfigured: isElectronicInvoiceResolutionConfigured,
   })

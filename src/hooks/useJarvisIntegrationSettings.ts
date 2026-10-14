@@ -266,12 +266,10 @@ export function useJarvisIntegrationSettings() {
     (stepId: JarvisSetupStepId) => {
       if (stepId === 'company') return isJarvisCompanyConfigured
 
-      // Solo cuentan los tipos que el plan incluye: con un plan de solo
-      // documento soporte, exigir también la de factura dejaría el paso
-      // eternamente incompleto.
+      // Cada documento se habilita con su propia resolución.
       return (
-        (!hasPurchaseInvoiceAccess || isInvoiceResolutionReady) &&
-        (!hasSupportDocumentAccess || isSupportResolutionReady)
+        (hasPurchaseInvoiceAccess && isInvoiceResolutionReady) ||
+        (hasSupportDocumentAccess && isSupportResolutionReady)
       )
     },
     [
@@ -803,9 +801,7 @@ export function useJarvisIntegrationSettings() {
         )
         await refreshSetupStatus()
 
-        // Se cierra el paso solo si ya quedaron TODAS las que el plan pide.
-        // Guardando una sola, colapsar la sección dejaría al usuario buscando
-        // cómo volver para configurar la que falta.
+        // Basta una resolución para comenzar a emitir ese tipo de documento.
         const invoiceReady =
           !hasPurchaseInvoiceAccess ||
           isInvoiceResolutionReady ||
@@ -815,7 +811,7 @@ export function useJarvisIntegrationSettings() {
           isSupportResolutionReady ||
           pending.some(([kind]) => kind === 'SUPPORT_DOCUMENT')
 
-        if (invoiceReady && supportReady) {
+        if (invoiceReady || supportReady) {
           goToNextStep('resolutions')
         }
       } catch (error) {
