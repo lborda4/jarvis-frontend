@@ -12,6 +12,7 @@ import TercerosRoute from './components/TercerosRoute'
 import JarvisTaxesRoute from './components/JarvisTaxesRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
+import RadianRoute from './components/RadianRoute'
 import { AuthProvider } from './context/AuthContext'
 import { SiigoSetupProvider } from './context/SiigoSetupContext'
 import { SiigoCatalogProvider } from './context/SiigoCatalogContext'
@@ -39,6 +40,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/inicio" element={<DefaultAppRedirect />} />
+                <Route path="/eventos-radian" element={<RadianRoute />} />
 
                 <Route
                   path="/documento-soporte"

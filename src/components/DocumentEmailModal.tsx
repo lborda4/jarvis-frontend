@@ -4,7 +4,6 @@ import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 import LoadingIndicator from './LoadingIndicator'
 import { fetchJarvisInvoicePdfData, sendJarvisDocumentEmail } from '../services/jarvisService'
-import { getApiErrorMessage } from '../services/apiClient'
 import './DocumentEmailModal.css'
 
 export function MailIcon() {
@@ -26,8 +25,8 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
     let active = true
     fetchJarvisInvoicePdfData(id).then(data => {
       if (active) { setEmail(data.buyer.email?.trim() ?? ''); setError(null) }
-    }).catch(failure => {
-      if (active) setError(getApiErrorMessage(failure, 'No se pudo consultar el correo registrado.'))
+    }).catch(() => {
+      if (active) setError('No se pudo consultar el correo registrado. Inténtalo más tarde o comunícate con soporte.')
     }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [id, attempt])
@@ -45,21 +44,21 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
       const result = await sendJarvisDocumentEmail(id, { additionalEmails, message: message.trim() })
       if (!result.success) throw new Error('El envío no fue confirmado.')
       setSuccess(true)
-    } catch (failure) { setError(getApiErrorMessage(failure, 'No se pudo enviar el correo. Intenta nuevamente.')) }
+    } catch { setError('Ha ocurrido un error en el envío del correo. Inténtalo más tarde o comunícate con soporte.') }
     finally { setSaving(false) }
   }
 
   return <Modal isOpen onClose={onClose} busy={saving} labelledBy="document-email-title" className="document-email">
-    <header className="document-email__header"><span className="document-email__icon"><MailIcon /></span><div><h2 id="document-email-title">Enviar a correo</h2><p>Se enviará el PDF de {documentLabel} al correo del {partyLabel.toLowerCase()} y a los correos adicionales que indiques.</p></div></header>
+    <header className="document-email__header"><span className="document-email__icon"><MailIcon /></span><div><h2 id="document-email-title">Enviar correo</h2><p>Se enviará el PDF de {documentLabel} al correo del {partyLabel.toLowerCase()} y a los correos adicionales que indiques.</p></div></header>
     {success ? <><p role="status" className="document-email__success">Correo enviado correctamente.</p><footer className="document-email__footer"><Button onClick={onClose}>Cerrar</Button></footer></>
       : loading ? <LoadingIndicator message="Consultando correo registrado..." />
       : <form onSubmit={event => void send(event)}>
         <label className="document-email__field">Correo del {partyLabel.toLowerCase()}<span className="document-email__registered"><input aria-label={`Correo del ${partyLabel.toLowerCase()}`} value={email} readOnly placeholder="Sin correo registrado" />{email && <span>Correo registrado</span>}</span></label>
         <label className="document-email__field">Correos adicionales (opcional)<input value={additional} onChange={event => setAdditional(event.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" disabled={saving} /><small>Separa los correos con coma (,)</small></label>
         <label className="document-email__field">Mensaje (opcional)<textarea value={message} maxLength={500} rows={4} onChange={event => setMessage(event.target.value)} disabled={saving} /><small className="document-email__counter">{message.length}/500</small></label>
-        {error && <ErrorMessage message={error} />}
+        {error && <ErrorMessage inline message={error} />}
         {error && !email && <Button type="button" variant="ghost" disabled={saving} onClick={() => { setLoading(true); setAttempt(value => value + 1) }}>Consultar correo nuevamente</Button>}
-        <footer className="document-email__footer"><Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button><Button type="submit" disabled={saving}><MailIcon /> {saving ? 'Enviando...' : 'Enviar a correo'}</Button></footer>
+        <footer className="document-email__footer"><Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button><Button type="submit" disabled={saving}><MailIcon /> {saving ? 'Enviando...' : 'Enviar correo'}</Button></footer>
       </form>}
   </Modal>
 }

@@ -12,21 +12,21 @@ describe('acciones en la visualización de documentos', () => {
     const html = render('ELECTRONIC_INVOICE')
     expect(html).toContain('href="/nota-debito/nueva?factura=document%2F1"')
     expect(html).toContain('href="/nota-credito/nueva?factura=document%2F1"')
-    expect(html).toContain('Enviar a correo')
+    expect(html).toContain('Enviar correo')
     expect(html).not.toContain('/nota-ajuste/nueva')
   })
 
   it('abre la creación de una nota de ajuste con el documento soporte seleccionado', () => {
     const html = render('SUPPORT_DOCUMENT')
     expect(html).toContain('href="/nota-ajuste/nueva?documento=document%2F1"')
-    expect(html).toContain('Enviar a correo')
+    expect(html).toContain('Enviar correo')
     expect(html).not.toContain('/nota-debito/nueva')
     expect(html).not.toContain('/nota-credito/nueva')
   })
 
   it.each(['CREDIT_NOTE', 'DEBIT_NOTE', 'SUPPORT_CREDIT_NOTE'])('permite correo para %s sin crear notas desde otras notas', kind => {
     const html = render(kind)
-    expect(html).toContain('Enviar a correo')
+    expect(html).toContain('Enviar correo')
     expect(html).not.toContain('/nueva?')
   })
 })

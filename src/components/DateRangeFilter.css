@@ -1,0 +1,7 @@
+.date-range-filter { display: flex; flex-direction: column; gap: .4rem; flex: 1; min-width: 220px; }
+.date-range-filter__label { font-size: .85rem; font-weight: 600; color: var(--jarvis-text-muted); }
+.date-range-filter__field { display: flex; align-items: stretch; gap: .3rem; }
+.date-range-filter__field > button { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex: 1; min-height: 40px; padding: .6rem .7rem; border: 1px solid var(--jarvis-border-strong, #cbd5e1); border-radius: 8px; background: white; color: var(--jarvis-text); font: inherit; font-size: .85rem; cursor: pointer; }
+.date-range-filter__field > button[aria-expanded=true], .date-range-filter__field > button:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
+.date-range-filter__field > .date-range-filter__clear { flex: 0; font-size: 1.15rem; }
+.date-range-filter__calendar { position: fixed; z-index: 1100; overflow: auto; border-radius: 12px; box-shadow: 0 12px 36px #102c4233; max-width: calc(100vw - 16px); }

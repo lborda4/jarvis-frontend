@@ -1,0 +1,188 @@
+DOCUMENTO 1
+JARVIS S.A.S.
+TÉRMINOS Y CONDICIONES DE USO Y PRESTACIÓN DEL SERVICIO DE DOCUMENTOS ELECTRÓNICOS
+Razón social: JARVIS S.A.S.
+NIT: 902086460
+Sitio web: https://jarviscol.com
+Correo electrónico: gerencia@jarviscol.com
+Versión: 1.0
+Fecha de actualización: 8 de octubre de 2026
+País: Colombia
+ARTÍCULO 1. IDENTIFICACIÓN Y NATURALEZA DEL SERVICIO
+JARVIS S.A.S., en adelante denominada JARVIS, es una sociedad comercial colombiana dedicada al desarrollo y comercialización de soluciones tecnológicas orientadas a la automatización de procesos administrativos, contables, tributarios y empresariales.
+JARVIS ofrece a sus clientes una plataforma tecnológica de desarrollo propio, bajo el modelo de software como servicio (Software as a Service — SaaS), que permite gestionar documentos electrónicos y realizar operaciones relacionadas con el sistema de facturación electrónica colombiano.
+El servicio se encuentra disponible a través del dominio https://jarviscol.com y de los demás canales tecnológicos que JARVIS habilite oficialmente.
+ARTÍCULO 2. OBJETO DEL CONTRATO
+Los presentes términos y condiciones regulan la relación contractual entre JARVIS y las personas naturales o jurídicas que contraten sus servicios de documentos electrónicos.
+JARVIS concede al CLIENTE un derecho limitado, no exclusivo e intransferible de acceso y utilización de las funcionalidades contratadas, durante la vigencia de su suscripción.
+La contratación del servicio no implica la adquisición de la propiedad del software, de su código fuente ni de los demás componentes tecnológicos desarrollados por JARVIS.
+ARTÍCULO 3. ACEPTACIÓN DE LOS TÉRMINOS Y CONDICIONES
+El CLIENTE declara que, antes de contratar, ha tenido la oportunidad de conocer y consultar los presentes términos y condiciones.
+La aceptación podrá efectuarse mediante una casilla electrónica, firma electrónica u otro mecanismo que permita dejar constancia de la manifestación de voluntad.
+Cuando el servicio sea contratado por una persona jurídica, quien acepte el contrato deberá contar con autorización para actuar en su representación.
+JARVIS podrá conservar evidencia electrónica de la aceptación, incluyendo fecha, hora, versión contractual y demás registros técnicamente disponibles.
+Las condiciones particulares de la contratación, como el plan, precio y vigencia, se incorporarán mediante la oferta comercial o comprobante correspondiente.
+ARTÍCULO 4. ALCANCE DE LOS SERVICIOS
+JARVIS podrá ofrecer, dependiendo del plan contratado y de la disponibilidad de las funcionalidades:
+a. Generación y transmisión de facturas electrónicas de venta.
+b. Generación de notas crédito y notas débito.
+c. Generación y transmisión de documentos soporte en adquisiciones efectuadas a sujetos no obligados a expedir factura.
+d. Generación de notas de ajuste al documento soporte.
+e. Administración y consulta de documentos electrónicos.
+f. Generación de representaciones gráficas en formato PDF.
+g. Administración de terceros, clientes y proveedores.
+h. Administración de productos y servicios.
+i. Configuración de impuestos y retenciones.
+j. Consulta del estado de los documentos ante la DIAN.
+k. Las demás funcionalidades electrónicas que JARVIS incorpore y habilite comercialmente.
+La disponibilidad de estas herramientas dependerá de las características del servicio contratado. Su inclusión en el presente artículo no significa que todas estén habilitadas en todos los planes.
+ARTÍCULO 5. MODALIDAD DE OPERACIÓN ANTE LA DIAN
+JARVIS desarrolla y comercializa una solución tecnológica para la emisión y administración de documentos electrónicos.
+Esta solución se suministra a sus clientes como un desarrollo informático adquirido, de conformidad con las disposiciones que regulan los medios de operación del sistema de facturación electrónica colombiano.
+Para la prestación de determinadas funcionalidades, JARVIS utiliza servicios de integración tecnológica proporcionados por Nextpyme, mediante interfaces de programación de aplicaciones (API).
+Los documentos electrónicos se expiden a nombre del CLIENTE, utilizando su razón social, identificación tributaria, resoluciones, certificados y demás elementos que correspondan conforme a la normativa aplicable.
+JARVIS no se presenta como proveedor tecnológico habilitado por la DIAN.
+La modalidad de operación deberá corresponder a la configuración y habilitación efectivamente registradas por el facturador electrónico ante la autoridad tributaria.
+El CLIENTE conserva la responsabilidad de cumplir sus obligaciones como emisor de documentos electrónicos.
+ARTÍCULO 6. PROVEEDORES TECNOLÓGICOS Y SERVICIOS DE TERCEROS
+Para el funcionamiento de la plataforma, JARVIS podrá utilizar servicios especializados de terceros.
+Entre los servicios tecnológicos empleados se encuentran:
+Nextpyme: servicios de integración para el procesamiento, generación, transmisión y consulta de documentos electrónicos.
+Vercel: servicios de infraestructura utilizados para el despliegue y funcionamiento de componentes de la plataforma web.
+Render: servicios de infraestructura utilizados para el alojamiento y ejecución de componentes tecnológicos.
+La DIAN interviene como autoridad encargada de la recepción y validación de los documentos electrónicos, según sus competencias legales. No constituye un proveedor comercial contratado por JARVIS.
+JARVIS podrá actualizar o sustituir proveedores tecnológicos cuando existan razones operativas, técnicas, comerciales o de seguridad.
+Cuando estos cambios afecten sustancialmente el servicio contratado o el tratamiento de información personal, se comunicarán al CLIENTE y se adoptarán las medidas legalmente exigidas.
+La participación de terceros no elimina las responsabilidades legales o contractuales que correspondan a JARVIS.
+ARTÍCULO 7. REQUISITOS DE ACTIVACIÓN
+Para activar el servicio, JARVIS podrá solicitar al CLIENTE los siguientes documentos e información:
+a. Registro Único Tributario (RUT) actualizado.
+b. Certificado de existencia y representación legal, cuando corresponda.
+c. Documento de identificación del representante legal.
+d. Información de contacto de la empresa.
+e. Información tributaria necesaria para la configuración del servicio.
+f. Autorizaciones requeridas para la habilitación y operación del software.
+g. Comprobante de pago de los valores de activación contratados.
+El CLIENTE será responsable de suministrar información auténtica y actualizada.
+JARVIS podrá aplazar la activación cuando no se cumplan los requisitos técnicos, documentales o comerciales previamente informados.
+La recepción de documentación no garantiza por sí sola la habilitación ante la DIAN.
+ARTÍCULO 8. CERTIFICADOS DIGITALES
+Cuando el servicio requiera certificados digitales, estos podrán ser gestionados mediante entidades certificadoras o proveedores especializados, conforme a la normativa aplicable.
+El CLIENTE autoriza el uso del certificado digital para las operaciones de firma y transmisión de documentos electrónicos relacionadas con el servicio contratado.
+La autorización estará limitada a las finalidades expresamente acordadas.
+La vigencia, renovación, precio y demás condiciones del certificado serán las informadas en la contratación.
+Cuando la renovación requiera información, documentación, pago o autorización adicional del CLIENTE, este deberá suministrarlos oportunamente.
+JARVIS implementará medidas razonables para proteger los certificados y credenciales cuya administración se encuentre bajo su responsabilidad.
+ARTÍCULO 9. OBLIGACIONES DEL CLIENTE
+El CLIENTE se compromete a:
+a. Suministrar información verdadera, completa y actualizada.
+b. Mantener vigentes sus autorizaciones y resoluciones de numeración.
+c. Verificar los impuestos y retenciones aplicables a sus operaciones.
+d. Revisar la información registrada antes de emitir documentos.
+e. Garantizar que las operaciones documentadas correspondan a transacciones reales y legítimas.
+f. Administrar adecuadamente sus usuarios y contraseñas.
+g. Informar oportunamente los errores o incidentes que detecte.
+h. Pagar las tarifas correspondientes al servicio contratado.
+i. Cumplir las normas tributarias y comerciales aplicables a su actividad.
+j. Abstenerse de utilizar la plataforma para realizar operaciones fraudulentas o ilícitas.
+El CLIENTE será responsable de la información que ingrese o apruebe, sin perjuicio de la responsabilidad de JARVIS por defectos técnicos que le sean atribuibles.
+ARTÍCULO 10. GENERACIÓN, TRANSMISIÓN Y VALIDACIÓN
+La generación de un documento electrónico dentro de JARVIS no implica automáticamente su aceptación o validación por parte de la DIAN.
+El procesamiento podrá comprender distintas etapas, incluyendo generación, firma, transmisión, validación, aceptación o rechazo, según el tipo de documento.
+El CLIENTE deberá verificar el estado de los documentos electrónicos que emita.
+Cuando se presenten errores o rechazos, JARVIS facilitará la información técnica disponible y los mecanismos de corrección contemplados en el servicio.
+JARVIS no garantiza la aceptación de documentos que incumplan los requisitos tributarios, técnicos o formales establecidos por las autoridades competentes.
+Sin embargo, deberá atender los defectos del software y de los procesos tecnológicos que le sean imputables.
+ARTÍCULO 11. DOCUMENTOS SOPORTE Y NOTAS DE AJUSTE
+Los documentos soporte electrónicos deberán utilizarse en las operaciones para las cuales se encuentren legalmente previstos.
+El CLIENTE será responsable de verificar que las operaciones cumplen los requisitos aplicables.
+Las notas de ajuste podrán utilizarse para corregir o anular documentos soporte conforme a las disposiciones vigentes y a las funcionalidades habilitadas.
+La generación o validación de un documento no implica que los costos, deducciones o impuestos asociados sean automáticamente aceptados por la administración tributaria.
+ARTÍCULO 12. PLANES, TARIFAS Y CONSUMO DE DOCUMENTOS
+JARVIS comercializará sus servicios mediante planes que podrán diferenciarse por:
+a. Cantidad de documentos electrónicos disponibles.
+b. Funcionalidades incluidas.
+c. Periodicidad de contratación.
+d. Número de usuarios autorizados.
+e. Servicios complementarios.
+f. Condiciones particulares de activación y renovación.
+El precio y las características de cada plan serán los informados y aceptados al momento de contratar.
+Cuando un plan tenga un límite de documentos, JARVIS deberá informar qué operaciones consumen dicho límite.
+Los documentos no utilizados, los excedentes y las condiciones de acumulación o vencimiento se regirán por las reglas específicas del plan contratado.
+Los impuestos aplicables al servicio serán liquidados e informados conforme a la normativa colombiana.
+ARTÍCULO 13. PAGOS, FACTURACIÓN Y RENOVACIONES
+El CLIENTE deberá realizar los pagos correspondientes en las fechas y condiciones acordadas.
+Los servicios podrán contratarse mediante suscripciones mensuales, anuales u otras modalidades comerciales expresamente ofrecidas.
+La adquisición del servicio podrá incluir cobros de activación, certificados digitales y funcionalidades complementarias, siempre que sean informados y aceptados previamente.
+Las renovaciones automáticas solo se aplicarán cuando hayan sido válidamente acordadas.
+JARVIS podrá actualizar sus tarifas para periodos futuros, informando los cambios conforme a las condiciones contractuales y legales aplicables.
+La falta de uso voluntario de la plataforma no implica automáticamente la terminación de una suscripción vigente, sin perjuicio de los derechos legales del CLIENTE y de los casos de incumplimiento de JARVIS.
+ARTÍCULO 14. DISPONIBILIDAD Y CONTINUIDAD DEL SERVICIO
+JARVIS procurará mantener la plataforma operativa mediante actividades de mantenimiento, actualización y gestión tecnológica.
+El servicio podrá experimentar interrupciones derivadas de:
+a. Mantenimientos programados.
+b. Fallas de conexión a internet.
+c. Indisponibilidad de los servicios de la DIAN.
+d. Incidentes en proveedores de infraestructura.
+e. Actualizaciones técnicas.
+f. Incidentes de seguridad.
+g. Otras circunstancias técnicas o de fuerza mayor.
+JARVIS adoptará medidas razonables para prevenir y solucionar las fallas que se encuentren bajo su control.
+Cuando se presenten interrupciones relevantes, informará a los clientes a través de los canales disponibles, cuando técnica y razonablemente sea posible.
+Las interrupciones deberán gestionarse sin desconocer las garantías legales ni las obligaciones contractuales aplicables.
+ARTÍCULO 15. SOPORTE TÉCNICO
+JARVIS prestará atención y soporte técnico mediante los canales oficiales habilitados.
+El soporte comprenderá la atención de incidencias relacionadas con el funcionamiento de la plataforma y las funcionalidades contratadas.
+Salvo contratación expresa, el servicio no incluye asesoría tributaria, jurídica, auditoría financiera, elaboración de declaraciones ni servicios profesionales de contaduría pública.
+Las condiciones particulares de atención, incluyendo horarios y tiempos de respuesta cuando existan compromisos específicos, serán comunicadas a los clientes.
+ARTÍCULO 16. CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS
+JARVIS reconoce el carácter confidencial de la información contable, tributaria, financiera y comercial gestionada por sus clientes.
+La información será utilizada para la prestación de los servicios contratados y las demás finalidades que cuenten con fundamento legal.
+JARVIS deberá implementar medidas técnicas, administrativas y organizativas apropiadas para proteger la información contra el acceso no autorizado, pérdida, alteración o divulgación indebida.
+Cuando JARVIS trate datos personales por cuenta del CLIENTE, actuará conforme a las instrucciones legítimas recibidas y a las obligaciones legales correspondientes.
+El CLIENTE será responsable de garantizar que cuenta con las autorizaciones o fundamentos legales necesarios para suministrar a JARVIS los datos personales que administra.
+La utilización de terceros tecnológicos estará sujeta a las obligaciones de protección de datos, confidencialidad y seguridad que correspondan.
+ARTÍCULO 17. ALMACENAMIENTO Y CONSERVACIÓN DE INFORMACIÓN
+JARVIS podrá almacenar información relacionada con los documentos procesados, las operaciones realizadas y las configuraciones del CLIENTE, en la medida necesaria para prestar el servicio.
+El CLIENTE deberá cumplir sus obligaciones legales de conservación de documentos contables, tributarios y comerciales.
+JARVIS facilitará los mecanismos de consulta y exportación incluidos en el servicio contratado.
+La cancelación de la suscripción no elimina las obligaciones legales de conservación que correspondan a cualquiera de las partes.
+Los plazos de conservación, recuperación y eliminación deberán sujetarse a la normativa aplicable y a las condiciones de almacenamiento informadas al CLIENTE.
+ARTÍCULO 18. RESPONSABILIDAD DE JARVIS
+JARVIS será responsable del cumplimiento de las obligaciones derivadas de los servicios que ofrece y de los defectos o incumplimientos que legalmente le sean imputables.
+JARVIS no asumirá las responsabilidades tributarias propias del CLIENTE por información incorrecta, operaciones inexistentes o incumplimientos atribuibles exclusivamente a este.
+Las fallas originadas exclusivamente en sistemas ajenos al control de JARVIS serán evaluadas según las circunstancias del caso y las obligaciones que correspondan.
+Ninguna disposición del presente contrato podrá interpretarse como una exclusión de las responsabilidades legales irrenunciables de JARVIS.
+ARTÍCULO 19. SUSPENSIÓN DEL SERVICIO
+JARVIS podrá suspender temporalmente el acceso al servicio cuando existan causas justificadas, tales como:
+a. Incumplimiento de las obligaciones de pago.
+b. Uso fraudulento de la plataforma.
+c. Riesgos graves para la seguridad de la información.
+d. Utilización no autorizada de credenciales.
+e. Incumplimientos contractuales relevantes.
+Cuando corresponda, JARVIS informará previamente al CLIENTE y le otorgará la oportunidad de corregir la situación.
+Las suspensiones por incidentes de seguridad podrán ejecutarse inmediatamente cuando resulte necesario para proteger la plataforma o la información.
+ARTÍCULO 20. CANCELACIÓN Y TERMINACIÓN
+El CLIENTE podrá solicitar la cancelación mediante el correo gerencia@jarviscol.com o los mecanismos oficiales habilitados.
+La terminación estará sujeta a las condiciones del plan contratado y a los derechos legales aplicables.
+Los pagos anticipados y las solicitudes de devolución se evaluarán conforme a las condiciones informadas al contratar y a la legislación vigente.
+Cuando proceda el derecho de retracto u otra garantía legal, se respetarán los requisitos y plazos establecidos por la normativa aplicable.
+Antes de la pérdida definitiva de acceso a la información, JARVIS deberá informar los mecanismos y plazos disponibles para su recuperación, sin perjuicio de las obligaciones legales de conservación.
+ARTÍCULO 21. PROPIEDAD INTELECTUAL
+Todos los derechos de propiedad intelectual sobre la plataforma JARVIS, sus desarrollos, código fuente, interfaces, diseños, logotipos, documentación y demás componentes propios pertenecen a JARVIS S.A.S. o a sus respectivos titulares.
+El CLIENTE adquiere únicamente una autorización de uso conforme a su contratación.
+Queda prohibida la reproducción, distribución, modificación no autorizada, comercialización o explotación del software fuera de los términos permitidos legalmente.
+La información empresarial y los documentos del CLIENTE no pasan a ser propiedad de JARVIS por el hecho de procesarse mediante la plataforma.
+ARTÍCULO 22. MODIFICACIONES CONTRACTUALES
+JARVIS podrá modificar los presentes términos para incorporar ajustes normativos, cambios tecnológicos o nuevas condiciones de prestación.
+Las modificaciones sustanciales que afecten los derechos u obligaciones del CLIENTE serán comunicadas oportunamente y requerirán la aceptación que corresponda.
+Las modificaciones no podrán desconocer derechos adquiridos ni garantías legales aplicables.
+ARTÍCULO 23. LEGISLACIÓN APLICABLE
+Los presentes términos y condiciones se rigen por las leyes de la República de Colombia.
+Las controversias relacionadas con su interpretación o ejecución podrán ser sometidas a los mecanismos de solución de conflictos y a las autoridades competentes, conforme a la legislación aplicable.
+ARTÍCULO 24. CONTACTO Y NOTIFICACIONES
+Para consultas, reclamaciones, solicitudes y notificaciones relacionadas con el servicio, el CLIENTE podrá comunicarse a:
+JARVIS S.A.S.
+NIT: 902086460
+Correo: gerencia@jarviscol.com
+Página web: https://jarviscol.com

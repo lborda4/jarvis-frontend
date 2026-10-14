@@ -669,7 +669,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const onFormSubmit = (event: FormEvent) => { event.preventDefault(); void handleSubmit('send') }
 
   return (
-    <section className="ds-individual ds-individual--sales integration-page">
+    <section className={`ds-individual ds-individual--sales integration-page${!supportDocument && !isNote ? ' ds-individual--without-subtitles' : ''}`}>
       <p className="ds-individual__breadcrumb">
         <Link to={listPath}>{documentTitle}</Link>
         <span aria-hidden="true"> › </span>

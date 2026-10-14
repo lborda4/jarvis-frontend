@@ -11,7 +11,7 @@ export default function DocumentPreviewActions({ id, number, kind }: { id: strin
   const [emailOpen, setEmailOpen] = useState(false)
   const copy = jarvisPdfCopy(kind)
   return <>
-    <button type="button" className="invoice-pdf__action" onClick={() => setEmailOpen(true)}><MailIcon />Enviar a correo</button>
+    <button type="button" className="invoice-pdf__action" onClick={() => setEmailOpen(true)}><MailIcon />Enviar correo</button>
     {kind === 'ELECTRONIC_INVOICE' && <>
       <Link className="invoice-pdf__action" to={`/nota-debito/nueva?factura=${encodeURIComponent(id)}`}><NoteIcon />Nota Débito</Link>
       <Link className="invoice-pdf__action" to={`/nota-credito/nueva?factura=${encodeURIComponent(id)}`}><NoteIcon />Nota Crédito</Link>

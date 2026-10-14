@@ -40,7 +40,7 @@ export default function JarvisPaymentMethodModal({ editing, onClose, onSaved }: 
   }
   return <Modal isOpen onClose={onClose} busy={saving} labelledBy="payment-method-title" className="terceros-page__dialog">
     <h2 id="payment-method-title" className="modal-dialog__title">{editing ? 'Editar forma de pago' : 'Crear forma de pago'}</h2>
-    {error && <ErrorMessage message={error} />}
+    {error && <ErrorMessage inline message={error} />}
     <form onSubmit={submit}>
       <div className="terceros-page__form-grid">
         <div className="terceros-page__field">

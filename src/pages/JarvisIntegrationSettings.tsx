@@ -273,7 +273,7 @@ function JarvisIntegrationSettings() {
       {showSetupRequiredNotice && (
         <div className="settings-page__setup-notice" role="status">
           Complete todos los pasos del asistente. Hasta finalizar, Documento
-          soporte y Terceros permanecerán bloqueados.
+          soporte y Factura de Venta permanecerán bloqueados.
         </div>
       )}
 
@@ -594,16 +594,11 @@ function JarvisIntegrationSettings() {
                       )}
 
                       {resolutionsError && !isLoadingResolutions && (
-                        <div
-                          className="settings-page__setup-notice"
-                          role="status"
-                        >
-                          {resolutionsError}
-                        </div>
+                        <ErrorMessage message={resolutionsError} />
                       )}
 
                       {/* El reintento vive acá y no dentro del aviso porque
-                          ese aviso se va solo a los 3 segundos; si el enlace
+                          ese aviso se va solo a los 5 segundos; si el enlace
                           se fuera con él, quedaría una pantalla sin salida. */}
                       {!isLoadingResolutions &&
                         availableResolutions.length === 0 && (

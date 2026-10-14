@@ -503,7 +503,7 @@ function CreateJarvisTerceroModal({
         {editingTercero ? 'Editar tercero' : 'Crear tercero'}
       </h2>
 
-      {errorMessage && <ErrorMessage message={errorMessage} />}
+      {errorMessage && <ErrorMessage inline message={errorMessage} />}
 
         <form onSubmit={handleCreate}>
           <div className="terceros-page__form-grid">

@@ -455,6 +455,23 @@
   margin: 0;
 }
 
+.ds-individual--without-subtitles .ds-individual__section h2,
+.ds-individual--without-subtitles .ds-individual__payment-col h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ds-individual--without-subtitles .ds-individual__section-head {
+  justify-content: flex-end;
+}
+
 /* ─── Grilla info general (2 columnas) ─── */
 .ds-individual__info-grid {
   display: grid;

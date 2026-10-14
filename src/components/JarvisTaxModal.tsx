@@ -151,8 +151,8 @@ function JarvisTaxModal({
         {title}
       </h2>
 
-      {errorMessage && <ErrorMessage message={errorMessage} />}
-      {catalogError && <><ErrorMessage message={catalogError} /><Button variant="outline" onClick={() => {
+      {errorMessage && <ErrorMessage inline message={errorMessage} />}
+      {catalogError && <><ErrorMessage inline message={catalogError} /><Button variant="outline" onClick={() => {
         setCatalogLoading(true)
         setCatalogError(null)
         setCatalogRevision(value => value + 1)

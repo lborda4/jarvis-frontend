@@ -29,6 +29,24 @@ import { apiClient } from './apiClient'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
 
+export async function fetchAdminDocumentPackage(companyId: string): Promise<{ data: unknown }> {
+  return (await apiClient.get<{ data: unknown }>(`${ADMIN_COMPANIES_ENDPOINT}/${companyId}/nextpyme/package`)).data
+}
+
+export async function assignAdminDocumentPackage(companyId: string, request: { documents: number }): Promise<{ data: unknown }> {
+  return (await apiClient.put<{ data: unknown }>(`${ADMIN_COMPANIES_ENDPOINT}/${companyId}/nextpyme/package`, request)).data
+}
+
+export async function updateCompanyIdSoftware(companyId: string, request: { idSoftware: string | null }): Promise<CreateAdminCompanyResponse> {
+  return (await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${companyId}/id-software`, request)).data
+}
+
+export async function selectAdminCompanyIntegration(companyId: string, provider: IntegrationProvider): Promise<CreateAdminCompanyResponse> {
+  return (await apiClient.patch<CreateAdminCompanyResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${companyId}/integrations/${provider}/select`,
+  )).data
+}
+
 export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingCycle: 'MONTHLY' | 'ANNUAL' }) {
   const { data } = await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/tracking`, request)
   return data.company

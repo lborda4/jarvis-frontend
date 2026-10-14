@@ -762,7 +762,7 @@ function ProductForm({
               {isLoadingTaxes ? (
                 <p className="create-product-taxes-empty">Cargando...</p>
               ) : taxesError ? (
-                <ErrorMessage message={taxesError} />
+                <ErrorMessage inline message={taxesError} />
               ) : availableTaxes.length === 0 ? (
                 <p className="create-product-taxes-empty">
                   Aún no has creado impuestos ni retenciones. Ve a "Impuestos y
@@ -798,7 +798,7 @@ function ProductForm({
             </div>
           </section>
 
-          {errorMessage && <ErrorMessage message={errorMessage} />}
+          {errorMessage && <ErrorMessage inline message={errorMessage} />}
 
           <footer className="create-product-panel__footer">
             <Button variant="ghost" onClick={requestClose} disabled={isSubmitting}>

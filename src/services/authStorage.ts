@@ -1,4 +1,5 @@
 import type { AuthCompany, AuthTokens, AuthUser } from '../types/auth'
+import { clearIntegrationSetupSnapshots } from '../utils/integrationSetupSnapshot'
 
 const ACCESS_TOKEN_KEY = 'auth.accessToken'
 const REFRESH_TOKEN_KEY = 'auth.refreshToken'
@@ -18,6 +19,7 @@ export function setTokens(tokens: AuthTokens): void {
 }
 
 export function clearTokens(): void {
+  clearIntegrationSetupSnapshots()
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem(SESSION_SNAPSHOT_KEY)

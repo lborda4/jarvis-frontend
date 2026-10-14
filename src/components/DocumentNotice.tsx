@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Banner from './Banner'
-import { AUTO_DISMISS_ERROR_MS } from '../hooks/useAutoDismissMessage'
 import './DocumentNotice.css'
 
 interface DocumentNoticeProps {
@@ -16,13 +15,9 @@ export default function DocumentNotice({ variant, title, message, onDismiss }: D
   onDismissRef.current = onDismiss
 
   useEffect(() => {
-    if (variant !== 'error') {
-      return undefined
-    }
-
     const timeoutId = window.setTimeout(() => {
       onDismissRef.current()
-    }, AUTO_DISMISS_ERROR_MS)
+    }, variant === 'error' ? 5_000 : 3_000)
 
     return () => window.clearTimeout(timeoutId)
   }, [message, variant])

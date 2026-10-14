@@ -7,9 +7,11 @@ const EXIT_MS = 180
 function DocumentSendOverlay({
   open,
   documentTitle,
+  detail = 'Transmitiendo el documento a DIAN',
 }: {
   open: boolean
   documentTitle: string
+  detail?: string
 }) {
   const [mounted, setMounted] = useState(open)
 
@@ -56,7 +58,7 @@ function DocumentSendOverlay({
         <strong className="document-send-overlay__title">
           Enviando {documentTitle.toLowerCase()}
         </strong>
-        <p className="document-send-overlay__copy">Transmitiendo el documento a DIAN</p>
+        <p className="document-send-overlay__copy">{detail}</p>
         <p className="document-send-overlay__hint">
           No cierres esta pestaña. Suele tardar unos segundos.
         </p>

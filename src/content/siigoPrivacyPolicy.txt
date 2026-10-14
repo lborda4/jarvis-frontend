@@ -1,0 +1,328 @@
+JARVIS S.A.S.
+TÉRMINOS Y CONDICIONES DE USO Y PRESTACIÓN DEL SERVICIO DE INTEGRACIONES Y AUTOMATIZACIÓN CONTABLE
+Razón social: JARVIS S.A.S.
+NIT: 902086460
+Sitio web: https://jarviscol.com
+Correo electrónico: gerencia@jarviscol.com
+Versión: 1.1
+Fecha de actualización: 12 de octubre de 2026
+País: República de Colombia
+ARTÍCULO 1. IDENTIFICACIÓN DEL PRESTADOR
+JARVIS S.A.S., sociedad comercial constituida conforme a las leyes de la República de Colombia, identificada con NIT 902086460, en adelante denominada JARVIS, es la empresa responsable del desarrollo, administración y comercialización de la plataforma tecnológica JARVIS.
+La plataforma ofrece herramientas destinadas a facilitar, integrar, automatizar y optimizar determinados procesos administrativos, contables, financieros y tributarios de las empresas y profesionales que contraten sus servicios.
+JARVIS desarrolla y administra su propia plataforma tecnológica y puede integrarla con sistemas de terceros mediante mecanismos de conexión autorizados.
+ARTÍCULO 2. OBJETO
+Los presentes Términos y Condiciones regulan el acceso, contratación y utilización de los servicios de integraciones y automatización contable ofrecidos por JARVIS.
+Su finalidad es establecer las condiciones bajo las cuales los usuarios podrán utilizar las herramientas tecnológicas de la plataforma, así como definir los derechos, obligaciones y responsabilidades de las partes.
+La contratación de estos servicios constituye una autorización de uso de la plataforma, conforme a las características del plan contratado, y no implica la transferencia de su propiedad.
+ARTÍCULO 3. ACEPTACIÓN DE LOS TÉRMINOS Y CONDICIONES
+El cliente declara que ha leído, comprendido y aceptado los presentes Términos y Condiciones antes de activar o utilizar los servicios de integración.
+La aceptación podrá realizarse mediante mecanismos electrónicos habilitados en la plataforma, incluyendo casillas de verificación, botones de aceptación o sistemas equivalentes.
+JARVIS podrá conservar evidencia electrónica de dicha aceptación, incluyendo:
+1. Fecha y hora de aceptación.
+2. Identificación del usuario o empresa.
+3. Versión del documento aceptado.
+4. Dirección IP y demás datos técnicos pertinentes, cuando corresponda.
+La utilización del servicio estará condicionada a la aceptación expresa de estos términos.
+ARTÍCULO 4. ALCANCE DEL SERVICIO
+JARVIS proporciona herramientas tecnológicas destinadas a facilitar procesos contables y administrativos.
+Dependiendo del plan contratado, las funcionalidades podrán incluir:
+1. Integración con plataformas contables y administrativas.
+2. Consulta e importación de documentos electrónicos desde la DIAN.
+3. Automatización del registro de compras y gastos.
+4. Causación contable automatizada.
+5. Cargue masivo de documentos soporte.
+6. Creación y actualización masiva de terceros.
+7. Consulta, auditoría y validación de información de terceros.
+8. Sugerencias contables mediante inteligencia artificial.
+9. Identificación y sugerencia de cuentas contables, productos, impuestos y retenciones.
+10. Conversión y visualización de información contenida en archivos XML.
+11. Generación de representaciones en PDF a partir de información electrónica.
+12. Herramientas de validación, seguimiento y control de documentos.
+Las funcionalidades disponibles podrán variar según el plan contratado, las integraciones habilitadas y las capacidades de los sistemas externos.
+JARVIS no garantiza que todas las funcionalidades estén incluidas en todos los planes.
+ARTÍCULO 5. INTEGRACIONES CON SISTEMAS CONTABLES Y ADMINISTRATIVOS
+JARVIS podrá establecer conexiones con plataformas contables, administrativas y tecnológicas de terceros, incluyendo SIIGO, así como otros sistemas que sean incorporados progresivamente.
+Estas integraciones podrán realizarse mediante interfaces de programación de aplicaciones (API), tokens de acceso u otros mecanismos técnicos autorizados.
+El cliente reconoce que:
+a. Las plataformas externas son administradas por sus respectivos proveedores.
+b. JARVIS no tiene control sobre modificaciones realizadas por dichos proveedores en sus sistemas, políticas, servicios o API.
+c. Las conexiones pueden verse afectadas por actualizaciones, restricciones, cambios técnicos o interrupciones de los servicios externos.
+d. Algunas funcionalidades pueden requerir permisos, autorizaciones o suscripciones adicionales contratadas directamente con terceros.
+JARVIS realizará esfuerzos razonables para mantener la compatibilidad de sus integraciones, sin garantizar la disponibilidad permanente de servicios que no administra.
+ARTÍCULO 6. AUTORIZACIÓN PARA LA CONEXIÓN Y EL ACCESO A INFORMACIÓN
+Para utilizar las integraciones, el cliente deberá autorizar expresamente a JARVIS para conectarse a los sistemas seleccionados y realizar las operaciones correspondientes.
+Esta autorización podrá incluir, según las funcionalidades contratadas:
+1. Consultar documentos electrónicos.
+2. Obtener información contable.
+3. Consultar y registrar terceros.
+4. Crear registros contables.
+5. Importar compras y gastos.
+6. Consultar productos e impuestos.
+7. Ejecutar procesos de sincronización.
+8. Realizar operaciones masivas autorizadas.
+El cliente declara que tiene facultades suficientes para permitir el acceso y tratamiento de la información de las empresas que vincule a la plataforma.
+JARVIS únicamente deberá utilizar los accesos para las finalidades autorizadas y necesarias para la prestación del servicio.
+ARTÍCULO 7. CREDENCIALES, TOKENS Y SEGURIDAD DE ACCESO
+El cliente será responsable de suministrar credenciales, tokens o permisos válidos para las integraciones contratadas.
+JARVIS implementará medidas técnicas y organizativas razonables para proteger los mecanismos de autenticación utilizados en las conexiones.
+Las contraseñas, claves y tokens no deberán almacenarse en texto plano cuando existan mecanismos técnicos adecuados para protegerlos.
+El cliente se compromete a:
+a. No compartir indebidamente sus credenciales.
+b. Mantener actualizados los permisos de acceso.
+c. Informar oportunamente sobre accesos no autorizados.
+d. Revocar las autorizaciones cuando deje de utilizar una integración.
+JARVIS podrá suspender temporalmente una conexión cuando identifique riesgos de seguridad que puedan comprometer la información o la integridad de los sistemas involucrados.
+ARTÍCULO 8. INTEGRACIÓN CON LA DIAN
+JARVIS podrá ofrecer funcionalidades de consulta, importación, descarga y procesamiento de información relacionada con documentos electrónicos disponibles en los servicios de la Dirección de Impuestos y Aduanas Nacionales (DIAN).
+Estas funcionalidades estarán sujetas a las condiciones técnicas, mecanismos de autenticación, autorizaciones y disponibilidad de los servicios correspondientes.
+El cliente reconoce que la DIAN constituye una entidad independiente de JARVIS.
+JARVIS no podrá modificar los documentos originales almacenados en los sistemas de la DIAN ni garantizar la disponibilidad permanente de sus servicios.
+Los documentos, reportes y representaciones generados por JARVIS deberán distinguirse de los documentos electrónicos originales y conservar la información necesaria para su identificación y trazabilidad.
+ARTÍCULO 9. AUTOMATIZACIÓN DE PROCESOS Y CAUSACIÓN CONTABLE
+JARVIS permite automatizar determinados procesos de registro, clasificación y contabilización de operaciones.
+Estas funcionalidades podrán utilizar información contenida en documentos electrónicos, historiales contables, registros de terceros, productos, impuestos y configuraciones previamente establecidas por el cliente.
+El cliente reconoce que la automatización puede generar registros o propuestas que requieran revisión antes de su utilización definitiva.
+En consecuencia:
+a. El cliente es responsable de establecer y revisar las configuraciones contables utilizadas.
+b. Los registros automatizados deben corresponder a operaciones reales y debidamente soportadas.
+c. El cliente debe revisar las operaciones antes de su aprobación o contabilización definitiva, según el flujo habilitado.
+d. Los errores identificados deberán ser corregidos oportunamente.
+JARVIS responderá por el cumplimiento de las obligaciones que legal y contractualmente le correspondan como prestador del servicio tecnológico, sin asumir las funciones profesionales del contador o responsable tributario de la empresa.
+ARTÍCULO 10. USO DE INTELIGENCIA ARTIFICIAL Y VALIDACIÓN DE LA INFORMACIÓN
+JARVIS S.A.S. incorpora tecnologías de inteligencia artificial como parte integral de sus servicios de automatización, integración y procesamiento de información contable, administrativa y tributaria.
+Estas tecnologías permiten facilitar procesos como la identificación de cuentas contables, clasificación de documentos, asignación de productos, reconocimiento de impuestos, sugerencia de retenciones, creación de terceros y procesamiento automatizado de información.
+Las herramientas de inteligencia artificial podrán utilizar información histórica de las operaciones, descripciones de documentos electrónicos, datos de proveedores, productos, configuraciones contables y demás información autorizada por el cliente para generar sugerencias y automatizar determinados procedimientos.
+El cliente reconoce y acepta que, aunque JARVIS incorpora herramientas de inteligencia artificial para mejorar la eficiencia, precisión y rapidez de los procesos, los resultados generados pueden presentar errores, inconsistencias, omisiones o interpretaciones que no correspondan a la realidad de las operaciones.
+Por lo anterior, JARVIS recomienda expresamente al usuario revisar, verificar y validar toda la información sugerida, clasificada o procesada mediante inteligencia artificial antes de aprobar, cargar, contabilizar o transmitir registros a sistemas contables, administrativos o plataformas de terceros.
+Esta validación comprende, entre otros aspectos:
+1. La correcta identificación de los terceros.
+2. La selección de cuentas contables.
+3. La clasificación de gastos, costos, activos e inventarios.
+4. La identificación de productos y servicios.
+5. La aplicación de impuestos y retenciones.
+6. La verificación de valores, cantidades y fechas.
+7. La revisión de documentos duplicados.
+8. La correcta asignación de información a los registros contables.
+9. La validación de las operaciones antes de su cargue masivo o contabilización definitiva.
+El cliente reconoce que las sugerencias generadas mediante inteligencia artificial constituyen herramientas de apoyo y no reemplazan el criterio profesional, la supervisión humana ni las responsabilidades contables, tributarias y administrativas de la empresa.
+Cuando el usuario autorice operaciones automáticas o masivas, deberá conocer el alcance de dichas operaciones y aplicar los controles de verificación correspondientes.
+La aprobación y ejecución de operaciones por parte del usuario constituye su conformidad con la información procesada, sin perjuicio de las responsabilidades que legalmente correspondan a JARVIS por el funcionamiento de su plataforma.
+JARVIS implementará medidas razonables para mejorar la calidad, seguridad y confiabilidad de sus procesos automatizados. Sin embargo, no garantiza que los resultados generados mediante inteligencia artificial estén completamente libres de errores.
+Las recomendaciones producidas mediante inteligencia artificial no constituyen asesoría contable, tributaria, financiera o jurídica profesional.
+ARTÍCULO 11. SUGERENCIAS DE IMPUESTOS Y RETENCIONES
+JARVIS podrá proporcionar herramientas para identificar y sugerir impuestos, retenciones y tratamientos tributarios a partir de la información de los documentos y las configuraciones establecidas.
+Estas funcionalidades pueden incluir la identificación de IVA, retención en la fuente, retención de IVA, retención de ICA y otros conceptos tributarios aplicables.
+Las sugerencias constituyen herramientas de apoyo y no reemplazan el análisis de las disposiciones tributarias vigentes.
+El cliente será responsable de verificar, entre otros aspectos:
+a. La naturaleza de la operación.
+b. La calidad y las responsabilidades tributarias de los terceros.
+c. Las bases mínimas y tarifas aplicables.
+d. La procedencia de las retenciones.
+e. Las condiciones particulares de cada operación.
+JARVIS podrá actualizar sus herramientas para incorporar cambios normativos, sin que esto constituya una garantía de actualización inmediata o de interpretación correcta de todas las disposiciones tributarias.
+ARTÍCULO 12. OPERACIONES MASIVAS Y AUTOMATIZADAS
+La plataforma podrá permitir la ejecución de operaciones masivas, incluyendo la creación de terceros, importación de documentos y generación de registros contables.
+El cliente reconoce que las operaciones masivas pueden afectar simultáneamente múltiples registros.
+Por lo tanto, deberá verificar la información antes de autorizar su procesamiento.
+JARVIS podrá implementar controles de confirmación, validación, prevención de duplicados y registro de actividades para reducir el riesgo de errores.
+El cliente deberá abstenerse de ejecutar operaciones sin verificar su alcance, especialmente cuando puedan generar registros definitivos en sistemas externos.
+ARTÍCULO 13. CREACIÓN, CONSULTA Y AUDITORÍA DE TERCEROS
+JARVIS podrá permitir la creación, consulta, actualización y validación masiva de información de clientes, proveedores y otros terceros.
+Estas funcionalidades podrán identificar posibles duplicidades, inconsistencias o información incompleta.
+El cliente será responsable de verificar la autenticidad, exactitud y vigencia de los datos utilizados.
+La utilización de estas funcionalidades deberá respetar la normativa de protección de datos personales y las autorizaciones aplicables.
+JARVIS no garantiza que los datos proporcionados por sistemas externos sean completos o estén permanentemente actualizados.
+ARTÍCULO 14. SERVICIOS Y PROVEEDORES TECNOLÓGICOS EXTERNOS
+Para prestar determinados servicios, JARVIS podrá utilizar infraestructura tecnológica, servicios de alojamiento, inteligencia artificial, almacenamiento, procesamiento e integraciones suministrados por terceros.
+Estos proveedores podrán intervenir en operaciones necesarias para el funcionamiento de la plataforma, conforme a los acuerdos contractuales y de tratamiento de información aplicables.
+El cliente reconoce que algunos componentes del servicio dependen de infraestructura externa.
+JARVIS deberá seleccionar y gestionar sus proveedores aplicando medidas razonables de seguridad, confidencialidad y continuidad.
+La intervención de terceros no exime a JARVIS de las responsabilidades que legalmente le correspondan.
+Cuando el cliente contrate también los servicios de documentos electrónicos, se aplicarán adicionalmente los términos específicos de dicho servicio, incluyendo las condiciones relacionadas con el procesamiento y transmisión mediante Nextpyme.
+ARTÍCULO 15. CONFIDENCIALIDAD DE LA INFORMACIÓN
+JARVIS reconoce que la información contable, financiera, tributaria, administrativa y comercial de sus clientes puede tener carácter confidencial.
+Por lo tanto, se compromete a implementar medidas destinadas a proteger dicha información contra accesos, divulgaciones, modificaciones o utilizaciones no autorizadas.
+La información obtenida mediante integraciones únicamente deberá utilizarse para las finalidades relacionadas con la prestación de los servicios contratados o aquellas debidamente autorizadas.
+JARVIS no podrá comercializar ni divulgar información confidencial del cliente para fines ajenos a la prestación del servicio, salvo autorización válida, obligación legal u otra causa legítima aplicable.
+Las obligaciones de confidencialidad subsistirán después de la terminación del servicio, durante el tiempo exigible conforme a la naturaleza de la información y a las disposiciones legales aplicables.
+ARTÍCULO 16. PROTECCIÓN Y TRATAMIENTO DE DATOS PERSONALES
+JARVIS realizará el tratamiento de datos personales conforme a la legislación colombiana aplicable, particularmente la Ley 1581 de 2012 y sus disposiciones reglamentarias.
+Según la naturaleza de cada operación, JARVIS podrá actuar como responsable o encargado del tratamiento de datos personales.
+Cuando trate información de terceros por cuenta de sus clientes, actuará bajo las instrucciones legítimas del responsable del tratamiento y conforme a las condiciones contractuales correspondientes.
+El tratamiento de información podrá comprender:
+a. Almacenamiento y consulta de datos.
+b. Procesamiento de documentos.
+c. Integración con plataformas externas.
+d. Automatización de operaciones.
+e. Análisis mediante inteligencia artificial.
+f. Soporte técnico y mantenimiento.
+g. Actividades de seguridad, auditoría y trazabilidad.
+JARVIS deberá aplicar las medidas de protección que correspondan según la naturaleza de los datos y los riesgos asociados a su tratamiento.
+JARVIS no utilizará información confidencial de sus clientes para entrenar modelos de inteligencia artificial de uso general sin contar con una base jurídica válida y las autorizaciones que resulten necesarias.
+Cuando intervengan proveedores externos de inteligencia artificial, JARVIS deberá establecer las condiciones de tratamiento correspondientes, incluyendo medidas de confidencialidad, seguridad y protección de datos.
+El tratamiento también estará sujeto a la Política de Tratamiento de Datos Personales de JARVIS, que deberá estar disponible para consulta.
+ARTÍCULO 17. PLANES, FUNCIONALIDADES Y LÍMITES DE USO
+Los servicios de JARVIS podrán comercializarse mediante diferentes planes, suscripciones y modalidades de contratación.
+Cada plan podrá establecer condiciones relacionadas con:
+1. Cantidad de documentos procesados.
+2. Número de empresas vinculadas.
+3. Cantidad de integraciones habilitadas.
+4. Volumen de operaciones.
+5. Acceso a funcionalidades de inteligencia artificial.
+6. Capacidad de almacenamiento.
+7. Servicios de soporte.
+8. Funcionalidades adicionales.
+El cliente tendrá acceso a las características correspondientes al plan contratado.
+Los límites y condiciones deberán informarse previamente a la contratación.
+JARVIS podrá ofrecer ampliaciones de capacidad, funcionalidades adicionales o cambios de plan, sujetos a las condiciones comerciales informadas al cliente.
+ARTÍCULO 18. PAGOS, FACTURACIÓN Y RENOVACIONES
+El cliente se obliga a pagar oportunamente los valores correspondientes a los servicios contratados.
+Las tarifas, periodicidad de cobro, condiciones de renovación y demás características comerciales serán las informadas al momento de la contratación.
+Cuando corresponda, podrán establecerse valores relacionados con la activación, suscripciones y funcionalidades adicionales.
+Las renovaciones automáticas únicamente se aplicarán cuando hayan sido informadas y autorizadas conforme a las disposiciones legales correspondientes.
+En caso de cambios en las tarifas, JARVIS deberá informar al cliente las nuevas condiciones antes de su aplicación, respetando las condiciones contractuales vigentes.
+La falta de pago podrá dar lugar a restricciones o suspensión del servicio, conforme al procedimiento previsto en estos términos.
+Los reembolsos, desistimientos y demás derechos del cliente se atenderán conforme al contrato y a las normas legales aplicables.
+ARTÍCULO 19. DISPONIBILIDAD Y CONTINUIDAD DEL SERVICIO
+JARVIS realizará esfuerzos técnicos y operativos razonables para mantener la disponibilidad de su plataforma.
+No obstante, el cliente reconoce que los servicios tecnológicos pueden presentar interrupciones ocasionadas por:
+a. Mantenimientos programados.
+b. Fallas de infraestructura tecnológica.
+c. Problemas de conectividad.
+d. Interrupciones de servicios externos.
+e. Actualizaciones de sistemas.
+f. Incidentes de seguridad.
+g. Circunstancias de fuerza mayor o caso fortuito.
+JARVIS procurará informar oportunamente los mantenimientos programados que puedan afectar significativamente la operación.
+La disponibilidad de las integraciones externas dependerá también de los proveedores correspondientes.
+JARVIS deberá adoptar medidas razonables para gestionar los incidentes y restablecer los servicios afectados.
+ARTÍCULO 20. RESPONSABILIDADES DEL CLIENTE
+El cliente será responsable de utilizar la plataforma de manera adecuada, lícita y conforme a las condiciones contratadas.
+En particular, se compromete a:
+1. Suministrar información verdadera, completa y actualizada.
+2. Mantener protegidas sus credenciales.
+3. Autorizar únicamente conexiones sobre las cuales tenga facultades suficientes.
+4. Verificar las operaciones contables realizadas.
+5. Revisar las sugerencias generadas mediante inteligencia artificial.
+6. Cumplir sus obligaciones contables, tributarias y administrativas.
+7. Mantener actualizada la configuración de sus empresas.
+8. Informar oportunamente sobre errores o incidentes identificados.
+9. Evitar el uso de herramientas destinadas a afectar la seguridad de la plataforma.
+10. Respetar los derechos de terceros y las disposiciones legales aplicables.
+El cliente conserva la responsabilidad sobre las decisiones contables y tributarias adoptadas a partir de la información procesada mediante JARVIS.
+ARTÍCULO 21. RESPONSABILIDADES DE JARVIS
+JARVIS se compromete a prestar los servicios contratados de acuerdo con las funcionalidades ofrecidas y las condiciones comerciales aplicables.
+Entre sus responsabilidades se encuentran:
+a. Proporcionar acceso a las funcionalidades contratadas.
+b. Implementar medidas razonables de seguridad.
+c. Mantener mecanismos de soporte y atención.
+d. Gestionar los incidentes tecnológicos de su competencia.
+e. Proteger la confidencialidad de la información.
+f. Informar sobre modificaciones relevantes del servicio.
+g. Cumplir las obligaciones legales que le correspondan.
+JARVIS no sustituye al contador público, revisor fiscal, asesor tributario ni a los demás profesionales responsables de las obligaciones empresariales del cliente.
+Las herramientas de automatización e inteligencia artificial son mecanismos de apoyo a los procesos administrativos y contables.
+La responsabilidad de JARVIS por fallas, incumplimientos o daños derivados de la prestación del servicio se determinará conforme a la legislación aplicable y las condiciones contractuales válidamente acordadas.
+Ninguna disposición de estos términos podrá interpretarse como una exclusión de responsabilidades que legalmente no puedan limitarse.
+ARTÍCULO 22. PROPIEDAD Y CONTROL DE LA INFORMACIÓN
+La información contable, financiera, administrativa y comercial suministrada por el cliente continuará perteneciendo al cliente o a sus legítimos titulares.
+La contratación de los servicios de JARVIS no implica transferencia de propiedad sobre dicha información.
+JARVIS podrá procesarla únicamente dentro del alcance de las autorizaciones y finalidades aplicables.
+El cliente podrá solicitar el acceso o la entrega de su información conforme a las funcionalidades contratadas, las condiciones de conservación aplicables y la legislación vigente.
+La terminación de la relación contractual no implicará automáticamente la eliminación de información que deba conservarse por obligación legal.
+ARTÍCULO 23. PROPIEDAD INTELECTUAL
+La plataforma JARVIS, incluyendo su código fuente, estructura tecnológica, desarrollos, interfaces, diseños, signos distintivos, metodologías y demás elementos protegidos, pertenece a JARVIS S.A.S. o a sus respectivos titulares.
+La contratación del servicio otorga al cliente un derecho limitado de utilización de las funcionalidades contratadas durante la vigencia de su suscripción.
+Salvo autorización expresa, el cliente no podrá:
+a. Copiar o comercializar el software.
+b. Distribuir versiones no autorizadas.
+c. Realizar ingeniería inversa en contravención de la legislación aplicable.
+d. Utilizar indebidamente las marcas o signos distintivos.
+e. Permitir accesos no autorizados que vulneren las condiciones contratadas.
+Los derechos de propiedad intelectual de los sistemas externos continuarán perteneciendo a sus respectivos titulares.
+ARTÍCULO 24. SOPORTE TÉCNICO Y ATENCIÓN AL CLIENTE
+JARVIS podrá proporcionar servicios de soporte técnico mediante los canales de atención habilitados.
+El soporte podrá comprender:
+1. Orientación sobre el funcionamiento de la plataforma.
+2. Asistencia en la configuración de integraciones.
+3. Atención de errores técnicos.
+4. Acompañamiento en procesos de activación.
+5. Información sobre funcionalidades contratadas.
+6. Seguimiento de incidentes tecnológicos.
+Los horarios, canales y niveles de atención estarán sujetos al servicio o plan contratado.
+El soporte técnico no incluye asesoría contable, tributaria, financiera o jurídica especializada, salvo que dichos servicios se contraten expresamente y se presten mediante profesionales habilitados.
+ARTÍCULO 25. SUSPENSIÓN DEL SERVICIO
+JARVIS podrá suspender temporalmente el acceso a determinadas funcionalidades cuando existan causas justificadas, incluyendo:
+a. Incumplimiento de obligaciones de pago.
+b. Utilización fraudulenta de la plataforma.
+c. Accesos no autorizados.
+d. Actividades que comprometan la seguridad.
+e. Incumplimiento grave de las obligaciones contractuales.
+f. Exigencias legales o decisiones de autoridades competentes.
+Cuando la naturaleza del incidente lo permita, JARVIS informará previamente al cliente las razones de la suspensión y las medidas necesarias para restablecer el servicio.
+En situaciones que impliquen riesgos inmediatos para la seguridad de la plataforma o de terceros, JARVIS podrá adoptar medidas preventivas urgentes.
+La suspensión deberá ser proporcional a la causa que la origine y respetar los derechos legalmente reconocidos al cliente.
+ARTÍCULO 26. CANCELACIÓN Y TERMINACIÓN DEL SERVICIO
+El cliente podrá solicitar la cancelación de los servicios contratados a través de los canales habilitados por JARVIS.
+La terminación estará sujeta a las condiciones comerciales informadas al momento de la contratación y a los derechos reconocidos por la legislación aplicable.
+La cancelación podrá ocasionar:
+a. La desactivación de integraciones.
+b. La revocación de accesos y autorizaciones.
+c. La suspensión de procesos de automatización.
+d. La pérdida de acceso a funcionalidades asociadas a la suscripción.
+e. La finalización de servicios adicionales contratados.
+Antes de la terminación efectiva, el cliente deberá tener la posibilidad de solicitar la entrega o exportación de su información, conforme a las condiciones técnicas y contractuales aplicables.
+JARVIS conservará o eliminará la información siguiendo las instrucciones válidas del cliente y las obligaciones legales de conservación, seguridad y protección de datos.
+ARTÍCULO 27. ACTUALIZACIONES Y MODIFICACIONES TECNOLÓGICAS
+JARVIS podrá realizar actualizaciones, modificaciones y mejoras de sus funcionalidades con el propósito de fortalecer la seguridad, compatibilidad y desempeño de la plataforma.
+Estas actualizaciones podrán incluir:
+1. Nuevas integraciones.
+2. Mejoras de inteligencia artificial.
+3. Cambios en interfaces.
+4. Actualizaciones de seguridad.
+5. Optimización de procesos.
+6. Adaptaciones a modificaciones de sistemas externos.
+JARVIS podrá modificar o sustituir funcionalidades cuando existan razones técnicas, operativas, legales o de seguridad debidamente justificadas.
+Los cambios que afecten sustancialmente características contratadas deberán informarse oportunamente y respetar los derechos contractuales y legales del cliente.
+ARTÍCULO 28. MODIFICACIONES A LOS TÉRMINOS Y CONDICIONES
+JARVIS podrá actualizar los presentes Términos y Condiciones cuando resulte necesario por cambios legales, comerciales, operativos o tecnológicos.
+Las modificaciones relevantes serán informadas a los clientes mediante los canales disponibles, indicando su fecha de entrada en vigor.
+Cuando las modificaciones requieran una nueva aceptación o autorización conforme a la legislación aplicable, JARVIS solicitará dicha aceptación.
+La plataforma podrá conservar un registro de las versiones aceptadas por cada cliente.
+Ninguna modificación unilateral podrá desconocer los derechos adquiridos o las protecciones legales del usuario.
+ARTÍCULO 29. LEGISLACIÓN APLICABLE Y SOLUCIÓN DE CONTROVERSIAS
+Los presentes Términos y Condiciones se interpretarán y ejecutarán conforme a las leyes de la República de Colombia.
+Las controversias relacionadas con la prestación de los servicios podrán ser tratadas inicialmente mediante los canales de atención y reclamación de JARVIS.
+Las partes podrán acudir a mecanismos de solución de controversias legalmente reconocidos, sin perjuicio del derecho a recurrir ante las autoridades administrativas o judiciales competentes.
+Las disposiciones de este documento se aplicarán respetando las normas de carácter obligatorio que resulten pertinentes.
+ARTÍCULO 30. CONTACTO Y NOTIFICACIONES
+Para consultas, solicitudes, reclamaciones o comunicaciones relacionadas con estos Términos y Condiciones, el cliente podrá contactar a:
+JARVIS S.A.S.
+NIT: 902086460
+Correo electrónico: gerencia@jarviscol.com
+Sitio web: https://jarviscol.com
+País: Colombia
+JARVIS atenderá las solicitudes dentro de los plazos legalmente aplicables y mediante los canales habilitados.
+ACEPTACIÓN ELECTRÓNICA DE LOS TÉRMINOS Y CONDICIONES
+JARVIS — Integraciones y Automatización Contable
+Antes de comenzar
+Para activar los servicios de Integraciones y Automatización Contable de JARVIS, es necesario conocer y aceptar las condiciones que regulan su utilización.
+Al utilizar nuestras herramientas, podrás conectar sistemas contables y administrativos, importar información, automatizar procesos y recibir sugerencias mediante inteligencia artificial.
+Información importante sobre inteligencia artificial
+JARVIS utiliza inteligencia artificial para automatizar procesos y sugerir información contable y tributaria.
+Aunque buscamos ofrecer resultados precisos, recomendamos revisar y validar los datos antes de cargarlos, aprobarlos o contabilizarlos, ya que pueden presentarse errores o inconsistencias.
+La inteligencia artificial es una herramienta de apoyo y no reemplaza la supervisión profesional.
+Confirmaciones del usuario
+☐ He leído y acepto los Términos y Condiciones del Servicio de Integraciones y Automatización Contable de JARVIS S.A.S.
+☐ He leído la Política de Tratamiento de Datos Personales y otorgo las autorizaciones que correspondan para el tratamiento de mis datos.
+☐ Autorizo a JARVIS a establecer las conexiones que seleccione y a procesar la información necesaria para ejecutar las funcionalidades contratadas, en los términos y con los permisos indicados.
+☐ Opcional: Deseo recibir comunicaciones comerciales, novedades y ofertas de JARVIS.
+Botón: Aceptar y continuar
+Las casillas de aceptación no deberán aparecer seleccionadas automáticamente.
+Las autorizaciones que no sean necesarias para prestar el servicio no deberán ser obligatorias.
+JARVIS conservará evidencia de las aceptaciones y autorizaciones otorgadas, de acuerdo con la legislación aplicable.
+FIN DEL DOCUMENTO
+JARVIS S.A.S. — Términos y Condiciones de Integraciones y Automatización Contable — Versión 1.1
+Nota antes de publicarlo: Esta es una propuesta contractual para JARVIS, no un concepto jurídico definitivo. Conviene que un abogado colombiano revise especialmente el tratamiento de datos, las condiciones comerciales, la responsabilidad por operaciones automatizadas y los acuerdos con proveedores de inteligencia artificial. También deben completarse las condiciones específicas de precios, renovación y cancelación antes de activar la contratación.
+Con esta versión queda incorporada expresamente la recomendación de revisar y validar la información generada mediante inteligencia artificial antes de cargarla, aprobarla o contabilizarla, tanto en el artículo 10 como en la pantalla de aceptación.

@@ -1,9 +1,9 @@
 import AdminSidebar from '../components/AdminSidebar'
+import AdminDocumentPackages from '../components/AdminDocumentPackages'
 import AdminBoldSettings from '../components/AdminBoldSettings'
-import AdminJarvisCatalog from '../components/AdminJarvisCatalog'
 import AdminTracking from '../components/AdminTracking'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Autocomplete from '../components/Autocomplete'
 import ErrorMessage from '../components/ErrorMessage'
@@ -13,16 +13,16 @@ import SuccessMessage from '../components/SuccessMessage'
 import { useAuth } from '../context/AuthContext'
 import {
   createAdminCompany,
+  selectAdminCompanyIntegration,
   fetchAdminCities,
   fetchAdminCompanies,
   fetchAdminPlans,
   lookupAdminCompanyName,
-  parseAdminCompanyRut,
   regenerateCompanyInviteCode,
   updateCompanyCity,
   updateCompanyDescription,
   updateCompanyNextPymeToken,
-  updateCompanyTechnicalKey,
+  updateCompanyIdSoftware,
   updateIntegrationSubscription,
 } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -41,7 +41,6 @@ import {
   type JarvisCredentialsSeed,
   type SubscriptionStatus,
 } from '../types/admin'
-import { toJarvisCredentialsSeed } from '../utils/toJarvisCredentialsSeed'
 import './AdminPage.css'
 
 const AVAILABLE_DOCUMENT_TYPES: Array<{
@@ -88,16 +87,6 @@ function formatPersonType(personType: CompanyPersonType | null): string {
   return '—'
 }
 
-function formatIntegrations(company: AdminCompanyListItem): string {
-  if (company.integrations.length === 0) {
-    return '—'
-  }
-
-  return company.integrations
-    .map((integration) => formatProviderLabel(integration.provider))
-    .join(' · ')
-}
-
 function formatResponsible(
   responsible: AdminCompanyListItem['responsible'],
 ): string {
@@ -109,7 +98,8 @@ function formatResponsible(
 }
 
 function AdminPage() {
-  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'catalog' | 'bold' | 'tracking'>('jarvis')
+  const [switchingIntegrationCompanyId, setSwitchingIntegrationCompanyId] = useState<string | null>(null)
+  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking'>('jarvis')
   const [commercial, setCommercial] = useState('')
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
   const { logout } = useAuth()
@@ -119,7 +109,6 @@ function AdminPage() {
   const [cities, setCities] = useState<AdminCityOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isParsingRut, setIsParsingRut] = useState(false)
   const [updatingIntegrationId, setUpdatingIntegrationId] = useState<
     string | null
   >(null)
@@ -134,10 +123,10 @@ function AdminPage() {
   const [savingTokenCompanyId, setSavingTokenCompanyId] = useState<
     string | null
   >(null)
-  const [editingTechnicalKeyCompanyId, setEditingTechnicalKeyCompanyId] =
+  const [editingIdSoftwareCompanyId, setEditingIdSoftwareCompanyId] =
     useState<string | null>(null)
-  const [technicalKeyDraft, setTechnicalKeyDraft] = useState('')
-  const [savingTechnicalKeyCompanyId, setSavingTechnicalKeyCompanyId] =
+  const [idSoftwareDraft, setIdSoftwareDraft] = useState('')
+  const [savingIdSoftwareCompanyId, setSavingIdSoftwareCompanyId] =
     useState<string | null>(null)
   const [editingCityCompanyId, setEditingCityCompanyId] = useState<
     string | null
@@ -162,13 +151,7 @@ function AdminPage() {
   const [responsibleName, setResponsibleName] = useState('')
   const [responsiblePhone, setResponsiblePhone] = useState('')
   const [responsibleEmail, setResponsibleEmail] = useState('')
-  const [rutFileName, setRutFileName] = useState('')
-  const [rutAddress, setRutAddress] = useState<string | null>(null)
-  const [rutWarnings, setRutWarnings] = useState<string[]>([])
-  const [jarvisCredentials, setJarvisCredentials] =
-    useState<JarvisCredentialsSeed | undefined>()
   const [idSoftware, setIdSoftware] = useState('')
-  const [technicalKey, setTechnicalKey] = useState('')
   const [selectedCity, setSelectedCity] = useState<AdminCityOption | null>(
     null,
   )
@@ -284,55 +267,6 @@ function AdminPage() {
     }
   }
 
-  const handleRutUpload = async (file?: File) => {
-    if (!file) return
-
-    setErrorMessage(null)
-    setSuccessMessage(null)
-    setRutWarnings([])
-
-    if (
-      file.type !== 'application/pdf' &&
-      !file.name.toLowerCase().endsWith('.pdf')
-    ) {
-      setErrorMessage('El RUT debe ser un archivo PDF.')
-      return
-    }
-
-    setIsParsingRut(true)
-    setRutFileName(file.name)
-
-    try {
-      const response = await parseAdminCompanyRut(file)
-      const rut = response.data
-
-      setNit(rut.nit)
-      setName(rut.name)
-      setPersonType(rut.personType)
-      setResponsibleName(rut.responsibleName ?? '')
-      setResponsiblePhone(rut.phone ?? '')
-      setResponsibleEmail(rut.email ?? '')
-      setRutAddress(rut.address)
-      setRutWarnings(rut.warnings)
-      setJarvisCredentials(toJarvisCredentialsSeed(rut.jarvisCredentials))
-      setSuccessMessage(
-        'Datos extraídos del RUT. Revise la información antes de crear la empresa.',
-      )
-    } catch (error) {
-      setRutFileName('')
-      setRutAddress(null)
-      setJarvisCredentials(undefined)
-      setErrorMessage(
-        getApiErrorMessage(
-          error,
-          'No se pudieron extraer los datos del RUT.',
-        ),
-      )
-    } finally {
-      setIsParsingRut(false)
-    }
-  }
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
@@ -347,16 +281,11 @@ function AdminPage() {
         INTEGRATION_PROVIDER.JARVIS,
       )
       const trimmedIdSoftware = idSoftware.trim()
-      const trimmedTechnicalKey = technicalKey.trim()
       const trimmedTokenNextPyme = companyNextPymeToken.trim()
       const mergedJarvisCredentials: JarvisCredentialsSeed | undefined =
         includesJarvis
           ? {
-              ...(jarvisCredentials ?? {}),
               ...(trimmedIdSoftware ? { idSoftware: trimmedIdSoftware } : {}),
-              ...(trimmedTechnicalKey
-                ? { technicalKey: trimmedTechnicalKey }
-                : {}),
               ...(trimmedTokenNextPyme
                 ? { tokenNextPyme: trimmedTokenNextPyme }
                 : {}),
@@ -373,7 +302,9 @@ function AdminPage() {
         billingCycle,
         nit: nit.trim(),
         name: name.trim(),
-        ...(description.trim() ? { description: description.trim() } : {}),
+        ...(includesSiigo && description.trim()
+          ? { description: description.trim() }
+          : {}),
         personType: personType as CompanyPersonType,
         ...(responsibleName.trim() ||
         responsiblePhone.trim() ||
@@ -397,7 +328,7 @@ function AdminPage() {
               jarvisPlanId,
             }
           : {}),
-        ...((includesSiigo || includesJarvis) && selectedDocumentTypes.length > 0
+        ...(includesSiigo && selectedDocumentTypes.length > 0
           ? { includedDocumentTypes: selectedDocumentTypes }
           : {}),
         ...(hasJarvisCredentials
@@ -409,7 +340,6 @@ function AdminPage() {
         ...(companyNextPymeToken.trim()
           ? { nextPymeToken: companyNextPymeToken.trim() }
           : {}),
-        ...(trimmedTechnicalKey ? { technicalKey: trimmedTechnicalKey } : {}),
       })
 
       setCompanies((current) => [response.company, ...current])
@@ -424,12 +354,7 @@ function AdminPage() {
       setResponsibleName('')
       setResponsiblePhone('')
       setResponsibleEmail('')
-      setRutFileName('')
-      setRutAddress(null)
-      setRutWarnings([])
-      setJarvisCredentials(undefined)
       setIdSoftware('')
-      setTechnicalKey('')
       setCompanyNextPymeToken('')
       setSelectedCity(null)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
@@ -618,44 +543,44 @@ function AdminPage() {
     }
   }
 
-  const handleStartEditTechnicalKey = (company: AdminCompanyListItem) => {
+  const handleStartEditIdSoftware = (company: AdminCompanyListItem) => {
     setErrorMessage(null)
     setSuccessMessage(null)
-    setEditingTechnicalKeyCompanyId(company.id)
-    setTechnicalKeyDraft(company.technicalKey ?? '')
+    setEditingIdSoftwareCompanyId(company.id)
+    setIdSoftwareDraft(company.idSoftware ?? '')
   }
 
-  const handleCancelEditTechnicalKey = () => {
-    setEditingTechnicalKeyCompanyId(null)
-    setTechnicalKeyDraft('')
+  const handleCancelEditIdSoftware = () => {
+    setEditingIdSoftwareCompanyId(null)
+    setIdSoftwareDraft('')
   }
 
-  const handleSaveTechnicalKey = async (company: AdminCompanyListItem) => {
+  const handleSaveIdSoftware = async (company: AdminCompanyListItem) => {
     setErrorMessage(null)
     setSuccessMessage(null)
-    setSavingTechnicalKeyCompanyId(company.id)
+    setSavingIdSoftwareCompanyId(company.id)
 
     try {
-      const response = await updateCompanyTechnicalKey(company.id, {
-        technicalKey: technicalKeyDraft.trim() || null,
+      const response = await updateCompanyIdSoftware(company.id, {
+        idSoftware: idSoftwareDraft.trim() || null,
       })
 
       setCompanies((current) =>
         current.map((item) =>
           item.id === company.id
-            ? { ...item, technicalKey: response.company.technicalKey }
+            ? { ...item, idSoftware: response.company.idSoftware }
             : item,
         ),
       )
       setSuccessMessage(`Clave técnica actualizada para ${company.name}.`)
-      setEditingTechnicalKeyCompanyId(null)
-      setTechnicalKeyDraft('')
+      setEditingIdSoftwareCompanyId(null)
+      setIdSoftwareDraft('')
     } catch (error) {
       setErrorMessage(
         getApiErrorMessage(error, 'No se pudo actualizar la clave técnica.'),
       )
     } finally {
-      setSavingTechnicalKeyCompanyId(null)
+      setSavingIdSoftwareCompanyId(null)
     }
   }
 
@@ -818,16 +743,13 @@ function AdminPage() {
   return (
     <div className="admin-shell">
       <AdminSidebar active={activeAdminTab} onChange={setActiveAdminTab} onLogout={handleLogout} />
-    <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}${activeAdminTab === 'catalog' ? ' admin-page--catalog' : ''}`}>
-      {activeAdminTab !== 'catalog' && <PageHeader
+    <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}`}>
+      <PageHeader
         eyebrow="Panel interno"
         title="Administración de empresas"
         description="Gestione empresas, integraciones, planes y suscripciones."
-      />}
+      />
 
-      <div id="admin-panel-catalog" role="tabpanel" aria-labelledby="admin-tab-catalog" hidden={activeAdminTab !== 'catalog'}>
-        {activeAdminTab === 'catalog' && <AdminJarvisCatalog companies={companies} loading={isLoading} />}
-      </div>
       <div id="admin-panel-bold" role="tabpanel" aria-labelledby="admin-tab-bold" hidden={activeAdminTab !== 'bold'}>
         {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
       </div>
@@ -837,6 +759,7 @@ function AdminPage() {
           onCreate={() => { setActiveAdminTab('jarvis'); requestAnimationFrame(() => { document.getElementById('admin-company-nit')?.focus(); document.getElementById('admin-company-nit')?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }) }} />}
       </div>
       <div id="admin-panel-jarvis" role="tabpanel" aria-labelledby="admin-tab-jarvis" hidden={activeAdminTab !== 'jarvis'}>
+      {activeAdminTab === 'jarvis' && <AdminDocumentPackages companies={companies} />}
       <section className="admin-card">
         <div className="admin-card__header">
           <h2>Crear empresa</h2>
@@ -888,25 +811,7 @@ function AdminPage() {
               </select>
               <small>El vencimiento se calcula desde la fecha de creación de la empresa.</small>
             </div>
-            <div className="admin-form__field admin-form__field--wide">
-              <label htmlFor="admin-company-description">
-                Descripción de la empresa
-              </label>
-              <textarea
-                id="admin-company-description"
-                value={description}
-                onChange={(event) =>
-                  setDescription(event.target.value.slice(0, 1000))
-                }
-                disabled={isSubmitting}
-                rows={3}
-                maxLength={1000}
-                placeholder="A qué se dedica: rubro, actividad, si maneja inventario, etc. La IA lo usa para sugerir cuenta o producto."
-              />
-              <span className="admin-form__hint">
-                {description.length} / 1000
-              </span>
-            </div>
+
 
             <div className="admin-form__field">
               <label htmlFor="admin-company-person-type">
@@ -919,7 +824,7 @@ function AdminPage() {
                   setPersonType(event.target.value as CompanyPersonType | '')
                 }
                 required
-                disabled={isSubmitting || isParsingRut}
+                disabled={isSubmitting}
               >
                 <option value="">Seleccione una opción</option>
                 <option value={COMPANY_PERSON_TYPE.NATURAL_PERSON}>
@@ -1018,6 +923,28 @@ function AdminPage() {
             </label>
           </fieldset>
 
+          {includesSiigo && (
+            <div className="admin-form__field admin-form__field--wide">
+              <label htmlFor="admin-company-description">
+                Descripción de la empresa
+              </label>
+              <textarea
+                id="admin-company-description"
+                value={description}
+                onChange={(event) =>
+                  setDescription(event.target.value.slice(0, 1000))
+                }
+                disabled={isSubmitting}
+                rows={3}
+                maxLength={1000}
+                placeholder="A qué se dedica: rubro, actividad, si maneja inventario, etc. La IA lo usa para sugerir cuenta o producto."
+              />
+              <span className="admin-form__hint">
+                {description.length} / 1000
+              </span>
+            </div>
+          )}
+
           {(includesSiigo || includesJarvis || includesBold) && (
             <div className="admin-form__grid">
               {includesSiigo && (
@@ -1083,23 +1010,6 @@ function AdminPage() {
 
               {(includesSiigo || includesJarvis) && (
                 <div className="admin-form__field">
-                  <label htmlFor="admin-company-technical-key">
-                    technical_key
-                  </label>
-                  <input
-                    id="admin-company-technical-key"
-                    type="text"
-                    value={technicalKey}
-                    onChange={(event) => setTechnicalKey(event.target.value)}
-                    placeholder="Clave técnica DIAN"
-                    disabled={isSubmitting}
-                    autoComplete="off"
-                  />
-                </div>
-              )}
-
-              {(includesSiigo || includesJarvis) && (
-                <div className="admin-form__field">
                   <label htmlFor="admin-company-nextpyme-token">
                     Token NextPyme (opcional)
                   </label>
@@ -1120,7 +1030,7 @@ function AdminPage() {
             </div>
           )}
 
-          {(includesSiigo || includesJarvis) && (
+          {includesSiigo && (
             <fieldset className="admin-form__integrations">
               <legend>Documentos incluidos</legend>
               {AVAILABLE_DOCUMENT_TYPES.map((documentType) => (
@@ -1140,52 +1050,6 @@ function AdminPage() {
             </fieldset>
           )}
 
-          {includesJarvis && (
-            <section className="admin-rut-upload" aria-labelledby="admin-rut-title">
-              <div>
-                <h3 id="admin-rut-title">Autocompletar con el RUT</h3>
-                <p>
-                  Adjunte el PDF de la DIAN. Extraeremos los datos para que los
-                  revise antes de crear la empresa.
-                </p>
-              </div>
-
-              <label className="admin-rut-upload__button">
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    void handleRutUpload(file)
-                    event.target.value = ''
-                  }}
-                  disabled={isSubmitting || isParsingRut}
-                />
-                {isParsingRut ? 'Leyendo RUT...' : 'Seleccionar RUT (PDF)'}
-              </label>
-
-              {rutFileName && (
-                <p className="admin-rut-upload__file">
-                  Archivo: <strong>{rutFileName}</strong>
-                </p>
-              )}
-
-              {rutAddress && (
-                <p className="admin-rut-upload__detected">
-                  Dirección detectada: <strong>{rutAddress}</strong>
-                </p>
-              )}
-
-              {rutWarnings.length > 0 && (
-                <ul className="admin-rut-upload__warnings">
-                  {rutWarnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
-
           <button
             type="submit"
             className="admin-form__submit"
@@ -1195,11 +1059,9 @@ function AdminPage() {
               !nit.trim() ||
               !name.trim() ||
               !personType ||
-              isParsingRut ||
               (includesSiigo &&
                 (!siigoPlanId || selectedDocumentTypes.length === 0)) ||
-              (includesJarvis &&
-                (!jarvisPlanId || selectedDocumentTypes.length === 0))
+              (includesJarvis && !jarvisPlanId)
             }
           >
             {isSubmitting ? 'Creando empresa...' : 'Crear empresa'}
@@ -1210,52 +1072,23 @@ function AdminPage() {
         {errorMessage && <ErrorMessage message={errorMessage} />}
       </section>
 
-      <section className="admin-card">
-        <div className="admin-card__header">
-          <h2>Empresas vinculadas</h2>
-        </div>
-
-        {isLoading ? (
-          <LoadingIndicator message="Cargando empresas..." />
-        ) : companies.length === 0 ? (
-          <p className="admin-empty">No hay empresas vinculadas a su cuenta.</p>
-        ) : (
-          <div className="admin-table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Código de invitación</th>
-                  <th>NIT</th>
-                  <th>Empresa</th>
-                  <th>Descripción</th>
-                  <th>Tipo</th>
-                  <th>Persona a cargo</th>
-                  <th>Integraciones</th>
-                  <th>Plan</th>
-                  <th>Documentos</th>
-                  <th>Límite</th>
-                  <th>Suscripción</th>
-                  <th>Creada</th>
-                  <th>Token NextPyme</th>
-                  <th>technical_key</th>
-                  <th>Ciudad</th>
-                </tr>
-              </thead>
-              <tbody>
-                {companies.flatMap((company) => {
-                  // Partial: Bold queda fuera del mapa a propósito (no tiene
-                  // planes, no consume cupo de documentos), así que indexarlo
-                  // con cualquier provider devuelve undefined en vez de
-                  // romper el tipo.
-                  const plansByProvider: Partial<
-                    Record<IntegrationProvider, AdminPlan[]>
-                  > = {
-                    [INTEGRATION_PROVIDER.SIIGO]: siigoPlans,
-                    [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
-                  }
-                  return [
-                  <tr key={company.id}>
-                      <td>
+      {[INTEGRATION_PROVIDER.SIIGO, INTEGRATION_PROVIDER.JARVIS].map(provider => {
+        const rows = companies.filter(company => company.integrations.some(item => item.provider === provider));
+        const columns = provider === INTEGRATION_PROVIDER.SIIGO
+          ? [1, 2, 3, 6, 7, 8, 12, 14]
+          : [1, 2, 6, 9, 12, 13];
+        const headings = ['C?digo de invitaci?n', 'NIT', 'Empresa', 'Descripci?n', 'Tipo', 'Persona a cargo', 'Integraci?n', 'Plan', 'Documentos', 'L?mite de documentos', 'Suscripci?n', 'Creada', 'Token NextPyme', 'IDSoftware', 'Ciudad'];
+        return <section className="admin-card" key={provider}>
+          <div className="admin-card__header"><h2>Empresas con integraci?n {formatProviderLabel(provider)}</h2></div>
+          {isLoading ? <LoadingIndicator message="Cargando empresas..." /> : rows.length === 0 ? <p className="admin-empty">No hay empresas con esta integraci?n.</p> :
+            <div className="admin-table-wrapper"><table className="admin-table">
+              <thead><tr>{columns.map(index => <th key={index}>{headings[index]}</th>)}</tr></thead>
+              <tbody>{rows.map(company => {
+                const plansByProvider: Partial<Record<IntegrationProvider, AdminPlan[]>> = {
+                  [INTEGRATION_PROVIDER.SIIGO]: siigoPlans, [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
+                };
+                const cells = [
+                  <td>
                         <div className="admin-invite-code">
                           <code>{company.inviteCode}</code>
                           <button
@@ -1278,10 +1111,10 @@ function AdminPage() {
                               : 'Regenerar'}
                           </button>
                         </div>
-                      </td>
-                    <td>{company.nit}</td>
-                    <td>{company.name}</td>
-                      <td>
+                      </td>,
+                  <td>{company.nit}</td>,
+                  <td>{company.name}</td>,
+                  <td>
                         {editingDescriptionCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
                             <CompanyAiContextFields
@@ -1336,16 +1169,41 @@ function AdminPage() {
                             </button>
                           </div>
                         )}
-                    </td>
-                      <td>{formatPersonType(company.personType)}</td>
-                    <td>{formatResponsible(company.responsible)}</td>
-                    <td>{formatIntegrations(company)}</td>
-                    <td>
+                    </td>,
+                  <td>{formatPersonType(company.personType)}</td>,
+                  <td>{formatResponsible(company.responsible)}</td>,
+                  <td>
+                      <select
+                        aria-label={`Integración de ${company.name}`}
+                        value={company.integrations.some(item => item.provider === INTEGRATION_PROVIDER.SIIGO) ? INTEGRATION_PROVIDER.SIIGO : company.integrations.some(item => item.provider === INTEGRATION_PROVIDER.JARVIS) ? INTEGRATION_PROVIDER.JARVIS : ''}
+                        disabled={switchingIntegrationCompanyId !== null}
+                        onChange={async event => {
+                          const provider = event.target.value as IntegrationProvider
+                          setSwitchingIntegrationCompanyId(company.id)
+                          setErrorMessage(null)
+                          try {
+                            const response = await selectAdminCompanyIntegration(company.id, provider)
+                            setCompanies(current => current.map(item => item.id === company.id ? response.company : item))
+                            setSuccessMessage(`Integración ${formatProviderLabel(provider)} seleccionada para ${company.name}.`)
+                          } catch (error) {
+                            setErrorMessage(getApiErrorMessage(error, 'No se pudo cambiar la integración.'))
+                          } finally {
+                            setSwitchingIntegrationCompanyId(null)
+                          }
+                        }}
+                      >
+                        <option value="" disabled>Elegir integración</option>
+                        <option value={INTEGRATION_PROVIDER.SIIGO}>SIIGO</option>
+                        <option value={INTEGRATION_PROVIDER.JARVIS}>Jarvis</option>
+                      </select>
+                      {company.integrations.some(item => item.provider === INTEGRATION_PROVIDER.BOLD) && <small> · Bold</small>}
+                    </td>,
+                  <td>
                         {company.integrations.length === 0 ? (
                           '—'
                         ) : (
                           <div className="admin-integration-stack">
-                            {company.integrations.map((integration) => {
+                            {company.integrations.filter(item => item.provider === provider).map((integration) => {
                               const providerPlans =
                                 plansByProvider[integration.provider] ?? []
 
@@ -1388,13 +1246,13 @@ function AdminPage() {
                             })}
                           </div>
                         )}
-                    </td>
-                      <td>
+                    </td>,
+                  <td>
                         {company.integrations.length === 0 ? (
                           '—'
                         ) : (
                           <div className="admin-integration-stack">
-                            {company.integrations.map((integration) => (
+                            {company.integrations.filter(item => item.provider === provider).map((integration) => (
                               <div
                                 key={integration.id}
                                 className="admin-integration-stack__item"
@@ -1440,36 +1298,14 @@ function AdminPage() {
                             ))}
                           </div>
                         )}
-                      </td>
-                      <td>
+                      </td>,
+                  <td>{company.integrations.find(item => item.provider === INTEGRATION_PROVIDER.JARVIS)?.plan?.documentLimit ?? 'Sin l?mite'}</td>,
+                  <td>
                         {company.integrations.length === 0 ? (
                           '—'
                         ) : (
                           <div className="admin-integration-stack">
-                            {company.integrations.map((integration) => (
-                              <div
-                                key={integration.id}
-                                className="admin-integration-stack__item"
-                              >
-                                <span className="admin-integration-stack__label">
-                                  {formatProviderLabel(integration.provider)}
-                                </span>
-                                <span>
-                                  {formatDocumentLimit(
-                                    integration.plan?.documentLimit,
-                                  )}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        {company.integrations.length === 0 ? (
-                          '—'
-                        ) : (
-                          <div className="admin-integration-stack">
-                            {company.integrations.map((integration) => (
+                            {company.integrations.filter(item => item.provider === provider).map((integration) => (
                               <div
                                 key={integration.id}
                                 className="admin-integration-stack__item"
@@ -1530,11 +1366,11 @@ function AdminPage() {
                             ))}
                           </div>
                         )}
-                      </td>
-                    <td>
+                      </td>,
+                  <td>
                       {new Date(company.createdAt).toLocaleDateString('es-CO')}
-                    </td>
-                      <td>
+                    </td>,
+                  <td>
                         {editingTokenCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
                             <input
@@ -1581,19 +1417,19 @@ function AdminPage() {
                             </button>
                           </div>
                         )}
-                      </td>
-                      <td>
-                        {editingTechnicalKeyCompanyId === company.id ? (
+                      </td>,
+                  <td>
+                        {editingIdSoftwareCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
                             <input
                               type="text"
-                              value={technicalKeyDraft}
+                              value={idSoftwareDraft}
                               onChange={(event) =>
-                                setTechnicalKeyDraft(event.target.value)
+                                setIdSoftwareDraft(event.target.value)
                               }
                               placeholder="Clave técnica DIAN"
                               disabled={
-                                savingTechnicalKeyCompanyId === company.id
+                                savingIdSoftwareCompanyId === company.id
                               }
                               autoComplete="off"
                             />
@@ -1601,22 +1437,22 @@ function AdminPage() {
                               <button
                                 type="button"
                                 disabled={
-                                  savingTechnicalKeyCompanyId === company.id
+                                  savingIdSoftwareCompanyId === company.id
                                 }
                                 onClick={() =>
-                                  void handleSaveTechnicalKey(company)
+                                  void handleSaveIdSoftware(company)
                                 }
                               >
-                                {savingTechnicalKeyCompanyId === company.id
+                                {savingIdSoftwareCompanyId === company.id
                                   ? 'Guardando...'
                                   : 'Guardar'}
                               </button>
                               <button
                                 type="button"
                                 disabled={
-                                  savingTechnicalKeyCompanyId === company.id
+                                  savingIdSoftwareCompanyId === company.id
                                 }
-                                onClick={handleCancelEditTechnicalKey}
+                                onClick={handleCancelEditIdSoftware}
                               >
                                 Cancelar
                               </button>
@@ -1625,22 +1461,22 @@ function AdminPage() {
                         ) : (
                           <div className="admin-nextpyme-token">
                             <span className="admin-nextpyme-token__value">
-                              {company.technicalKey
-                                ? `•••• ${company.technicalKey.slice(-4)}`
-                                : 'Sin clave técnica'}
+                              {company.idSoftware
+                                ? `•••• ${company.idSoftware.slice(-4)}`
+                                : 'Sin IDSoftware'}
                             </span>
                             <button
                               type="button"
                               onClick={() =>
-                                handleStartEditTechnicalKey(company)
+                                handleStartEditIdSoftware(company)
                               }
                             >
-                              {company.technicalKey ? 'Editar' : 'Configurar'}
+                              {company.idSoftware ? 'Editar' : 'Configurar'}
                             </button>
                           </div>
                         )}
-                      </td>
-                      <td>
+                      </td>,
+                  <td>
                         {editingCityCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
                             <Autocomplete<AdminCityOption>
@@ -1688,14 +1524,12 @@ function AdminPage() {
                           </div>
                         )}
                       </td>
-                    </tr>,
-                  ]
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                ];
+                return <tr key={company.id}>{columns.map(index => <Fragment key={index}>{cells[index]}</Fragment>)}</tr>;
+              })}</tbody>
+            </table></div>}
+        </section>;
+      })}
 
       {errorMessage && <ErrorMessage message={errorMessage} />}
       </div>

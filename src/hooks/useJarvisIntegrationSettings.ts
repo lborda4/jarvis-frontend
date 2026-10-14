@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  AUTO_DISMISS_TRANSIENT_ERROR_MS,
   useAutoDismissMessage,
 } from './useAutoDismissMessage'
 import { useAuth } from '../context/AuthContext'
@@ -231,7 +230,7 @@ export function useJarvisIntegrationSettings() {
   >([])
   const [isLoadingResolutions, setIsLoadingResolutions] = useState(false)
   const [resolutionsError, setResolutionsError] = useAutoDismissMessage(
-    AUTO_DISMISS_TRANSIENT_ERROR_MS,
+    5_000,
   )
   const [selectedInvoiceResolutionId, setSelectedInvoiceResolutionId] =
     useState('')
@@ -604,13 +603,14 @@ export function useJarvisIntegrationSettings() {
     try {
       const response = await fetchJarvisAvailableResolutions()
       setAvailableResolutions(response.resolutions)
-    } catch {
+    } catch (error) {
       // Mensaje fijo a propósito: el detalle del error (ruta, estado HTTP,
       // cuerpo del proxy) no le sirve al contador y solo expone plomería.
       setAvailableResolutions([])
-      setResolutionsError(
-        'No se pudieron consultar las resoluciones. Intenta de nuevo.',
-      )
+      const message = getApiErrorMessage(error, '')
+      setResolutionsError(message.startsWith('Falta configurar el IDSoftware de esta empresa.')
+        ? message
+        : 'No se pudieron consultar las resoluciones. Intenta de nuevo o comunícate con soporte.')
     } finally {
       setIsLoadingResolutions(false)
     }

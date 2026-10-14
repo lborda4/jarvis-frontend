@@ -1,0 +1,19 @@
+.integration-policy.modal-dialog { display: flex; flex-direction: column; width: min(920px, 94vw); height: min(820px, calc(100dvh - 2rem)); overflow: hidden; padding: 1.5rem; box-sizing: border-box; }
+.integration-policy > .modal-dialog__close { display: none; }
+.integration-policy--reading > .modal-dialog__close { display: inline-flex; }
+.integration-policy--reading .integration-policy__header { padding-right: 2rem; }
+.integration-policy__header { flex-shrink: 0; margin-bottom: 1rem; }
+.integration-policy__header > span { color: var(--jarvis-primary); font-size: .85rem; font-weight: 600; }
+.integration-policy__header h2 { color: var(--jarvis-navy); font-size: 1.25rem; margin: .5rem 0; }
+.integration-policy__header p, .integration-policy__footer > p { color: var(--jarvis-text-muted); font-size: .85rem; margin: .5rem 0; }
+.integration-policy__reader { position: relative; display: flex; flex: 1; min-height: 0; }
+.integration-policy__text { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1rem 1.25rem 4rem; border: 1px solid var(--jarvis-border); border-radius: 10px; background: #f8fafc; color: var(--jarvis-text); }
+.integration-policy__text p { margin: 0; font-size: .9rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.integration-policy__text h3 { margin: 0; font-size: 1rem; line-height: 1.4; color: var(--jarvis-navy); }
+.integration-policy__scroll-down { position: absolute; right: 1.5rem; bottom: .75rem; display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 1px solid var(--jarvis-primary); border-radius: 50%; background: white; color: var(--jarvis-primary); box-shadow: 0 2px 8px #102c4226; cursor: pointer; }
+.integration-policy__scroll-down:hover { background: #eaf8f6; }
+.integration-policy__scroll-down:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 3px; }
+.integration-policy__text:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
+.integration-policy__footer { flex-shrink: 0; padding-top: 1rem; }
+.integration-policy__buttons { display: flex; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; margin-top: .75rem; }
+@media(max-width: 600px) { .integration-policy.modal-dialog { padding: 1rem; } .integration-policy__header h2 { font-size: 1.05rem; } .integration-policy__text { padding: .75rem .75rem 4rem; } .integration-policy__buttons { gap: .5rem; } }

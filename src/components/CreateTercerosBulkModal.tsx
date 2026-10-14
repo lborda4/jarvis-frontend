@@ -165,7 +165,7 @@ function CreateTercerosBulkModal({
         ))}
       </div>
 
-      {errorMessage && <ErrorMessage message={errorMessage} />}
+      {errorMessage && <ErrorMessage inline message={errorMessage} />}
 
       <div className="terceros-bulk-modal__table-wrap">
         <table className="terceros-bulk-modal__table">

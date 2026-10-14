@@ -1,12 +1,11 @@
-import { Navigate, Outlet } from 'react-router-dom'
-import { isAdminRole } from '../constants/userRole'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import LoadingIndicator from './LoadingIndicator'
 import '../pages/AuthPages.css'
 
-/** Rutas de Productos: menú y páginas del cliente, no del administrador. */
+/** El catálogo de la empresa activa es compartido por clientes y administradores. */
 function ClientProductsRoute() {
-  const { user, isLoading } = useAuth()
+  const { isLoading } = useAuth()
 
   if (isLoading) {
     return (
@@ -14,10 +13,6 @@ function ClientProductsRoute() {
         <LoadingIndicator message="Cargando..." />
       </div>
     )
-  }
-
-  if (isAdminRole(user?.role)) {
-    return <Navigate to="/admin" replace />
   }
 
   return <Outlet />

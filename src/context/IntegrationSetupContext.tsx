@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { fetchIntegrationProviders } from '../services/integrationService'
+import { readIntegrationSetupSnapshot, saveIntegrationSetupSnapshot, removeIntegrationSetupSnapshot } from '../utils/integrationSetupSnapshot'
 import { fetchJarvisCredentialsStatus } from '../services/jarvisService'
 import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import {
@@ -69,6 +70,11 @@ interface IntegrationSetupContextValue {
 const IntegrationSetupContext =
   createContext<IntegrationSetupContextValue | null>(null)
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function useIsJarvisIntegration(): boolean {
+  return useContext(IntegrationSetupContext)?.isJarvisCompany ?? false
+}
+
 const SIIGO_SETUP_PATH = '/configuracion/integracion-siigo'
 const JARVIS_SETUP_PATH = '/configuracion/integracion-jarvis'
 
@@ -87,8 +93,8 @@ function isJarvisSetupComplete({
     return false
   }
 
-  const needsSupport = documentTypes.includes('SUPPORT_DOCUMENT')
-  const needsInvoice = documentTypes.includes('PURCHASE_INVOICE')
+  const needsSupport = documentTypes.length === 0 || documentTypes.includes('SUPPORT_DOCUMENT')
+  const needsInvoice = documentTypes.length === 0 || documentTypes.includes('PURCHASE_INVOICE')
 
   if (needsSupport && !supportResolutionConfigured) {
     return false
@@ -104,39 +110,41 @@ function isJarvisSetupComplete({
 export function IntegrationSetupProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth()
   const companyId = user?.company?.id
-  const [isCheckingSetup, setIsCheckingSetup] = useState(true)
-  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(null)
-  const resolvedCompanyRef = useRef<string | null>(null)
+  const [initialSnapshot] = useState(() => readIntegrationSetupSnapshot<IntegrationSetupContextValue>(user?.id, companyId))
+  const [isCheckingSetup, setIsCheckingSetup] = useState(!initialSnapshot)
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(initialSnapshot ? companyId ?? null : null)
+  const resolvedCompanyRef = useRef<string | null>(initialSnapshot ? companyId ?? null : null)
+  const confirmedSetupRef = useRef(Boolean(initialSnapshot))
   const [integrationProviders, setIntegrationProviders] = useState<
     IntegrationProvider[]
-  >([])
+  >(initialSnapshot?.integrationProviders ?? [])
   const [integrationMode, setIntegrationMode] =
-    useState<IntegrationMode>('unknown')
-  const [isSiigoConfigured, setIsSiigoConfigured] = useState(false)
-  const [hasSiigoAccounts, setHasSiigoAccounts] = useState(false)
+    useState<IntegrationMode>(initialSnapshot?.integrationMode ?? 'unknown')
+  const [isSiigoConfigured, setIsSiigoConfigured] = useState(initialSnapshot?.isSiigoConfigured ?? false)
+  const [hasSiigoAccounts, setHasSiigoAccounts] = useState(initialSnapshot?.hasSiigoAccounts ?? false)
   const [hasSiigoDocumentTypesConfigured, setHasSiigoDocumentTypesConfigured] =
-    useState(false)
+    useState(initialSnapshot?.hasSiigoDocumentTypesConfigured ?? false)
   const [isJarvisCompanyConfigured, setIsJarvisCompanyConfigured] =
-    useState(false)
+    useState(initialSnapshot?.isJarvisCompanyConfigured ?? false)
   const [
     isSupportDocumentResolutionConfigured,
     setIsSupportDocumentResolutionConfigured,
-  ] = useState(false)
+  ] = useState(initialSnapshot?.isSupportDocumentResolutionConfigured ?? false)
   const [
     isElectronicInvoiceResolutionConfigured,
     setIsElectronicInvoiceResolutionConfigured,
-  ] = useState(false)
+  ] = useState(initialSnapshot?.isElectronicInvoiceResolutionConfigured ?? false)
   const [includedDocumentTypes, setIncludedDocumentTypes] = useState<string[]>(
-    [],
+    initialSnapshot?.includedDocumentTypes ?? [],
   )
-  const [isSubscriptionActive, setIsSubscriptionActive] = useState(false)
-  const [documentQuotas, setDocumentQuotas] = useState<SiigoDocumentQuotas>({})
-  const [documentLimit, setDocumentLimit] = useState<number | null>(null)
-  const [documentsUsed, setDocumentsUsed] = useState(0)
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState(initialSnapshot?.isSubscriptionActive ?? false)
+  const [documentQuotas, setDocumentQuotas] = useState<SiigoDocumentQuotas>(initialSnapshot?.documentQuotas ?? {})
+  const [documentLimit, setDocumentLimit] = useState<number | null>(initialSnapshot?.documentLimit ?? null)
+  const [documentsUsed, setDocumentsUsed] = useState(initialSnapshot?.documentsUsed ?? 0)
   const [documentsRemaining, setDocumentsRemaining] = useState<number | null>(
-    null,
+    initialSnapshot?.documentsRemaining ?? null,
   )
-  const [isSiigoCreditNoteEnabled, setIsSiigoCreditNoteEnabled] = useState(false)
+  const [isSiigoCreditNoteEnabled, setIsSiigoCreditNoteEnabled] = useState(initialSnapshot?.isCreditNoteEnabled && initialSnapshot.isSiigoCompany || false)
 
   const resetJarvisFlags = useCallback(() => {
     setIsJarvisCompanyConfigured(false)
@@ -153,6 +161,8 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
     if (!isAuthenticated || !companyId) {
       resolvedCompanyRef.current = null
+      confirmedSetupRef.current = false
+      setResolvedCompanyId(null)
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
@@ -186,7 +196,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
           QUERY_STALE_MS.credentials,
         ))
 
-    const isBackgroundRefresh = options?.background && resolvedCompanyRef.current === companyId
+    const isBackgroundRefresh = resolvedCompanyRef.current === companyId && (Boolean(options?.background) || confirmedSetupRef.current)
     setIsCheckingSetup(!hasFreshSetupCache && !isBackgroundRefresh)
 
     try {
@@ -194,12 +204,12 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       if (getActiveCompanyId() !== companyId) return
       const mode = resolveIntegrationMode(providers)
 
-      setIntegrationProviders(providers)
-      setIntegrationMode(mode)
-
       if (mode === 'siigo') {
         const status = await fetchSiigoCredentialsStatus()
         if (getActiveCompanyId() !== companyId) return
+        confirmedSetupRef.current = true
+        setIntegrationProviders(providers)
+        setIntegrationMode(mode)
         const configured = Boolean(status.configured)
         const accountsReady = Boolean(status.hasAccounts)
         const documentTypesReady = Boolean(status.documentTypesConfigured)
@@ -231,10 +241,13 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       if (mode === 'jarvis') {
         const status = await fetchJarvisCredentialsStatus()
         if (getActiveCompanyId() !== companyId) return
+        confirmedSetupRef.current = true
+        setIntegrationProviders(providers)
+        setIntegrationMode(mode)
         const companyConfigured = Boolean(status.configured)
         const subscription = status.subscription
         const subscriptionActive = subscription?.status === 'ACTIVE'
-        const documentTypes = subscription?.includedDocumentTypes ?? []
+        const documentTypes = ['SUPPORT_DOCUMENT', 'PURCHASE_INVOICE']
         const supportResolutionConfigured = Boolean(
           status.supportDocumentResolutionConfigured,
         )
@@ -270,6 +283,9 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         return
       }
 
+      confirmedSetupRef.current = false
+      setIntegrationProviders(providers)
+      setIntegrationMode(mode)
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
       setHasSiigoDocumentTypesConfigured(false)
@@ -287,6 +303,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       // A failed background refresh must not discard the confirmed setup or
       // unmount a form immediately after it has saved successfully.
       if (isBackgroundRefresh) return
+      confirmedSetupRef.current = false
       setIntegrationProviders([])
       setIntegrationMode('unknown')
       setIsSiigoConfigured(false)
@@ -308,10 +325,12 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         setIsCheckingSetup(false)
       }
     }
-  }, [companyId, isAuthLoading, isAuthenticated, resetJarvisFlags])
+  }, [companyId, user?.id, isAuthLoading, isAuthenticated, resetJarvisFlags])
 
   useEffect(() => {
-    void refreshSetupStatus()
+    let active = true
+    void Promise.resolve().then(() => { if (active) return refreshSetupStatus() })
+    return () => { active = false }
   }, [refreshSetupStatus])
 
   const markConfigured = useCallback(() => {
@@ -346,10 +365,10 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     !isSetupStatusPending &&
     integrationMode !== 'unknown' &&
     !isConfigured
-  const hasSupportDocumentAccess = includedDocumentTypes.includes(
+  const hasSupportDocumentAccess = isJarvisCompany || includedDocumentTypes.includes(
     'SUPPORT_DOCUMENT',
   )
-  const hasPurchaseInvoiceAccess = includedDocumentTypes.includes(
+  const hasPurchaseInvoiceAccess = isJarvisCompany || includedDocumentTypes.includes(
     'PURCHASE_INVOICE',
   )
   // En Jarvis cada tipo de documento se emite contra SU resolución DIAN, así
@@ -446,6 +465,12 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     ],
   )
 
+  useEffect(() => {
+    if (!user?.id || !companyId || isSetupStatusPending) return
+    if (value.isJarvisCompany) saveIntegrationSetupSnapshot(user.id, companyId, value)
+    else removeIntegrationSetupSnapshot(user.id, companyId)
+  }, [user?.id, companyId, isSetupStatusPending, value])
+
   return (
     <IntegrationSetupContext.Provider value={value}>
       {children}
@@ -453,6 +478,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- The context hooks share their provider module.
 export function useIntegrationSetup(): IntegrationSetupContextValue {
   const context = useContext(IntegrationSetupContext)
 
@@ -465,6 +491,7 @@ export function useIntegrationSetup(): IntegrationSetupContextValue {
   return context
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Compatibility hook for the same provider.
 export function useSiigoSetup(): Pick<
   IntegrationSetupContextValue,
   | 'isCheckingSetup'

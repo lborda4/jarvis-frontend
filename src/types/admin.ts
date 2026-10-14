@@ -72,6 +72,7 @@ export interface AdminCompanyListItem {
   inviteCode: string
   nextPymeToken: string | null
   technicalKey: string | null
+  idSoftware?: string | null
   cityCode: string | null
   cityName: string | null
   integrations: AdminIntegrationItem[]

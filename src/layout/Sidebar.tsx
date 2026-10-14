@@ -1,9 +1,11 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { type ChangeEvent, useState } from 'react'
+import { createPortal } from 'react-dom'
+import IntegrationPolicyModal from '../components/IntegrationPolicyModal'
+import { getIntegrationPolicy } from '../constants/integrationPolicies'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
-import { PRIVACY_POLICY_URL } from '../constants/privacyPolicy'
 import {
   AdminIcon,
   ChevronDownIcon,
@@ -59,6 +61,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+  const [policyOpen, setPolicyOpen] = useState(false)
   const { user, companies, isLoading, isSwitchingCompany, logout, switchCompany } =
     useAuth()
   const {
@@ -71,6 +74,8 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     requiresSetup,
     setupPath,
     isJarvisCompany,
+    isJarvisCompanyConfigured,
+    integrationMode,
     isConfigured,
     isSubscriptionActive,
     documentQuotas,
@@ -78,6 +83,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     documentsUsed: totalDocumentsUsed,
     documentsRemaining: totalDocumentsRemaining,
   } = useIntegrationSetup()
+  const activePolicy = getIntegrationPolicy(integrationMode)
   const companyName = user?.company?.name ?? 'Mi Empresa'
   const activeCompanyId = user?.company?.id ?? ''
   const userName = user?.name?.trim() || 'Usuario'
@@ -116,6 +122,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             to: 'documentos-electronicos',
             icon: DocumentIcon,
             children: [
+              { label: 'Eventos RADIAN', to: '/eventos-radian', icon: DocumentIcon, featureEnabled: isJarvisCompanyConfigured },
               {
                 label: 'Factura de venta',
                 to: 'factura-venta-grupo',
@@ -174,7 +181,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               ]
             : []),
         ]),
-    ...(!isAdminRole(user?.role) && isJarvisCompany
+    ...(isJarvisCompany
       ? [{
           label: 'Categorías',
           to: 'categorias',
@@ -439,21 +446,20 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           {requiresSetup && (
             <p className="app-sidebar__setup-hint">
               {isJarvisCompany
-                ? 'Finalice los pasos de configuración (empresa y resoluciones) para habilitar el resto.'
+                ? 'Configura tu empresa y las resoluciones de facturación para habilitar todas las funcionalidades de JARVIS.'
                 : 'Configure las credenciales de SIIGO y un plan con documento soporte para habilitar Documento soporte.'}
             </p>
           )}
 
           <div className="app-sidebar__footer">
             {isJarvisCompany ? (
-              <a
-                href={PRIVACY_POLICY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => setPolicyOpen(true)}
                 className="app-sidebar__help-link"
               >
                 Política de datos
-              </a>
+              </button>
             ) : (
               <div className="app-sidebar__help">
                 <HelpIcon className="app-sidebar__help-icon" />
@@ -467,14 +473,14 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                   >
                     Escríbenos por WhatsApp
                   </a>
-                  <a
-                    href={PRIVACY_POLICY_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setPolicyOpen(true)}
+                    disabled={!activePolicy}
                     className="app-sidebar__help-link"
                   >
                     Política de datos
-                  </a>
+                  </button>
                 </div>
               </div>
             )}
@@ -518,6 +524,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           </button>
         </div>
       )}
+      {policyOpen && activePolicy && createPortal(<IntegrationPolicyModal key={activePolicy.id} policy={activePolicy} onClose={() => setPolicyOpen(false)} />, document.body)}
     </aside>
   )
 }

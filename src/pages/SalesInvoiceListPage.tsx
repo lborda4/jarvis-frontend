@@ -1,5 +1,6 @@
 import { peekCachedQuery } from '../services/queryCache'
 import PageHeader from '../components/PageHeader'
+import DateRangeFilter from '../components/DateRangeFilter'
 import InvoiceNoteActions from '../components/InvoiceNoteActions'
 import DocumentEmailModal, { MailIcon } from '../components/DocumentEmailModal'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -89,8 +90,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
 
       <form className="sales-history__filters integration-filters" onSubmit={applyFilters}>
         <label className="sales-history__search">Buscar documento<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={(creditNote || debitNote) ? "Número, cliente, documento o CUDE" : (supportDocument || adjustmentNote) ? "Número, proveedor, documento o CUDS" : "Número, cliente, documento o CUFE"} /></label>
-        <label>Desde<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} max={to || undefined} /></label>
-        <label>Hasta<input type="date" value={to} onChange={(event) => setTo(event.target.value)} min={from || undefined} /></label>
+        <DateRangeFilter from={from} to={to} disabled={isLoading} onApply={range => { setFrom(range.dateFrom ?? ''); setTo(range.dateTo ?? '') }} />
         <Button type="submit" variant="primary" disabled={isLoading}>Buscar</Button>
         {hasFilters && <Button type="button" variant="ghost" disabled={isLoading} onClick={clearFilters}>Limpiar</Button>}
       </form>
@@ -118,7 +118,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                   <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar`} aria-label={`Visualizar ${documentLabel} ${invoice.prefix}${invoice.number}`}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg> Visualizar
                   </Link>
-                  <button type="button" className="sales-history__view" title="Enviar a correo" aria-label={`Enviar a correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
+                  <button type="button" className="sales-history__view" title="Enviar correo" aria-label={`Enviar correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
                   {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`} />}
                 </div></td>
               </tr>)}</tbody>

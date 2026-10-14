@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
+import IntegrationPolicyGate from './IntegrationPolicyGate'
 import { useAuth } from '../context/AuthContext'
 import '../pages/AuthPages.css'
 
@@ -19,7 +20,7 @@ function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
-  return <Outlet />
+  return <IntegrationPolicyGate><Outlet /></IntegrationPolicyGate>
 }
 
 export default ProtectedRoute
