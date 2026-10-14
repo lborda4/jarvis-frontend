@@ -19,7 +19,7 @@ const statusLabels = { sent: 'Enviado', failed: 'Error', unknown: 'Por confirmar
 function stored<T>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback } catch { return fallback } }
 function save(key: string, data: unknown) { try { localStorage.setItem(key, JSON.stringify(data)) } catch { /* Keep session state if storage is unavailable. */ } }
 function readResults(key: string): Results {
-  try { return Object.fromEntries(Object.entries(stored<Results>(key, {})).map(([cufe, events]) => [cufe, Object.fromEntries(Object.entries(events).filter(([, state]) => ['sent', 'failed', 'unknown', 'sending'].includes(state ?? '')).map(([id, state]) => [id, state === 'sending' \u00b7 'unknown' : state]))])) } catch { return {} }
+  try { return Object.fromEntries(Object.entries(stored<Results>(key, {})).map(([cufe, events]) => [cufe, Object.fromEntries(Object.entries(events).filter(([, state]) => ['sent', 'failed', 'unknown', 'sending'].includes(state ?? '')).map(([id, state]) => [id, state === 'sending' ? 'unknown' : state]))])) } catch { return {} }
 }
 function readInvoices(key: string): Invoice[] {
   const rows = stored<Invoice[]>(key, [])
@@ -225,7 +225,7 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
   }
 
   return <main className="radian-page integration-page">
-    <DocumentSendOverlay open={Boolean(activity) && progress !== null} documentTitle="eventos RADIAN" detail={progress ? `Factura ${progress.current} de ${progress.total}${progress.eventId ? ' ? ' + ({ 1: '030 Acuse', 3: '032 Recepci\u00f3n', 4: '033 Aceptaci\u00f3n', 2: '031 Reclamo' }[progress.eventId]) : ' \u00b7 Verificando eventos'}` : undefined} />
+    <DocumentSendOverlay open={Boolean(activity) && progress !== null} documentTitle="eventos RADIAN" detail={progress ? `Factura ${progress.current} de ${progress.total}${progress.eventId ? ' \u00b7 ' + ({ 1: '030 Acuse', 3: '032 Recepci\u00f3n', 4: '033 Aceptaci\u00f3n', 2: '031 Reclamo' }[progress.eventId]) : ' \u00b7 Verificando eventos'}` : undefined} />
     <p className="radian-page__breadcrumb">Documentos electrónicos › Eventos RADIAN</p>
     <PageHeader title="Procesar eventos RADIAN" description="Selecciona las facturas y registra sus eventos electrónicos ante la DIAN de forma masiva." actions={<Button disabled={busy} onClick={() => fileInput.current?.click()}>▤ Importar Excel de la DIAN</Button>} />
     <input ref={fileInput} hidden type="file" accept=".xlsx,.xls" onChange={event => void upload(event)} />
