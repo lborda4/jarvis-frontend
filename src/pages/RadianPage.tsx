@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import { fetchJarvisTypeRejections, type JarvisCatalogItem } from '../services/jarvisService'
 import { fetchRadianHistory, type RadianStoredEvent, lookupRadianInvoice, processRadianInvoices, type RadianProgress, type RadianDecision, type RadianStatus } from '../services/radianService'
 import { isValidCufe, mapRadianInvoices, readRadianWorkbook, suggestRadianMapping, radianFilterColumns, type RadianColumn, type RadianInvoice, type RadianMapping, type RadianSheet } from '../utils/radianExcel'
+import { mergeRadianInvoices } from '../utils/radianImport'
 import './RadianPage.css'
 
 type Results = Record<string, Partial<Record<number, RadianStatus>>>
@@ -56,6 +57,7 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
   const [to, setTo] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [importSummary, setImportSummary] = useState<{ added: Invoice[]; repeated: Invoice[] } | null>(null)
   const [success, setSuccess] = useState('')
   const [progress, setProgress] = useState<RadianProgress | null>(null)
   const [activity, setActivity] = useState('')
@@ -67,7 +69,7 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
   const [pageSize, setPageSize] = useState(10)
   const sheet = sheets[sheetIndex]
   const missingFilterColumns = sheet && Object.values(radianFilterColumns(sheet.headers)).some(column => !column)
-  const imported = sheet && mapping.cufe ? mapRadianInvoices(sheet, mapping) : []
+  const imported = sheet && mapping.cufe ? mapRadianInvoices(sheet, mapping, false) : []
   const decision = (cufe: string): RadianDecision => decisions[cufe] ?? { eventId: results[cufe]?.[2] ? 2 : 4 }
   const complete = (cufe: string) => results[cufe]?.[1] === 'sent' && results[cufe]?.[3] === 'sent' && (results[cufe]?.[4] === 'sent' || results[cufe]?.[2] === 'sent')
   const uncertain = (cufe: string) => [1, 2, 3, 4].some(id => ['unknown', 'sending'].includes(results[cufe]?.[id] ?? ''))
@@ -84,16 +86,13 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
 
   function addRows(rows: RadianInvoice[]) {
     if (!rows.length) return
-    const next = [...invoiceRef.current]
-    const positions = new Map<string, number>()
-    next.forEach((row, index) => { if (row.cufe) positions.set(row.cufe, index) })
-    for (const row of rows) {
-      const index = row.cufe ? positions.get(row.cufe) : undefined
-      if (index !== undefined) next[index] = row
-      else { if (row.cufe) positions.set(row.cufe, next.length); next.push(row) }
-    }
+    const summary = mergeRadianInvoices(invoiceRef.current, rows)
+    const next = summary.invoices
     invoiceRef.current = next; save(`${storageKey}:invoices`, next); setInvoices(next)
-    setShowRecent(false); setPage(1); setNotice(`${rows.length} factura(s) agregadas.`)
+    setImportSummary(summary)
+    setShowRecent(false); setPage(1)
+    setNotice(`${summary.added.length} factura(s) nuevas y ${summary.repeated.length} repetidas.`)
+
   }
 
   async function addCufe(event: FormEvent) {
@@ -101,6 +100,10 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
     const cufe = cufeInput.trim().toLowerCase()
     if (!isValidCufe(cufe)) { setError('Ingresa un CUFE válido de 96 caracteres.'); return }
     if (busy || running.current) return
+    if (invoiceRef.current.some(row => row.cufe.toLowerCase() === cufe)) {
+      addRows([invoiceRef.current.find(row => row.cufe.toLowerCase() === cufe)!])
+      setCufeInput(''); setError(''); return
+    }
     setError('')
     running.current = true; setActivity('Consultando factura...'); setNotice(''); setSuccess('')
     try {
@@ -129,7 +132,7 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
       setSheets(importedSheets); setSheetIndex(index); setMapping(columns); setSelected([])
       if (Object.values(radianFilterColumns(chosen.headers)).some(column => !column)) setError('El Excel debe incluir Tipo de documento, Forma de Pago y Grupo.')
       else if (!columns.cufe) setError('Selecciona la columna CUFE para agregar las facturas.')
-      else { const rows = mapRadianInvoices(chosen, columns); if (!rows.length) setNotice('No hay registros que cumplan los criterios de importación RADIAN.'); else addRows(rows) }
+      else { const rows = mapRadianInvoices(chosen, columns, false); if (!rows.length) setNotice('No hay registros que cumplan los criterios de importación RADIAN.'); else addRows(rows) }
     } catch { if (mounted.current) setError('No pudimos leer el Excel. Revisa el archivo y que no supere los 15 MB.') }
     finally { running.current = false; if (mounted.current) setActivity(''); input.value = '' }
   }
@@ -230,6 +233,10 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
     <PageHeader title="Procesar eventos RADIAN" description="Selecciona las facturas y registra sus eventos electrónicos ante la DIAN de forma masiva." actions={<Button disabled={busy} onClick={() => fileInput.current?.click()}>▤ Importar Excel de la DIAN</Button>} />
     <input ref={fileInput} hidden type="file" accept=".xlsx,.xls" onChange={event => void upload(event)} />
     <section className="integration-card radian-page__lookup"><h2>Agregar factura por CUFE</h2><p>Ingresa el CUFE para consultar los datos de la factura y registrar sus eventos.</p><form onSubmit={event => void addCufe(event)}><input aria-label="CUFE de la factura" value={cufeInput} onChange={event => setCufeInput(event.target.value)} placeholder="Ingresa el CUFE de la factura" disabled={busy} /><Button type="submit" disabled={busy || !cufeInput.trim()}>Consultar</Button></form></section>
+    {importSummary && <div className="radian-page__notice" role="status">
+      <strong>{importSummary.added.length} nuevas · {importSummary.repeated.length} repetidas</strong>
+      {(['added', 'repeated'] as const).map(kind => importSummary[kind].length > 0 && <details key={kind}><summary>{kind === 'added' ? 'Ver facturas nuevas' : 'Ver facturas repetidas'}</summary><ul>{importSummary[kind].map((invoice, index) => <li key={index}>{invoice.number || invoice.cufe || 'Sin CUFE'}{invoice.supplier ? ' · ' + invoice.supplier : ''}</li>)}</ul></details>)}
+    </div>}
     {sheet && <details className="radian-page__upload integration-card"><summary>Columnas del Excel · {imported.length} registros elegibles</summary><p>Tipo de documento: Factura electrónica · Forma de Pago: 2 · Grupo: Recibido.</p>{missingFilterColumns && <ErrorMessage inline message="La hoja debe incluir Tipo de documento, Forma de Pago y Grupo." />}<div className="radian-page__mapping"><label>Hoja<select disabled={busy} value={sheetIndex} onChange={event => { const index = Number(event.target.value); setSheetIndex(index); setMapping(suggestRadianMapping(sheets[index].headers)) }}>{sheets.map((item, index) => <option key={item.name} value={index}>{item.name}</option>)}</select></label>{(Object.keys(labels) as RadianColumn[]).map(field => <label key={field}>{labels[field]}<select disabled={busy} value={mapping[field]} onChange={event => setMapping(current => ({ ...current, [field]: event.target.value }))}><option value="">Selecciona una columna</option>{sheet.headers.map(header => <option key={header}>{header}</option>)}</select></label>)}</div><Button disabled={busy || !imported.length} onClick={() => addRows(imported)}>Agregar facturas del Excel</Button></details>}
     {success && <DocumentNotice variant="success" title="Envío exitoso" message={success} onDismiss={() => setSuccess('')} />}{error && <ErrorMessage message={error} />}{(activity || notice) && <p role="status" className="radian-page__notice">{activity || notice}</p>}
     <section className="integration-card radian-page__list">

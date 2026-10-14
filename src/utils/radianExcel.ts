@@ -46,7 +46,7 @@ function dateValue(value: unknown): string {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : ''
 }
 
-export function mapRadianInvoices(sheet: RadianSheet, mapping: RadianMapping): RadianInvoice[] {
+export function mapRadianInvoices(sheet: RadianSheet, mapping: RadianMapping, deduplicate = true): RadianInvoice[] {
   const columns = radianFilterColumns(sheet.headers)
   if (!columns.documentType || !columns.paymentForm || !columns.group) return []
   const seen = new Set<string>()
@@ -55,7 +55,7 @@ export function mapRadianInvoices(sheet: RadianSheet, mapping: RadianMapping): R
       || String(row[columns.paymentForm!] ?? '').trim() !== '2'
       || normalize(String(row[columns.group!] ?? '')) !== 'recibido') return []
     const cufe = String(row[mapping.cufe] ?? '').trim().toLowerCase()
-    if (!Object.values(row).some(value => String(value ?? '').trim()) || (cufe && seen.has(cufe))) return []
+    if (!Object.values(row).some(value => String(value ?? '').trim()) || (deduplicate && cufe && seen.has(cufe))) return []
     if (cufe) seen.add(cufe)
     return [{ cufe, number: String(row[mapping.number] ?? '').trim(), supplier: String(row[mapping.supplier] ?? '').trim(), nit: String(row[mapping.nit] ?? '').trim(), date: dateValue(row[mapping.date]), valid: isValidCufe(cufe) }]
   })

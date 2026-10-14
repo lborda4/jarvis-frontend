@@ -4,8 +4,8 @@ import Button from './Button'
 import type { IntegrationPolicy } from '../constants/integrationPolicies'
 import './IntegrationPolicyModal.css'
 
-export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onClose }: {
-  policy: IntegrationPolicy; onAccept?: () => void; onLogout?: () => void; onClose?: () => void
+export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onClose, accepting = false }: {
+  policy: IntegrationPolicy; onAccept?: () => void; onLogout?: () => void; onClose?: () => void; accepting?: boolean
 }) {
   const content = useRef<HTMLDivElement>(null)
   const [readToEnd, setReadToEnd] = useState(false)
@@ -40,7 +40,7 @@ export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onC
       {!readingOnly && <p aria-live="polite">{readToEnd ? 'Ya puedes confirmar tu aceptación.' : 'Desplázate hasta el final para habilitar la aceptación.'}</p>}
       <div className="integration-policy__buttons">
         {!readingOnly && <Button type="button" variant="ghost" onClick={onLogout}>Cerrar sesión</Button>}
-        {readingOnly ? <Button type="button" onClick={onClose}>Cerrar</Button> : <Button type="button" disabled={!readToEnd} onClick={() => { if (readToEnd) onAccept?.() }}>He leído y acepto</Button>}
+        {readingOnly ? <Button type="button" onClick={onClose}>Cerrar</Button> : <Button type="button" disabled={!readToEnd || accepting} onClick={() => { if (readToEnd && !accepting) onAccept?.() }}>{accepting ? 'Guardando...' : 'He leído y acepto'}</Button>}
       </div>
     </footer>
   </Modal>

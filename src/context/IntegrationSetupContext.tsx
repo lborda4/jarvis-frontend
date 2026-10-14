@@ -357,7 +357,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   // resolución de ese tipo ya quedó asociada. En SIIGO no aplica — ahí la
   // numeración la pone el comprobante de cargue, no una resolución propia.
   const isSupportDocumentEnabled =
-    isConfigured &&
+    (isJarvisCompany ? isJarvisCompanyConfigured : isSiigoFullyConfigured) &&
     isSubscriptionActive &&
     hasSupportDocumentAccess &&
     (isSiigoCompany ||
@@ -371,7 +371,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
    * factura electrónica. */
   const isSalesInvoiceEnabled =
     isJarvisCompany &&
-    isConfigured &&
+    isJarvisCompanyConfigured &&
     isSubscriptionActive &&
     isElectronicInvoiceResolutionConfigured
   /** Nota crédito: Jarvis con FV habilitada, o SIIGO con token NextPyme. */

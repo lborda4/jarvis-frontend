@@ -443,6 +443,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             </div>
           )}
 
+          {isJarvisCompany && isConfigured && !isSubscriptionActive && (
+            <p className="app-sidebar__setup-hint">
+              La configuración está guardada, pero la suscripción Jarvis no está activa. Solicita al administrador que revise el plan para habilitar la emisión de documentos.
+            </p>
+          )}
+
           {requiresSetup && (
             <p className="app-sidebar__setup-hint">
               {isJarvisCompany
