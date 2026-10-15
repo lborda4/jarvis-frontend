@@ -14,6 +14,14 @@ const invoice: JarvisInvoiceDetail = {
   },
 }
 describe('creditNotePrefill', () => {
+  it('recovers both document retentions regardless of their order', () => {
+    const result = creditNotePrefill({ ...invoice, sourceRequest: { ...invoice.sourceRequest!, retentions: [
+      { id: 5, type: 'ReteIVA', percentage: 15 },
+      { id: 7, type: 'ReteICA', percentage: 4.14 },
+    ] } }, [])
+    expect(result.taxes.find(tax => tax.id === result.reteIvaId)).toMatchObject({ type: 'ReteIVA', percentage: 15 })
+    expect(result.taxes.find(tax => tax.id === result.reteIcaId)).toMatchObject({ type: 'ReteICA', percentage: 4.14 })
+  })
   it('copies the reference and line values without current product prices or taxes', () => {
     const result = creditNotePrefill(invoice, [])
     expect(result.billingNumber).toBe('SETP123')

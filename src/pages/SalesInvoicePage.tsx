@@ -235,6 +235,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const [paymentFormId, setPaymentFormId] = useState('1')
   const [paymentEntries, setPayments] = useState<PaymentEntry[]>([createEmptyPayment()])
   const [reteIcaId, setReteIcaId] = useState('')
+  const [reteIvaId, setReteIvaId] = useState('')
 
   const [nextConsecutive, setNextConsecutive] = useState<number | null>(
     isNote ? 1 : null,
@@ -290,12 +291,16 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const rate = tax?.percentage ?? 0
     return calculateJarvisRetention(tax?.type ?? 'ReteICA', rate, documentSubtotal, documentTax)
   })()
+  const reteIvaTax = (() => {
+    const tax = taxes.find(t => String(t.id) === reteIvaId)
+    return tax ? calculateJarvisRetention('ReteIVA', tax.percentage ?? 0, documentSubtotal, documentTax) : 0
+  })()
   const lineRetentionAmount = (line: LineItem) => {
     const tax = taxes.find(t => t.id === line.taxRetentionId)
     return tax ? calculateJarvisRetention(tax.type, tax.percentage ?? 0, lineBaseTotal(line, discountIsPercent), lineTaxAmount(line, discountIsPercent)) : 0
   }
   const itemRetentionsTotal = lines.reduce((sum, line) => sum + lineRetentionAmount(line), 0)
-  const documentTotal = documentSubtotal + documentTax - reteIcaTax - itemRetentionsTotal - (debitNote ? parseAmount(generalDiscount) : 0)
+  const documentTotal = documentSubtotal + documentTax - reteIcaTax - reteIvaTax - itemRetentionsTotal - (debitNote ? parseAmount(generalDiscount) : 0)
   const payments = useMemo(() => alignPaymentMethods(balancePayments(paymentEntries, documentTotal), availablePaymentMethods), [paymentEntries, documentTotal, availablePaymentMethods])
 
   const filteredCustomers = (() => {
@@ -388,7 +393,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           const prefill = creditNotePrefill(source, mergedTaxes)
           setBillingNumber(prefill.billingNumber); setBillingUuid(prefill.billingUuid); setBillingDate(prefill.billingDate)
           setCurrency(prefill.request?.currency || source.currency)
-          setTaxes(prefill.taxes); setReteIcaId(prefill.reteIcaId); setDiscountIsPercent(false)
+          setTaxes(prefill.taxes); setReteIcaId(prefill.reteIcaId); setReteIvaId(prefill.reteIvaId); setDiscountIsPercent(false)
           if (prefill.request) {
             const request = prefill.request
             if (debitNote) setGeneralDiscount(String(request.discountAmount ?? 0))
@@ -431,6 +436,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setLines([createEmptyLine()])
     setPayments([{ ...createEmptyPayment(), methodId: paymentMethods[0]?.id ?? '' }])
     setReteIcaId('')
+    setReteIvaId('')
     setDiscountIsPercent(false)
     setAttachedFile(null)
     setFieldErrors({})
@@ -575,21 +581,21 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       if (parseAmount(line.quantity) <= 0) nextErrors[`line-${index}-quantity`] = 'Cantidad inválida'
     })
     if (isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
-    if (debitNote && (parseAmount(generalDiscount) < 0 || parseAmount(generalDiscount) > documentSubtotal + documentTax - reteIcaTax - itemRetentionsTotal)) nextErrors.generalDiscount = 'El descuento general no puede superar el valor de la nota.'
+    if (debitNote && (parseAmount(generalDiscount) < 0 || parseAmount(generalDiscount) > documentSubtotal + documentTax - reteIcaTax - reteIvaTax - itemRetentionsTotal)) nextErrors.generalDiscount = 'El descuento general no puede superar el valor de la nota.'
     if (isNote) {
       if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > issueDate) nextErrors.reference = `Indica el número, ${affectedCodeLabel} y fecha del ${affectedDocumentLabel} afectado.`
       if (!rejectionTypes.some(reason => reason.code === reasonCode) || !reasonDescription.trim()) nextErrors.reason = 'Selecciona un motivo del catálogo y completa su descripción.'
     }
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
-  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
+  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
 
   const buildRequest = useCallback(() => {
     if (!selectedCustomer) throw new Error(`Debe seleccionar un ${partyLabel.toLowerCase()}.`)
     const taxesById = new Map(taxes.map((tax) => [tax.id, tax]))
     const retentions: Array<{ id: number; type: string; percentage?: number }> = []
-    if (reteIcaId) {
-      const tax = taxesById.get(reteIcaId)
+    for (const retentionId of [reteIvaId, reteIcaId]) {
+      const tax = taxesById.get(retentionId)
       if (tax) {
         const id = requireSalesInvoiceTaxCatalogId(tax)
         if (!retentions.some((r) => r.id === id)) retentions.push({ id, type: tax.type, percentage: tax.percentage ?? undefined })
@@ -638,7 +644,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
+  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
 
   const handleSubmit = useCallback(async (mode: SubmitMode) => {
     if (sourceLoading) return
@@ -1000,6 +1006,16 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                 {debitNote && <label className="ds-individual__totals-row"><span>Descuento general:</span><MoneyInput aria-label="Descuento general" value={generalDiscount} onValueChange={setGeneralDiscount} /></label>}
                 {fieldErrors.generalDiscount && <p className="ds-individual__error" role="alert">{fieldErrors.generalDiscount}</p>}
                 <div className="ds-individual__totals-row"><span>Retenciones por ítem:</span><strong>{formatMoney(itemRetentionsTotal)}</strong></div>
+                <div className="ds-individual__totals-row ds-individual__totals-row--reteica">
+                  <span>ReteIVA:</span>
+                  <div className="ds-individual__reteica-group">
+                    <select aria-label="ReteIVA" value={reteIvaId} onChange={(e) => setReteIvaId(e.target.value)} className="ds-individual__reteica-select">
+                      <option value="">Seleccionar</option>
+                      {retentionTaxes.filter(tax => tax.type.toUpperCase() === 'RETEIVA').map(tax => <option key={tax.id} value={tax.id}>{formatSalesInvoiceTaxLabel(tax)}</option>)}
+                    </select>
+                    <strong>{formatMoney(reteIvaTax)}</strong>
+                  </div>
+                </div>
                 <div className="ds-individual__totals-row ds-individual__totals-row--reteica">
                   <span>ReteICA:</span>
                   <div className="ds-individual__reteica-group">

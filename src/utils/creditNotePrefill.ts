@@ -44,10 +44,12 @@ export function creditNotePrefill(invoice: JarvisInvoiceDetail, catalog: SalesIn
       description: item.description, notes: item.notes, quantity: String(item.quantity), unitValue: String(item.unitValue),
       discount: String(item.discount ?? 0), priceOptions: [], selectedPriceId: '', taxChargeId, taxRetentionId, taxPercent: String(taxPercent) }
   })
-  const retention = request?.retentions?.[0]
+  const retention = request?.retentions?.find(item => item.type?.toUpperCase() === 'RETEICA' || (!item.type && item.id === 7))
   const reteIcaId = retention ? taxOption(retention.id, retention.percentage ?? 0, 'RETENCION', retention.type ?? 'ReteICA') : ''
+  const ivaRetention = request?.retentions?.find(item => item.type?.toUpperCase() === 'RETEIVA' || (!item.type && item.id === 5))
+  const reteIvaId = ivaRetention ? taxOption(ivaRetention.id, ivaRetention.percentage ?? 0, 'RETENCION', 'ReteIVA') : ''
   return {
     billingNumber: invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`,
-    billingUuid: invoice.cufe ?? '', billingDate: invoice.issueDate, request, lines, taxes, reteIcaId,
+    billingUuid: invoice.cufe ?? '', billingDate: invoice.issueDate, request, lines, taxes, reteIcaId, reteIvaId,
   }
 }
