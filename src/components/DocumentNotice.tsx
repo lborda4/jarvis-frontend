@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Banner from './Banner'
+import { clientFacingError } from '../utils/clientFacingError'
 import './DocumentNotice.css'
 
 interface DocumentNoticeProps {
@@ -11,6 +12,7 @@ interface DocumentNoticeProps {
 }
 
 export default function DocumentNotice({ variant, title, message, onDismiss }: DocumentNoticeProps) {
+  if (variant === 'error') message = clientFacingError(message)
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
 

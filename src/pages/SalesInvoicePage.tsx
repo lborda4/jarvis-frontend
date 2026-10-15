@@ -199,7 +199,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       if (!active) return
       const options = rows.filter(row => row.name && row.code && Number.isSafeInteger(Number(row.code)) && Number(row.code) > 0)
       setRejectionTypes(options)
-      setRejectionsError(options.length ? '' : 'No hay motivos disponibles en el catálogo de NextPyme.')
+      setRejectionsError(options.length ? '' : 'No hay motivos disponibles en el catálogo de Jarvis.')
     }).catch(error => {
       if (active) setRejectionsError(getApiErrorMessage(error, 'No se pudieron cargar los motivos.'))
     }).finally(() => { if (active) setRejectionsLoading(false) })

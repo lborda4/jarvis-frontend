@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
+import JarvisDashboardPage from '../pages/JarvisDashboardPage'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import '../pages/AuthPages.css'
 
@@ -9,7 +10,6 @@ function DefaultAppRedirect() {
     requiresSetup,
     setupPath,
     isJarvisCompany,
-    isConfigured,
     isSupportDocumentEnabled,
     integrationMode,
   } = useIntegrationSetup()
@@ -21,6 +21,8 @@ function DefaultAppRedirect() {
       </div>
     )
   }
+
+  if (isJarvisCompany) return <JarvisDashboardPage />
 
   if (requiresSetup) {
     return (
@@ -34,10 +36,6 @@ function DefaultAppRedirect() {
 
   if (isSupportDocumentEnabled) {
     return <Navigate to="/documento-soporte" replace />
-  }
-
-  if (isJarvisCompany && isConfigured) {
-    return <Navigate to="/terceros" replace />
   }
 
   return <Navigate to="/documento-soporte" replace />

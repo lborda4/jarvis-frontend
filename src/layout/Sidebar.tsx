@@ -8,12 +8,16 @@ import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { WHATSAPP_SUPPORT_HREF } from '../constants/contact'
 import {
   AdminIcon,
+  HomeIcon,
   ChevronDownIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon,
   DocumentIcon,
   HelpIcon,
   PackageIcon,
+  SuppliersIcon,
+  TaxIcon,
+  PaymentCardIcon,
   // PulseIcon,
   SettingsIcon,
 } from '../components/icons/SidebarIcons'
@@ -75,6 +79,8 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     setupPath,
     isJarvisCompany,
     isJarvisCompanyConfigured,
+    isElectronicInvoiceResolutionConfigured,
+    isSupportDocumentResolutionConfigured,
     integrationMode,
     isConfigured,
     isSubscriptionActive,
@@ -110,11 +116,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         : 'normal'
 
   const navItems: NavItem[] = [
-    {
+    ...(isJarvisCompany ? [{ label: 'Inicio', to: '/inicio', icon: HomeIcon }] : []),
+    ...(!isJarvisCompany ? [{
       label: settingsLabel,
       to: setupPath,
       icon: SettingsIcon,
-    },
+    }] : []),
     ...(isJarvisCompany
       ? [
           {
@@ -122,7 +129,6 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             to: 'documentos-electronicos',
             icon: DocumentIcon,
             children: [
-              { label: 'Eventos RADIAN', to: '/eventos-radian', icon: DocumentIcon, featureEnabled: isJarvisCompanyConfigured },
               {
                 label: 'Factura de venta',
                 to: 'factura-venta-grupo',
@@ -146,6 +152,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                     },
                   ]
                 : []),
+              { label: 'Eventos RADIAN', to: '/eventos-radian', icon: DocumentIcon, featureEnabled: isJarvisCompanyConfigured },
             ],
           },
         ]
@@ -187,10 +194,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           to: 'categorias',
           icon: PackageIcon,
           children: [
-            { label: 'Productos', to: '/productos/listar' },
-            { label: 'Impuestos y retenciones', to: '/impuestos-retenciones' },
-            { label: 'Formas de pago', to: '/formas-de-pago' },
-            { label: 'Terceros', to: '/terceros' },
+            { label: 'Productos', to: '/productos/listar', icon: PackageIcon },
+            { label: 'Impuestos y retenciones', to: '/impuestos-retenciones', icon: TaxIcon },
+            { label: 'Formas de pago', to: '/formas-de-pago', icon: PaymentCardIcon },
+            { label: 'Terceros', to: '/terceros', icon: SuppliersIcon },
           ],
         }]
       : []),
@@ -207,6 +214,10 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         ]
       : []),
   ]
+
+  if (isJarvisCompany) {
+    navItems.push({ label: settingsLabel, to: setupPath, icon: SettingsIcon })
+  }
 
   const handleCompanyChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextCompanyId = event.target.value
@@ -268,7 +279,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       }
 
       return (
-        <div key={item.to} className={`app-sidebar__group${nested ? ' app-sidebar__group--nested' : ''}`}>
+        <div key={item.to} className={`app-sidebar__group${nested || item.to === 'categorias' ? ' app-sidebar__group--nested' : ''}`}>
           <button
             type="button"
             className={[
@@ -443,13 +454,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             </div>
           )}
 
-          {isJarvisCompany && isConfigured && !isSubscriptionActive && (
-            <p className="app-sidebar__setup-hint">
-              La configuración está guardada, pero la suscripción Jarvis no está activa. Solicita al administrador que revise el plan para habilitar la emisión de documentos.
-            </p>
-          )}
-
-          {requiresSetup && (
+          {requiresSetup && (!isJarvisCompany || !(isElectronicInvoiceResolutionConfigured || isSupportDocumentResolutionConfigured)) && (
             <p className="app-sidebar__setup-hint">
               {isJarvisCompany
                 ? 'Configura tu empresa y las resoluciones de facturación para habilitar todas las funcionalidades de JARVIS.'

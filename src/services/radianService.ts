@@ -62,3 +62,19 @@ export async function processRadianInvoices(
   }
   return { sent, interrupted }
 }
+
+export interface RadianSavedInvoice extends RadianInvoice { events: RadianStoredEvent[] }
+export async function fetchSavedRadianInvoices(): Promise<RadianSavedInvoice[]> {
+  const items: RadianSavedInvoice[] = []
+  let cursor: string | null = null
+  const seen = new Set<string>()
+  do {
+    const { data }: { data: { items: RadianSavedInvoice[]; nextCursor: string | null } } = await apiClient.get('/integrations/jarvis/radian/invoices', { params: cursor ? { cursor } : {} })
+    if (!Array.isArray(data?.items)) throw new Error('No se pudo recuperar el listado RADIAN.')
+    items.push(...data.items)
+    cursor = data.nextCursor || null
+    if (cursor && seen.has(cursor)) throw new Error('El listado RADIAN devolvió una página repetida.')
+    if (cursor) seen.add(cursor)
+  } while (cursor)
+  return items
+}

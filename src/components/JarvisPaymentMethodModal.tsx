@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import Button from './Button'
 import ErrorMessage from './ErrorMessage'
+import { isCreditPaymentMethod } from '../utils/paymentNegotiation'
 import Modal from './Modal'
 import { getApiErrorMessage } from '../services/apiClient'
 import { fetchJarvisCatalogs, type JarvisCatalogItem } from '../services/jarvisService'
@@ -14,6 +15,7 @@ export default function JarvisPaymentMethodModal({ editing, onClose, onSaved }: 
   onSaved: (item: JarvisPaymentMethod) => void
 }) {
   const [name, setName] = useState(editing?.name ?? '')
+  const [negotiation, setNegotiation] = useState<'CASH' | 'CREDIT'>(editing && isCreditPaymentMethod(editing) ? 'CREDIT' : 'CASH')
   const [methodId, setMethodId] = useState(String(editing?.nextpymeMethodId ?? ''))
   const [catalog, setCatalog] = useState<JarvisCatalogItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +36,7 @@ export default function JarvisPaymentMethodModal({ editing, onClose, onSaved }: 
       setError('Escribe un nombre y selecciona una forma de pago del catálogo.'); return
     }
     setSaving(true)
-    try { onSaved(await saveJarvisPaymentMethod({ name: name.trim(), nextpymeMethodId: Number(methodId) }, editing?.id)) }
+    try { onSaved(await saveJarvisPaymentMethod({ name: name.trim(), nextpymeMethodId: Number(methodId), negotiation }, editing?.id)) }
     catch (err) { setError(getApiErrorMessage(err, 'No se pudo guardar la forma de pago.')) }
     finally { setSaving(false) }
   }
@@ -44,16 +46,21 @@ export default function JarvisPaymentMethodModal({ editing, onClose, onSaved }: 
     <form onSubmit={submit}>
       <div className="terceros-page__form-grid">
         <div className="terceros-page__field">
+          <label htmlFor="payment-method-negotiation">Forma de negociación *</label>
+          <select id="payment-method-negotiation" value={negotiation} onChange={event => setNegotiation(event.target.value as 'CASH' | 'CREDIT')} disabled={saving} required>
+            <option value="CASH">Contado</option><option value="CREDIT">Crédito</option>
+          </select>
+        </div>
+        <div className="terceros-page__field">
           <label htmlFor="payment-method-name">Nombre *</label>
           <input id="payment-method-name" value={name} onChange={event => setName(event.target.value)} maxLength={120} required disabled={saving} placeholder="Ej. Transferencia Bancolombia" />
         </div>
         <div className="terceros-page__field">
-          <label htmlFor="payment-method-master">Forma de pago del catálogo *</label>
+          <label htmlFor="payment-method-master">Medio de pago electrónico *</label>
           <select id="payment-method-master" value={methodId} onChange={event => setMethodId(event.target.value)} required disabled={loading || saving}>
             <option value="">{loading ? 'Cargando catálogo…' : 'Selecciona una forma de pago'}</option>
             {catalog.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
-          <small>Relaciona tu forma de pago con una del catálogo de NextPyme.</small>
         </div>
       </div>
       {!loading && !catalog.length && <Button type="button" variant="outline" onClick={() => { setLoading(true); setError(null); setRevision(value => value + 1) }}>Reintentar catálogo</Button>}

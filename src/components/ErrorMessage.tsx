@@ -2,6 +2,7 @@ import Banner from './Banner'
 import { useState } from 'react'
 import DocumentNotice from './DocumentNotice'
 import { useIsJarvisIntegration } from '../context/IntegrationSetupContext'
+import { clientFacingError } from '../utils/clientFacingError'
 
 interface ErrorMessageProps {
   message: string
@@ -16,6 +17,7 @@ function FloatingError({ message }: { message: string }) {
 
 function ErrorMessage({ message, inline = false }: ErrorMessageProps) {
   const isJarvis = useIsJarvisIntegration()
+  message = clientFacingError(message)
   if (isJarvis && !inline) return <FloatingError key={message} message={message} />
   return <Banner variant="error" message={message} />
 }

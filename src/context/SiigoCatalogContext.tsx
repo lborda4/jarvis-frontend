@@ -523,7 +523,7 @@ export function useSiigoWorkspaceCatalog(config: DocumentWorkspaceConfig) {
           response.paymentMethods.map((item) => ({
             id: item.id,
             name: item.name,
-            type: item.type ?? 'NextPyme',
+            type: item.type ?? 'Jarvis',
           })),
         )
 

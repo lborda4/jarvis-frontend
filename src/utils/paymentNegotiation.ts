@@ -4,6 +4,7 @@ import type { PaymentEntry } from './paymentBalance'
 // The master payment method describes the payment instrument, not its terms:
 // Crédito clientes maps to Otro, whereas Tarjeta crédito is an immediate payment.
 export function isCreditPaymentMethod(method: JarvisPaymentMethod): boolean {
+  if (method.negotiation) return method.negotiation === 'CREDIT'
   const name = method.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
   return /^credito\b/.test(name) || /\bcuentas? por (cobrar|pagar)\b/.test(name)
 }

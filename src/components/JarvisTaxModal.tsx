@@ -205,7 +205,7 @@ function JarvisTaxModal({
             >
               <option value="">{catalogLoading ? 'Cargando tipos…' : 'Selecciona un tipo'}</option>
               {form.taxType && !selectedMaster && <option value={form.taxType} disabled>{form.taxType} (selecciona un tipo vigente)</option>}
-              {taxTypes.map(tax => <option key={tax.id} value={tax.name}>{tax.name}</option>)}
+              {taxTypes.filter(tax => normalizeJarvisTaxType(tax.name) !== 'ica').map(tax => <option key={tax.id} value={tax.name}>{tax.name}</option>)}
             </select>
           </div>
 

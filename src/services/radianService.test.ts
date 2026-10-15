@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { apiClient } from './apiClient'
-import { fetchRadianHistory, lookupRadianInvoice, processRadianInvoices, sendRadianEvent, type RadianStatus } from './radianService'
-vi.mock('./apiClient', () => ({ apiClient: { post: vi.fn() } }))
+import { fetchSavedRadianInvoices, fetchRadianHistory, lookupRadianInvoice, processRadianInvoices, sendRadianEvent, type RadianStatus } from './radianService'
+vi.mock('./apiClient', () => ({ apiClient: { post: vi.fn(), get: vi.fn() } }))
 beforeEach(() => vi.clearAllMocks())
 
 it('consulta los datos de la factura para un CUFE agregado manualmente', async () => {
@@ -134,4 +134,11 @@ it('no continúa con aceptación si la recepción vuelve a fallar', async () => 
   vi.mocked(apiClient.post).mockResolvedValue({ data: { status: 'failed' } })
   expect(await processRadianInvoices(['invoice-a'], get, set, () => true)).toEqual({ sent: 0, interrupted: 1 })
   expect(apiClient.post).toHaveBeenCalledTimes(1)
+})
+
+it('recupera la lista del servidor por páginas aunque no exista caché local', async () => {
+  vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { items: [{ cufe: 'a', events: [{ eventId: 1, status: 'sent', cude: 'event-cude' }] }], nextCursor: 'a' } }).mockResolvedValueOnce({ data: { items: [{ cufe: 'b', events: [] }], nextCursor: null } })
+  const result = await fetchSavedRadianInvoices()
+  expect(result.map(row => row.cufe)).toEqual(['a', 'b'])
+  expect(apiClient.get).toHaveBeenNthCalledWith(2, '/integrations/jarvis/radian/invoices', { params: { cursor: 'a' } })
 })

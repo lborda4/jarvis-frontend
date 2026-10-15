@@ -16,7 +16,7 @@ import {
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
 
-const DEFAULT_APP_PATH = '/documento-soporte'
+const DEFAULT_APP_PATH = '/inicio'
 const ADMIN_APP_PATH = '/admin'
 /** Si el login se queda colgado por cold start, remonta y reintenta una vez. */
 const LOGIN_STUCK_RERENDER_MS = 15_000

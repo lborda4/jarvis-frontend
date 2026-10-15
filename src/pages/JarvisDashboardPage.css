@@ -1,0 +1,77 @@
+.jarvis-dashboard { position: relative; max-width: 1600px; margin: 0 auto; padding: 20px 24px; color: #10213b; }
+.jarvis-dashboard__top { float: right; margin: 0 0 12px 20px; font-size: 13px; }
+.jarvis-dashboard__month { display: inline-flex; align-items: center; gap: .65rem; padding: .5rem .75rem; border: 1px solid #d4dfe7; border-radius: 9px; background: white; }
+.jarvis-dashboard__month svg { width: 20px; height: 20px; color: #627287; }
+.jarvis-dashboard__month input { border: 0; background: transparent; color: #142641; font: inherit; min-width: 0; }
+.jarvis-dashboard__welcome { margin: 0 0 18px; }
+.jarvis-dashboard__welcome h1 { margin: 0 0 3px; font-size: clamp(24px, 2.1vw, 30px); letter-spacing: -.045em; line-height: 1.2; }
+.jarvis-dashboard__welcome h2 { margin: 3px 0; font-size: 17px; }
+.jarvis-dashboard__welcome p { color: #657184; margin: 4px 0; font-size: 13px; line-height: 1.4; }
+.jarvis-dashboard__metrics { clear: both; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.jarvis-dashboard__metric, .jarvis-dashboard__card { border: 1px solid #e3eaf0; border-radius: 13px; background: white; box-shadow: 0 2px 7px #18304b03; }
+.jarvis-dashboard__metric { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: start; gap: 10px 12px; padding: 14px; }
+.jarvis-dashboard__metric > div { flex: 1; min-width: 0; }
+.jarvis-dashboard__metric h3 { font-size: 13px; font-weight: 500; margin: 2px 0 6px; }
+.jarvis-dashboard__metric strong { display: block; font-size: clamp(20px, 1.8vw, 27px); letter-spacing: -.025em; overflow-wrap: anywhere; line-height: 1.2; }
+.jarvis-dashboard__metric strong span { color: #657184; font-size: .85rem; font-weight: 500; }
+.jarvis-dashboard__metric small { display: block; color: #798596; margin-top: .5rem; font-size: .65rem; }
+.jarvis-dashboard__quick-action { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 7px 10px; box-sizing: border-box; border: 1px solid #079f99; border-radius: 7px; background: #079f99; color: white; text-decoration: none; font-size: 13px; font-weight: 600; }
+.jarvis-dashboard__quick-action:hover { filter: brightness(.96); }
+.jarvis-dashboard__quick-action:focus-visible { outline: 3px solid #60c7c1; outline-offset: 3px; }
+.jarvis-dashboard__quick-action svg { width: 21px; height: 21px; flex-shrink: 0; }
+.jarvis-dashboard__quick-action--outline { border-color: #b5dcee; background: #eff9ff; color: #1186c3; }
+.jarvis-dashboard__products { margin-top: 12px; }
+.jarvis-dashboard__products header { margin-bottom: .75rem; }
+.jarvis-dashboard__products h2 svg { color: #0a9f98; }
+.jarvis-dashboard__products-scroll { overflow-x: auto; }
+.jarvis-dashboard__products table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.jarvis-dashboard__products th { font-weight: 500; color: #748197; font-size: .72rem; }
+.jarvis-dashboard__products :is(th, td) { padding: 6px 8px; border-bottom: 1px solid #edf1f5; }
+.jarvis-dashboard__products td { color: #637188; }
+.jarvis-dashboard__products td strong { color: #10213b; white-space: nowrap; }
+.jarvis-dashboard__products td:last-child { width: 40%; }
+.jarvis-dashboard__product-bar { height: 12px; border-radius: 4px; background: #e9eef3; overflow: hidden; min-width: 80px; }
+.jarvis-dashboard__product-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #08a7a0, #07968e); }
+.jarvis-dashboard__products-note { margin-bottom: 0; color: #7e8b9c; font-size: .68rem; }
+.jarvis-dashboard__metric-icon { display: inline-flex; align-items: center; justify-content: center; height: 48px; border-radius: 10px; color: #0b9e98; background: linear-gradient(140deg, #edfbf8, #dbf7f2); font-size: 30px; font-weight: 500; }
+.jarvis-dashboard__metric-icon svg { width: 30px; height: 30px; }
+.jarvis-dashboard__metric-icon--blue { color: #168fdb; background: #edf7ff; }
+.jarvis-dashboard__metric-icon--purple { color: #8555e9; background: #f4efff; }
+.jarvis-dashboard__quota { height: 9px; margin-top: .65rem; border-radius: 20px; background: #eaf0f4; overflow: hidden; }
+.jarvis-dashboard__quota span { display: block; height: 100%; background: linear-gradient(90deg, #079b98, #11b3a8); border-radius: inherit; }
+.jarvis-dashboard__panels { display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(270px, 1fr); gap: 12px; }
+.jarvis-dashboard__card { padding: 16px; min-width: 0; }
+.jarvis-dashboard__card header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.jarvis-dashboard__card h2 { display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 0; }
+.jarvis-dashboard__card h2 > span { color: #0b9f99; font-size: 1.7rem; }
+.jarvis-dashboard__card h2 svg { width: 24px; height: 24px; flex-shrink: 0; color: #45617d; }
+.jarvis-dashboard__period { padding: .6rem .75rem; font-size: .7rem; border: 1px solid #e0e7ee; border-radius: 8px; white-space: nowrap; }
+.jarvis-dashboard__plot { display: flex; height: 190px; padding-top: 8px; }
+.jarvis-dashboard__axis { display: flex; flex-direction: column; justify-content: space-between; padding: 0 .7rem 1.9rem 0; width: 84px; flex-shrink: 0; text-align: right; color: #6c798c; font-size: .65rem; }
+.jarvis-dashboard__bars { display: flex; justify-content: space-around; gap: .5rem; position: relative; flex: 1; min-width: 0; }
+.jarvis-dashboard__grid { display: flex; flex-direction: column; justify-content: space-between; position: absolute; inset: 0 0 1.9rem; border-left: 1px solid #dce4ec; pointer-events: none; }
+.jarvis-dashboard__grid i { display: block; border-top: 1px solid #eaf0f4; }
+.jarvis-dashboard__bar-month { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; min-width: 0; position: relative; z-index: 1; }
+.jarvis-dashboard__bar-pair { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 5px; padding-inline: 3px; }
+.jarvis-dashboard__bar { width: 27px; max-width: 40%; border-radius: 3px 3px 0 0; transition: height .3s ease; }
+.jarvis-dashboard__bar--sales { background: linear-gradient(90deg, #079990, #0ab1a3); }
+.jarvis-dashboard__bar--support { background: linear-gradient(90deg, #39a8ee, #60c0f5); }
+.jarvis-dashboard__bar-month > span { display: block; height: 1.9rem; padding-top: .5rem; text-align: center; color: #6d7a8d; font-size: .65rem; white-space: nowrap; }
+.jarvis-dashboard__legend { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 10px 0 6px; font-size: 12px; color: #627186; }
+.jarvis-dashboard__legend span { display: inline-flex; align-items: center; gap: .5rem; }
+.jarvis-dashboard__legend i { height: 12px; width: 12px; border-radius: 50%; background: #0a9f98; }
+.jarvis-dashboard__legend span:nth-child(2) i { background: #4bb3f0; }
+.jarvis-dashboard__taxes dl { margin: 0; font-size: 12px; }
+.jarvis-dashboard__taxes dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid #edf1f5; }
+.jarvis-dashboard__taxes dt { color: #657184; }
+.jarvis-dashboard__taxes dd { margin: 0; font-weight: 700; white-space: nowrap; }
+.jarvis-dashboard__taxes p, .jarvis-dashboard__empty { color: #788595; font-size: .73rem; line-height: 1.5; }
+.jarvis-dashboard__taxes > a { display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #d6e6eb; padding: 9px; border-radius: 8px; color: #078881; text-decoration: none; font-size: 12px; margin-top: 10px; }
+.jarvis-dashboard__taxes > a svg { width: 18px; height: 18px; }
+.jarvis-dashboard__chart-detail { color: #718092; font-size: .7rem; margin-top: .75rem; }
+.jarvis-dashboard__chart-detail summary { cursor: pointer; }
+.jarvis-dashboard__source { color: #7e8b9c; font-size: .68rem; line-height: 1.5; margin-top: 1rem; }
+.jarvis-dashboard__loading { color: #627186; font-size: .8rem; }
+@media(max-width: 1000px) { .jarvis-dashboard__panels { grid-template-columns: 1fr; } }
+@media(max-width: 650px) { .jarvis-dashboard__top { float: none; display: flex; justify-content: flex-end; margin: 0 0 12px; } .jarvis-dashboard__metrics { grid-template-columns: 1fr; } }
+@media(max-width: 650px) { .jarvis-dashboard { padding: 1rem; } .jarvis-dashboard__metric { grid-template-columns: 38px minmax(0, 1fr); padding: .85rem; gap: .6rem; } .jarvis-dashboard__metric-icon { flex-basis: 38px; height: 42px; } .jarvis-dashboard__metric strong { font-size: 1.1rem; } .jarvis-dashboard__card { padding: 1rem .75rem; } .jarvis-dashboard__card header { flex-wrap: wrap; } .jarvis-dashboard__axis { width: 65px; font-size: .55rem; } .jarvis-dashboard__bar-month > span { font-size: .55rem; white-space: normal; } .jarvis-dashboard__banner { padding: 1rem; gap: .5rem; flex-direction: column; text-align: center; } .jarvis-dashboard__robot { width: 160px; } .jarvis-dashboard__desktop-break { display: none; } }

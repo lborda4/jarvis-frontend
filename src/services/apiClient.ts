@@ -1,3 +1,4 @@
+import { clientFacingError } from '../utils/clientFacingError'
 import { companyQueryKey, getActiveCompanyId, peekCachedQuery } from './queryCache'
 import axios, {
   type AxiosError,
@@ -134,7 +135,7 @@ export function getApiErrorMessage(
   fallbackMessage: string,
 ): string {
   const sanitize = (message: string) =>
-    message
+    clientFacingError(message, fallbackMessage)
       .replace(/NEXTPYME_API_TOKEN/gi, 'el token de integración')
       .replace(/\s*(?:en|a|de|hacia|vía|via)\s+Next\s*Pyme\b/gi, '')
       .replace(/\bNext\s*Pyme\b/gi, '')

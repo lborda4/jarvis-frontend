@@ -6,8 +6,9 @@ export interface JarvisPaymentMethod {
   name: string
   nextpymeMethodId: number
   nextpymeMethodName: string
+  negotiation?: 'CASH' | 'CREDIT'
 }
-export type SaveJarvisPaymentMethod = Pick<JarvisPaymentMethod, 'name' | 'nextpymeMethodId'>
+export type SaveJarvisPaymentMethod = Pick<JarvisPaymentMethod, 'name' | 'nextpymeMethodId' | 'negotiation'>
 export interface JarvisPaymentMethodsList { items: JarvisPaymentMethod[]; total: number }
 const endpoint = '/integrations/jarvis/payment-methods'
 export const paymentMethodsQueryKey = () => companyQueryKey(['jarvis', 'payment-methods'])

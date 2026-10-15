@@ -6,6 +6,14 @@ const names = ['Efectivo', 'Crédito clientes', 'Transferencia bancaria', 'Tarje
 const methods: JarvisPaymentMethod[] = names.map((name, index) => ({ id: String(index), name, nextpymeMethodId: index + 1, nextpymeMethodName: 'Otro' }))
 
 describe('medios de pago por negociación', () => {
+  it('prioriza la negociación guardada sobre el nombre del medio', () => {
+    const explicit: JarvisPaymentMethod[] = [
+      { ...methods[0], negotiation: 'CREDIT' },
+      { ...methods[1], negotiation: 'CASH' },
+    ]
+    expect(paymentMethodsForNegotiation(explicit, true)).toEqual([explicit[0]])
+    expect(paymentMethodsForNegotiation(explicit, false)).toEqual([explicit[1]])
+  })
   it('separa el crédito al cliente de las tarjetas y transferencias', () => {
     expect(paymentMethodsForNegotiation(methods, true).map(method => method.name)).toEqual(['Crédito clientes', 'Crédito proveedores', 'Cuentas por cobrar'])
     expect(paymentMethodsForNegotiation(methods, false).map(method => method.name)).toEqual(['Efectivo', 'Transferencia bancaria', 'Tarjeta crédito', 'Tarjeta débito', 'Otros'])

@@ -24,7 +24,7 @@ function RegisterPage() {
   const [submitIsSlow, setSubmitIsSlow] = useState(false)
 
   if (!isLoading && isAuthenticated) {
-    return <Navigate to="/documento-soporte" replace />
+    return <Navigate to="/inicio" replace />
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -56,7 +56,7 @@ function RegisterPage() {
         acceptPrivacyPolicy: true,
       })
       setAuthEntryMode('register')
-      navigate('/documento-soporte', { replace: true })
+      navigate('/inicio', { replace: true })
     } catch (error) {
       setErrorMessage(
         getAuthErrorMessage(

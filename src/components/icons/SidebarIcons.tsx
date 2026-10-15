@@ -2,6 +2,26 @@ interface IconProps {
   className?: string
 }
 
+export function TaxIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 2.5 7 4l3-1.5L13 4l2-1.5v15L13 16l-3 1.5L7 16l-2 1.5v-15Z" />
+      <path d="m7.5 12.5 5-5" />
+      <circle cx="8" cy="8" r=".75" />
+      <circle cx="12" cy="12" r=".75" />
+    </svg>
+  )
+}
+
+export function PaymentCardIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="4.5" width="15" height="11" rx="2" />
+      <path d="M2.5 8h15M5.5 12h3M12 12h2.5" />
+    </svg>
+  )
+}
+
 export function HomeIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">

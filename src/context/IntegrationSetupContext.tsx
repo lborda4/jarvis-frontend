@@ -358,7 +358,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   // numeración la pone el comprobante de cargue, no una resolución propia.
   const isSupportDocumentEnabled =
     (isJarvisCompany ? isJarvisCompanyConfigured : isSiigoFullyConfigured) &&
-    isSubscriptionActive &&
+    (isJarvisCompany || isSubscriptionActive) &&
     hasSupportDocumentAccess &&
     (isSiigoCompany ||
       (isJarvisCompany && isSupportDocumentResolutionConfigured))
@@ -372,7 +372,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   const isSalesInvoiceEnabled =
     isJarvisCompany &&
     isJarvisCompanyConfigured &&
-    isSubscriptionActive &&
     isElectronicInvoiceResolutionConfigured
   /** Nota crédito: Jarvis con FV habilitada, o SIIGO con token NextPyme. */
   const isCreditNoteEnabled =

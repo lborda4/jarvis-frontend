@@ -11,3 +11,5 @@ export const WHATSAPP_DEMO_HREF = buildWhatsappHref(
 export const WHATSAPP_SUPPORT_HREF = buildWhatsappHref(
   'Hola, necesito ayuda usando JARVIS',
 )
+
+export const WHATSAPP_DOCUMENTS_HREF = buildWhatsappHref('Hola, quiero comprar más documentos para mi empresa en JARVIS')

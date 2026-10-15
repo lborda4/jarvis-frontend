@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { isCreditPaymentMethod } from '../utils/paymentNegotiation'
 import Button from '../components/Button'
 import CatalogRowActions from '../components/CatalogRowActions'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -60,9 +61,9 @@ export default function JarvisPaymentMethodsPage() {
       <div className="integration-card-header"><h2>Formas de pago</h2><p>{filtered.length} {filtered.length === 1 ? 'registro' : 'registros'}</p></div>
       {loading ? <LoadingIndicator message="Cargando formas de pago…" /> : !filtered.length ? <div className="jarvis-taxes-page__empty"><p>{search ? 'No encontramos formas de pago con esa búsqueda.' : 'Crea tu primera forma de pago para usarla al emitir documentos.'}</p></div> : <>
         <div className="jarvis-taxes-page__table-wrap"><table className="integration-table">
-          <thead><tr><th>Nombre</th><th>Forma de pago del catálogo</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Negociación</th><th>Medio de pago electrónico</th><th>Acciones</th></tr></thead>
           <tbody>{filtered.slice((currentPage - 1) * 10, currentPage * 10).map(item => <tr key={item.id}>
-            <td><strong>{item.name}</strong></td><td>{item.nextpymeMethodName}</td>
+            <td><strong>{item.name}</strong></td><td>{isCreditPaymentMethod(item) ? 'Crédito' : 'Contado'}</td><td>{item.nextpymeMethodName}</td>
             <td><CatalogRowActions name={item.name} disabled={deleting} onEdit={() => { setEditing(item); setOpen(true); setSuccess(null) }} onDelete={() => { setPendingDelete(item); setSuccess(null) }} /></td>
           </tr>)}</tbody>
         </table></div>

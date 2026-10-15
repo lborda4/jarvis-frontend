@@ -730,3 +730,59 @@ body:has(.app-layout),
 }
 .app-sidebar__nav::-webkit-scrollbar-thumb:hover { background: rgba(197, 208, 220, 0.55); }
 .app-sidebar__nav::-webkit-scrollbar-button { display: none; height: 0; }
+
+/* Tipografía y jerarquía discretas para la navegación de Jarvis. */
+.app-layout--jarvis .app-sidebar {
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 14px;
+  background: linear-gradient(180deg, #0b2331 0%, #091d2a 55%, #081923 100%);
+}
+.app-layout--jarvis .app-sidebar:not(.app-sidebar--collapsed) { padding: 14px 10px; }
+.app-layout--jarvis .app-sidebar__brand { gap: 12px; margin-bottom: 20px; padding: 0 4px; }
+.app-layout--jarvis .app-sidebar__brand-title,
+.app-layout--jarvis .app-sidebar__company-select { font-size: 12px; font-weight: 500; }
+.app-layout--jarvis .app-sidebar__collapse-btn { width: 30px; height: 30px; flex-shrink: 0; }
+.app-layout--jarvis .app-sidebar__nav { gap: 5px; }
+.app-layout--jarvis .app-sidebar__link:not(.app-sidebar__link--icon-only) {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 9px 10px;
+  gap: 12px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.app-layout--jarvis .app-sidebar__link-icon { width: 21px; height: 21px; flex-shrink: 0; }
+.app-layout--jarvis .app-sidebar__group-chevron { width: 12px; height: 12px; }
+.app-layout--jarvis .app-sidebar__group-toggle--active { color: #e8eef5; }
+.app-layout--jarvis .app-sidebar__link--active { background: linear-gradient(100deg, #039d9d, #008b91); box-shadow: 0 3px 12px #00a5a51f; }
+.app-layout--jarvis .app-sidebar__group-children { gap: 0; padding: 0 0 2px 33px; }
+.app-layout--jarvis .app-sidebar__group--nested > .app-sidebar__group-children { padding-left: 33px; }
+.app-layout--jarvis .app-sidebar__group-children .app-sidebar__group-children { padding-left: 12px; }
+.app-layout--jarvis .app-sidebar__child-link,
+.app-layout--jarvis .app-sidebar__group-children .app-sidebar__group-toggle {
+  box-sizing: border-box;
+  min-height: 31px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  border-radius: 5px;
+}
+.app-layout--jarvis .app-sidebar__group-children .app-sidebar__link-icon,
+.app-layout--jarvis .app-sidebar__child-dot { display: none; }
+.app-layout--jarvis .app-sidebar__child-link--active { background: #ffffff0d; color: #62d9d0; box-shadow: none; font-weight: 500; }
+.app-layout--jarvis .app-sidebar__footer { margin-top: 14px; padding-top: 14px; gap: 12px; }
+.app-layout--jarvis .app-sidebar__profile { gap: 10px; }
+.app-layout--jarvis .app-sidebar__profile-name { font-size: 13px; font-weight: 500; }
+.app-layout--jarvis .app-sidebar__profile-role { font-size: 11px; }
+.app-layout--jarvis .app-sidebar__avatar { width: 36px; height: 36px; font-size: 13px; }
+.app-layout--jarvis .app-sidebar__logout-btn { padding: 10px; font-size: 13px; font-weight: 400; border-radius: 7px; }
+@media (min-width: 901px) {
+  .app-layout--jarvis { --app-sidebar-width: 228px; }
+  .app-layout--jarvis .app-sidebar__nav > .app-sidebar__group { margin-bottom: 0; }
+}

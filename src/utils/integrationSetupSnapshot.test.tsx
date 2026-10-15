@@ -82,3 +82,27 @@ it.each([[true, false], [false, true], [true, true], [false, false]])(
       .toContain(`${sales}:${support}:${!sales && !support}`)
   },
 )
+
+it('permite abrir factura de venta con su resolución aunque el plan esté pendiente', () => {
+  saveIntegrationSetupSnapshot('user-1', 'company-1', {
+    ...snapshot, isSubscriptionActive: false,
+    isElectronicInvoiceResolutionConfigured: true, isSupportDocumentResolutionConfigured: false,
+  })
+  function AccessProbe() {
+    const setup = useIntegrationSetup()
+    return <p>{String(setup.isSalesInvoiceEnabled)}:{String(setup.isSupportDocumentEnabled)}:{String(setup.isCreditNoteEnabled)}</p>
+  }
+  expect(renderToStaticMarkup(<IntegrationSetupProvider><AccessProbe /></IntegrationSetupProvider>)).toContain('true:false:true')
+})
+
+it('permite abrir soporte con su resolución sin exigir la de ventas ni un plan activo', () => {
+  saveIntegrationSetupSnapshot('user-1', 'company-1', {
+    ...snapshot, isSubscriptionActive: false,
+    isElectronicInvoiceResolutionConfigured: false, isSupportDocumentResolutionConfigured: true,
+  })
+  function AccessProbe() {
+    const setup = useIntegrationSetup()
+    return <p>{String(setup.isSalesInvoiceEnabled)}:{String(setup.isSupportDocumentEnabled)}</p>
+  }
+  expect(renderToStaticMarkup(<IntegrationSetupProvider><AccessProbe /></IntegrationSetupProvider>)).toContain('false:true')
+})
