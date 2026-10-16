@@ -1,4 +1,5 @@
 import type {
+  AdminPlan,
   AdminBoldCredentialsStatus,
   SaveAdminBoldCredentialsRequest,
   BoldBindedTerminalsResponse,
@@ -47,11 +48,21 @@ export async function selectAdminCompanyIntegration(companyId: string, provider:
   )).data
 }
 
+export async function addAdminCompanyIntegration(companyId: string, provider: IntegrationProvider): Promise<CreateAdminCompanyResponse> {
+  return (await apiClient.post<CreateAdminCompanyResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/integrations/${provider}`,
+  )).data
+}
+
 export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingCycle: 'MONTHLY' | 'ANNUAL' }) {
   const { data } = await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/tracking`, request)
   return data.company
 }
 const ADMIN_PLANS_ENDPOINT = '/admin/plans'
+export async function updateAdminPlan(planId: string, request: { name: string; documentLimit: number | null }): Promise<AdminPlan> {
+  const { data } = await apiClient.patch<{ plan: AdminPlan }>(`${ADMIN_PLANS_ENDPOINT}/${encodeURIComponent(planId)}`, request)
+  return data.plan
+}
 const ADMIN_CITIES_ENDPOINT = '/admin/cities'
 const ADMIN_RUT_PARSE_ENDPOINT = '/admin/companies/rut/parse'
 const BOLD_BINDED_TERMINALS_ENDPOINT = '/bold/payments/binded-terminals'

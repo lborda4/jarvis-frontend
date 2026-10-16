@@ -5,6 +5,7 @@ import './AdminSidebar.css'
 
 const sections = [
   { id: 'jarvis', label: 'Jarvis', Icon: PackageIcon },
+  { id: 'plans', label: 'Planes', Icon: PackageIcon },
   { id: 'bold', label: 'Bold', Icon: HomeIcon },
   { id: 'tracking', label: 'Seguimiento', Icon: AdminIcon },
 ] as const

@@ -1,4 +1,5 @@
 import AdminSidebar from '../components/AdminSidebar'
+import AdminPlans from '../components/AdminPlans'
 import AdminDocumentPackages from '../components/AdminDocumentPackages'
 import AdminBoldSettings from '../components/AdminBoldSettings'
 import AdminTracking from '../components/AdminTracking'
@@ -13,7 +14,7 @@ import SuccessMessage from '../components/SuccessMessage'
 import { useAuth } from '../context/AuthContext'
 import {
   createAdminCompany,
-  selectAdminCompanyIntegration,
+  addAdminCompanyIntegration,
   fetchAdminCities,
   fetchAdminCompanies,
   fetchAdminPlans,
@@ -99,7 +100,7 @@ function formatResponsible(
 
 function AdminPage() {
   const [switchingIntegrationCompanyId, setSwitchingIntegrationCompanyId] = useState<string | null>(null)
-  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking'>('jarvis')
+  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking' | 'plans'>('jarvis')
   const [commercial, setCommercial] = useState('')
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
   const { logout } = useAuth()
@@ -750,6 +751,12 @@ function AdminPage() {
         description="Gestione empresas, integraciones, planes y suscripciones."
       />
 
+      <div id="admin-panel-plans" role="tabpanel" aria-labelledby="admin-tab-plans" hidden={activeAdminTab !== 'plans'}>
+        {activeAdminTab === 'plans' && <AdminPlans plans={plans} loading={isLoading} onUpdated={plan => {
+          setPlans(current => current.map(item => item.id === plan.id ? plan : item))
+          setCompanies(current => current.map(company => ({ ...company, integrations: company.integrations.map(integration => integration.plan?.id === plan.id ? { ...integration, plan } : integration) })))
+        }} />}
+      </div>
       <div id="admin-panel-bold" role="tabpanel" aria-labelledby="admin-tab-bold" hidden={activeAdminTab !== 'bold'}>
         {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
       </div>
@@ -1075,12 +1082,12 @@ function AdminPage() {
       {[INTEGRATION_PROVIDER.SIIGO, INTEGRATION_PROVIDER.JARVIS].map(provider => {
         const rows = companies.filter(company => company.integrations.some(item => item.provider === provider));
         const columns = provider === INTEGRATION_PROVIDER.SIIGO
-          ? [1, 2, 3, 6, 7, 8, 12, 14]
-          : [1, 2, 6, 9, 12, 13];
-        const headings = ['C?digo de invitaci?n', 'NIT', 'Empresa', 'Descripci?n', 'Tipo', 'Persona a cargo', 'Integraci?n', 'Plan', 'Documentos', 'L?mite de documentos', 'Suscripci?n', 'Creada', 'Token NextPyme', 'IDSoftware', 'Ciudad'];
+          ? [1, 2, 14, 3, 6, 7, 8, 11, 13]
+          : [1, 2, 14, 6, 7, 11, 12];
+        const headings = ['Código de invitación', 'NIT', 'Empresa', 'Descripción', 'Tipo', 'Persona a cargo', 'Integración', 'Plan', 'Documentos', 'Suscripción', 'Creada', 'Token NextPyme', 'IDSoftware', 'Ciudad', 'Correo'];
         return <section className="admin-card" key={provider}>
-          <div className="admin-card__header"><h2>Empresas con integraci?n {formatProviderLabel(provider)}</h2></div>
-          {isLoading ? <LoadingIndicator message="Cargando empresas..." /> : rows.length === 0 ? <p className="admin-empty">No hay empresas con esta integraci?n.</p> :
+          <div className="admin-card__header"><h2>Empresas con integración {formatProviderLabel(provider)}</h2></div>
+          {isLoading ? <LoadingIndicator message="Cargando empresas..." /> : rows.length === 0 ? <p className="admin-empty">No hay empresas con esta integración.</p> :
             <div className="admin-table-wrapper"><table className="admin-table">
               <thead><tr>{columns.map(index => <th key={index}>{headings[index]}</th>)}</tr></thead>
               <tbody>{rows.map(company => {
@@ -1173,30 +1180,31 @@ function AdminPage() {
                   <td>{formatPersonType(company.personType)}</td>,
                   <td>{formatResponsible(company.responsible)}</td>,
                   <td>
+                      <div className="admin-integration-stack">
+                        {company.integrations.map(integration => <span key={integration.id}>{formatProviderLabel(integration.provider)}</span>)}
+                      </div>
                       <select
-                        aria-label={`Integración de ${company.name}`}
-                        value={company.integrations.some(item => item.provider === INTEGRATION_PROVIDER.SIIGO) ? INTEGRATION_PROVIDER.SIIGO : company.integrations.some(item => item.provider === INTEGRATION_PROVIDER.JARVIS) ? INTEGRATION_PROVIDER.JARVIS : ''}
-                        disabled={switchingIntegrationCompanyId !== null}
+                        aria-label={`Agregar integración a ${company.name}`}
+                        value=""
+                        disabled={switchingIntegrationCompanyId !== null || Object.values(INTEGRATION_PROVIDER).every(provider => company.integrations.some(item => item.provider === provider))}
                         onChange={async event => {
                           const provider = event.target.value as IntegrationProvider
                           setSwitchingIntegrationCompanyId(company.id)
                           setErrorMessage(null)
                           try {
-                            const response = await selectAdminCompanyIntegration(company.id, provider)
+                            const response = await addAdminCompanyIntegration(company.id, provider)
                             setCompanies(current => current.map(item => item.id === company.id ? response.company : item))
-                            setSuccessMessage(`Integración ${formatProviderLabel(provider)} seleccionada para ${company.name}.`)
+                            setSuccessMessage(`Integración ${formatProviderLabel(provider)} agregada a ${company.name}.`)
                           } catch (error) {
-                            setErrorMessage(getApiErrorMessage(error, 'No se pudo cambiar la integración.'))
+                            setErrorMessage(getApiErrorMessage(error, 'No se pudo agregar la integración.'))
                           } finally {
                             setSwitchingIntegrationCompanyId(null)
                           }
                         }}
                       >
-                        <option value="" disabled>Elegir integración</option>
-                        <option value={INTEGRATION_PROVIDER.SIIGO}>SIIGO</option>
-                        <option value={INTEGRATION_PROVIDER.JARVIS}>Jarvis</option>
+                        <option value="" disabled>{switchingIntegrationCompanyId === company.id ? 'Agregando...' : 'Agregar integración'}</option>
+                        {Object.values(INTEGRATION_PROVIDER).filter(provider => !company.integrations.some(item => item.provider === provider)).map(provider => <option key={provider} value={provider}>{formatProviderLabel(provider)}</option>)}
                       </select>
-                      {company.integrations.some(item => item.provider === INTEGRATION_PROVIDER.BOLD) && <small> · Bold</small>}
                     </td>,
                   <td>
                         {company.integrations.length === 0 ? (
@@ -1237,7 +1245,7 @@ function AdminPage() {
                                     )}
                                     {providerPlans.map((plan) => (
                                       <option key={plan.id} value={plan.id}>
-                                        {formatPlanName(plan)}
+                                        {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
                                       </option>
                                     ))}
                                   </select>
@@ -1299,7 +1307,6 @@ function AdminPage() {
                           </div>
                         )}
                       </td>,
-                  <td>{company.integrations.find(item => item.provider === INTEGRATION_PROVIDER.JARVIS)?.plan?.documentLimit ?? 'Sin l?mite'}</td>,
                   <td>
                         {company.integrations.length === 0 ? (
                           '—'
@@ -1523,7 +1530,8 @@ function AdminPage() {
                             </button>
                           </div>
                         )}
-                      </td>
+                      </td>,
+                  <td>{company.email?.trim() || 'Sin correo'}</td>
                 ];
                 return <tr key={company.id}>{columns.map(index => <Fragment key={index}>{cells[index]}</Fragment>)}</tr>;
               })}</tbody>

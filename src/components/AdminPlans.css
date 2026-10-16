@@ -1,0 +1,9 @@
+.admin-plans { display: grid; gap: 1.5rem; }
+.admin-plan-editor { padding: 1rem 0; border-top: 1px solid var(--jarvis-gray-300, #dbe3ed); }
+.admin-plan-editor__summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.admin-plan-editor h3, .admin-plan-editor p { margin: 0 0 .5rem; }
+.admin-plan-editor .admin-form { max-width: 36rem; }
+.admin-plan-editor__actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.admin-plan-editor button { padding: .6rem 1rem; border: 1px solid #cbd5e1; border-radius: .5rem; background: #fff; color: #0f766e; font: inherit; cursor: pointer; }
+.admin-plan-editor button:disabled { opacity: .6; cursor: wait; }
+.admin-plan-editor__notice { color: var(--jarvis-text-muted, #64748b); font-size: .9rem; }

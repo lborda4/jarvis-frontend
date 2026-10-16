@@ -58,6 +58,7 @@ export interface AdminIntegrationItem {
 }
 
 export interface AdminCompanyListItem {
+  email?: string | null
   commercial?: string | null
   billingCycle?: 'MONTHLY' | 'ANNUAL' | null
   subscriptionDueDate?: string | null
