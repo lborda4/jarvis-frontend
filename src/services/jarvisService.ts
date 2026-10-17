@@ -137,6 +137,7 @@ export interface CreateJarvisInvoiceItem {
 }
 
 export interface CreateJarvisInvoiceRequest {
+  sellerIds?: string[]
   number?: number
   prefix?: string
   billingReference?: { number: string; uuid: string; issueDate: string }
@@ -187,7 +188,7 @@ export async function fetchJarvisInvoicePdfData(id: string): Promise<import('../
 }
 
 export async function sendJarvisDocumentEmail(id: string, request: { additionalEmails: string[]; message: string }): Promise<{ success: boolean }> {
-  const { data } = await apiClient.post<{ success: boolean }>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/send-email`, request)
+  const { data } = await apiClient.post<{ success: boolean }>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/send-email`, request, { timeout: 90000 })
   return data
 }
 
@@ -208,7 +209,7 @@ export interface JarvisSalesInvoice {
   total: string
   cufe: string | null
   sentAt: string
-  status: 'SENT'
+  status: 'SENT' | 'SAVED'
 }
 
 export interface JarvisSalesInvoiceList {
@@ -548,6 +549,11 @@ export async function fetchJarvisCatalogs(): Promise<JarvisCatalogsResponse> {
 export async function fetchJarvisTypeRejections(): Promise<JarvisCatalogItem[]> {
   return cachedQuery(companyQueryKey(['jarvis', 'type-rejections']), QUERY_STALE_MS.catalogs,
     async () => (await apiClient.get<JarvisCatalogItem[]>(`${JARVIS_CATALOGS_ENDPOINT}/type-rejections`)).data)
+}
+
+export async function fetchJarvisNoteReasons(kind: 'credit' | 'debit'): Promise<JarvisCatalogItem[]> {
+  return cachedQuery(companyQueryKey(['jarvis', 'note-reasons', kind]), QUERY_STALE_MS.catalogs,
+    async () => (await apiClient.get<JarvisCatalogItem[]>(`${JARVIS_CATALOGS_ENDPOINT}/${kind}-note-discrepancy-responses`)).data)
 }
 
 export async function createJarvisSupportDocument(

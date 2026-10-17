@@ -1,5 +1,8 @@
 import { calculateJarvisRetention } from '../utils/jarvisTaxTechnical'
 import MoneyInput from '../components/MoneyInput'
+import InvoiceSellerSelect from '../components/InvoiceSellerSelect'
+import type { JarvisSeller } from '../services/jarvisSellerService'
+import { saveInvoiceDraft, fetchInvoiceDraft, deleteInvoiceDraft, type InvoiceDraftKind } from '../services/invoiceDraftService'
 import { balancePayments, type PaymentEntry } from '../utils/paymentBalance'
 import { alignPaymentMethods, paymentMethodsForNegotiation } from '../utils/paymentNegotiation'
 import { fetchJarvisPaymentMethods, resolveJarvisPaymentMethodId, type JarvisPaymentMethod } from '../services/jarvisPaymentMethodService'
@@ -28,7 +31,7 @@ import {
   createJarvisSupportCreditNote,
   createJarvisSupportInvoice,
   fetchJarvisCatalogs,
-  fetchJarvisTypeRejections,
+  fetchJarvisNoteReasons,
   fetchJarvisInvoiceDetail,
   fetchJarvisSupportDocumentDetail,
   fetchJarvisCredentialsStatus,
@@ -88,6 +91,32 @@ interface LineItem {
 }
 
 type InvoiceCustomer = Pick<JarvisTercero, 'id' | 'document_type' | 'document_number' | 'name'> & { check_digit?: string | null }
+
+interface InvoiceDraftState {
+  documentTotal?: number
+  selectedSellers?: JarvisSeller[]
+  selectedCustomer: InvoiceCustomer | null
+  customerQuery: string
+  issueDate: string
+  dueDate: string
+  currency: string
+  notes: string
+  headNote: string
+  footNote: string
+  discountIsPercent: boolean
+  generalDiscount: string
+  lines: LineItem[]
+  paymentFormId: string
+  paymentEntries: PaymentEntry[]
+  reteIcaId: string
+  reteIvaId: string
+  billingNumber: string
+  billingUuid: string
+  billingDate: string
+  reasonCode: string
+  reasonDescription: string
+  seze: string
+}
 
 function todayLocalDate(): string {
   const now = new Date()
@@ -178,9 +207,14 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const affectedDocumentLabel = adjustmentNote ? 'documento soporte' : 'factura'
   const affectedCodeLabel = adjustmentNote ? 'CUDS' : 'CUFE'
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const draftId = searchParams.get('borrador')
+  const documentKind: InvoiceDraftKind = debitNote ? 'DEBIT_NOTE' : adjustmentNote ? 'SUPPORT_CREDIT_NOTE' : isNote ? 'CREDIT_NOTE' : supportDocument ? 'SUPPORT_DOCUMENT' : 'ELECTRONIC_INVOICE'
   const sourceInvoiceId = isNote ? searchParams.get('factura') || searchParams.get('documento') : null
-  const [sourceLoading, setSourceLoading] = useState(Boolean(sourceInvoiceId))
+  const [sourceLoading, setSourceLoading] = useState(Boolean(sourceInvoiceId || draftId))
+  const [draftLoaded, setDraftLoaded] = useState(!draftId)
+  const draftIdRef = useRef(draftId ?? crypto.randomUUID())
+  const hydratedDraftRef = useRef<string | null>(null)
   const [sourceWarning, setSourceWarning] = useState('')
   const [billingNumber, setBillingNumber] = useState('')
   const [billingUuid, setBillingUuid] = useState('')
@@ -195,7 +229,10 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   useEffect(() => {
     if (!isNote) return
     let active = true
-    fetchJarvisTypeRejections().then(rows => {
+    setRejectionsLoading(true)
+    setRejectionsError('')
+    setRejectionTypes([])
+    fetchJarvisNoteReasons(debitNote ? 'debit' : 'credit').then(rows => {
       if (!active) return
       const options = rows.filter(row => row.name && row.code && Number.isSafeInteger(Number(row.code)) && Number(row.code) > 0)
       setRejectionTypes(options)
@@ -204,7 +241,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       if (active) setRejectionsError(getApiErrorMessage(error, 'No se pudieron cargar los motivos.'))
     }).finally(() => { if (active) setRejectionsLoading(false) })
     return () => { active = false }
-  }, [isNote, rejectionsAttempt])
+  }, [isNote, debitNote, rejectionsAttempt])
   const [seze, setSeze] = useState('')
   const [issueDate, setIssueDate] = useState(todayLocalDate)
   const [dueDate, setDueDate] = useState(todayLocalDate)
@@ -217,6 +254,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
   const [customerQuery, setCustomerQuery] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<InvoiceCustomer | null>(null)
+  const [selectedSellers, setSelectedSellers] = useState<JarvisSeller[]>([])
   const [allCustomers, setAllCustomers] = useState<JarvisTercero[]>([])
   const [isCustomerMenuOpen, setIsCustomerMenuOpen] = useState(false)
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
@@ -342,10 +380,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   }, [])
 
   useEffect(() => {
+    if (draftId && hydratedDraftRef.current === `${documentKind}:${draftId}`) return
     let cancelled = false
     async function loadCatalogs() {
+      if (draftId) setDraftLoaded(false)
       try {
-        const [catalogs, jarvisStatus, savedTaxes, savedPaymentMethods, source, siigoStatus] = await Promise.all([
+        const [catalogs, jarvisStatus, savedTaxes, savedPaymentMethods, source, siigoStatus, draft] = await Promise.all([
           fetchJarvisCatalogs(),
           isSiigoCompany && creditNote
             ? Promise.resolve(null)
@@ -358,6 +398,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           isSiigoCompany && creditNote
             ? fetchSiigoCredentialsStatus().catch(() => null)
             : Promise.resolve(null),
+          draftId ? fetchInvoiceDraft<InvoiceDraftState>(draftId) : Promise.resolve(null),
         ])
         if (cancelled) return
         const mergedTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
@@ -389,7 +430,22 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         else if (debitNote) setResolutionPrefix('ND')
         else if (adjustmentNote) setResolutionPrefix('NDS')
         else if (creditNote) setResolutionPrefix('NC')
-        if (source) {
+        if (draft && draft.documentKind !== documentKind) throw new Error('El borrador corresponde a otro tipo de documento.')
+        if (draft) {
+          const state = draft.state
+          setSelectedSellers(state.selectedSellers ?? [])
+          setSelectedCustomer(state.selectedCustomer); setCustomerQuery(state.customerQuery)
+          setIssueDate(state.issueDate); setDueDate(state.dueDate); setCurrency(state.currency)
+          setNotes(state.notes); setHeadNote(state.headNote); setFootNote(state.footNote)
+          setDiscountIsPercent(state.discountIsPercent); setGeneralDiscount(state.generalDiscount)
+          setLines(state.lines); setPaymentFormId(state.paymentFormId); setPayments(state.paymentEntries)
+          setReteIcaId(state.reteIcaId); setReteIvaId(state.reteIvaId)
+          setBillingNumber(state.billingNumber); setBillingUuid(state.billingUuid); setBillingDate(state.billingDate)
+          setReasonCode(state.reasonCode); setReasonDescription(state.reasonDescription); setSeze(state.seze)
+          draftIdRef.current = draftId!
+          hydratedDraftRef.current = `${documentKind}:${draftId}`
+          setDraftLoaded(true)
+        } else if (source) {
           const prefill = creditNotePrefill(source, mergedTaxes)
           setBillingNumber(prefill.billingNumber); setBillingUuid(prefill.billingUuid); setBillingDate(prefill.billingDate)
           setCurrency(prefill.request?.currency || source.currency)
@@ -419,7 +475,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     void loadCatalogs()
     return () => { cancelled = true }
-  }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, adjustmentNote, isSiigoCompany, affectedDocumentLabel, affectedCodeLabel, partyLabel])
+  }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, adjustmentNote, isSiigoCompany, affectedDocumentLabel, affectedCodeLabel, partyLabel, draftId, documentKind])
 
   const resetForm = useCallback(() => {
     setGeneralDiscount('0')
@@ -432,6 +488,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setFootNote('')
     setCustomerQuery('')
     setSelectedCustomer(null)
+    setSelectedSellers([])
     setIsCustomerMenuOpen(false)
     setLines([createEmptyLine()])
     setPayments([{ ...createEmptyPayment(), methodId: paymentMethods[0]?.id ?? '' }])
@@ -613,6 +670,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         seze: seze.trim(), sendmail: false, sendmailtome: true,
       } : {}),
       issueDate: issueDate.trim(),
+      ...(!isNote && !supportDocument ? { sellerIds: selectedSellers.map(seller => seller.id) } : {}),
       customerDocumentType: selectedCustomer.document_type,
       customerIdentification: selectedCustomer.document_number,
       customerName: selectedCustomer.name,
@@ -644,12 +702,34 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount])
+  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument, isSiigoCompany])
 
-  const handleSubmit = useCallback(async (mode: SubmitMode) => {
-    if (sourceLoading) return
+  const handleSubmit = async (mode: SubmitMode) => {
+    if (sourceLoading || isSubmitting) return
+    if (draftId && !draftLoaded) { setErrorMessage('Espera a que se cargue el borrador. Si hubo un error, vuelve a abrirlo desde el listado.'); return }
     setErrorMessage(null)
     setSuccessMessage(null)
+    if (mode === 'save') {
+      setIsSubmitting(true)
+      setSubmitMode('save')
+      try {
+        const state: InvoiceDraftState = {
+          documentTotal,
+          selectedSellers,
+          selectedCustomer, customerQuery, issueDate, dueDate, currency, notes, headNote, footNote,
+          discountIsPercent, generalDiscount, lines, paymentFormId, paymentEntries, reteIcaId, reteIvaId,
+          billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze,
+        }
+        await saveInvoiceDraft(draftIdRef.current, documentKind, state)
+        hydratedDraftRef.current = `${documentKind}:${draftIdRef.current}`
+        setDraftLoaded(true)
+        setSearchParams(current => { const next = new URLSearchParams(current); next.set('borrador', draftIdRef.current); return next }, { replace: true })
+        setSuccessMessage('Borrador guardado. Puedes seguir editándolo; aún no se ha enviado a la DIAN.')
+      } catch (error) {
+        setErrorMessage(getApiErrorMessage(error, 'No se pudo guardar el borrador.'))
+      } finally { setIsSubmitting(false); setSubmitMode(null) }
+      return
+    }
     if (!validate()) { setErrorMessage('Revisa los campos marcados antes de continuar.'); return }
     setIsSubmitting(true)
     setSubmitMode(mode)
@@ -664,15 +744,21 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           : (nextConsecutive ?? 1) + 1,
       )
       resetForm()
+      if (draftId) {
+        try { await deleteInvoiceDraft(draftId) }
+        catch { setErrorMessage('El documento se envió, pero no se pudo retirar el borrador del listado. No lo vuelvas a enviar.') }
+        setSearchParams(current => { const next = new URLSearchParams(current); next.delete('borrador'); return next }, { replace: true })
+      }
+      draftIdRef.current = crypto.randomUUID()
       if (mode === 'send' && response.invoice.historyId) {
         navigate(`${listPath}/${encodeURIComponent(response.invoice.historyId)}/visualizar`)
       }
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, `No se pudo enviar ${documentTitle.toLowerCase()}.`))
     } finally { setIsSubmitting(false); setSubmitMode(null) }
-  }, [buildRequest, nextConsecutive, resetForm, validate, supportDocument, documentTitle, isNote, debitNote, adjustmentNote, sourceLoading, navigate, listPath])
+  }
 
-  const onFormSubmit = (event: FormEvent) => { event.preventDefault(); void handleSubmit('send') }
+  const onFormSubmit = (event: FormEvent) => { event.preventDefault() }
 
   return (
     <section className={`ds-individual ds-individual--sales integration-page${!supportDocument && !isNote ? ' ds-individual--without-subtitles' : ''}`}>
@@ -793,6 +879,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                 {fieldErrors.customer && <em className="ds-individual__error">{fieldErrors.customer}</em>}
               </div>
 
+              {!isNote && !supportDocument && <InvoiceSellerSelect value={selectedSellers} onChange={setSelectedSellers} disabled={isSubmitting} />}
               <label className="ds-individual__field ds-individual__field--checkbox">
                 <span>Descuento en porcentaje</span>
                 <input type="checkbox" checked={discountIsPercent} onChange={(e) => setDiscountIsPercent(e.target.checked)} />
@@ -1086,7 +1173,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           <button type="button" className="ds-individual__btn ds-individual__btn--outline" disabled={isSubmitting} onClick={() => void handleSubmit('save')}>
             {isSubmitting && submitMode === 'save' ? 'Guardando...' : 'Guardar'}
           </button>
-          <button type="submit" className="ds-individual__btn ds-individual__btn--primary" disabled={isSubmitting}>
+          <button type="button" className="ds-individual__btn ds-individual__btn--primary" disabled={isSubmitting} onClick={(event) => {
+            if (event.currentTarget.form?.reportValidity()) void handleSubmit('send')
+          }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
               <line x1="22" y1="2" x2="11" y2="13" strokeLinecap="round" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" strokeLinejoin="round" />

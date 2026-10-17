@@ -18,7 +18,6 @@ describe('peticiones Bold con integración Jarvis', () => {
     '/bold/payments/binded-terminals',
     '/bold/cash-registers/company-1',
     '/integrations/bold/credentials',
-    '/admin/companies/company-1/bold/credentials',
   ])('Jarvis no envía peticiones a %s', async endpoint => {
     providers(['JARVIS', 'BOLD'])
     await expect(apiClient.get(endpoint, { adapter })).rejects.toMatchObject({ code: 'ERR_CANCELED' })
@@ -31,6 +30,24 @@ describe('peticiones Bold con integración Jarvis', () => {
     providers(values)
     await apiClient.get('/bold/payments/binded-terminals', { adapter })
     expect(adapter).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    '/admin/companies/company-1/integrations/BOLD',
+    '/admin/companies/company-1/integrations/BOLD/select',
+    '/admin/companies/company-1/bold/credentials',
+  ])('permite administrar Bold en %s desde una empresa Jarvis', async endpoint => {
+    providers(['JARVIS'])
+    await apiClient.get(endpoint, { adapter })
+    await apiClient.post(endpoint, {}, { adapter })
+    await apiClient.patch(endpoint, {}, { adapter })
+    expect(adapter).toHaveBeenCalledTimes(3)
+  })
+
+  it('mantiene la protección de Bold para URLs absolutas', async () => {
+    providers(['JARVIS'])
+    await expect(apiClient.get('https://example.test/bold/payments/binded-terminals', { adapter })).rejects.toMatchObject({ code: 'ERR_CANCELED' })
+    expect(adapter).not.toHaveBeenCalled()
   })
 
   it('aplica la protección al cambiar de empresa a Jarvis', async () => {

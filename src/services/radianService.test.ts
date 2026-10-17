@@ -1,8 +1,48 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { apiClient } from './apiClient'
-import { fetchSavedRadianInvoices, fetchRadianHistory, lookupRadianInvoice, processRadianInvoices, sendRadianEvent, type RadianStatus } from './radianService'
+import { fetchSavedRadianInvoices, fetchRadianHistory, recoverRadianHistory, lookupRadianInvoice, processRadianInvoices, sendRadianEvent, type RadianStatus } from './radianService'
 vi.mock('./apiClient', () => ({ apiClient: { post: vi.fn(), get: vi.fn() } }))
 beforeEach(() => vi.clearAllMocks())
+
+it('vuelve a verificar en cada reintento aunque las consultas anteriores fallen', async () => {
+  const pending = { eventId: 1, status: 'unknown', cude: 'acuse' }
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events: [pending] } })
+  vi.mocked(apiClient.post)
+    .mockRejectedValueOnce(new Error('Sin conexión'))
+    .mockResolvedValueOnce({ data: { status: 'unknown', cude: 'acuse' } })
+    .mockResolvedValueOnce({ data: { status: 'sent', cude: 'acuse' } })
+  await expect(recoverRadianHistory('invoice-a')).rejects.toThrow('Sin conexión')
+  expect((await recoverRadianHistory('invoice-a'))[0].status).toBe('unknown')
+  expect((await recoverRadianHistory('invoice-a'))[0].status).toBe('sent')
+  expect(apiClient.get).toHaveBeenCalledTimes(3)
+  expect(apiClient.post).toHaveBeenCalledTimes(3)
+})
+
+it('recupera el intento pendiente y conserva los eventos confirmados', async () => {
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events: [
+    { eventId: 1, status: 'sent', cude: 'acuse' },
+    { eventId: 3, status: 'unknown', cude: 'recepcion' },
+  ] } })
+  vi.mocked(apiClient.post).mockResolvedValue({ data: { status: 'sent', cude: 'recepcion' } })
+  expect(await recoverRadianHistory('invoice-cufe')).toEqual([
+    { eventId: 1, status: 'sent', cude: 'acuse' },
+    { eventId: 3, status: 'sent', cude: 'recepcion' },
+  ])
+  expect(apiClient.post).toHaveBeenCalledTimes(1)
+  expect(apiClient.post).toHaveBeenCalledWith('/integrations/jarvis/radian/events', { cufe: 'invoice-cufe', eventId: 3 })
+})
+
+it('recupera un bloqueo local sin inventar eventos que no están guardados', async () => {
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events: [] } })
+  expect(await recoverRadianHistory('invoice-cufe')).toEqual([])
+  expect(apiClient.post).not.toHaveBeenCalled()
+})
+
+it('conserva el estado pendiente cuando el proveedor aún no confirma', async () => {
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events: [{ eventId: 1, status: 'unknown' }] } })
+  vi.mocked(apiClient.post).mockResolvedValue({ data: { status: 'unknown', message: 'Pendiente de confirmación' } })
+  expect(await recoverRadianHistory('invoice-cufe')).toEqual([{ eventId: 1, status: 'unknown', message: 'Pendiente de confirmación' }])
+})
 
 it('consulta los datos de la factura para un CUFE agregado manualmente', async () => {
   const cufe = 'a'.repeat(96)
@@ -64,6 +104,28 @@ function progress() {
   return { get, set }
 }
 
+it('verifica un reintento y no vuelve a enviar los eventos ya confirmados', async () => {
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events: [1, 3, 4].map(eventId => ({ eventId, status: 'sent' })) } })
+  const { get, set } = progress()
+  for (const event of await recoverRadianHistory('invoice-a')) set('invoice-a', event.eventId, event.status)
+  await processRadianInvoices(['invoice-a'], get, set, () => true)
+  expect(apiClient.post).not.toHaveBeenCalled()
+})
+
+it('verifica el rechazo y envia los pendientes dentro del mismo reintento', async () => {
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events: [
+    { eventId: 1, status: 'unknown', cude: 'acuse' },
+  ] } })
+  vi.mocked(apiClient.post)
+    .mockResolvedValueOnce({ data: { status: 'failed', cude: 'acuse' } })
+    .mockResolvedValue({ data: { status: 'sent' } })
+  const { get, set } = progress()
+  for (const event of await recoverRadianHistory('invoice-a')) set('invoice-a', event.eventId, event.status)
+  expect(await processRadianInvoices(['invoice-a'], get, set, () => true)).toEqual({ sent: 1, interrupted: 0 })
+  expect(apiClient.post).toHaveBeenCalledTimes(4)
+  expect(get('invoice-a', 4)).toBe('sent')
+})
+
 it('envía acuse, recepción y aceptación en orden para cada factura seleccionada', async () => {
   vi.mocked(apiClient.post).mockResolvedValue({ data: { status: 'sent' } })
   const { get, set } = progress()
@@ -109,13 +171,14 @@ it('detiene los eventos restantes al abandonar la pantalla o cambiar de empresa'
 
 it('recupera CUDE y mensajes persistentes sin volver a emitir eventos', async () => {
   const events = [{ eventId: 1, status: 'sent', cude: 'event-cude', message: 'Autorizado' }]
-  vi.mocked(apiClient.post).mockResolvedValue({ data: { events } })
+  vi.mocked(apiClient.get).mockResolvedValue({ data: { events } })
   expect(await fetchRadianHistory('invoice-cufe')).toEqual(events)
-  expect(apiClient.post).toHaveBeenCalledWith('/integrations/jarvis/radian/invoices/invoice-cufe/events/reconcile', {})
+  expect(apiClient.get).toHaveBeenCalledWith('/integrations/jarvis/radian/invoices/invoice-cufe/events')
+  expect(apiClient.post).not.toHaveBeenCalled()
   expect(apiClient.post).not.toHaveBeenCalledWith('/integrations/jarvis/radian/events', expect.anything())
 })
 it('no reemplaza estados con un historial inválido', async () => {
-  vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+  vi.mocked(apiClient.get).mockResolvedValue({ data: {} })
   await expect(fetchRadianHistory('invoice-cufe')).rejects.toThrow('historial RADIAN')
 })
 

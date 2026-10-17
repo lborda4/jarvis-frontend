@@ -24,7 +24,7 @@ import './SiigoIntegrationSettings.css'
  * autorizado — lo que el contador necesita para reconocerla sin abrir la
  * autorización. Mismo formato que los comprobantes de SIIGO. */
 function formatResolutionOptionLabel(
-  resolution: JarvisAvailableResolution,
+  resolution: Pick<JarvisAvailableResolution, 'prefix' | 'formNumber' | 'fromNumber' | 'toNumber'>,
 ): string {
   const range = `${resolution.fromNumber}–${resolution.toNumber}`
   const number = resolution.formNumber ? ` — ${resolution.formNumber}` : ''
@@ -65,7 +65,6 @@ function JarvisIntegrationSettings() {
     hasSupportDocumentAccess,
     isParsingResolution,
     isSavingResolution,
-    availableResolutions,
     invoiceResolutionOptions,
     supportResolutionOptions,
     isLoadingResolutions,
@@ -601,7 +600,7 @@ function JarvisIntegrationSettings() {
                           ese aviso se va solo a los 5 segundos; si el enlace
                           se fuera con él, quedaría una pantalla sin salida. */}
                       {!isLoadingResolutions &&
-                        availableResolutions.length === 0 && (
+                        invoiceResolutionOptions.length === 0 && supportResolutionOptions.length === 0 && (
                           <p className="settings-card__description">
                             No hay resoluciones vigentes para mostrar.{' '}
                             <button

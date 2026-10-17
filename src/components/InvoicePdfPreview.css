@@ -12,6 +12,11 @@
 .invoice-pdf__download:disabled { opacity: .5; cursor: not-allowed; }
 .invoice-pdf__empty { min-height: min(55vh, 440px); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 1.5rem; border: 1px dashed var(--jarvis-border); border-radius: 12px; background: var(--jarvis-bg, #f5f8fa); color: var(--jarvis-text-muted); }
 .invoice-pdf__empty h3 { color: var(--jarvis-text); margin-bottom: .25rem; }
+.invoice-pdf__code { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; margin-bottom: .65rem; flex-shrink: 0; }
+.invoice-pdf__code label { display: flex; align-items: center; gap: .65rem; flex: 1; min-width: 0; font-size: .85rem; font-weight: 600; }
+.invoice-pdf__code input { width: 100%; min-width: 0; padding: .5rem; border: 1px solid var(--jarvis-border); border-radius: 6px; font-family: monospace; font-size: .85rem; color: var(--jarvis-text); background: var(--jarvis-bg, #f5f8fa); }
+.invoice-pdf__copy-status { flex-basis: 100%; font-size: .8rem; color: var(--jarvis-text-muted); }
+.invoice-pdf__copy-status:empty { display: none; }
 
 .integration-page.sales-invoice-preview.sales-invoice-preview {
   display: flex;

@@ -324,6 +324,7 @@ export interface PurchaseInvoiceDownloadWithholding {
 
 /** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
 export interface PurchaseInvoiceDownload {
+  sellers?: Array<{ id: string; name: string }>
   logoDataUrl?: string | null
   issueTime?: string | null;
   operationType?: string | null;

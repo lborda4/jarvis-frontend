@@ -71,7 +71,8 @@ async function refreshAccessToken(): Promise<string | null> {
 
 apiClient.interceptors.request.use((config) => {
   const requestUrl = config.url ?? ''
-  if (/\/bold(?:[/?#]|$)/i.test(requestUrl)) {
+  const requestPath = new URL(requestUrl, `${config.baseURL ?? API_BASE_URL}/`).pathname
+  if (/^\/(?:bold|integrations\/bold)(?:\/|$)/i.test(requestPath)) {
     const providers = peekCachedQuery<{ providers: string[] }>(
       companyQueryKey(['integrations', 'providers']),
     )?.providers

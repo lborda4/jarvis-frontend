@@ -14,7 +14,7 @@ afterEach(() => vi.unstubAllGlobals())
 it('ofrece consulta manual por CUFE e importación de Excel con tres columnas de eventos', () => {
   const html = renderToStaticMarkup(<RadianPage />)
   expect(html).toContain('Agregar factura por CUFE')
-  expect(html).toContain('Consultar estados DIAN')
+  expect(html).not.toContain('Consultar estados DIAN')
   expect(html).toContain('>Consultar</button>')
   expect(html).toContain('Importar Excel de la DIAN')
   expect(html).toMatch(/col[Ss]pan="3"/)
@@ -33,16 +33,29 @@ it('ofrece reintento cuando la recepción falló después del acuse', () => {
   const invoice = { cufe, number: 'FE1', supplier: 'Proveedor', nit: '900001', date: '2026-10-13', valid: true }
   vi.stubGlobal('localStorage', { getItem: (key: string) => JSON.stringify(key.endsWith(':invoices') ? [invoice] : { [cufe]: { 1: 'sent', 3: 'failed' } }) })
   const html = renderToStaticMarkup(<RadianPage />)
-  expect(html).toContain('Reenviar eventos pendientes de FE1')
-  const button = html.match(/<button[^>]*aria-label="Reenviar eventos pendientes de FE1"[^>]*>/)?.[0]
+  expect(html).toContain('Reintentar eventos de FE1')
+  const button = html.match(/<button[^>]*aria-label="Reintentar eventos de FE1"[^>]*>/)?.[0]
   expect(button).toBeDefined()
   expect(button).not.toContain('disabled')
 })
-it('bloquea el reintento si otro evento está por confirmar', () => {
+it('permite verificar el reintento si otro evento está por confirmar', () => {
   const cufe = 'a'.repeat(96)
   const invoice = { cufe, number: 'FE1', supplier: 'Proveedor', nit: '900001', date: '2026-10-13', valid: true }
   vi.stubGlobal('localStorage', { getItem: (key: string) => JSON.stringify(key.endsWith(':invoices') ? [invoice] : { [cufe]: { 1: 'unknown', 3: 'failed' } }) })
   const html = renderToStaticMarkup(<RadianPage />)
-  const button = html.match(/<button[^>]*aria-label="Reenviar eventos pendientes de FE1"[^>]*>/)?.[0]
-  expect(button).toContain('disabled')
+  const button = html.match(/<button[^>]*aria-label="Reintentar eventos de FE1"[^>]*>/)?.[0]
+  expect(button).toBeDefined()
+  expect(button).not.toContain('disabled')
+  expect(html).toContain('Reintentar eventos de FE1')
+})
+
+it('ofrece reintentar una factura por confirmar sin habilitar el envio directo', () => {
+  const cufe = 'a'.repeat(96)
+  const invoice = { cufe, number: 'FE1', supplier: 'Proveedor', nit: '900001', date: '2026-10-13', valid: true }
+  vi.stubGlobal('localStorage', { getItem: (key: string) => JSON.stringify(key.endsWith(':invoices') ? [invoice] : { [cufe]: { 1: 'unknown' } }) })
+  const html = renderToStaticMarkup(<RadianPage />)
+  const recovery = html.match(/<button[^>]*aria-label="Reintentar eventos de FE1"[^>]*>/)?.[0]
+  expect(recovery).toBeDefined()
+  expect(recovery).not.toContain('disabled')
+  expect(html).not.toContain('aria-label="Enviar eventos de FE1"')
 })

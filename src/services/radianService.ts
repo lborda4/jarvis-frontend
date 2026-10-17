@@ -14,7 +14,7 @@ export type RadianStatus = 'sent' | 'failed' | 'unknown' | 'sending'
 export interface RadianEventResult { status: 'sent' | 'failed' | 'unknown'; cude?: string; dianCode?: string; message?: string }
 export interface RadianStoredEvent extends RadianEventResult { eventId: RadianEventId; typeRejectionId?: number | null; updatedAt?: string }
 export async function fetchRadianHistory(cufe: string): Promise<RadianStoredEvent[]> {
-  const { data } = await apiClient.post<{ events: RadianStoredEvent[] }>(`/integrations/jarvis/radian/invoices/${encodeURIComponent(cufe)}/events/reconcile`, {})
+  const { data } = await apiClient.get<{ events: RadianStoredEvent[] }>(`/integrations/jarvis/radian/invoices/${encodeURIComponent(cufe)}/events`)
   if (!Array.isArray(data?.events)) throw new Error('No se pudo consultar el historial RADIAN.')
   return data.events
 }
@@ -28,6 +28,21 @@ export async function sendRadianEvent(cufe: string, eventId: RadianEventId, type
   const { data } = await apiClient.post<RadianEventResult>('/integrations/jarvis/radian/events', { cufe, eventId, ...(eventId === 2 ? { typeRejectionId } : {}) })
   if (!['sent', 'failed', 'unknown'].includes(data?.status)) return { status: 'unknown' }
   return data
+}
+
+export async function recoverRadianHistory(cufe: string): Promise<RadianStoredEvent[]> {
+  const events = await fetchRadianHistory(cufe)
+  const recovered: RadianStoredEvent[] = []
+  for (const event of events) {
+    if (event.status !== 'unknown') {
+      recovered.push(event)
+      continue
+    }
+    // El backend recupera el intento existente; no vuelve a emitirlo.
+    const result = await sendRadianEvent(cufe, event.eventId, event.typeRejectionId ?? undefined)
+    recovered.push({ ...event, ...result })
+  }
+  return recovered
 }
 
 export async function processRadianInvoices(

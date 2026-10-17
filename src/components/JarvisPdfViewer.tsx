@@ -9,7 +9,7 @@ GlobalWorkerOptions.workerSrc = workerUrl
 export default function JarvisPdfViewer({ url }: { url: string }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
   const [page, setPage] = useState(1)
-  const [zoom, setZoom] = useState<number | 'page' | 'width'>('page')
+  const [zoom, setZoom] = useState<number | 'page' | 'width'>(1.4)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [error, setError] = useState('')
   const [rendered, setRendered] = useState('')

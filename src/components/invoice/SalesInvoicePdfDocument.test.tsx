@@ -20,6 +20,28 @@ describe('sales invoice HTML template adaptation', () => {
     return ''
   }
 
+  it('muestra todos los vendedores asignados y omite el campo en documentos antiguos', () => {
+    const sellers = [{ id: 'seller-1', name: 'Laura Pérez' }, { id: 'seller-2', name: 'Juan Díaz' }]
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, sellers }, qr: '' }))
+    expect(text).toContain('Vendedores: Laura Pérez, Juan Díaz')
+    expect(textContent(SalesInvoicePdfDocument({ data, qr: '' }))).not.toContain('Vendedores:')
+  })
+
+  it.each([1039.5, 1011.24])('descuenta las tres retenciones sin restarlas dos veces cuando el total recibido es %s', total => {
+    const text = textContent(SalesInvoicePdfDocument({ data: {
+      ...data, subtotal: 990, taxExclusiveAmount: 990, taxInclusiveAmount: 1039.5, iva: 49.5, total,
+      withholdings: [
+        { dianTaxCode: '06', name: 'ReteFuente', percentage: 1, amount: 9.9 },
+        { dianTaxCode: '07', name: 'ReteICA', percentage: 11.04, amount: 10.93 },
+        { dianTaxCode: '05', name: 'ReteIVA', percentage: 15, amount: 7.43 },
+      ],
+    }, qr: '' }))
+    expect(text).toContain('Total antes de retenciones:1.039,50')
+    expect(text).toContain('Total neto a pagar:1.011,24')
+    expect(text).not.toContain('Total neto a pagar:1.039,50')
+    expect(text).toContain('MIL ONCE')
+  })
+
   it('muestra el porcentaje de retención del documento cuando la línea no lo trae', () => {
     const text = textContent(SalesInvoicePdfDocument({
       data: {

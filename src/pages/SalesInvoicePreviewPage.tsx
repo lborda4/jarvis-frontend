@@ -25,7 +25,7 @@ export default function SalesInvoicePreviewPage({
   const fallback = jarvisPdfCopy(jarvisPdfKindFromFlags({ supportDocument, creditNote, debitNote, adjustmentNote }))
   const companyId = user?.company?.id
   const [attempt, setAttempt] = useState(0)
-  const [result, setResult] = useState<{ key: string; url: string; number: string; documentLabel: string; listPath: string; kind: string } | null>(null)
+  const [result, setResult] = useState<{ key: string; url: string; number: string; documentLabel: string; listPath: string; kind: string; code: string; codeLabel: string } | null>(null)
   const [failure, setFailure] = useState<{ key: string } | null>(null)
   const key = `${companyId}:${id}:${attempt}`
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function SalesInvoicePreviewPage({
         url = URL.createObjectURL(blob)
         const kind = data.documentKind ?? jarvisPdfKindFromFlags({ supportDocument, creditNote, debitNote, adjustmentNote })
         const copy = jarvisPdfCopy(kind)
-        setResult({ key, url, number: data.invoiceNumber || id, documentLabel: copy.shortTitle, listPath: copy.listPath, kind })
+        setResult({ key, url, number: data.invoiceNumber || id, documentLabel: copy.shortTitle, listPath: copy.listPath, kind, code: data.cufe ?? '', codeLabel: copy.uniqueCode })
       } catch {
         if (active) setFailure({ key })
       }
@@ -54,7 +54,7 @@ export default function SalesInvoicePreviewPage({
   return <main className="integration-page sales-invoice-preview">
     <Link to={listPath}>← Volver a la lista</Link>
     {error ? <PdfPreviewError onRetry={() => setAttempt(value => value + 1)} />
-      : current ? <InvoicePdfPreview standalone number={current.number} documentLabel={current.documentLabel} pdfUrl={current.url} onClose={() => navigate(listPath)} actions={<DocumentPreviewActions key={`${companyId}:${id}`} id={id} number={current.number} kind={current.kind} />} />
+      : current ? <InvoicePdfPreview standalone number={current.number} documentLabel={current.documentLabel} documentCode={current.code} codeLabel={current.codeLabel} pdfUrl={current.url} onClose={() => navigate(listPath)} actions={<DocumentPreviewActions key={`${companyId}:${id}`} id={id} number={current.number} kind={current.kind} />} />
       : <LoadingIndicator message={`Preparando el PDF de ${fallback.shortTitle.toLowerCase()}…`} />}
   </main>
 }

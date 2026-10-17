@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { restoreJarvisResolutionSelection } from '../utils/jarvisResolutionSelection'
 import {
   useAutoDismissMessage,
 } from './useAutoDismissMessage'
@@ -232,10 +233,10 @@ export function useJarvisIntegrationSettings() {
   const [resolutionsError, setResolutionsError] = useAutoDismissMessage(
     5_000,
   )
-  const [selectedInvoiceResolutionId, setSelectedInvoiceResolutionId] =
-    useState('')
-  const [selectedSupportResolutionId, setSelectedSupportResolutionId] =
-    useState('')
+  const [invoiceSelection, setSelectedInvoiceResolutionId] = useState<string | null>(null)
+  const [supportSelection, setSelectedSupportResolutionId] = useState<string | null>(null)
+  const [savedInvoiceResolution, setSavedInvoiceResolution] = useState<JarvisDianResolution | null>(null)
+  const [savedSupportResolution, setSavedSupportResolution] = useState<JarvisDianResolution | null>(null)
 
   const steps = useMemo<JarvisSetupStep[]>(() => {
     const nextSteps: JarvisSetupStep[] = [
@@ -338,6 +339,8 @@ export function useJarvisIntegrationSettings() {
         setSupportConfigured(
           Boolean(status.supportDocumentResolutionConfigured),
         )
+        setSavedInvoiceResolution(status.electronicInvoiceResolution ?? null)
+        setSavedSupportResolution(status.supportDocumentResolution ?? null)
       } catch {
         // El estado global lo resuelve IntegrationSetupContext.
       } finally {
@@ -573,26 +576,30 @@ export function useJarvisIntegrationSettings() {
   // consulta trae todos los tipos de la empresa (nómina, notas, POS,
   // exportación...), y ofrecerlos para facturar llevaría a emitir contra una
   // numeración que no corresponde.
-  const invoiceResolutionOptions = useMemo(
+  const invoiceSelectionOptions = useMemo(
     () =>
-      availableResolutions.filter((resolution) =>
+      restoreJarvisResolutionSelection(availableResolutions.filter((resolution) =>
         isResolutionOfDocumentType(
           resolution,
           JARVIS_RESOLUTION_DOCUMENT_TYPES.ELECTRONIC_INVOICE,
         ),
-      ),
-    [availableResolutions],
+      ), savedInvoiceResolution),
+    [availableResolutions, savedInvoiceResolution],
   )
-  const supportResolutionOptions = useMemo(
+  const supportSelectionOptions = useMemo(
     () =>
-      availableResolutions.filter((resolution) =>
+      restoreJarvisResolutionSelection(availableResolutions.filter((resolution) =>
         isResolutionOfDocumentType(
           resolution,
           JARVIS_RESOLUTION_DOCUMENT_TYPES.SUPPORT_DOCUMENT,
         ),
-      ),
-    [availableResolutions],
+      ), savedSupportResolution),
+    [availableResolutions, savedSupportResolution],
   )
+  const invoiceResolutionOptions = invoiceSelectionOptions.options
+  const supportResolutionOptions = supportSelectionOptions.options
+  const selectedInvoiceResolutionId = invoiceSelection ?? invoiceSelectionOptions.selectedId
+  const selectedSupportResolutionId = supportSelection ?? supportSelectionOptions.selectedId
 
   const loadAvailableResolutions = useCallback(async () => {
     setIsLoadingResolutions(true)
@@ -638,7 +645,7 @@ export function useJarvisIntegrationSettings() {
 
       setSelectedId(resolutionId)
 
-      const resolution = availableResolutions.find(
+      const resolution = (kind === 'SUPPORT_DOCUMENT' ? supportResolutionOptions : invoiceResolutionOptions).find(
         (item) => item.id === resolutionId,
       )
 
@@ -668,7 +675,7 @@ export function useJarvisIntegrationSettings() {
         typeDocumentId: resolution.typeDocumentId ?? null,
       }))
     },
-    [availableResolutions],
+    [invoiceResolutionOptions, supportResolutionOptions],
   )
 
   /** Valida y envía UNA resolución. Devuelve el mensaje de error si algo
@@ -738,9 +745,13 @@ export function useJarvisIntegrationSettings() {
       if (kind === 'SUPPORT_DOCUMENT') {
         setSupportConfigured(true)
         setSupportResolution(resolutionToDraft(response.resolution))
+        setSavedSupportResolution(response.resolution)
+        setSelectedSupportResolutionId(null)
       } else {
         setInvoiceConfigured(true)
         setInvoiceResolution(resolutionToDraft(response.resolution))
+        setSavedInvoiceResolution(response.resolution)
+        setSelectedInvoiceResolutionId(null)
       }
 
       return null
@@ -903,6 +914,8 @@ export function useJarvisIntegrationSettings() {
     resolutionsError,
     selectedInvoiceResolutionId,
     selectedSupportResolutionId,
+    savedInvoiceResolution,
+    savedSupportResolution,
     handleSelectResolution,
     reloadAvailableResolutions: loadAvailableResolutions,
     allRequiredStepsComplete,
