@@ -127,7 +127,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   const [documentsRemaining, setDocumentsRemaining] = useState<number | null>(
     initialSnapshot?.documentsRemaining ?? null,
   )
-  const [isSiigoCreditNoteEnabled, setIsSiigoCreditNoteEnabled] = useState(initialSnapshot?.isCreditNoteEnabled && initialSnapshot.isSiigoCompany || false)
 
   const resetJarvisFlags = useCallback(() => {
     setIsJarvisCompanyConfigured(false)
@@ -158,7 +157,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setDocumentQuotas({})
       setDocumentsUsed(0)
       setDocumentsRemaining(null)
-      setIsSiigoCreditNoteEnabled(false)
       clearIntegrationConfigured()
       setIsCheckingSetup(false)
       return
@@ -210,7 +208,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         setDocumentLimit(subscription?.documentLimit ?? null)
         setDocumentsUsed(subscription?.documentsUsed ?? 0)
         setDocumentsRemaining(subscription?.remaining ?? null)
-        setIsSiigoCreditNoteEnabled(Boolean(status.creditNoteEnabled))
 
         if (configured && accountsReady && documentTypesReady) {
           persistIntegrationConfigured()
@@ -249,7 +246,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         setIsSiigoConfigured(false)
         setHasSiigoAccounts(false)
         setHasSiigoDocumentTypesConfigured(false)
-        setIsSiigoCreditNoteEnabled(false)
         setIncludedDocumentTypes(documentTypes)
         setIsSubscriptionActive(subscriptionActive)
         setDocumentLimit(subscription?.documentLimit ?? null)
@@ -271,7 +267,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setIsSiigoConfigured(false)
       setHasSiigoAccounts(false)
       setHasSiigoDocumentTypesConfigured(false)
-      setIsSiigoCreditNoteEnabled(false)
       resetJarvisFlags()
       setIncludedDocumentTypes([])
       setIsSubscriptionActive(false)
@@ -298,7 +293,6 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setDocumentQuotas({})
       setDocumentsUsed(0)
       setDocumentsRemaining(null)
-      setIsSiigoCreditNoteEnabled(false)
       clearIntegrationConfigured()
     } finally {
       if (getActiveCompanyId() === companyId) {
@@ -373,13 +367,8 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     isJarvisCompany &&
     isJarvisCompanyConfigured &&
     isElectronicInvoiceResolutionConfigured
-  /** Nota crédito: Jarvis con FV habilitada, o SIIGO con token NextPyme. */
-  const isCreditNoteEnabled =
-    isSalesInvoiceEnabled ||
-    (isSiigoCompany &&
-      isConfigured &&
-      isSubscriptionActive &&
-      isSiigoCreditNoteEnabled)
+  /** Las notas crédito de venta son exclusivas de la integración Jarvis. */
+  const isCreditNoteEnabled = isSalesInvoiceEnabled
 
   const value = useMemo<IntegrationSetupContextValue>(
     () => ({

@@ -11,6 +11,7 @@ import ClientProductsRoute from './components/ClientProductsRoute'
 import TercerosRoute from './components/TercerosRoute'
 import JarvisTaxesRoute from './components/JarvisTaxesRoute'
 import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
+import JarvisCreditNoteRoute from './components/JarvisCreditNoteRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
 import RadianRoute from './components/RadianRoute'
 import { AuthProvider } from './context/AuthContext'
@@ -78,9 +79,11 @@ function App() {
                 <Route path="/nota-debito" element={<SalesInvoiceListPage key="debit-list" debitNote />} />
                 <Route path="/nota-debito/nueva" element={<SalesInvoicePage key="debit-form" debitNote />} />
                 <Route path="/nota-debito/:id/visualizar" element={<SalesInvoicePreviewPage debitNote />} />
-                <Route path="/nota-credito" element={<SalesInvoiceListPage key="credit-list" creditNote />} />
-                <Route path="/nota-credito/nueva" element={<SalesInvoicePage key="credit-form" creditNote />} />
-                <Route path="/nota-credito/:id/visualizar" element={<SalesInvoicePreviewPage creditNote />} />
+                <Route element={<JarvisCreditNoteRoute />}>
+                  <Route path="/nota-credito" element={<SalesInvoiceListPage key="credit-list" creditNote />} />
+                  <Route path="/nota-credito/nueva" element={<SalesInvoicePage key="credit-form" creditNote />} />
+                  <Route path="/nota-credito/:id/visualizar" element={<SalesInvoicePreviewPage creditNote />} />
+                </Route>
                 <Route path="/nota-ajuste" element={<SalesInvoiceListPage key="adjustment-list" adjustmentNote />} />
                 <Route path="/nota-ajuste/nueva" element={<SalesInvoicePage key="adjustment-form" adjustmentNote />} />
                 <Route path="/nota-ajuste/:id/visualizar" element={<SalesInvoicePreviewPage adjustmentNote />} />

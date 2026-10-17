@@ -177,16 +177,6 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                 },
               ]
             : []),
-          ...(isCreditNoteEnabled
-            ? [
-                {
-                  label: 'Nota crédito',
-                  to: '/nota-credito',
-                  icon: DocumentIcon,
-                  featureEnabled: isCreditNoteEnabled,
-                },
-              ]
-            : []),
         ]),
     ...(isJarvisCompany ? [{
       label: 'Nómina electrónica',

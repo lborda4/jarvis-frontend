@@ -106,3 +106,18 @@ it('permite abrir soporte con su resolución sin exigir la de ventas ni un plan 
   }
   expect(renderToStaticMarkup(<IntegrationSetupProvider><AccessProbe /></IntegrationSetupProvider>)).toContain('false:true')
 })
+
+it('no habilita notas crédito en SIIGO aunque la configuración anterior las permitiera', () => {
+  saveIntegrationSetupSnapshot('user-1', 'company-1', {
+    ...snapshot,
+    integrationMode: 'siigo', integrationProviders: ['SIIGO'],
+    isSiigoCompany: true, isSiigoConfigured: true,
+    hasSiigoAccounts: true, hasSiigoDocumentTypesConfigured: true,
+    isCreditNoteEnabled: true,
+  })
+  function CreditNoteAccessProbe() {
+    const setup = useIntegrationSetup()
+    return <p>{String(setup.isSiigoCompany)}:{String(setup.isConfigured)}:{String(setup.isCreditNoteEnabled)}</p>
+  }
+  expect(renderToStaticMarkup(<IntegrationSetupProvider><CreditNoteAccessProbe /></IntegrationSetupProvider>)).toContain('true:true:false')
+})
