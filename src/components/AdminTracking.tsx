@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { AdminCompanyListItem } from '../types/admin'
+import { shouldShowTablePagination } from '../utils/tablePagination'
 import { updateCompanyTracking } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
 import { colombiaToday, companyTrackingStatus, TRACKING_STATUS_LABELS, trackingCsvCell, type TrackingStatus } from '../utils/companyTracking'
@@ -91,7 +92,7 @@ export default function AdminTracking({ companies, loading, onUpdated, onCreate 
             <td><button type="button" className="tracking__edit" aria-label={`Configurar seguimiento de ${company.name}`} onClick={() => setEditing(company)}>Editar</button></td>
           </tr> })}
         </tbody></table></div>
-        {filtered.length > 10 && <footer className="tracking__pagination"><span>{(currentPage - 1) * 10 + 1}–{Math.min(currentPage * 10, filtered.length)} de {filtered.length} clientes</span><div><Button variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><span>{currentPage} / {pages}</span><Button variant="outline" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>Siguiente</Button></div></footer>}
+        {shouldShowTablePagination(filtered.length) && <footer className="tracking__pagination"><span>{(currentPage - 1) * 10 + 1}–{Math.min(currentPage * 10, filtered.length)} de {filtered.length} clientes</span><div><Button variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><span>{currentPage} / {pages}</span><Button variant="outline" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>Siguiente</Button></div></footer>}
       </>}
     </div>
     <p className="tracking__muted">Vencimiento desde la creación, según periodicidad. Este seguimiento no registra pagos ni suspende el servicio automáticamente.</p>

@@ -2,6 +2,7 @@ import {
   ELECTRONIC_DOCUMENT_PAGE_SIZE_OPTIONS,
   type ElectronicDocumentPageSize,
 } from '../../constants/electronicDocuments'
+import { shouldShowTablePagination } from '../../utils/tablePagination'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -26,6 +27,7 @@ function SupportDocumentPagination({
   onPageChange,
   onLimitChange,
 }: SupportDocumentPaginationProps) {
+  if (!shouldShowTablePagination(total, limit)) return null
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const start = total === 0 ? 0 : (page - 1) * limit + 1
   const end = Math.min(page * limit, total)
@@ -39,7 +41,9 @@ function SupportDocumentPagination({
           disabled={disabled}
           aria-label="Filas por página"
           onChange={(event) =>
-            onLimitChange(Number(event.target.value) as ElectronicDocumentPageSize)
+            onLimitChange(
+              Number(event.target.value) as ElectronicDocumentPageSize,
+            )
           }
         >
           {ELECTRONIC_DOCUMENT_PAGE_SIZE_OPTIONS.map((option) => (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isCreditPaymentMethod } from '../utils/paymentNegotiation'
+import { shouldShowTablePagination } from '../utils/tablePagination'
 import Button from '../components/Button'
 import CatalogRowActions from '../components/CatalogRowActions'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -67,7 +68,7 @@ export default function JarvisPaymentMethodsPage() {
             <td><CatalogRowActions name={item.name} disabled={deleting} onEdit={() => { setEditing(item); setOpen(true); setSuccess(null) }} onDelete={() => { setPendingDelete(item); setSuccess(null) }} /></td>
           </tr>)}</tbody>
         </table></div>
-        {filtered.length > 10 && <div className="jarvis-taxes-page__pagination">
+        {shouldShowTablePagination(filtered.length) && <div className="jarvis-taxes-page__pagination">
           <Button variant="outline" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button>
           <span>{currentPage} / {pages}</span>
           <Button variant="outline" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Siguiente</Button>

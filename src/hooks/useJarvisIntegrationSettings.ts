@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { restoreJarvisResolutionSelection } from '../utils/jarvisResolutionSelection'
-import {
-  useAutoDismissMessage,
-} from './useAutoDismissMessage'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -230,9 +227,7 @@ export function useJarvisIntegrationSettings() {
     JarvisAvailableResolution[]
   >([])
   const [isLoadingResolutions, setIsLoadingResolutions] = useState(false)
-  const [resolutionsError, setResolutionsError] = useAutoDismissMessage(
-    5_000,
-  )
+  const [resolutionsError, setResolutionsError] = useState<string | null>(null)
   const [invoiceSelection, setSelectedInvoiceResolutionId] = useState<string | null>(null)
   const [supportSelection, setSelectedSupportResolutionId] = useState<string | null>(null)
   const [savedInvoiceResolution, setSavedInvoiceResolution] = useState<JarvisDianResolution | null>(null)
@@ -613,7 +608,7 @@ export function useJarvisIntegrationSettings() {
       // cuerpo del proxy) no le sirve al contador y solo expone plomería.
       setAvailableResolutions([])
       const message = getApiErrorMessage(error, '')
-      setResolutionsError(message.startsWith('Falta configurar el IDSoftware de esta empresa.')
+      setResolutionsError(message.startsWith('Falta configurar el IDSoftware de esta empresa.') || message.startsWith('No se pudo conectar con la base de datos')
         ? message
         : 'No se pudieron consultar las resoluciones. Intenta de nuevo o comunícate con soporte.')
     } finally {

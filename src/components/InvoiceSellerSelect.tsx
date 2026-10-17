@@ -44,10 +44,11 @@ export default function InvoiceSellerSelect({ value, onChange, disabled = false 
     } catch (err) { setError(getApiErrorMessage(err, 'No se pudo crear el vendedor.')) }
     finally { setSaving(false) }
   }
-  return <div className="invoice-sellers" ref={root} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false) } }}>
+  return <div className="invoice-sellers ds-individual__field" ref={root} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false) } }}>
     <span id={`${panelId}-label`}>Vendedores (opcional)</span>
+    <div className="invoice-sellers__body">
     <div className="invoice-sellers__selected">{value.map(seller => <span key={seller.id}>{seller.name}<button type="button" disabled={disabled || saving} aria-label={`Quitar vendedor ${seller.name}`} onClick={() => onChange(value.filter(item => item.id !== seller.id))}>×</button></span>)}</div>
-    <button type="button" className="invoice-sellers__control" disabled={disabled} aria-labelledby={`${panelId}-label`} aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(current => !current)}>Seleccionar o agregar vendedores <span aria-hidden="true">▾</span></button>
+    <button type="button" className="invoice-sellers__control" disabled={disabled} aria-labelledby={`${panelId}-label`} aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(current => !current)}>Seleccionar vendedores <span aria-hidden="true">▾</span></button>
     {open && <div className="invoice-sellers__panel" id={panelId}>
       <input aria-label="Buscar o crear vendedor" placeholder="Buscar o escribir un nuevo vendedor" value={query} maxLength={150} disabled={saving || disabled} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); if (normalized) void create() } }} />
       {loading ? <p role="status">Cargando vendedores...</p> : <div className="invoice-sellers__options" role="group" aria-label="Vendedores disponibles">
@@ -57,5 +58,6 @@ export default function InvoiceSellerSelect({ value, onChange, disabled = false 
       <button type="button" className="invoice-sellers__create" disabled={disabled || saving || loading || !normalized} onClick={() => void create()}>{saving ? 'Guardando...' : existing ? `Seleccionar ${existing.name}` : normalized ? `＋ Agregar vendedor «${normalized}»` : 'Escribe un nombre para agregar un vendedor'}</button>
       {error && <div role="alert"><p>{error}</p><button type="button" disabled={loading || saving} onClick={() => setAttempt(current => current + 1)}>Reintentar</button></div>}
     </div>}
+    </div>
   </div>
 }

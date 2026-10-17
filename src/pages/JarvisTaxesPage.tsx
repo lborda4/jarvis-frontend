@@ -1,4 +1,5 @@
 import { jarvisTaxTechnical } from '../utils/jarvisTaxTechnical'
+import { shouldShowTablePagination } from '../utils/tablePagination'
 import CatalogRowActions from '../components/CatalogRowActions'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
@@ -291,7 +292,7 @@ function JarvisTaxesPage() {
               </table>
             </div>
 
-            {filteredItems.length > PAGE_SIZE && <div className="jarvis-taxes-page__pagination">
+            {shouldShowTablePagination(filteredItems.length,PAGE_SIZE) && <div className="jarvis-taxes-page__pagination">
               <span>
                 Mostrando {pageItems.length} de {filteredItems.length}{' '}
                 {filteredItems.length === 1 ? 'registro' : 'registros'}

@@ -1,4 +1,5 @@
 import { clientFacingError } from '../utils/clientFacingError'
+import { shouldShowTablePagination } from '../utils/tablePagination'
 import { isAxiosError } from 'axios'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import PageHeader from '../components/PageHeader'
@@ -108,7 +109,7 @@ function RadianWorkspace({ companyId }: { companyId: string }) {
     const text = `${invoice.number} ${invoice.supplier} ${invoice.nit} ${invoice.cufe}`.toLowerCase()
     return (!showRecent || recent.includes(invoice.cufe)) && text.includes(search.toLowerCase()) && (!from || invoice.date >= from) && (!to || invoice.date <= to) && (stateFilter === 'all' || (stateFilter === 'sent' ? complete(invoice.cufe) : stateFilter === 'unknown' ? uncertain(invoice.cufe) : !complete(invoice.cufe) && !uncertain(invoice.cufe)))
   })
-  const showPagination = filtered.length > 10
+  const showPagination = shouldShowTablePagination(filtered.length)
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = showPagination ? Math.min(page, pages) : 1
   const displayed = showPagination ? filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize) : filtered

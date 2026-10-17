@@ -1,4 +1,5 @@
 import { peekCachedQuery } from '../services/queryCache'
+import { shouldShowTablePagination } from '../utils/tablePagination'
 import PageHeader from '../components/PageHeader'
 import { deleteInvoiceDraft } from '../services/invoiceDraftService'
 import DateRangeFilter from '../components/DateRangeFilter'
@@ -140,7 +141,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                 </div></td>
               </tr>)}</tbody>
             </table></div>
-            {data.total > data.pageSize && <footer className="sales-history__pagination"><span>{(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} de {data.total} {plural}</span><div><button type="button" disabled={data.page <= 1} onClick={() => changePage(data.page - 1)}>Anterior</button><span>{data.page} / {pages}</span><button type="button" disabled={data.page >= pages} onClick={() => changePage(data.page + 1)}>Siguiente</button></div></footer>}
+            {shouldShowTablePagination(data.total,data.pageSize) && <footer className="sales-history__pagination"><span>{(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} de {data.total} {plural}</span><div><button type="button" disabled={data.page <= 1} onClick={() => changePage(data.page - 1)}>Anterior</button><span>{data.page} / {pages}</span><button type="button" disabled={data.page >= pages} onClick={() => changePage(data.page + 1)}>Siguiente</button></div></footer>}
           </>}
       </div>
     </section>

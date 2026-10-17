@@ -593,16 +593,12 @@ function JarvisIntegrationSettings() {
                       )}
 
                       {resolutionsError && !isLoadingResolutions && (
-                        <ErrorMessage message={resolutionsError} />
+                        <ErrorMessage message={resolutionsError} inline />
                       )}
 
-                      {/* El reintento vive acá y no dentro del aviso porque
-                          ese aviso se va solo a los 5 segundos; si el enlace
-                          se fuera con él, quedaría una pantalla sin salida. */}
-                      {!isLoadingResolutions &&
-                        invoiceResolutionOptions.length === 0 && supportResolutionOptions.length === 0 && (
+                      {!isLoadingResolutions && (
                           <p className="settings-card__description">
-                            No hay resoluciones vigentes para mostrar.{' '}
+                            {!resolutionsError && invoiceResolutionOptions.length === 0 && supportResolutionOptions.length === 0 && <>No hay resoluciones vigentes para mostrar.{' '}</>}
                             <button
                               type="button"
                               className="settings-card__hint-link"

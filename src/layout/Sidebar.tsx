@@ -188,6 +188,16 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               ]
             : []),
         ]),
+    ...(isJarvisCompany ? [{
+      label: 'Nómina electrónica',
+      to: 'nomina-electronica',
+      icon: DocumentIcon,
+      children: [
+        {label: 'Nóminas', to: '/nomina', icon: DocumentIcon},
+        {label: 'Empleados', to: '/nomina/empleados', icon: SuppliersIcon},
+        {label: 'Configuración', to: '/nomina/configuracion', icon: SettingsIcon},
+      ],
+    }] : []),
     ...(isJarvisCompany
       ? [{
           label: 'Categorías',
@@ -235,6 +245,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   }
 
   const isActive = (to: string) => {
+    if (to === '/nomina') return location.pathname === '/nomina' || location.pathname.startsWith('/nomina/nueva')
     if (to === '/documento-soporte') return location.pathname.startsWith('/documento-soporte')
     if (to === '/factura-compra') return location.pathname.startsWith('/factura-compra')
     if (to === '/factura-venta') return location.pathname === '/factura-venta' || location.pathname.startsWith('/factura-venta/')
