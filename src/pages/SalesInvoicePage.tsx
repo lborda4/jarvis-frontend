@@ -1,10 +1,12 @@
 import { calculateJarvisRetention } from '../utils/jarvisTaxTechnical'
 import MoneyInput from '../components/MoneyInput'
 import InvoiceSellerSelect from '../components/InvoiceSellerSelect'
+import InvoiceAttachmentAction from '../components/InvoiceAttachmentAction'
+import { uploadInvoiceAttachment, deleteInvoiceAttachment, type InvoiceAttachment } from '../services/invoiceAttachmentService'
 import type { JarvisSeller } from '../services/jarvisSellerService'
 import { saveInvoiceDraft, fetchInvoiceDraft, deleteInvoiceDraft, type InvoiceDraftKind } from '../services/invoiceDraftService'
 import { balancePayments, type PaymentEntry } from '../utils/paymentBalance'
-import { alignPaymentMethods, paymentMethodsForNegotiation } from '../utils/paymentNegotiation'
+import { alignPaymentMethods, paymentMethodsForNegotiation, isCreditPaymentMethod, buildPaymentBreakdown, primaryPaymentForNegotiation } from '../utils/paymentNegotiation'
 import { fetchJarvisPaymentMethods, resolveJarvisPaymentMethodId, type JarvisPaymentMethod } from '../services/jarvisPaymentMethodService'
 import {
   type DragEvent,
@@ -93,6 +95,7 @@ interface LineItem {
 type InvoiceCustomer = Pick<JarvisTercero, 'id' | 'document_type' | 'document_number' | 'name'> & { check_digit?: string | null }
 
 interface InvoiceDraftState {
+  attachment?: InvoiceAttachment
   documentTotal?: number
   selectedSellers?: JarvisSeller[]
   selectedCustomer: InvoiceCustomer | null
@@ -179,7 +182,7 @@ function lineDiscountAmount(line: LineItem, discountIsPercent: boolean): number 
 }
 
 function lineBaseTotal(line: LineItem, discountIsPercent: boolean): number {
-  return Math.max(0, lineGross(line) - lineDiscountAmount(line, discountIsPercent))
+  return Math.round((Math.max(0, lineGross(line) - lineDiscountAmount(line, discountIsPercent)) + Number.EPSILON) * 100) / 100
 }
 
 function lineTaxAmount(line: LineItem, discountIsPercent: boolean): number {
@@ -229,11 +232,14 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   useEffect(() => {
     if (!isNote) return
     let active = true
-    setRejectionsLoading(true)
-    setRejectionsError('')
-    setRejectionTypes([])
-    fetchJarvisNoteReasons(debitNote ? 'debit' : 'credit').then(rows => {
+    void Promise.resolve().then(() => {
       if (!active) return
+      setRejectionsLoading(true)
+      setRejectionsError('')
+      setRejectionTypes([])
+      return fetchJarvisNoteReasons(debitNote ? 'debit' : 'credit')
+    }).then(rows => {
+      if (!active || !rows) return
       const options = rows.filter(row => row.name && row.code && Number.isSafeInteger(Number(row.code)) && Number(row.code) > 0)
       setRejectionTypes(options)
       setRejectionsError(options.length ? '' : 'No hay motivos disponibles en el catálogo de Jarvis.')
@@ -289,13 +295,17 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
+  const [storedAttachment, setStoredAttachment] = useState<InvoiceAttachment | null>(null)
+  const [storedAttachmentDraftId, setStoredAttachmentDraftId] = useState(draftId ?? '')
+  const [attachmentRemoved, setAttachmentRemoved] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const chargeTaxes = taxes.filter((tax) => tax.category === 'IMPUESTO')
   const retentionTaxes = taxes.filter((tax) => tax.category === 'RETENCION')
 
-  const isCreditPayment = (() => {
+  const isMixedPayment = paymentFormId === 'MIXED' && !isNote && !supportDocument
+  const isCreditPayment = isMixedPayment || (() => {
     if (paymentForms.length > 0) {
       const form = paymentForms.find((f) => String(f.id) === paymentFormId)
       return form?.name?.toLowerCase().includes('cr') ?? paymentFormId === '2'
@@ -304,7 +314,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   })()
 
   const plazoDays = Math.max(0, daysBetweenLocalDates(issueDate, dueDate))
-  const availablePaymentMethods = useMemo(() => paymentMethodsForNegotiation(paymentMethods, isCreditPayment), [paymentMethods, isCreditPayment])
+  const availablePaymentMethods = useMemo(() => paymentMethodsForNegotiation(paymentMethods, isCreditPayment, isMixedPayment), [paymentMethods, isCreditPayment, isMixedPayment])
 
   const currencyOptions = (() => {
     const matched = COMMON_CURRENCY_CODES.map((code) => {
@@ -433,6 +443,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         if (draft && draft.documentKind !== documentKind) throw new Error('El borrador corresponde a otro tipo de documento.')
         if (draft) {
           const state = draft.state
+          setStoredAttachment(state.attachment ?? null); setAttachedFile(null); setAttachmentRemoved(false)
+          setStoredAttachmentDraftId(draftId!)
           setSelectedSellers(state.selectedSellers ?? [])
           setSelectedCustomer(state.selectedCustomer); setCustomerQuery(state.customerQuery)
           setIssueDate(state.issueDate); setDueDate(state.dueDate); setCurrency(state.currency)
@@ -496,6 +508,10 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setReteIvaId('')
     setDiscountIsPercent(false)
     setAttachedFile(null)
+    setStoredAttachment(null)
+    setStoredAttachmentDraftId('')
+    setAttachmentRemoved(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
     setFieldErrors({})
     setErrorMessage(null)
   }, [paymentMethods])
@@ -611,13 +627,14 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   }
 
   const handleFileSelect = useCallback((file: File | null) => {
-    if (!file) return
+    if (!file || isSubmitting) return
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
     if (!allowedTypes.includes(file.type)) { setErrorMessage('Solo se aceptan archivos PDF, JPG y PNG.'); return }
     if (file.size > 10 * 1024 * 1024) { setErrorMessage('El archivo no puede superar los 10 MB.'); return }
     setAttachedFile(file)
+    setAttachmentRemoved(false)
     setErrorMessage(null)
-  }, [])
+  }, [isSubmitting])
 
   const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -638,6 +655,13 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       if (parseAmount(line.quantity) <= 0) nextErrors[`line-${index}-quantity`] = 'Cantidad inválida'
     })
     if (isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
+    if (isCreditPayment && dueDate < issueDate) nextErrors.dueDate = 'El vencimiento no puede ser anterior a la fecha del documento.'
+    if (isMixedPayment) {
+      const positive = payments.filter(payment => parseAmount(payment.amount) > 0)
+      const hasCredit = positive.some(payment => paymentMethods.some(method => method.id === payment.methodId && isCreditPaymentMethod(method)))
+      const hasCash = positive.some(payment => paymentMethods.some(method => method.id === payment.methodId && !isCreditPaymentMethod(method)))
+      if (!hasCash || !hasCredit) nextErrors.payment = 'Distribuye el total entre al menos un medio de contado y uno de crédito.'
+    }
     if (debitNote && (parseAmount(generalDiscount) < 0 || parseAmount(generalDiscount) > documentSubtotal + documentTax - reteIcaTax - reteIvaTax - itemRetentionsTotal)) nextErrors.generalDiscount = 'El descuento general no puede superar el valor de la nota.'
     if (isNote) {
       if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > issueDate) nextErrors.reference = `Indica el número, ${affectedCodeLabel} y fecha del ${affectedDocumentLabel} afectado.`
@@ -645,9 +669,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
-  }, [dueDate, isCreditPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
+  }, [dueDate, isCreditPayment, isMixedPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
 
-  const buildRequest = useCallback(() => {
+  const buildRequest = useCallback((attachmentDraftId?: string) => {
     if (!selectedCustomer) throw new Error(`Debe seleccionar un ${partyLabel.toLowerCase()}.`)
     const taxesById = new Map(taxes.map((tax) => [tax.id, tax]))
     const retentions: Array<{ id: number; type: string; percentage?: number }> = []
@@ -659,11 +683,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       }
     }
     const uniqueRetentions = Array.from(new Map(retentions.map((item) => [item.id, item])).values())
-    const firstPayment = payments[0]
+    const firstPayment = primaryPaymentForNegotiation(payments, paymentMethods, isMixedPayment)
     const methodId = resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
-    const formId = Number(paymentFormId)
+    const formId = isMixedPayment ? Number(paymentForms.find(form => form.name.toLowerCase().includes('cr'))?.id ?? 2) : Number(paymentFormId)
     const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
     return {
+      ...(attachmentDraftId ? { attachmentDraftId } : {}),
       ...(isNote ? {
         billingReference: { number: billingNumber.trim(), uuid: billingUuid.trim(), issueDate: billingDate },
         discrepancyResponseCode: Number(reasonCode), discrepancyResponseDescription: reasonDescription.trim(),
@@ -671,6 +696,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       } : {}),
       issueDate: issueDate.trim(),
       ...(!isNote && !supportDocument ? { sellerIds: selectedSellers.map(seller => seller.id) } : {}),
+      ...(!isNote && !supportDocument ? { paymentBreakdown: buildPaymentBreakdown(payments, paymentMethods) } : {}),
       customerDocumentType: selectedCustomer.document_type,
       customerIdentification: selectedCustomer.document_number,
       customerName: selectedCustomer.name,
@@ -702,7 +728,31 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument, isSiigoCompany])
+  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument])
+
+  const draftState = (): InvoiceDraftState => ({
+    documentTotal, selectedSellers, selectedCustomer, customerQuery, issueDate, dueDate, currency, notes, headNote, footNote,
+    discountIsPercent, generalDiscount, lines, paymentFormId, paymentEntries, reteIcaId, reteIvaId,
+    billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze,
+  })
+
+  const persistAttachment = async (draftSaved = false) => {
+    if (attachedFile) {
+      if (!draftSaved) await saveInvoiceDraft(draftIdRef.current, documentKind, draftState())
+      const attachment = await uploadInvoiceAttachment(draftIdRef.current, documentKind, attachedFile)
+      setStoredAttachment(attachment)
+      setStoredAttachmentDraftId(draftIdRef.current)
+      setAttachedFile(null)
+      setAttachmentRemoved(false)
+      return attachment
+    }
+    if (attachmentRemoved) {
+      await deleteInvoiceAttachment(draftIdRef.current)
+      setAttachmentRemoved(false)
+      return null
+    }
+    return storedAttachment
+  }
 
   const handleSubmit = async (mode: SubmitMode) => {
     if (sourceLoading || isSubmitting) return
@@ -713,14 +763,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       setIsSubmitting(true)
       setSubmitMode('save')
       try {
-        const state: InvoiceDraftState = {
-          documentTotal,
-          selectedSellers,
-          selectedCustomer, customerQuery, issueDate, dueDate, currency, notes, headNote, footNote,
-          discountIsPercent, generalDiscount, lines, paymentFormId, paymentEntries, reteIcaId, reteIvaId,
-          billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze,
-        }
-        await saveInvoiceDraft(draftIdRef.current, documentKind, state)
+        await saveInvoiceDraft(draftIdRef.current, documentKind, draftState())
+        await persistAttachment(true)
         hydratedDraftRef.current = `${documentKind}:${draftIdRef.current}`
         setDraftLoaded(true)
         setSearchParams(current => { const next = new URLSearchParams(current); next.set('borrador', draftIdRef.current); return next }, { replace: true })
@@ -734,7 +778,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setIsSubmitting(true)
     setSubmitMode(mode)
     try {
-      const response = await (debitNote ? createJarvisDebitNote : adjustmentNote ? createJarvisSupportCreditNote : isNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest())
+      const attachment = await persistAttachment()
+      const response = await (debitNote ? createJarvisDebitNote : adjustmentNote ? createJarvisSupportCreditNote : isNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest(attachment ? draftIdRef.current : undefined))
       const consecutive = response.invoice?.consecutive || response.invoice?.number
       setSuccessMessage(`${documentTitle} ${consecutive ?? ""} ${supportDocument ? "enviado" : "enviada"} a DIAN.`)
       const usedNumber = Number(response.invoice?.number)
@@ -744,8 +789,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           : (nextConsecutive ?? 1) + 1,
       )
       resetForm()
-      if (draftId) {
-        try { await deleteInvoiceDraft(draftId) }
+      if ((draftId || attachment) && (!attachment || response.invoice.historyId)) {
+        try { await deleteInvoiceDraft(draftIdRef.current) }
         catch { setErrorMessage('El documento se envió, pero no se pudo retirar el borrador del listado. No lo vuelvas a enviar.') }
         setSearchParams(current => { const next = new URLSearchParams(current); next.delete('borrador'); return next }, { replace: true })
       }
@@ -1028,11 +1073,13 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                 <span>Forma de negociación</span>
                 <select value={paymentFormId} onChange={(e) => {
                   setPaymentFormId(e.target.value)
-                  const isCredit = paymentForms.length > 0 ? (paymentForms.find((f) => String(f.id) === e.target.value)?.name?.toLowerCase().includes('cr') ?? e.target.value === '2') : e.target.value === '2'
-                  setPayments(alignPaymentMethods(payments, paymentMethodsForNegotiation(paymentMethods, isCredit)))
+                  const mixed = e.target.value === 'MIXED'
+                  const isCredit = mixed || (paymentForms.length > 0 ? (paymentForms.find((f) => String(f.id) === e.target.value)?.name?.toLowerCase().includes('cr') ?? e.target.value === '2') : e.target.value === '2')
+                  setPayments(alignPaymentMethods(payments, paymentMethodsForNegotiation(paymentMethods, isCredit, mixed)))
                   if (!isCredit) setDueDate(issueDate)
                 }}>
                   {paymentForms.length > 0 ? paymentForms.map((form) => <option key={form.id} value={form.id}>{form.name}</option>) : (<><option value="1">Contado</option><option value="2">Crédito</option></>)}
+                  {!isNote && !supportDocument && <option value="MIXED">Contado y crédito</option>}
                 </select>
               </label>
 
@@ -1044,7 +1091,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                   <div className="ds-individual__payment-controls">
                     <select value={payment.methodId} onChange={(e) => updatePayment(payment.id, { methodId: e.target.value })}>
                       <option value="">Selecciona forma de pago</option>
-                      {availablePaymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
+                      {availablePaymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}{isMixedPayment ? ` · ${isCreditPaymentMethod(method) ? 'Crédito' : 'Contado'}` : ''}</option>)}
                     </select>
                     <MoneyInput value={payment.amount} onValueChange={(value) => updatePayment(payment.id, { amount: value })} />
                     <button
@@ -1061,6 +1108,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
               ))}
 
               <p className="ds-individual__hint">Si reduces un importe, el saldo restante aparecerá en otra forma de pago.</p>
+              {isMixedPayment && <p className="ds-individual__hint">Combina los medios de contado con el saldo a crédito. La fecha de vencimiento aplica al saldo a crédito.</p>}
 
               <label className={`ds-individual__field ds-individual__field--due${fieldErrors.dueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de vencimiento</span>
@@ -1136,21 +1184,22 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => { if (!isSubmitting) fileInputRef.current?.click() }}
               role="button" tabIndex={0} aria-label="Adjuntar archivo"
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
+              onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!isSubmitting) fileInputRef.current?.click() } }}
             >
-              <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="ds-individual__file-input" onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)} />
-              {attachedFile ? (
+              <input ref={fileInputRef} disabled={isSubmitting} type="file" accept=".pdf,.jpg,.jpeg,.png" className="ds-individual__file-input" onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)} />
+              {attachedFile || storedAttachment ? (
                 <div className="ds-individual__file-info">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="28" height="28">
                     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" strokeLinejoin="round" />
                     <path d="M14 3v5h5" strokeLinejoin="round" />
                     <path d="M9 13l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="ds-individual__file-name">{attachedFile.name}</span>
-                  <span className="ds-individual__file-size">{formatFileSize(attachedFile.size)}</span>
-                  <button type="button" className="ds-individual__file-remove" aria-label="Quitar archivo" onClick={(e) => { e.stopPropagation(); setAttachedFile(null) }}>✕</button>
+                  <span className="ds-individual__file-name">{(attachedFile ?? storedAttachment)!.name}</span>
+                  <span className="ds-individual__file-size">{formatFileSize((attachedFile ?? storedAttachment)!.size)}</span>
+                  <InvoiceAttachmentAction key={`${storedAttachmentDraftId}:${attachedFile?.name ?? storedAttachment?.name}`} id={storedAttachmentDraftId} draft attachment={attachedFile ? { name: attachedFile.name, mimeType: attachedFile.type, size: attachedFile.size } : storedAttachment!} file={attachedFile ?? undefined} disabled={isSubmitting} />
+                  <button type="button" disabled={isSubmitting} className="ds-individual__file-remove" aria-label="Quitar archivo" onClick={(e) => { e.stopPropagation(); setAttachmentRemoved(Boolean(storedAttachment)); setStoredAttachment(null); setAttachedFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}>✕</button>
                 </div>
               ) : (
                 <>

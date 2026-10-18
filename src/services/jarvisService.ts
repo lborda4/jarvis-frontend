@@ -137,6 +137,9 @@ export interface CreateJarvisInvoiceItem {
 }
 
 export interface CreateJarvisInvoiceRequest {
+  attachmentDraftId?: string
+  attachment?: import('./invoiceAttachmentService').InvoiceAttachment
+  paymentBreakdown?: import('../utils/paymentNegotiation').InvoicePaymentAllocation[]
   sellerIds?: string[]
   number?: number
   prefix?: string

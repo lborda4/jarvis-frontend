@@ -324,6 +324,8 @@ export interface PurchaseInvoiceDownloadWithholding {
 
 /** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
 export interface PurchaseInvoiceDownload {
+  attachment?: import('../services/invoiceAttachmentService').InvoiceAttachment
+  paymentBreakdown?: import('../utils/paymentNegotiation').InvoicePaymentAllocation[]
   sellers?: Array<{ id: string; name: string }>
   logoDataUrl?: string | null
   issueTime?: string | null;

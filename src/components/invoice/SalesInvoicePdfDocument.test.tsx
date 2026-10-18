@@ -20,6 +20,17 @@ describe('sales invoice HTML template adaptation', () => {
     return ''
   }
 
+  it('muestra el contado y el saldo a crédito con sus medios e importes', () => {
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, paymentBreakdown: [
+      { methodId: 'cash', methodName: 'Efectivo', nextpymeMethodId: 10, negotiation: 'CASH', amount: 100 },
+      { methodId: 'credit', methodName: 'Crédito clientes', nextpymeMethodId: 1, negotiation: 'CREDIT', amount: 114.2 },
+    ] }, qr: '' }))
+    expect(text).toContain('Forma de negociación: Contado y crédito')
+    expect(text).toContain('Efectivo (Contado): 100,00')
+    expect(text).toContain('Crédito clientes (Crédito): 114,20')
+    expect(text).toContain('Fecha de vencimiento: 2026-10-01')
+  })
+
   it('muestra todos los vendedores asignados y omite el campo en documentos antiguos', () => {
     const sellers = [{ id: 'seller-1', name: 'Laura Pérez' }, { id: 'seller-2', name: 'Juan Díaz' }]
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, sellers }, qr: '' }))
