@@ -190,7 +190,7 @@ export async function fetchBoldBindedTerminals(
 ): Promise<BoldBindedTerminalsResponse> {
   const response = await apiClient.get<BoldBindedTerminalsResponse>(
     BOLD_BINDED_TERMINALS_ENDPOINT,
-    { params: { companyId } },
+    { params: { companyId }, boldAdministration: true },
   )
 
   return response.data
@@ -201,6 +201,7 @@ export async function fetchBoldCashRegisters(
 ): Promise<ListBoldCashRegistersResponse> {
   const response = await apiClient.get<ListBoldCashRegistersResponse>(
     `${BOLD_CASH_REGISTERS_ENDPOINT}/${companyId}`,
+    { boldAdministration: true },
   )
 
   return response.data
@@ -212,6 +213,7 @@ export async function saveBoldCashRegister(
   const response = await apiClient.post<UpsertBoldCashRegisterResponse>(
     BOLD_CASH_REGISTERS_ENDPOINT,
     request,
+    { boldAdministration: true },
   )
 
   return response.data

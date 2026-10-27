@@ -766,6 +766,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     void (async () => {
       const requestFilters = buildElectronicDocumentListFilters({
         electronicDocumentType: config.electronicDocumentType,
+        provider: config.provider,
         page,
         limit: pageLimit,
         columnFilters,
@@ -943,6 +944,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         const options = await fetchElectronicDocumentFilterOptions(
           {
             electronicDocumentType: config.electronicDocumentType,
+            provider: config.provider,
           },
           { force: true },
         )
@@ -960,7 +962,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     return () => {
       cancelled = true
     }
-  }, [config.electronicDocumentType, refreshToken])
+  }, [config.electronicDocumentType, config.provider, refreshToken])
 
   useEffect(() => {
     const sentinel = controlsAnchorRef.current
@@ -2394,6 +2396,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       try {
         const exportFilters = buildElectronicDocumentListFilters({
           electronicDocumentType: config.electronicDocumentType,
+          provider: config.provider,
           columnFilters,
           selectedSupplierNits,
           defaultToCurrentMonthWhenUnfiltered: true,

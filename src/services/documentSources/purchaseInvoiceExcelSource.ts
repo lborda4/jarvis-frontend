@@ -68,7 +68,7 @@ export const purchaseInvoiceExcelSource: DocumentSourceAdapter = {
   type: DOCUMENT_SOURCE_TYPE.EXCEL,
   label: 'Excel Factura de compra DIAN',
   uploadEndpoint: IMPORT_ENDPOINT,
-  upload: async (file) => {
+  upload: async (file, options) => {
     // 1) VALIDACIÓN PREVIA: antes de tocar NextPyme/SIIGO, se revisa el
     // Excel completo (CUFEs faltantes/duplicados, NIT con formato inválido,
     // nombre de emisor faltante) y se le devuelve el reporte al usuario sin
@@ -87,6 +87,7 @@ export const purchaseInvoiceExcelSource: DocumentSourceAdapter = {
       await uploadMultipartFile<StartPurchaseInvoiceImportResponse>(
         IMPORT_ENDPOINT,
         file,
+        { provider: options.provider ?? 'SIIGO' },
       )
 
     // Se registra en el store global ANTES de esperar nada más — así el

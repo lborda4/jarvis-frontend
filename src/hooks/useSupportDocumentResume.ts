@@ -227,7 +227,7 @@ export function useSupportDocumentResume({
 
       try {
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const imported = await fetchImportedDocuments(uniqueIds, electronicDocumentType)
+          const imported = await fetchImportedDocuments(uniqueIds, electronicDocumentType, provider)
           lastImported = imported
 
           setDocuments((current) => mergeImportedDocuments(current, imported))

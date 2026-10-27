@@ -2,6 +2,7 @@ import type { ElectronicDocumentType } from './electronicDocument'
 import type { ExtractInvoicesResponse } from './invoice'
 
 export interface DocumentUploadOptions {
+  provider?: 'SIIGO' | 'JARVIS'
   electronicDocumentType: ElectronicDocumentType
 }
 

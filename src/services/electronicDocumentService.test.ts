@@ -64,3 +64,22 @@ describe('consultar el lote importado por IDs', () => {
     expect(apiClient.get).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('aislar documentos por integración', () => {
+  beforeEach(() => { vi.resetAllMocks(); invalidateQueryCache(); setActiveCompanyId('company-test') })
+  it('mantiene respuestas y cachés independientes para SIIGO y JARVIS', async () => {
+    const siigo = { items: [{ id: 'siigo-doc' }] } as unknown as ElectronicDocumentListResponse
+    const jarvis = { items: [{ id: 'jarvis-doc' }] } as unknown as ElectronicDocumentListResponse
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: siigo }).mockResolvedValueOnce({ data: jarvis })
+    expect(await fetchElectronicDocuments({ provider: 'SIIGO' })).toBe(siigo)
+    expect(await fetchElectronicDocuments({ provider: 'JARVIS' })).toBe(jarvis)
+    expect(peekElectronicDocuments({ provider: 'SIIGO' })).toBe(siigo)
+    expect(peekElectronicDocuments({ provider: 'JARVIS' })).toBe(jarvis)
+    expect(vi.mocked(apiClient.get).mock.calls.map(([, options]) => options?.params.provider)).toEqual(['SIIGO', 'JARVIS'])
+  })
+  it('conserva la integración durante el seguimiento del lote', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { items: [{ id: 'doc' }] } })
+    await fetchImportedDocuments(['doc'], 'PURCHASE_INVOICE', 'JARVIS')
+    expect(apiClient.get).toHaveBeenCalledWith('/electronic-documents', expect.objectContaining({ params: expect.objectContaining({ provider: 'JARVIS' }) }))
+  })
+})

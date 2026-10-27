@@ -17,6 +17,13 @@ import { isAuthRequestUrl } from '../constants/authEndpoints'
 
 export { API_BASE_URL }
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Administración de Bold para una empresa seleccionada; el servidor valida permisos. */
+    boldAdministration?: boolean
+  }
+}
+
 const API_REQUEST_TIMEOUT_MS = 30_000
 
 export const apiClient = axios.create({
@@ -76,7 +83,7 @@ apiClient.interceptors.request.use((config) => {
     const providers = peekCachedQuery<{ providers: string[] }>(
       companyQueryKey(['integrations', 'providers']),
     )?.providers
-    if (providers?.includes('JARVIS') && !providers.includes('SIIGO')) {
+    if (!config.boldAdministration && providers?.includes('JARVIS') && !providers.includes('SIIGO')) {
       throw new axios.CanceledError('La integración Jarvis no permite peticiones a Bold.')
     }
   }

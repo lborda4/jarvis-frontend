@@ -29,12 +29,12 @@ describe('cajas y datáfonos Bold', () => {
     const response = { payload: { available_terminals: [] }, errors: [] }
     vi.mocked(apiClient.get).mockResolvedValue({ data: response })
     expect(await fetchBoldBindedTerminals('company-1')).toEqual(response)
-    expect(apiClient.get).toHaveBeenCalledWith('/bold/payments/binded-terminals', { params: { companyId: 'company-1' } })
+    expect(apiClient.get).toHaveBeenCalledWith('/bold/payments/binded-terminals', { params: { companyId: 'company-1' }, boldAdministration: true })
   })
   it('guarda el serial seleccionado junto con la caja y empresa', async () => {
     const request = { companyId: 'company-1', cashRegisterName: 'Principal', boldTerminalId: 'serial-123' }
     vi.mocked(apiClient.post).mockResolvedValue({ data: { item: { id: 'mapping-1', ...request } } })
     await saveBoldCashRegister(request)
-    expect(apiClient.post).toHaveBeenCalledWith('/bold/cash-registers', request)
+    expect(apiClient.post).toHaveBeenCalledWith('/bold/cash-registers', request, { boldAdministration: true })
   })
 })

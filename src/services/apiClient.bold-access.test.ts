@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from './apiClient'
+import { fetchBoldBindedTerminals, fetchBoldCashRegisters, saveBoldCashRegister } from './adminService'
 import { companyQueryKey, invalidateQueryCache, setActiveCompanyId, setCachedQuery } from './queryCache'
 
 vi.mock('./authStorage', () => ({
@@ -13,6 +14,24 @@ describe('peticiones Bold con integración Jarvis', () => {
   function providers(values: string[]) {
     setCachedQuery(companyQueryKey(['integrations', 'providers']), { providers: values })
   }
+
+  it('permite consultar y vincular datáfonos de otra empresa desde la administración Jarvis', async () => {
+    providers(['JARVIS'])
+    const originalAdapter = apiClient.defaults.adapter
+    apiClient.defaults.adapter = adapter
+    try {
+      await fetchBoldBindedTerminals('company-2')
+      await fetchBoldCashRegisters('company-2')
+      await saveBoldCashRegister({ companyId: 'company-2', cashRegisterName: 'Principal', boldTerminalId: 'serial-123' })
+      expect(adapter).toHaveBeenCalledTimes(3)
+      expect(adapter.mock.calls[0][0].params).toEqual({ companyId: 'company-2' })
+      expect(adapter.mock.calls[0][0].headers.get('Authorization')).toBe('Bearer test-token')
+      await expect(apiClient.get('/bold/payments/binded-terminals')).rejects.toMatchObject({ code: 'ERR_CANCELED' })
+      expect(adapter).toHaveBeenCalledTimes(3)
+    } finally {
+      apiClient.defaults.adapter = originalAdapter
+    }
+  })
 
   it.each([
     '/bold/payments/binded-terminals',

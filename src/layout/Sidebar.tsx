@@ -117,6 +117,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
   const navItems: NavItem[] = [
     ...(isJarvisCompany ? [{ label: 'Inicio', to: '/inicio', icon: HomeIcon }] : []),
+    ...(isJarvisCompany ? [{ label: 'Reportes', to: '/reportes', icon: DocumentIcon }] : []),
     ...(!isJarvisCompany ? [{
       label: settingsLabel,
       to: setupPath,

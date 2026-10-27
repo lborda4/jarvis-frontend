@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
+import InvoiceNoteAction from './InvoiceNoteAction'
 
 export default function InvoiceNoteActions({ invoiceId, number, supportDocument = false }: { invoiceId: string; number: string; supportDocument?: boolean }) {
   const trigger = useRef<HTMLButtonElement>(null)
@@ -8,7 +9,7 @@ export default function InvoiceNoteActions({ invoiceId, number, supportDocument 
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
     if (!position) return
-    panel.current?.querySelector('a')?.focus()
+    panel.current?.querySelector<HTMLElement>('a, button')?.focus()
     const closeOutside = (event: PointerEvent) => {
       if (!panel.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setPosition(null)
     }
@@ -37,8 +38,8 @@ export default function InvoiceNoteActions({ invoiceId, number, supportDocument 
       {supportDocument
         ? <Link to={`/nota-ajuste/nueva?documento=${encodeURIComponent(invoiceId)}`}>Nota de ajuste</Link>
         : <>
-            <Link to={`/nota-debito/nueva?factura=${encodeURIComponent(invoiceId)}`}>Nota débito</Link>
-            <Link to={`/nota-credito/nueva?factura=${encodeURIComponent(invoiceId)}`}>Nota crédito</Link>
+            <InvoiceNoteAction invoiceId={invoiceId} kind="debit">Nota débito</InvoiceNoteAction>
+            <InvoiceNoteAction invoiceId={invoiceId} kind="credit">Nota crédito</InvoiceNoteAction>
           </>}
     </div>, document.body)}
   </>

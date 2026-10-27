@@ -95,6 +95,7 @@ interface LineItem {
 type InvoiceCustomer = Pick<JarvisTercero, 'id' | 'document_type' | 'document_number' | 'name'> & { check_digit?: string | null }
 
 interface InvoiceDraftState {
+  sourceInvoiceId?: string | null
   attachment?: InvoiceAttachment
   documentTotal?: number
   selectedSellers?: JarvisSeller[]
@@ -214,6 +215,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const draftId = searchParams.get('borrador')
   const documentKind: InvoiceDraftKind = debitNote ? 'DEBIT_NOTE' : adjustmentNote ? 'SUPPORT_CREDIT_NOTE' : isNote ? 'CREDIT_NOTE' : supportDocument ? 'SUPPORT_DOCUMENT' : 'ELECTRONIC_INVOICE'
   const sourceInvoiceId = isNote ? searchParams.get('factura') || searchParams.get('documento') : null
+  const [draftSourceInvoiceId, setDraftSourceInvoiceId] = useState<string | null>(null)
+  const isBillingReferenceLocked = isNote && Boolean(sourceInvoiceId || draftSourceInvoiceId)
   const [sourceLoading, setSourceLoading] = useState(Boolean(sourceInvoiceId || draftId))
   const [draftLoaded, setDraftLoaded] = useState(!draftId)
   const draftIdRef = useRef(draftId ?? crypto.randomUUID())
@@ -443,6 +446,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         if (draft && draft.documentKind !== documentKind) throw new Error('El borrador corresponde a otro tipo de documento.')
         if (draft) {
           const state = draft.state
+          setDraftSourceInvoiceId(state.sourceInvoiceId ?? null)
           setStoredAttachment(state.attachment ?? null); setAttachedFile(null); setAttachmentRemoved(false)
           setStoredAttachmentDraftId(draftId!)
           setSelectedSellers(state.selectedSellers ?? [])
@@ -490,6 +494,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, adjustmentNote, isSiigoCompany, affectedDocumentLabel, affectedCodeLabel, partyLabel, draftId, documentKind])
 
   const resetForm = useCallback(() => {
+    setDraftSourceInvoiceId(null)
     setGeneralDiscount('0')
     setSourceWarning('')
     setBillingNumber(''); setBillingUuid(''); setBillingDate(''); setReasonCode(''); setReasonDescription(''); setSeze('')
@@ -731,6 +736,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument])
 
   const draftState = (): InvoiceDraftState => ({
+    sourceInvoiceId: isNote ? sourceInvoiceId || draftSourceInvoiceId : null,
     documentTotal, selectedSellers, selectedCustomer, customerQuery, issueDate, dueDate, currency, notes, headNote, footNote,
     discountIsPercent, generalDiscount, lines, paymentFormId, paymentEntries, reteIcaId, reteIvaId,
     billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze,
@@ -839,9 +845,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           <h2>{adjustmentNote ? 'Documento soporte afectado' : 'Factura afectada'} y motivo de la {documentTitle.toLowerCase()}</h2>
           <div className="ds-individual__info-grid">
             <div className="ds-individual__col">
-              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Número de {affectedDocumentLabel} *</span><input value={billingNumber} onChange={e => setBillingNumber(e.target.value)} placeholder={`Prefijo y número del ${affectedDocumentLabel}`} /></label>
-              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>{affectedCodeLabel} del {affectedDocumentLabel} *</span><input value={billingUuid} onChange={e => setBillingUuid(e.target.value)} maxLength={96} placeholder={`${affectedCodeLabel} del ${affectedDocumentLabel} afectado`} /></label>
-              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Fecha del {affectedDocumentLabel} *</span><DatePicker value={billingDate} onChange={setBillingDate} invalid={Boolean(fieldErrors.reference)} /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Número de {affectedDocumentLabel} *</span><input value={billingNumber} readOnly={isBillingReferenceLocked} onChange={e => setBillingNumber(e.target.value)} placeholder={`Prefijo y número del ${affectedDocumentLabel}`} /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>{affectedCodeLabel} del {affectedDocumentLabel} *</span><input value={billingUuid} readOnly={isBillingReferenceLocked} onChange={e => setBillingUuid(e.target.value)} maxLength={96} placeholder={`${affectedCodeLabel} del ${affectedDocumentLabel} afectado`} /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Fecha del {affectedDocumentLabel} *</span><DatePicker value={billingDate} disabled={isBillingReferenceLocked} onChange={setBillingDate} invalid={Boolean(fieldErrors.reference)} /></label>
               {fieldErrors.reference && <p className="ds-individual__error" role="alert">{fieldErrors.reference}</p>}
             </div>
             <div className="ds-individual__col">

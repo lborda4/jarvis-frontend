@@ -153,6 +153,7 @@ export interface ElectronicDocumentListItemItem {
 }
 
 export interface ElectronicDocumentListItem {
+  provider?: 'SIIGO' | 'JARVIS' | null
   id: string
   companyId: string
   companyName: string
@@ -226,6 +227,7 @@ export interface ElectronicDocumentListResponse {
 }
 
 export interface ElectronicDocumentListFilters {
+  provider?: 'SIIGO' | 'JARVIS'
   documentIds?: string[]
   status: string
   dateFrom: string

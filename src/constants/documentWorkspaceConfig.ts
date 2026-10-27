@@ -125,13 +125,14 @@ export interface DocumentWorkspaceConfig {
 
 async function importSupportDocumentExcel(
   file: File,
-  options?: { enforceDateRange?: boolean },
+  options?: { enforceDateRange?: boolean; provider?: 'SIIGO' | 'JARVIS' },
 ): Promise<DocumentWorkspaceImportResult> {
   await validateSupportDocumentExcelDates(file, {
     enforceDateRange: options?.enforceDateRange !== false,
   })
 
   const { rawResponse } = await supportDocumentExcelSource.upload(file, {
+    provider: options?.provider ?? 'SIIGO',
     electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT,
   })
   const response = rawResponse as {
@@ -222,7 +223,7 @@ export const SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   // permite subir/editar cualquier fecha, igual que ya hacía JARVIS acá
   // abajo (ver JARVIS_SUPPORT_DOCUMENT_WORKSPACE.importFile).
   importFile: (file) =>
-    importSupportDocumentExcel(file, { enforceDateRange: false }),
+    importSupportDocumentExcel(file, { enforceDateRange: false, provider: 'SIIGO' }),
   buildSendRequest: (
     document,
     account,
@@ -278,7 +279,7 @@ export const JARVIS_SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
   supplierMissingLabel: 'Crear tercero',
   downloadTemplate: () => downloadSupportDocumentTemplate('JARVIS'),
   importFile: (file) =>
-    importSupportDocumentExcel(file, { enforceDateRange: false }),
+    importSupportDocumentExcel(file, { enforceDateRange: false, provider: 'JARVIS' }),
   buildSendRequest: buildJarvisSupportDocumentRequest,
   sendDocument: (request) =>
     createJarvisSupportDocument(request as CreateJarvisSupportDocumentRequest),
@@ -293,8 +294,10 @@ export const JARVIS_SUPPORT_DOCUMENT_WORKSPACE: DocumentWorkspaceConfig = {
 
 async function importPurchaseInvoiceExcel(
   file: File,
+  provider: 'SIIGO' | 'JARVIS',
 ): Promise<DocumentWorkspaceImportResult> {
   const { rawResponse } = await purchaseInvoiceExcelSource.upload(file, {
+    provider,
     electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.PURCHASE_INVOICE,
   })
   const response = rawResponse as {
@@ -344,7 +347,7 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   showTemplateDownload: false,
   showPeriodSummaryExport: true,
   supplierMissingLabel: 'Crear tercero',
-  importFile: importPurchaseInvoiceExcel,
+  importFile: (file) => importPurchaseInvoiceExcel(file, 'SIIGO'),
   buildSendRequest: (
     document,
     account,
@@ -402,7 +405,7 @@ export const JARVIS_PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   showTemplateDownload: false,
   showPeriodSummaryExport: true,
   supplierMissingLabel: 'Crear tercero',
-  importFile: importPurchaseInvoiceExcel,
+  importFile: (file) => importPurchaseInvoiceExcel(file, 'JARVIS'),
   buildSendRequest: buildJarvisSupportDocumentRequest,
   sendDocument: async () => {
     throw new Error(

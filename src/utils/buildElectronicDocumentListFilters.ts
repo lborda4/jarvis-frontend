@@ -18,6 +18,7 @@ export function hasUiElectronicDocumentFilters(
 }
 
 export interface BuildElectronicDocumentListFiltersParams {
+  provider?: 'SIIGO' | 'JARVIS'
   electronicDocumentType: ElectronicDocumentType
   columnFilters: SupportDocumentColumnFilters
   selectedSupplierNits: string[]
@@ -32,6 +33,7 @@ export interface BuildElectronicDocumentListFiltersParams {
 }
 
 export interface BuiltElectronicDocumentListFilters {
+  provider?: 'SIIGO' | 'JARVIS'
   search?: string
   electronicDocumentType: ElectronicDocumentType
   page?: number
@@ -74,6 +76,7 @@ export function buildElectronicDocumentListFilters(
 
   return {
     electronicDocumentType,
+    ...(params.provider ? { provider: params.provider } : {}),
     ...(columnFilters.referenceSearch?.trim() ? { search: columnFilters.referenceSearch.trim() } : {}),
     ...(page !== undefined ? { page } : {}),
     ...(limit !== undefined ? { limit } : {}),

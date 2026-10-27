@@ -8,5 +8,6 @@ export async function uploadDocumentFile<TResponse = unknown>(
 ): Promise<TResponse> {
   return uploadMultipartFile<TResponse>(endpoint, file, {
     electronicDocumentType: options.electronicDocumentType,
+    provider: options.provider ?? 'SIIGO',
   })
 }

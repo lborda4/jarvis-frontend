@@ -36,10 +36,12 @@ function buildValidationErrorMessage(
  * mal armados. */
 async function validateSupportDocumentExcel(
   file: File,
+  provider: 'SIIGO' | 'JARVIS',
 ): Promise<SupportDocumentValidationReport> {
   return uploadMultipartFile<SupportDocumentValidationReport>(
     VALIDATE_ENDPOINT,
     file,
+    { provider },
   )
 }
 
@@ -47,8 +49,9 @@ export const supportDocumentExcelSource: DocumentSourceAdapter = {
   type: DOCUMENT_SOURCE_TYPE.EXCEL,
   label: 'Excel Documento soporte',
   uploadEndpoint: IMPORT_ENDPOINT,
-  upload: async (file, _options) => {
-    const validation = await validateSupportDocumentExcel(file)
+  upload: async (file, options) => {
+    const provider = options.provider ?? 'SIIGO'
+    const validation = await validateSupportDocumentExcel(file, provider)
 
     if (validation.invalidGroups > 0) {
       throw new Error(buildValidationErrorMessage(validation))
@@ -57,6 +60,7 @@ export const supportDocumentExcelSource: DocumentSourceAdapter = {
     const response = await uploadMultipartFile<ImportSupportDocumentsResponse>(
       IMPORT_ENDPOINT,
       file,
+      { provider },
     )
 
     const adapted = adaptSupportDocumentsImportResponse(response)

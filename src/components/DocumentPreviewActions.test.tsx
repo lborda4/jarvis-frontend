@@ -8,10 +8,12 @@ function render(kind: string) {
 }
 
 describe('acciones en la visualización de documentos', () => {
-  it('abre la creación de notas débito y crédito con la factura seleccionada', () => {
+  it('ofrece verificar RADIAN antes de crear notas débito y crédito', () => {
     const html = render('ELECTRONIC_INVOICE')
-    expect(html).toContain('href="/nota-debito/nueva?factura=document%2F1"')
-    expect(html).toContain('href="/nota-credito/nueva?factura=document%2F1"')
+    expect(html).toContain('Nota Débito</button>')
+    expect(html).toContain('Nota Crédito</button>')
+    expect(html).not.toContain('href="/nota-debito/nueva')
+    expect(html).not.toContain('href="/nota-credito/nueva')
     expect(html).toContain('Enviar correo')
     expect(html).not.toContain('/nota-ajuste/nueva')
   })

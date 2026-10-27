@@ -34,6 +34,7 @@ function documentsCacheKey(
 ): string {
   return companyQueryKey([
     'electronic-documents',
+    filters.provider ?? '',
     filters.electronicDocumentType ?? '',
     (filters.documentIds ?? []).join(','),
     filters.page ?? 1,
@@ -73,6 +74,7 @@ export async function fetchElectronicDocuments(
         ELECTRONIC_DOCUMENTS_ENDPOINT,
         {
           params: {
+            provider: filters.provider,
             documentIds: filters.documentIds?.join(',') || undefined,
             status: filters.status || undefined,
             dateFrom: filters.dateFrom || undefined,
@@ -120,13 +122,14 @@ export function peekElectronicDocuments(
 export async function fetchElectronicDocumentFilterOptions(
   filters: Pick<
     ElectronicDocumentListFilters,
-    'electronicDocumentType'
+    'electronicDocumentType' | 'provider'
   > = {},
   options?: { force?: boolean },
 ): Promise<ElectronicDocumentFilterOptions> {
   const key = companyQueryKey([
     'electronic-documents',
     'filter-options',
+    filters.provider ?? '',
     filters.electronicDocumentType ?? '',
   ])
 
@@ -142,6 +145,7 @@ export async function fetchElectronicDocumentFilterOptions(
         ELECTRONIC_DOCUMENT_FILTER_OPTIONS_ENDPOINT,
         {
           params: {
+            provider: filters.provider,
             electronicDocumentType: filters.electronicDocumentType || undefined,
           },
         },
@@ -278,13 +282,14 @@ export async function fetchPurchaseInvoiceDownload(
 export async function fetchImportedDocuments(
   documentIds: string[],
   electronicDocumentType: ElectronicDocumentListFilters['electronicDocumentType'],
+  provider?: 'SIIGO' | 'JARVIS',
 ): Promise<import('../types/electronicDocument').ElectronicDocumentListItem[]> {
   const ids = [...new Set(documentIds.map((id) => id.trim()).filter(Boolean))]
   const found = new Map<string, import('../types/electronicDocument').ElectronicDocumentListItem>()
   for (let offset = 0; offset < ids.length; offset += 100) {
     const batch = ids.slice(offset, offset + 100)
     const response = await fetchElectronicDocuments(
-      { electronicDocumentType, documentIds: batch, page: 1, limit: 100 },
+      { electronicDocumentType, provider, documentIds: batch, page: 1, limit: 100 },
       { force: true },
     )
     for (const document of response.items) {
