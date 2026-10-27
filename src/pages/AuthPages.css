@@ -354,6 +354,31 @@
   color: var(--jarvis-gray-500);
 }
 
+.auth-login-form__forgot {
+  align-self: flex-end;
+  margin-top: -0.15rem;
+  color: var(--jarvis-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-login-form__forgot:hover {
+  text-decoration: underline;
+}
+
+.auth-login-form__note {
+  margin: 0;
+  color: var(--jarvis-text-muted);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.auth-login-form__note a {
+  color: var(--jarvis-primary);
+  font-weight: 600;
+}
+
 .auth-login-form__password { position: relative; }
 .auth-login-form__password input { padding-right: 3.25rem; }
 .auth-login-form__password input::-ms-reveal { display: none; }
