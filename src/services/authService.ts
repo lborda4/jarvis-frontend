@@ -7,8 +7,10 @@ import type {
   RegisterRequest,
 } from '../types/auth'
 import {
+  AUTH_FORGOT_PASSWORD_ENDPOINT,
   AUTH_LOGIN_ENDPOINT,
   AUTH_ME_ENDPOINT,
+  AUTH_RESET_PASSWORD_ENDPOINT,
   AUTH_REFRESH_ENDPOINT,
   AUTH_REGISTER_ENDPOINT,
   AUTH_RUT_PARSE_ENDPOINT,
@@ -41,6 +43,14 @@ export async function login(request: LoginRequest): Promise<AuthSession> {
   setTokens(session.tokens)
 
   return session
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiClient.post(AUTH_FORGOT_PASSWORD_ENDPOINT, { email })
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  await apiClient.post(AUTH_RESET_PASSWORD_ENDPOINT, { token, password })
 }
 
 export async function register(request: RegisterRequest): Promise<AuthSession> {

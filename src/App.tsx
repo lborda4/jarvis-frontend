@@ -23,7 +23,9 @@ import SalesInvoicePage from './pages/SalesInvoicePage'
 import JarvisReportsPage from './pages/JarvisReportsPage'
 import SalesInvoiceListPage from './pages/SalesInvoiceListPage'
 import SalesInvoicePreviewPage from './pages/SalesInvoicePreviewPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import LandingPage from './pages/LandingPage'
 import PayrollPage from './pages/payroll/PayrollPage'
 import RegisterPage from './pages/RegisterPage'
@@ -37,6 +39,8 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/olvide-mi-contrasena" element={<ForgotPasswordPage />} />
+            <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
             <Route path="/registro" element={<RegisterPage />} />
             <Route path="/admin" element={<AdminRoute />} />
 

@@ -269,6 +269,10 @@ function LoginPage() {
               </div>
             </div>
 
+            <Link to="/olvide-mi-contrasena" className="auth-login-form__forgot">
+              Olvidé mi contraseña
+            </Link>
+
             {errorMessage && <ErrorMessage message={errorMessage} />}
 
             <Button
