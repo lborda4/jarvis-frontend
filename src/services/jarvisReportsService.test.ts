@@ -4,7 +4,7 @@ import { exportJarvisReport, fetchJarvisReport, type JarvisReportFilters } from 
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn() } }))
 beforeEach(() => vi.resetAllMocks())
-const filters: JarvisReportFilters = { report: 'products', view: 'detail', from: '2026-10-01', to: '2026-10-31', customer: 'Cliente', seller: 'Ana', product: 'Servicio', kind: 'CREDIT_NOTE', currency: 'COP', page: 3, pageSize: 20 }
+const filters: JarvisReportFilters = { report: 'products', view: 'detail', from: '2026-10-01', to: '2026-10-31', search: 'NC1', customer: 'Cliente', seller: 'Ana', product: 'Servicio', kind: 'CREDIT_NOTE', currency: 'COP', page: 3, pageSize: 20 }
 
 it('envía todos los filtros y permite cancelar una consulta al cambiar de empresa', async () => {
   const signal = new AbortController().signal
@@ -17,7 +17,7 @@ it('exporta los filtros vigentes sin limitar los resultados a la página visible
   vi.mocked(apiClient.get).mockResolvedValue({ data: file })
   expect(await exportJarvisReport(filters)).toBe(file)
   const config = vi.mocked(apiClient.get).mock.calls[0][1]!
-  expect(config.params).toMatchObject({ report: 'products', from: filters.from, to: filters.to, customer: 'Cliente', seller: 'Ana', product: 'Servicio', kind: 'CREDIT_NOTE', currency: 'COP' })
+  expect(config.params).toMatchObject({ report: 'products', from: filters.from, to: filters.to, search: 'NC1', customer: 'Cliente', seller: 'Ana', product: 'Servicio', kind: 'CREDIT_NOTE', currency: 'COP' })
   expect(config.params).not.toHaveProperty('page')
   expect(config.params).not.toHaveProperty('pageSize')
   expect(config.responseType).toBe('blob')

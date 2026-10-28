@@ -1,11 +1,28 @@
 .jarvis-reports { padding: 24px; max-width: 1700px; margin: auto; color: var(--jarvis-text, #142c43); }
+.jarvis-reports__breadcrumb { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 13px; color: #7a889a; }
+.jarvis-reports__selector { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; font-size: 13px; color: #627488; }
+.jarvis-reports__selector select { min-width: 250px; padding: 10px 36px 10px 12px; border: 1px solid #dce6ed; border-radius: 8px; background: white; color: #17334c; font: inherit; font-weight: 600; }
+.jarvis-reports__header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.jarvis-reports__header h1 { margin: 0 0 8px; font-size: clamp(24px, 2.3vw, 32px); line-height: 1.2; letter-spacing: -.04em; color: #10213b; }
+.jarvis-reports__header p { margin: 0; color: #7a889a; font-size: 14px; line-height: 1.5; }
+.jarvis-reports__header-actions { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.jarvis-reports__header-actions > .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; background: #009da6; border-color: #009da6; white-space: nowrap; }
+.jarvis-reports__header-actions > .btn svg, .jarvis-reports__dates > svg { width: 20px; height: 20px; flex-shrink: 0; }
+.jarvis-reports__dates { display: flex; align-items: center; gap: 8px; border: 1px solid #dce6ed; border-radius: 8px; padding: 3px 8px; background: white; color: #627488; }
+.jarvis-reports__dates .date-range-filter__label { display: none; }
+.jarvis-reports__dates .date-range-filter__field { border: 0; }
+.jarvis-reports__dates .date-range-filter__field > button { border: 0; }
+.jarvis-reports__dates .date-range-filter { margin: 0; }
+.jarvis-reports__advanced { grid-column: 1 / -1; max-width: 260px; }
+.jarvis-reports__filter-actions .jarvis-reports__clear { margin-left: auto; color: #009ba5; }
+.jarvis-reports__filters.integration-card { border: 1px solid #e4ecf1; border-radius: 8px; box-shadow: none; margin: 0; background: white; }
 .jarvis-reports__filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 20px; }
 .jarvis-reports__filters label, .jarvis-reports__pagination label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #53667a; }
 .jarvis-reports__filters :is(input, select), .jarvis-reports__pagination select { box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cedae3; border-radius: 7px; background: white; color: #17334c; font: inherit; }
 .jarvis-reports__filters :is(input, select):focus-visible { outline: 2px solid #12a39c; outline-offset: 2px; }
 .jarvis-reports__filter-actions { display: flex; gap: 10px; grid-column: 1 / -1; }
 .jarvis-reports__view { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; flex-wrap: wrap; }
-.jarvis-reports__view h2 { margin: 0; font-size: 20px; }
+.jarvis-reports__view > span { color: #748398; font-size: 13px; }
 .jarvis-reports__view [role="group"] { display: flex; gap: 8px; }
 .jarvis-reports__period { font-size: 13px; color: #637588; line-height: 1.6; }
 .jarvis-reports__total-currency { padding: 20px; margin: 16px 0; border: 1px solid #dce7ec; border-radius: 12px; background: #fff; }
@@ -15,15 +32,29 @@
 .jarvis-reports__total-currency dt { font-size: 12px; color: #637588; margin-bottom: 6px; }
 .jarvis-reports__total-currency dd { font-size: 20px; font-weight: 650; margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .jarvis-reports__total-currency dl > div:nth-child(4) { color: #088c86; }
-.jarvis-reports__result { padding: 20px; }
-.jarvis-reports__result-heading { display: flex; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.jarvis-reports__result.integration-card { padding: 0; border: 1px solid #e5edf2; border-radius: 9px; box-shadow: none; background: white; overflow: hidden; }
+.jarvis-reports__result-heading { display: flex; gap: 16px; justify-content: space-between; align-items: center; padding: 8px 16px; }
 .jarvis-reports__result-heading h2 { margin: 0; font-size: 16px; }
 .jarvis-reports__result-heading span { color: #637588; font-size: 12px; }
 .jarvis-reports__table-scroll { overflow-x: auto; }
 .jarvis-reports__table-scroll table { min-width: 100%; }
 .jarvis-reports__table-scroll th { min-width: 110px; }
+.jarvis-reports__table-scroll :is(th, td) { padding: 13px 15px; border-bottom: 1px solid #edf2f6; font-size: 12px; }
+.jarvis-reports__table-scroll th { background: #f7f9fc; color: #62748c; font-weight: 600; white-space: nowrap; }
+.jarvis-reports__table-scroll td { color: #354d6b; }
+.jarvis-reports__table-scroll tbody tr:nth-child(even) { background: #fcfdff; }
+.jarvis-reports__table-scroll tbody tr:hover { background: #f1fafb; }
+.jarvis-reports__table-scroll tfoot td { background: #ecfaff; color: #078f9a; font-weight: 700; padding-block: 18px; white-space: nowrap; }
+.jarvis-reports__badge { display: inline-block; padding: 4px 9px; border-radius: 20px; color: #099b8d; background: #dcfaf1; white-space: nowrap; font-size: 11px; }
+.jarvis-reports__badge--credit { color: #df5267; background: #fff0f2; }
+.jarvis-reports__badge--debit { color: #228bc1; background: #e5f4ff; }
+.jarvis-reports__document-link { color: #009da6; font-weight: 600; text-decoration: none; }
+.jarvis-reports__document-link:hover { text-decoration: underline; }
 .jarvis-reports__numeric { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.jarvis-reports__pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 18px; font-size: 13px; }
+.jarvis-reports__pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 18px; font-size: 12px; }
+.jarvis-reports__record-count { margin-right: auto; color: #526782; }
+.jarvis-reports__current-page { padding: 10px; border-radius: 6px; background: #009da6; color: white; }
+.jarvis-reports__totals > summary { padding: 16px 0; cursor: pointer; color: #61758b; font-size: 13px; }
 .jarvis-reports__pagination label { flex-direction: row; align-items: center; }
 .jarvis-reports__pagination select { width: auto; }
 .jarvis-reports__criteria { padding: 16px 20px; margin-top: 16px; color: #53667a; font-size: 13px; line-height: 1.6; }
@@ -31,4 +62,6 @@
 .jarvis-reports__criteria li { margin: 8px 0; }
 .jarvis-reports__empty { padding: 30px 0; text-align: center; color: #637588; }
 @media (max-width: 1100px) { .jarvis-reports__filters, .jarvis-reports__total-currency dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1250px) { .jarvis-reports__header { align-items: flex-start; flex-direction: column; gap: 18px; } }
+@media (max-width: 600px) { .jarvis-reports__header-actions { flex-wrap: wrap; width: 100%; } .jarvis-reports__selector { align-items: flex-start; flex-direction: column; } .jarvis-reports__selector select { width: 100%; min-width: 0; } .jarvis-reports__record-count { width: 100%; } .jarvis-reports__filter-actions { flex-wrap: wrap; } }
 @media (max-width: 600px) { .jarvis-reports { padding: 16px; } .jarvis-reports__filters, .jarvis-reports__total-currency dl { grid-template-columns: 1fr; } .jarvis-reports__result { padding: 14px; } .jarvis-reports__pagination { justify-content: flex-start; } }

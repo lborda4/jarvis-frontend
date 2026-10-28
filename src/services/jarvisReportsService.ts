@@ -7,6 +7,7 @@ export interface JarvisReportFilters {
   from: string
   to: string
   customer: string
+  search?: string
   seller: string
   product: string
   kind: string

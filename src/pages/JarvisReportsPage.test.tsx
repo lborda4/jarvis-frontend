@@ -11,16 +11,16 @@ const render = () => renderToStaticMarkup(<MemoryRouter><JarvisReportsPage /></M
 
 it('ofrece los cinco reportes y filtros antes de consultar', () => {
   const html = render()
-  for (const label of ['Ventas generales', 'Ventas por cliente', 'Ventas por producto', 'Ventas por vendedor', 'Impuestos y retenciones', 'Registros individuales', 'Exportar a Excel']) expect(html).toContain(label)
+  for (const label of ['Ventas', 'Ventas por cliente', 'Ventas por producto', 'Ventas por vendedor', 'Impuestos y retenciones', 'Registros individuales', 'Exportar a Excel', 'Buscar por cliente, número o identificación', 'Fecha inicial', 'Fecha final']) expect(html).toContain(label)
   expect(html).toContain('Consultando registros')
   expect(html).not.toContain('<tbody>')
 })
 it('no muestra reportes JARVIS en empresas SIIGO', () => {
   setup.isJarvisCompany = false
-  expect(render()).not.toContain('Ventas generales')
+  expect(render()).not.toContain('Seleccionar reporte')
 })
 it('espera a identificar la integración', () => {
   setup.isCheckingSetup = true
   expect(render()).toContain('Cargando reportes')
-  expect(render()).not.toContain('Ventas generales')
+  expect(render()).not.toContain('Seleccionar reporte')
 })
