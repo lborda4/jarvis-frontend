@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import ScrollToTopButton from '../components/ScrollToTopButton'
 import SupportFab from '../components/SupportFab'
 import PurchaseInvoiceImportBadge from '../components/supportDocument/PurchaseInvoiceImportBadge'
+import JarvisDocumentQuotaNotice from '../components/JarvisDocumentQuotaNotice'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { hydrateFromStorage } from '../services/realtime/purchaseInvoiceImportJobsStore'
 import './AppLayout.css'
@@ -28,6 +29,7 @@ function AppLayout() {
       />
 
       <div className="app-layout__content" ref={contentRef}>
+        <JarvisDocumentQuotaNotice />
         <Outlet />
       </div>
 
