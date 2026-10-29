@@ -19,6 +19,7 @@ export interface AutocompleteProps<T> {
   onChange: (value: T | null) => void
   options: T[]
   disabled?: boolean
+  required?: boolean
   placeholder?: string
   emptyMessage: string
   getOptionKey: (option: T) => string | number
@@ -45,6 +46,7 @@ function Autocomplete<T>({
   onChange,
   options,
   disabled = false,
+  required = false,
   placeholder,
   emptyMessage,
   getOptionKey,
@@ -65,6 +67,10 @@ function Autocomplete<T>({
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [listStyle, setListStyle] = useState<CSSProperties>({})
+
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(required && !value ? 'Selecciona una opción de la lista.' : '')
+  }, [required, value])
 
   const resolveValueLabel = useCallback(
     (current: T | null) => {
@@ -239,6 +245,7 @@ function Autocomplete<T>({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
         role="combobox"
         aria-expanded={isOpen}
         aria-controls={listboxId}

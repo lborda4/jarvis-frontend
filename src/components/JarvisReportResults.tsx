@@ -79,7 +79,7 @@ export default function JarvisReportResults({ data, onPage, onPageSize }: {
         </tr> })}</tbody>
         <tfoot>{data.totals.map(item => { const total = isSalesDetail ? salesAmounts(item) : item; return <tr key={String(total.currency)}>{columns.map((column, index) => <td key={column.key} className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'}>{index === 0 ? `Total general · ${total.currency}` : column.key === 'unitValue' || column.format === 'text' ? '—' : formatReportValue(total[column.key === 'quantity' ? 'netQuantity' : column.key], column.format)}</td>)}{isSalesDetail && <td />}</tr> })}</tfoot>
       </table></div> : <p className="jarvis-reports__empty">No hay registros para los filtros seleccionados.</p>}
-      <footer className="jarvis-reports__pagination"><span className="jarvis-reports__record-count">Mostrando {start} a {end} de {data.total} registros</span>
+      {data.total > 0 && <footer className="jarvis-reports__pagination"><span className="jarvis-reports__record-count">Mostrando {start} a {end} de {data.total} registros</span>
       {showPagination && <>
         <label>Filas por página<select value={data.pageSize} onChange={event => onPageSize(Number(event.target.value))}>{[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}</select></label>
         <Button variant="ghost" aria-label="Primera página" disabled={data.page <= 1} onClick={() => onPage(1)}>«</Button>
@@ -88,7 +88,7 @@ export default function JarvisReportResults({ data, onPage, onPageSize }: {
         <Button variant="outline" disabled={data.page >= pages} onClick={() => onPage(data.page + 1)}>Siguiente</Button>
         <Button variant="ghost" aria-label="Última página" disabled={data.page >= pages} onClick={() => onPage(pages)}>»</Button>
       </>}
-      </footer>
+      </footer>}
     </section>
     <details className="jarvis-reports__totals" aria-label="Totales de todos los registros filtrados"><summary>Ver totales consolidados por moneda</summary>
       {data.totals.map(total => <section className="jarvis-reports__total-currency" key={String(total.currency)}>

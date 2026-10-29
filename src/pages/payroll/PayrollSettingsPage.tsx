@@ -1,77 +1,132 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   payrollService,
   type Parameters,
-  type PayrollSettings,
-  type Position,
+  type Concept,
 } from '../../services/payrollService'
 import { VERIFIED_CONCEPTS } from '../../utils/payrollDomain'
-import { blankParameters, currency } from './payrollDefaults'
+import { monthlyHoursForWeek, payrollParametersForSettings } from './payrollDefaults'
 import { Field, PayrollHeading, type PayrollContext } from './PayrollPage'
-import usePayrollCatalogs from './usePayrollCatalogs'
+import PayrollMoneyInput from './PayrollMoneyInput'
+import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
 export default function PayrollSettingsPage({
   data,
   run,
   busy,
 }: PayrollContext) {
-  const {
-    catalogs,
-    error: catalogError,
-    reload: reloadCatalogs,
-  } = usePayrollCatalogs()
   const [parameters, setParameters] = useState<Parameters>(
-    () => data.parameters[0]?.data ?? blankParameters(),
+    () => payrollParametersForSettings(data.parameters[0]?.data),
   )
-  const [settings, setSettings] = useState<PayrollSettings>(data.settings)
-  const [position, setPosition] = useState<Position | null>(null)
+  const [newConcept, setNewConcept] = useState<Concept | null>(null)
+  const [conceptError, setConceptError] = useState('')
+  const [conceptNotice, setConceptNotice] = useState('')
+  const newConceptRow = useRef<HTMLTableRowElement>(null)
+  const newConceptCode = newConcept?.code
+
+  useEffect(() => {
+    if (!newConceptCode) return
+    newConceptRow.current?.querySelector<HTMLInputElement>('input')?.focus()
+    const discard = (event: PointerEvent) => {
+      if (event.target instanceof Node && !newConceptRow.current?.contains(event.target)) {
+        setNewConcept(null)
+        setConceptError('')
+      }
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setNewConcept(null); setConceptError('') }
+    }
+    document.addEventListener('pointerdown', discard)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', discard)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [newConceptCode])
+
+  const saveNewConcept = () => {
+    if (!newConcept || busy) return
+    if (!newConcept.name.trim()) { setConceptError('Escribe el nombre del concepto.'); return }
+    if (!parameters.concepts.some(concept => concept.code === newConcept.category && concept.kind === newConcept.kind && !concept.code.startsWith('internal_'))) {
+      setConceptError('Selecciona la categoría del concepto.'); return
+    }
+    if ((newConcept.factor && (!Number.isFinite(Number(newConcept.factor)) || Number(newConcept.factor) < 0)) ||
+      (newConcept.percentage && (!Number.isFinite(Number(newConcept.percentage)) || Number(newConcept.percentage) < 0 || Number(newConcept.percentage) > 100)) ||
+      (newConcept.calculationMode === 'additional' && newConcept.factor && Number(newConcept.factor) < 1)) {
+      setConceptError('Revisa el factor y el porcentaje del concepto.'); return
+    }
+    setParameters(current => ({ ...current, concepts: [...current.concepts, { ...newConcept, name: newConcept.name.trim() }] }))
+    setNewConcept(null)
+    setConceptError('')
+    setConceptNotice('Concepto agregado. Pulsa Guardar para guardar los cambios de configuración.')
+  }
   const field = (key: keyof Parameters, label: string, type = 'number') => (
     <Field label={label}>
-      <input
+      {key === 'minimumSalary' || key === 'transportAllowance' ? <PayrollMoneyInput value={parameters[key]} onValueChange={value => setParameters({ ...parameters, [key]: value })} /> : <input
         type={type}
         min={type === 'number' ? '0' : undefined}
         step={type === 'number' ? '0.01' : undefined}
         value={String(parameters[key])}
         onChange={(e) =>
-          setParameters({ ...parameters, [key]: e.target.value })
+          setParameters({ ...parameters, [key]: e.target.value, ...(key === 'weeklyHours' ? { monthlyHours: monthlyHoursForWeek(e.target.value) } : {}) })
         }
-      />
+      />}
     </Field>
   )
   const conceptSection = (kind: 'accrued' | 'deduction') => (
     <>
       <div className="payroll__scroll">
-        <table>
+        <table className="payroll__concepts" aria-label={kind === 'accrued' ? 'Conceptos de devengados, horas extras y recargos' : 'Conceptos de deducciones'}>
+          <colgroup>
+            <col className="payroll__concept-col-name" />
+            <col className="payroll__concept-col-category" />
+            <col className="payroll__concept-col-base" />
+            <col className="payroll__concept-col-factor" />
+            <col className="payroll__concept-col-mode" />
+            <col className="payroll__concept-col-percent" />
+            <col className="payroll__concept-col-check" />
+            <col className="payroll__concept-col-check" />
+          </colgroup>
           <thead>
             <tr>
               {[
                 'Concepto',
-                'Categoría de transmisión',
-                'Base de sugerencia',
+                'Categoría',
+                'Base de cálculo',
                 'Factor total',
-                'Porcentaje',
+                'Aplicación',
+                '%',
                 'Salarial',
                 'Activo',
               ].map((t) => (
-                <th key={t}>{t}</th>
+                <th scope="col" key={t}>{t}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {parameters.concepts.map(
-              (c, i) =>
+            {[...parameters.concepts, ...(newConcept ? [newConcept] : [])].map(
+              (c) =>
                 c.kind === kind && (
-                  <tr key={i}>
+                  <tr key={c.code} ref={c.code === newConceptCode ? newConceptRow : undefined} className={c.code === newConceptCode ? 'payroll__concept-draft' : undefined}>
                     <td>
                       <input
                         aria-label="Nombre del concepto"
+                        title={c.name}
+                        placeholder="Nuevo concepto"
                         value={c.name}
-                        onChange={(e) => change(i, 'name', e.target.value)}
+                        onChange={(e) => change(c.code, 'name', e.target.value)}
                       />
                       <small>
-                        {VERIFIED_CONCEPTS.includes(c.code)
+                        {c.code === newConceptCode ? 'Sin guardar' : VERIFIED_CONCEPTS.includes(c.code)
                           ? 'Mapeo verificado'
                           : 'Pendiente de integración'}
                       </small>
+                      {c.code === newConceptCode && <>
+                        <div className="payroll__concept-draft-actions">
+                          <button type="button" className="payroll__button payroll__button--primary" disabled={busy} onClick={saveNewConcept}>Guardar concepto</button>
+                          <button type="button" className="payroll__button" onClick={() => { setNewConcept(null); setConceptError('') }}>Eliminar</button>
+                        </div>
+                        {conceptError && <small role="alert" className="payroll__concept-error">{conceptError}</small>}
+                      </>}
                     </td>
                     <td>
                       {c.code.startsWith('internal_') ? (
@@ -79,7 +134,7 @@ export default function PayrollSettingsPage({
                           aria-label="Categoría"
                           value={c.category}
                           onChange={(e) =>
-                            change(i, 'category', e.target.value)
+                            change(c.code, 'category', e.target.value)
                           }
                         >
                           <option value="">Seleccionar</option>
@@ -103,7 +158,7 @@ export default function PayrollSettingsPage({
                       <select
                         aria-label="Base de cálculo"
                         value={c.base}
-                        onChange={(e) => change(i, 'base', e.target.value)}
+                        onChange={(e) => change(c.code, 'base', e.target.value)}
                       >
                         <option value="manual">Manual</option>
                         <option value="salary">Salario devengado</option>
@@ -119,17 +174,16 @@ export default function PayrollSettingsPage({
                         step="0.01"
                         aria-label="Factor total"
                         value={c.factor}
-                        onChange={(e) => change(i, 'factor', e.target.value)}
+                        onChange={(e) => change(c.code, 'factor', e.target.value)}
                       />
-                      <small>
-                        {c.factor &&
-                          `Adicional: ${((Number(c.factor) - 1) * 100).toFixed(2)} %`}
-                      </small>
+                      {c.factor && <small>Adic.: {((Number(c.factor) - 1) * 100).toFixed(2)} %</small>}
+                    </td>
+                    <td>
                       <select
                         aria-label="Aplicación del factor"
                         value={c.calculationMode ?? 'total'}
                         onChange={(e) =>
-                          change(i, 'calculationMode', e.target.value)
+                          change(c.code, 'calculationMode', e.target.value)
                         }
                       >
                         <option value="total">Remuneración total</option>
@@ -147,7 +201,7 @@ export default function PayrollSettingsPage({
                         aria-label="Porcentaje"
                         value={c.percentage}
                         onChange={(e) =>
-                          change(i, 'percentage', e.target.value)
+                          change(c.code, 'percentage', e.target.value)
                         }
                       />
                     </td>
@@ -157,7 +211,7 @@ export default function PayrollSettingsPage({
                         aria-label="Salarial"
                         checked={c.salaried}
                         onChange={(e) =>
-                          change(i, 'salaried', e.target.checked)
+                          change(c.code, 'salaried', e.target.checked)
                         }
                       />
                     </td>
@@ -166,7 +220,7 @@ export default function PayrollSettingsPage({
                         type="checkbox"
                         aria-label="Activo"
                         checked={c.active}
-                        onChange={(e) => change(i, 'active', e.target.checked)}
+                        onChange={(e) => change(c.code, 'active', e.target.checked)}
                       />
                     </td>
                   </tr>
@@ -175,18 +229,18 @@ export default function PayrollSettingsPage({
           </tbody>
         </table>
       </div>
-      <div className="payroll__section">
+      <div className="payroll__section payroll__concepts-actions">
         <button
           className="payroll__button"
           type="button"
-          onClick={() =>
-            setParameters({
-              ...parameters,
-              concepts: [
-                ...parameters.concepts,
-                {
+          disabled={Boolean(newConcept) || busy}
+          onClick={() => {
+            if (newConcept) return
+            setConceptError('')
+            setConceptNotice('')
+            setNewConcept({
                   code: `internal_${crypto.randomUUID()}`,
-                  name: 'Nuevo concepto',
+                  name: '',
                   kind,
                   category: '',
                   factor: '',
@@ -194,104 +248,58 @@ export default function PayrollSettingsPage({
                   base: 'manual',
                   salaried: false,
                   active: true,
-                },
-              ],
+                  calculationMode: 'total',
             })
-          }
+          }}
         >
           + Agregar concepto
         </button>
+        {newConcept?.kind === kind && <small className="payroll__muted">Guarda este concepto antes de crear otro. Si haces clic fuera de la fila, se descartará.</small>}
       </div>
     </>
   )
-  const change = (index: number, key: string, value: string | boolean) =>
+  const change = (code: string, key: keyof Concept, value: string | boolean) => {
+    if (code === newConceptCode) {
+      setNewConcept(current => current ? { ...current, [key]: value } : null)
+      setConceptError('')
+      return
+    }
     setParameters((p) => ({
       ...p,
-      concepts: p.concepts.map((c, i) =>
-        i === index ? { ...c, [key]: value } : c,
+      concepts: p.concepts.map((c) =>
+        c.code === code ? { ...c, [key]: value } : c,
       ),
     }))
+  }
   return (
     <>
       <PayrollHeading
         title="Configuración de nómina electrónica"
         description="Administra los parámetros, conceptos y factores utilizados para preparar tus nóminas electrónicas."
       />
-      {catalogError && (
-        <div role="alert" className="payroll__notice payroll__notice--error">
-          {catalogError}{' '}
-          <button
-            className="payroll__link"
-            onClick={() => void reloadCatalogs()}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
       <details className="payroll__card" open>
         <summary>Parámetros generales</summary>
         <div className="payroll__section">
           <p className="payroll__muted">
-            Cada fecha crea una versión inmutable. Ingresa valores verificados
-            para la vigencia: no se precargan tarifas legales sin confirmar.
+            Revisa los parámetros antes de guardarlos. El salario mínimo y el
+            auxilio de transporte y la jornada semanal se proponen según la fecha actual y puedes modificarlos.
           </p>
           <div className="payroll__grid">
-            <Field label="Consultar versión">
-              <select
-                value={parameters.validFrom}
-                onChange={(e) => {
-                  const item = data.parameters.find(
-                    (p) => p.validFrom === e.target.value,
-                  )
-                  if (item) setParameters(item.data)
-                }}
-              >
-                <option value={parameters.validFrom}>
-                  {parameters.validFrom}
-                </option>
-                {data.parameters
-                  .filter((p) => p.validFrom !== parameters.validFrom)
-                  .map((p) => (
-                    <option key={p.id} value={p.validFrom}>
-                      {p.validFrom}
-                    </option>
-                  ))}
-              </select>
-            </Field>
-            {field('validFrom', 'Vigente desde', 'date')}
             {field('minimumSalary', 'Salario mínimo legal')}
             {field('transportAllowance', 'Auxilio de transporte')}
             {field('weeklyHours', 'Jornada máxima semanal (horas)')}
-            {field('monthlyHours', 'Horas de referencia mensual')}
             {field('monthlyDays', 'Días de referencia mensual')}
-            {field('nightStart', 'Inicio de jornada nocturna', 'time')}
             <Field label="Método de pago predeterminado">
-              <select
-                disabled={!catalogs}
-                value={parameters.paymentMethodId || ''}
-                onChange={(e) =>
-                  setParameters({
-                    ...parameters,
-                    paymentMethodId: Number(e.target.value),
-                  })
-                }
-              >
-                <option value="">Seleccionar</option>
-                {catalogs?.paymentMethods?.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
+              <PayrollPaymentMethodSelect value={parameters.paymentMethodId} savedId={parameters.jarvisPaymentMethodId} savedName={parameters.paymentMethodName} onChange={method => setParameters({ ...parameters, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} />
             </Field>
           </div>
         </div>
       </details>
-      <details className="payroll__card">
+      <details className="payroll__card payroll__concepts-card">
         <summary>Devengados, horas extras y recargos</summary>
         {conceptSection('accrued')}
       </details>
-      <details className="payroll__card">
+      <details className="payroll__card payroll__concepts-card">
         <summary>Deducciones del empleado</summary>
         <p className="payroll__section payroll__muted">
           Las bases y porcentajes se aplican únicamente cuando estén
@@ -303,190 +311,17 @@ export default function PayrollSettingsPage({
       <button
         className="payroll__button payroll__button--primary"
         disabled={busy}
-        onClick={() =>
-          void run(
+        onClick={async () => {
+          const saved = await run(
             () => payrollService.parameters(parameters),
             'Versión de parámetros guardada.',
           )
-        }
+          if (saved) setConceptNotice('')
+        }}
       >
-        Guardar nueva vigencia de parámetros y conceptos
+        Guardar
       </button>
-      <details className="payroll__card">
-        <summary>Cargos</summary>
-        <div className="payroll__section">
-          <button
-            className="payroll__button"
-            onClick={() =>
-              setPosition({
-                id: crypto.randomUUID(),
-                code: '',
-                name: '',
-                salary: '0',
-                active: true,
-              })
-            }
-          >
-            + Crear cargo
-          </button>
-        </div>
-        <div className="payroll__scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Cargo</th>
-                <th>Salario de referencia</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.positions.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.code}</td>
-                  <td>{p.name}</td>
-                  <td>{currency(p.salary)}</td>
-                  <td>{p.active ? 'Activo' : 'Inactivo'}</td>
-                  <td>
-                    <button
-                      className="payroll__link"
-                      onClick={() => setPosition({ ...p })}
-                    >
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {position && (
-          <form
-            className="payroll__section"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void run(() => payrollService.position(position)).then((ok) => {
-                if (ok) setPosition(null)
-              })
-            }}
-          >
-            <div className="payroll__grid">
-              {(['code', 'name', 'salary'] as const).map((key, i) => (
-                <Field
-                  label={['Código', 'Cargo', 'Salario de referencia'][i]}
-                  key={key}
-                >
-                  <input
-                    required
-                    type={key === 'salary' ? 'number' : 'text'}
-                    min="0"
-                    step="0.01"
-                    value={position[key]}
-                    onChange={(e) =>
-                      setPosition({ ...position, [key]: e.target.value })
-                    }
-                  />
-                </Field>
-              ))}
-            </div>
-            <div className="payroll__toolbar" style={{ marginTop: 18 }}>
-              <label className="payroll__check">
-                <input
-                  type="checkbox"
-                  checked={position.active}
-                  onChange={(e) =>
-                    setPosition({ ...position, active: e.target.checked })
-                  }
-                />
-                Activo
-              </label>
-              <button
-                disabled={busy}
-                className="payroll__button payroll__button--primary"
-              >
-                Guardar cargo
-              </button>
-              <button
-                type="button"
-                className="payroll__button"
-                onClick={() => setPosition(null)}
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        )}
-      </details>
-      <details className="payroll__card">
-        <summary>Configuración DIAN</summary>
-        <div className="payroll__section">
-          <div className="payroll__grid">
-            <Field label="Ambiente de nómina">
-              <select
-                value={settings.environment}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    environment: Number(e.target.value),
-                  })
-                }
-              >
-                <option value={2}>Pruebas</option>
-                <option value={1}>Producción</option>
-              </select>
-            </Field>
-            <Field label="Prefijo interno">
-              <input
-                maxLength={20}
-                value={settings.prefix}
-                onChange={(e) =>
-                  setSettings({ ...settings, prefix: e.target.value })
-                }
-              />
-            </Field>
-            <Field label="Siguiente consecutivo">
-              <input readOnly value={data.nextNumber} />
-            </Field>
-            <label className="payroll__check">
-              <input
-                type="checkbox"
-                checked={settings.enabled}
-                onChange={(e) =>
-                  setSettings({ ...settings, enabled: e.target.checked })
-                }
-              />
-              Permitir envío de nómina
-            </label>
-          </div>
-          <p className="payroll__muted">
-            La numeración es independiente de las resoluciones de facturas. El
-            ambiente se sincroniza con NextPyme mediante una acción explícita.
-            Se requiere un plan de nómina verificado antes de enviar.
-          </p>
-          <div className="payroll__toolbar">
-            <button
-              className="payroll__button payroll__button--primary"
-              disabled={busy}
-              onClick={() => void run(() => payrollService.settings(settings))}
-            >
-              Guardar configuración
-            </button>
-            <button
-              className="payroll__button"
-              disabled={busy}
-              onClick={() =>
-                void run(
-                  () => payrollService.environment(),
-                  'Ambiente sincronizado con NextPyme.',
-                )
-              }
-            >
-              Sincronizar ambiente guardado
-            </button>
-          </div>
-        </div>
-      </details>
+      {conceptNotice && <p role="status" className="payroll__muted">{conceptNotice}</p>}
     </>
   )
 }

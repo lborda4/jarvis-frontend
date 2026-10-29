@@ -607,12 +607,12 @@ export default function PayrollDocuments(context: PayrollContext) {
                 </table>
               </div>
             )}
-            <div className="payroll__footer">
-              <span>
-                Mostrando {totalRows ? (currentPage - 1) * pageSize + 1 : 0} a{' '}
+            {(totalRows > 0 || selected.length > 0) && <div className="payroll__footer">
+              {totalRows > 0 && <span>
+                Mostrando {(currentPage - 1) * pageSize + 1} a{' '}
                 {Math.min(currentPage * pageSize, totalRows)} de {totalRows}{' '}
                 {detailPeriod ? 'documentos' : 'períodos'}
-              </span>
+              </span>}
               {shouldShowTablePagination(totalRows, pageSize) && (
                 <nav
                   className="payroll__pagination"
@@ -673,7 +673,7 @@ export default function PayrollDocuments(context: PayrollContext) {
                   Enviar {selected.length} borradores
                 </button>
               )}
-            </div>
+            </div>}
           </section>
           {!!bulkResult.length && (
             <div className="payroll__card payroll__section">

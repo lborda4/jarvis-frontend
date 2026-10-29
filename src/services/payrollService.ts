@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient'
+import { cachedQuery, companyQueryKey, invalidateQueryCache, peekCachedQuery, QUERY_STALE_MS, setCachedQuery } from './queryCache'
 import type { PayrollLine } from '../utils/payrollDomain'
 import type {
   CreatePayrollPeriodRequest,
@@ -23,6 +24,8 @@ export interface Employee {
   highRiskPension: boolean
   active: boolean
   paymentMethodId: number
+  jarvisPaymentMethodId?: string
+  paymentMethodName?: string
   bankName: string
   accountType: string
   accountNumber: string
@@ -53,6 +56,8 @@ export interface Parameters {
   monthlyDays: string
   nightStart: string
   paymentMethodId: number
+  jarvisPaymentMethodId?: string
+  paymentMethodName?: string
   concepts: Concept[]
 }
 export interface Position {
@@ -129,8 +134,30 @@ export interface PayrollWorkerCatalogs {
   paymentMethods?: { id: number; name: string; code?: string }[]
   identifications?: { id: number; name: string; code?: string }[]
 }
+export interface PayrollPaymentMethod {
+  id: string
+  name: string
+  nextpymeMethodId: number
+  nextpymeMethodName: string
+  systemKey: 'cash' | 'transfer' | null
+}
+export interface PayrollPaymentMethodsList { items: PayrollPaymentMethod[]; total: number }
+export const payrollPaymentMethodsQueryKey = () => companyQueryKey(['payroll', 'payment-methods'])
+export const peekPayrollPaymentMethods = () => peekCachedQuery<PayrollPaymentMethodsList>(payrollPaymentMethodsQueryKey())
 const root = '/integrations/jarvis/payroll'
 export const payrollService = {
+  paymentMethods: (options?: { force?: boolean }) => cachedQuery(payrollPaymentMethodsQueryKey(), QUERY_STALE_MS.catalogs,
+    async () => (await apiClient.get<PayrollPaymentMethodsList>(`${root}/payment-methods`)).data, options),
+  createPaymentMethod: async (request: { name: string; base: 'cash' | 'transfer' }) => {
+    const key = payrollPaymentMethodsQueryKey()
+    const created = (await apiClient.post<{ paymentMethod: PayrollPaymentMethod }>(`${root}/payment-methods`, request)).data.paymentMethod
+    const previous = peekCachedQuery<PayrollPaymentMethodsList>(key)
+    if (previous) {
+      const items = [...previous.items.filter(method => method.id !== created.id), created]
+      setCachedQuery(key, { items, total: items.length })
+    } else invalidateQueryCache(key)
+    return created
+  },
   createPeriod: async (id: string, request: CreatePayrollPeriodRequest) =>
     (
       await apiClient.put<{ id: string; key: string; documentIds: string[] }>(

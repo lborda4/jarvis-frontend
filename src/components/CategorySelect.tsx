@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react'
 import type { ProductCategory } from '../constants/createProduct'
 import './CategorySelect.css'
@@ -34,7 +35,9 @@ export interface CategorySelectProps {
    * Actualiza una categoría existente en el backend. Debe devolver la
    * categoría actualizada o lanzar un Error con el mensaje a mostrar.
    */
-  onEdit: (id: string, name: string) => Promise<ProductCategory>
+  onEdit?: (id: string, name: string) => Promise<ProductCategory>
+  itemLabel?: string
+  createFields?: ReactNode
   placeholder?: string
   invalid?: boolean
   disabled?: boolean
@@ -53,6 +56,8 @@ function CategorySelect({
   categories,
   onCreate,
   onEdit,
+  itemLabel = 'categoría',
+  createFields,
   placeholder = 'Selecciona una categoría...',
   invalid = false,
   disabled = false,
@@ -208,7 +213,7 @@ function CategorySelect({
         !(editor.mode === 'edit' && category.id === editor.categoryId),
     )
     if (duplicated) {
-      setDraftError('Ya existe una categoría con ese nombre.')
+      setDraftError(`Ya existe una ${itemLabel} con ese nombre.`)
       return
     }
 
@@ -219,7 +224,7 @@ function CategorySelect({
       if (editor.mode === 'create') {
         const created = await onCreate(name)
         onChange(created.id)
-      } else {
+      } else if (onEdit) {
         const updated = await onEdit(editor.categoryId, name)
         if (value === editor.categoryId) {
           onChange(updated.id)
@@ -230,7 +235,7 @@ function CategorySelect({
       setDraftError(
         error instanceof Error
           ? error.message
-          : 'No se pudo guardar la categoría.',
+          : `No se pudo guardar la ${itemLabel}.`,
       )
       setIsSaving(false)
     }
@@ -273,14 +278,14 @@ function CategorySelect({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Buscar por nombre..."
-                  aria-label="Buscar categoría"
+                  aria-label={`Buscar ${itemLabel}`}
                 />
               </div>
 
               <ul className="category-select__list" id={panelId} role="listbox">
                 {filteredCategories.length === 0 ? (
                   <li className="category-select__empty">
-                    No hay categorías que coincidan.
+                    No hay opciones que coincidan.
                   </li>
                 ) : (
                   filteredCategories.map((category) => {
@@ -300,14 +305,14 @@ function CategorySelect({
                             {category.name}
                           </span>
                         </button>
-                        <button
+                        {onEdit && <button
                           type="button"
                           className="category-select__edit"
                           onClick={() => startEdit(category)}
-                          aria-label={`Editar categoría ${category.name}`}
+                          aria-label={`Editar ${itemLabel} ${category.name}`}
                         >
                           <PencilIcon />
-                        </button>
+                        </button>}
                       </li>
                     )
                   })
@@ -320,15 +325,15 @@ function CategorySelect({
                 onClick={startCreate}
               >
                 <PlusIcon />
-                Crear nueva categoría
+                Crear nueva {itemLabel}
               </button>
             </>
           ) : (
             <div className="category-select__editor">
               <h3 className="category-select__editor-title">
                 {editor.mode === 'create'
-                  ? 'Nueva categoría'
-                  : 'Editar categoría'}
+                  ? `Nueva ${itemLabel}`
+                  : `Editar ${itemLabel}`}
               </h3>
 
               <label className="category-select__editor-field">
@@ -346,11 +351,12 @@ function CategorySelect({
                       void saveDraft()
                     }
                   }}
-                  placeholder="Ropa"
+                  placeholder={itemLabel === 'categoría' ? 'Ropa' : 'Nombre de la forma de pago'}
                   disabled={isSaving}
                   autoFocus
                 />
               </label>
+              {editor.mode === 'create' && createFields}
 
               {draftError && (
                 <p className="category-select__editor-error">{draftError}</p>

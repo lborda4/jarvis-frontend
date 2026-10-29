@@ -4,12 +4,13 @@ import { formatMoneyInput, parseMoneyInput } from '../utils/moneyInput'
 type MoneyInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> & {
   value: string | number
   onValueChange: (value: string) => void
+  padDecimals?: boolean
 }
 
 /** Keeps formatting out of the stored value and preserves incomplete decimals while typing. */
-export default function MoneyInput({ value, onValueChange, onBlur, onKeyDown, ...props }: MoneyInputProps) {
+export default function MoneyInput({ value, onValueChange, onBlur, onKeyDown, padDecimals = false, ...props }: MoneyInputProps) {
   const [draft, setDraft] = useState<{ external: string | number; text: string } | null>(null)
-  const display = draft && Object.is(draft.external, value) ? draft.text : formatMoneyInput(value)
+  const display = draft && Object.is(draft.external, value) ? draft.text : formatMoneyInput(value, padDecimals)
 
   const updateValue = (input: HTMLInputElement) => {
       const suffixLength = input.value.slice(input.selectionStart ?? input.value.length).replace(/[^\d,]/g, '').length

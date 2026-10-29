@@ -5,10 +5,14 @@ import {
   contractLabels,
   currency,
   employeeName,
+  payrollParametersForSettings,
 } from './payrollDefaults'
 import { Field, PayrollHeading, type PayrollContext } from './PayrollPage'
 import PayrollImport from './PayrollImport'
 import usePayrollCatalogs from './usePayrollCatalogs'
+import PayrollMoneyInput from './PayrollMoneyInput'
+import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
+import Autocomplete from '../../components/Autocomplete'
 export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   const {
     catalogs,
@@ -26,16 +30,24 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
       setEditing(null)
   }
   const catalogField = (
-    key:
-      | 'typeWorkerId'
-      | 'subTypeWorkerId'
-      | 'documentTypeId'
-      | 'paymentMethodId',
+    key: 'typeWorkerId' | 'subTypeWorkerId' | 'documentTypeId',
     label: string,
     rows?: { id: number; name: string; code?: string }[],
   ) => (
     <Field label={label}>
-      <select
+      {key === 'typeWorkerId' || key === 'subTypeWorkerId' ? <Autocomplete
+        className="account-autocomplete payroll__catalog-select"
+        value={rows?.find(row => row.id === editing?.[key]) ?? null}
+        options={rows ?? []}
+        onChange={option => update(key, option?.id ?? 0)}
+        getOptionKey={option => option.id}
+        getOptionLabel={option => option.name}
+        placeholder={catalogs ? 'Seleccionar o buscar…' : 'Cargando opciones…'}
+        emptyMessage="No se encontraron opciones."
+        disabled={!catalogs}
+        required
+        selectOnFocus
+      /> : <select
         required
         disabled={!catalogs}
         value={editing?.[key] || ''}
@@ -49,7 +61,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
             {row.name}
           </option>
         ))}
-      </select>
+      </select>}
     </Field>
   )
   const list = data.employees.filter((e) =>
@@ -72,11 +84,15 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
             </button>
             <button
               className="payroll__button payroll__button--primary"
+              disabled={!catalogs}
               onClick={() =>
                 setEditing({
-                  ...blankEmployee(),
+                  ...blankEmployee(catalogs?.identifications),
+                  salary: payrollParametersForSettings(data.parameters[0]?.data).minimumSalary,
                   paymentMethodId:
                     data.parameters[0]?.data.paymentMethodId ?? 0,
+                  jarvisPaymentMethodId: data.parameters[0]?.data.jarvisPaymentMethodId,
+                  paymentMethodName: data.parameters[0]?.data.paymentMethodName,
                 })
               }
             >
@@ -162,27 +178,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   ))}
                 </select>
               </Field>
-              <Field label="Cargo">
-                <select
-                  value={editing.positionId}
-                  onChange={(e) => {
-                    update('positionId', e.target.value)
-                    const pos = data.positions.find(
-                      (p) => p.id === e.target.value,
-                    )
-                    if (pos) update('salary', pos.salary)
-                  }}
-                >
-                  <option value="">Seleccionar cargo</option>
-                  {data.positions
-                    .filter((p) => p.active)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
-              </Field>
               <Field label="Fecha de ingreso">
                 <input
                   type="date"
@@ -206,13 +201,12 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                     : 'Salario básico'
                 }
               >
-                <input
-                  type="number"
+                <PayrollMoneyInput
                   required
                   min="0"
                   step="0.01"
                   value={editing.salary}
-                  onChange={(e) => update('salary', e.target.value)}
+                  onValueChange={value => update('salary', value)}
                 />
               </Field>
               {(['integralSalary', 'highRiskPension', 'active'] as const).map(
@@ -293,11 +287,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
           <details className="payroll__card" open>
             <summary>Información de pago</summary>
             <div className="payroll__section payroll__grid">
-              {catalogField(
-                'paymentMethodId',
-                'Método de pago',
-                catalogs?.paymentMethods,
-              )}
+              <Field label="Método de pago"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
               <Field label="Banco (si aplica)">
                 <input
                   value={editing.bankName}

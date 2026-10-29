@@ -8,6 +8,26 @@
 .payroll * {
   box-sizing: border-box;
 }
+.payroll__money-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cbd8e3;
+  border-radius: 8px;
+  background: white;
+}
+.payroll__money-input > span { padding-left: 12px; color: #53667a; }
+.payroll .payroll__money-input > input[type='text'] {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.payroll__money-input:focus-within { outline: 2px solid var(--jarvis-primary, #009e9b); outline-offset: 2px; }
+.payroll .payroll__money-input > input[type='text']:focus { outline: 0; box-shadow: none; }
 .payroll button,
 .payroll input,
 .payroll select {
@@ -105,6 +125,42 @@
 .payroll__grid--two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.payroll__grid > label { min-width: 0; }
+.payroll__payment-select { position: relative; min-width: 0; }
+.payroll .payroll__payment-select .payroll__payment-validation {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.payroll .payroll__payment-select .category-select__editor-field { margin-bottom: 12px; }
+.payroll__catalog-select { position: relative; width: 100%; min-width: 0; }
+.payroll .payroll__catalog-select .account-autocomplete__list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  border: 1px solid #c3cedb;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 8px 20px #14233420;
+}
+.payroll .payroll__catalog-select :is(.account-autocomplete__option, .account-autocomplete__empty) {
+  padding: 9px 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.payroll .payroll__catalog-select .account-autocomplete__option { cursor: pointer; border-radius: 5px; }
+.payroll .payroll__catalog-select .account-autocomplete__option--highlighted { background: #e7f7f6; color: #006b70; }
+.payroll .payroll__catalog-select .account-autocomplete__option[aria-selected='true'] { font-weight: 600; }
 .payroll__check {
   flex-direction: row !important;
   align-items: center;
@@ -347,6 +403,60 @@
 .payroll td select {
   min-width: 100px;
 }
+.payroll .payroll__concepts {
+  table-layout: fixed;
+  min-width: 1040px;
+  white-space: normal;
+  font-size: 0.78rem;
+}
+.payroll__concept-col-name { width: 24%; }
+.payroll__concept-col-category, .payroll__concept-col-base, .payroll__concept-col-mode { width: 17%; }
+.payroll__concept-col-factor { width: 8%; }
+.payroll__concept-col-percent { width: 7%; }
+.payroll__concept-col-check { width: 5%; }
+.payroll .payroll__concepts :is(th, td) {
+  padding: 7px 8px;
+  vertical-align: middle;
+  line-height: 1.25;
+}
+.payroll .payroll__concepts th { font-size: 0.72rem; padding-block: 10px; }
+.payroll .payroll__concepts :is(input:not([type='checkbox']), select) {
+  min-width: 0;
+  min-height: 32px;
+  width: 100%;
+  padding: 5px 7px;
+  border-radius: 5px;
+  font-size: 0.78rem;
+}
+.payroll .payroll__concepts :is(input:not([type='checkbox']), select):focus {
+  outline: 0;
+  outline-offset: 0;
+  border-color: #00858c;
+  box-shadow: inset 0 0 0 1px #00858c;
+}
+.payroll .payroll__concepts td small { margin-top: 3px; font-size: 0.65rem; line-height: 1.2; }
+.payroll .payroll__concepts input[type='number'] { text-align: right; }
+.payroll .payroll__concepts input[type='checkbox'] {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 0;
+  margin: 0 auto;
+  accent-color: var(--jarvis-primary, #009e9b);
+}
+.payroll .payroll__concepts :is(th, td):nth-last-child(-n + 2) { text-align: center; }
+.payroll .payroll__concepts tbody tr:nth-child(even) { background: #fafcfd; }
+.payroll .payroll__concepts tbody tr:hover { background: #f0f9f9; }
+.payroll .payroll__concepts-card > summary { padding: 14px 16px; }
+.payroll .payroll__concepts-actions { padding: 10px 12px; }
+.payroll .payroll__concepts-actions > button { min-height: 32px; padding: 6px 10px; font-size: 0.78rem; }
+.payroll .payroll__concepts tbody tr.payroll__concept-draft { background: #edfafa; }
+.payroll .payroll__concepts tr.payroll__concept-draft > td { vertical-align: top; }
+.payroll .payroll__concepts tr.payroll__concept-draft input[type='checkbox'] { margin-top: 8px; }
+.payroll__concept-draft-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.payroll .payroll__concept-draft-actions > button { padding: 5px 8px; min-height: 30px; font-size: 0.72rem; }
+.payroll .payroll__concepts td .payroll__concept-error { color: #b42318; }
+.payroll__concepts-actions > small { display: block; margin-top: 8px; }
 .payroll__link {
   border: 0;
   background: none;

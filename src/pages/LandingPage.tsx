@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { CloseIcon, MenuIcon } from '../components/icons/SidebarIcons'
@@ -228,6 +228,8 @@ function HeroVisual() {
 function LandingPage() {
   const { isAuthenticated, isLoading } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     document.documentElement.lang = 'es'
@@ -236,10 +238,26 @@ function LandingPage() {
   useEffect(() => {
     if (!menuOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
+      if (e.key === 'Escape') {
+        setMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
     }
+    const onOutsideClick = (e: PointerEvent) => {
+      if (e.target instanceof Node && !headerRef.current?.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    const desktop = window.matchMedia('(min-width: 1200px)')
+    const onBreakpointChange = () => setMenuOpen(false)
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onOutsideClick)
+    desktop.addEventListener('change', onBreakpointChange)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onOutsideClick)
+      desktop.removeEventListener('change', onBreakpointChange)
+    }
   }, [menuOpen])
 
   if (isLoading) {
@@ -262,7 +280,7 @@ function LandingPage() {
         Saltar al contenido
       </a>
 
-      <header className="landing-header">
+      <header ref={headerRef} className="landing-header">
         <div className="landing-container landing-header__inner">
           <a href="#inicio" className="landing-brand" onClick={closeMenu}>
             <BrandMark />
@@ -299,6 +317,7 @@ function LandingPage() {
               Iniciar sesión
             </Link>
             <button
+              ref={menuButtonRef}
               type="button"
               className="landing-menu-btn"
               aria-expanded={menuOpen}

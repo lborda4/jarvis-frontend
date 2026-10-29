@@ -14,6 +14,8 @@ import {
 import { suggestPayrollAmount } from '../../utils/payrollCalculation'
 import { blankPayroll, currency, employeeName } from './payrollDefaults'
 import { Field, Modal, type PayrollContext } from './PayrollPage'
+import PayrollMoneyInput from './PayrollMoneyInput'
+import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
 interface Props extends PayrollContext {
   initial?: PayrollState
   documentId?: string
@@ -270,10 +272,7 @@ export default function PayrollEditor({
             />
           </Field>
           <Field label="Método de pago del empleado">
-            <input
-              readOnly
-              value={employee?.paymentMethodId || 'Sin configurar'}
-            />
+            <PayrollPaymentMethodSelect readOnly value={employee?.paymentMethodId ?? 0} savedId={employee?.jarvisPaymentMethodId} savedName={employee?.paymentMethodName} />
           </Field>
           <Field label="Fecha de pago">
             <input
@@ -418,20 +417,19 @@ export default function PayrollEditor({
                         {readOnly ? (
                           currency(l.amount)
                         ) : (
-                          <input
+                          <PayrollMoneyInput
                             aria-label="Valor del concepto"
-                            type="number"
                             min="0"
                             step="0.01"
                             value={l.amount}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                               setState({
                                 ...state,
                                 lines: state.lines.map((v) =>
                                   v.id === l.id
                                     ? {
                                         ...v,
-                                        amount: e.target.value,
+                                        amount: value,
                                         manual: true,
                                       }
                                     : v,
@@ -613,13 +611,12 @@ export default function PayrollEditor({
                 suggestion && !manual ? 'Valor calculado' : 'Valor liquidado'
               }
             >
-              <input
-                type="number"
+              <PayrollMoneyInput
                 min="0"
                 step="0.01"
                 value={!manual && suggestion ? suggestion.amount : amount}
-                onChange={(e) => {
-                  setAmount(e.target.value)
+                onValueChange={(value) => {
+                  setAmount(value)
                   setManual(true)
                 }}
               />

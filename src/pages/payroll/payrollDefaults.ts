@@ -29,17 +29,22 @@ export const currency = (value: string | number) =>
   new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value))
 export const localDate = () =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(
     new Date(),
   )
-export function blankEmployee(): Employee {
+export function blankEmployee(identifications: { id: number; name: string; code?: string }[] = []): Employee {
+  const citizenshipCard = identifications.find(document =>
+    document.code === '31' || document.code?.toUpperCase() === 'CC' ||
+    /cedula (de )?ciudadania/.test(document.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
+  )
   return {
     id: crypto.randomUUID(),
     identification: '',
-    documentTypeId: 0,
+    documentTypeId: citizenshipCard?.id ?? 0,
     firstName: '',
     secondName: '',
     surname: '',
@@ -148,17 +153,55 @@ export const defaultConcepts: Concept[] = [
     }),
   ),
 ]
-export function blankParameters(): Parameters {
+// Salario mínimo mensual, sin auxilio de transporte. Decreto 159 de 2026:
+// https://www.cancilleria.gov.co/normograma/compilacion/docs/decreto_0159_2026.htm
+const minimumSalaryByYear: Record<string, string> = { '2026': '1750905' }
+// Decreto 1470 de 2025, auxilio mensual de transporte para 2026:
+// https://www.cancilleria.gov.co/normograma/compilacion/docs/decreto_1470_2025.htm
+const transportAllowanceByYear: Record<string, string> = { '2026': '249095' }
+
+// Reducción gradual, Ley 2101 de 2021; 42 horas desde el 15 de julio de 2026.
+// https://www1.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=166506
+export function defaultWeeklyHours(date = localDate()): string {
+  if (date >= '2026-07-15') return '42'
+  if (date >= '2025-07-15') return '44'
+  if (date >= '2024-07-15') return '46'
+  if (date >= '2023-07-15') return '47'
+  return '48'
+}
+
+export function monthlyHoursForWeek(weeklyHours: string): string {
+  const hours = Number(weeklyHours)
+  return hours > 0 && Number.isFinite(hours) ? String(hours * 5) : ''
+}
+
+export function blankParameters(date = localDate()): Parameters {
   return {
-    validFrom: localDate(),
-    minimumSalary: '0',
-    transportAllowance: '0',
-    weeklyHours: '',
-    monthlyHours: '',
+    validFrom: date,
+    minimumSalary: minimumSalaryByYear[date.slice(0, 4)] ?? '0',
+    transportAllowance: transportAllowanceByYear[date.slice(0, 4)] ?? '0',
+    weeklyHours: defaultWeeklyHours(date),
+    monthlyHours: monthlyHoursForWeek(defaultWeeklyHours(date)),
     monthlyDays: '30',
     nightStart: '',
     paymentMethodId: 0,
     concepts: defaultConcepts.map((c) => ({ ...c })),
+  }
+}
+
+export function payrollParametersForSettings(saved?: Parameters, date = localDate()): Parameters {
+  const defaults = blankParameters(date)
+  if (!saved) return defaults
+  return {
+    ...saved,
+    minimumSalary: saved.minimumSalary.trim() && Number(saved.minimumSalary) > 0
+      ? saved.minimumSalary
+      : defaults.minimumSalary,
+    transportAllowance: saved.transportAllowance.trim() && Number(saved.transportAllowance) > 0
+      ? saved.transportAllowance
+      : defaults.transportAllowance,
+    weeklyHours: Number(saved.weeklyHours) > 0 ? saved.weeklyHours : defaults.weeklyHours,
+    monthlyHours: Number(saved.monthlyHours) > 0 ? saved.monthlyHours : monthlyHoursForWeek(Number(saved.weeklyHours) > 0 ? saved.weeklyHours : defaults.weeklyHours),
   }
 }
 export function blankPayroll(period = localDate().slice(0, 7)): PayrollState {
