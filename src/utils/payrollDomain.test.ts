@@ -114,9 +114,12 @@ describe('nómina: precisión y validación', () => {
     ).toContain('El empleado está inactivo.'))
   it('bloquea períodos anteriores al ingreso', () =>
     expect(
-      validatePayroll(state, { ...worker, admittanceDate: '2026-10-05' })
+      validatePayroll(state, { ...worker, admittanceDate: '2026-11-01' })
         .length,
     ).toBeGreaterThan(0))
+  it('permite ingreso y retiro durante el período liquidado', () => {
+    expect(validatePayroll({ ...state, workedDays: '11' }, { ...worker, admittanceDate: '2026-10-10', retirementDate: '2026-10-20' })).toEqual([])
+  })
   it('construye estructura verificada sin datos internos', () => {
     const payload = buildPayrollPayload(state, worker, 1, 'NE')
     expect(payload.type_document_id).toBe(9)

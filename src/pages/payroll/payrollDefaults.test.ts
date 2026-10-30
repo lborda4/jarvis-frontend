@@ -1,5 +1,18 @@
 import { expect, it } from 'vitest'
-import { blankParameters, currency, monthlyHoursForWeek, payrollParametersForSettings } from './payrollDefaults'
+import { blankEmployee, blankParameters, currency, monthlyHoursForWeek, payrollParametersForSettings } from './payrollDefaults'
+
+it('inicia empleados nuevos con el salario mínimo legal sin sumar auxilio de transporte', () => {
+  const employee = blankEmployee([], '2026-10-28')
+  expect(employee.salary).toBe('1750905')
+  expect(currency(employee.salary)).toMatch(/\$\s*1\.750\.905,00/)
+})
+
+it('permite cambiar el salario de un empleado sin alterar el valor inicial del siguiente', () => {
+  const employee = blankEmployee([], '2026-10-28')
+  employee.salary = '3000000'
+  expect(blankEmployee([], '2026-10-28').salary).toBe('1750905')
+  expect(employee.salary).toBe('3000000')
+})
 
 it('precarga el salario mínimo de 2026 sin sumar el auxilio de transporte', () => {
   expect(payrollParametersForSettings(undefined, '2026-10-27').minimumSalary).toBe('1750905')

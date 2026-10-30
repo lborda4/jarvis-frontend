@@ -1,11 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { payrollService, type Employee } from '../../services/payrollService'
 import {
   blankEmployee,
   contractLabels,
   currency,
   employeeName,
-  payrollParametersForSettings,
 } from './payrollDefaults'
 import { Field, PayrollHeading, type PayrollContext } from './PayrollPage'
 import PayrollImport from './PayrollImport'
@@ -13,6 +12,11 @@ import usePayrollCatalogs from './usePayrollCatalogs'
 import PayrollMoneyInput from './PayrollMoneyInput'
 import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
 import Autocomplete from '../../components/Autocomplete'
+import CategorySelect from '../../components/CategorySelect'
+import { lookupJarvisTerceroByNit } from '../../services/jarvisService'
+import { employeeNamesFromFullName } from './employeeLookup'
+import { useJarvisBackAction } from '../../hooks/useJarvisBackAction'
+import { isPayrollEmployeeActive } from '../../utils/payrollEmployeeStatus'
 export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   const {
     catalogs,
@@ -22,11 +26,55 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   const [editing, setEditing] = useState<Employee | null>(null),
     [search, setSearch] = useState(''),
     [importing, setImporting] = useState(false)
-  const update = (key: keyof Employee, value: Employee[keyof Employee]) =>
+  const lookupRequest = useRef(0)
+  const [lookup, setLookup] = useState<{ key: string; message: string; pending: boolean } | null>(null)
+  useJarvisBackAction(() => {
+    if (busy) return
+    if (importing) setImporting(false)
+    else setEditing(null)
+  }, Boolean(editing) || importing)
+  useEffect(() => () => { lookupRequest.current += 1 }, [])
+  const lookupKey = editing ? `${editing.id}:${editing.documentTypeId}:${editing.identification}` : ''
+  const lookupEmployee = async () => {
+    if (!editing || data.employees.some(employee => employee.id === editing.id)) return
+    const document = catalogs?.identifications?.find(item => item.id === editing.documentTypeId)
+    const normalizedType = document?.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() ?? ''
+    if (!(document?.code?.toUpperCase() === 'CC' || /cedula (de )?ciudadania/.test(normalizedType))) return
+    if (!/^\d{5,15}$/.test(editing.identification)) return
+    if (lookup?.key === lookupKey && lookup.pending) return
+    const employee = editing
+    const key = lookupKey
+    const request = ++lookupRequest.current
+    setLookup({ key, message: 'Consultando cédula en NextPyme…', pending: true })
+    try {
+      const result = await lookupJarvisTerceroByNit(employee.identification, 'CC')
+      if (request !== lookupRequest.current) return
+      const names = result.found && result.name ? employeeNamesFromFullName(result.name) : null
+      if (!names) {
+        setLookup({ key, message: 'No se encontraron nombres para esta cédula. Puedes ingresarlos manualmente.', pending: false })
+        return
+      }
+      setEditing(current => {
+        if (!current || current.id !== employee.id || current.identification !== employee.identification || current.documentTypeId !== employee.documentTypeId) return current
+        // No reemplazar nombres que el usuario haya escrito durante la consulta.
+        if ((['firstName', 'secondName', 'surname', 'secondSurname'] as const).some(field => current[field] !== employee[field])) return current
+        return { ...current, ...names }
+      })
+      setLookup({ key, message: `Nombre encontrado: ${result.name}. Revisa el orden de los nombres y apellidos antes de guardar.`, pending: false })
+    } catch {
+      if (request === lookupRequest.current) setLookup({ key, message: 'No se pudo consultar la cédula. Puedes ingresar los nombres manualmente o volver a salir del campo para reintentar.', pending: false })
+    }
+  }
+  const update = (key: keyof Employee, value: Employee[keyof Employee]) => {
+    if (key === 'identification' || key === 'documentTypeId') {
+      lookupRequest.current += 1
+      setLookup(null)
+    }
     setEditing((e) => (e ? { ...e, [key]: value } : e))
+  }
   const save = async (e: FormEvent) => {
     e.preventDefault()
-    if (editing && (await run(() => payrollService.employees(editing))))
+    if (editing && (await run(() => payrollService.employees({ ...editing, active: isPayrollEmployeeActive(editing.retirementDate) }))))
       setEditing(null)
   }
   const catalogField = (
@@ -64,7 +112,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
       </select>}
     </Field>
   )
-  const list = data.employees.filter((e) =>
+  const list = data.employees.map(employee => ({ ...employee, active: isPayrollEmployeeActive(employee.retirementDate) })).filter((e) =>
     `${employeeName(e)} ${e.identification}`
       .toLocaleLowerCase()
       .includes(search.toLocaleLowerCase()),
@@ -88,7 +136,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               onClick={() =>
                 setEditing({
                   ...blankEmployee(catalogs?.identifications),
-                  salary: payrollParametersForSettings(data.parameters[0]?.data).minimumSalary,
                   paymentMethodId:
                     data.parameters[0]?.data.paymentMethodId ?? 0,
                   jarvisPaymentMethodId: data.parameters[0]?.data.jarvisPaymentMethodId,
@@ -128,7 +175,9 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   pattern="[0-9]{5,20}"
                   value={editing.identification}
                   onChange={(e) => update('identification', e.target.value)}
+                  onBlur={() => void lookupEmployee()}
                 />
+                {lookup?.key === lookupKey && <small role="status" aria-live="polite">{lookup.message}</small>}
               </Field>
               {(
                 ['firstName', 'secondName', 'surname', 'secondSurname'] as const
@@ -178,6 +227,42 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   ))}
                 </select>
               </Field>
+              <Field label="Cargo">
+                <CategorySelect
+                  value={editing.positionId}
+                  categories={data.positions.filter(position => position.active || position.id === editing.positionId)}
+                  itemLabel="cargo"
+                  placeholder="Seleccionar cargo"
+                  disabled={busy}
+                  onChange={id => update('positionId', id)}
+                  onEdit={async (id, name) => {
+                    const position = data.positions.find(item => item.id === id)
+                    if (!position) throw new Error('No se encontró el cargo.')
+                    if (name.trim().length > 150) throw new Error('El cargo puede tener máximo 150 caracteres.')
+                    const saved = await run(() => payrollService.position({ ...position, name: name.trim() }), 'Cargo actualizado.')
+                    if (!saved) throw new Error('No se pudo actualizar el cargo. Intenta nuevamente.')
+                    return { id, name: name.trim() }
+                  }}
+                  onDelete={async id => {
+                    const deleted = await run(() => payrollService.deletePosition(id), 'Cargo eliminado de las opciones disponibles.')
+                    if (!deleted) throw new Error('No se pudo eliminar el cargo. Intenta nuevamente.')
+                  }}
+                  deleteDescription="Dejará de aparecer para nuevas asignaciones. Los empleados ya guardados conservarán su cargo."
+                  onCreate={async name => {
+                    if (name.trim().length > 150) throw new Error('El cargo puede tener máximo 150 caracteres.')
+                    const id = crypto.randomUUID()
+                    const saved = await run(() => payrollService.position({
+                      id,
+                      code: id.replaceAll('-', '').slice(0, 30),
+                      name: name.trim(),
+                      salary: editing.salary,
+                      active: true,
+                    }), 'Cargo creado.')
+                    if (!saved) throw new Error('No se pudo crear el cargo. Intenta nuevamente.')
+                    return { id, name: name.trim() }
+                  }}
+                />
+              </Field>
               <Field label="Fecha de ingreso">
                 <input
                   type="date"
@@ -209,7 +294,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   onValueChange={value => update('salary', value)}
                 />
               </Field>
-              {(['integralSalary', 'highRiskPension', 'active'] as const).map(
+              {(['integralSalary', 'highRiskPension'] as const).map(
                 (key, i) => (
                   <label className="payroll__check" key={key}>
                     <input
@@ -221,12 +306,16 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                       [
                         'Salario integral',
                         'Pensión de alto riesgo',
-                        'Empleado activo',
                       ][i]
                     }
                   </label>
                 ),
               )}
+              <Field label="Estado del empleado">
+                <span className={`payroll__badge ${isPayrollEmployeeActive(editing.retirementDate) ? 'payroll__badge--ACCEPTED' : ''}`}>
+                  {isPayrollEmployeeActive(editing.retirementDate) ? 'Activo' : 'Inactivo'}
+                </span>
+              </Field>
             </div>
             {editing.contractType === 'APPRENTICE' && (
               <div className="payroll__section">
@@ -288,30 +377,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
             <summary>Información de pago</summary>
             <div className="payroll__section payroll__grid">
               <Field label="Método de pago"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
-              <Field label="Banco (si aplica)">
-                <input
-                  value={editing.bankName}
-                  onChange={(e) => update('bankName', e.target.value)}
-                />
-              </Field>
-              {editing.bankName && (
-                <>
-                  <Field label="Tipo de cuenta">
-                    <input
-                      required
-                      value={editing.accountType}
-                      onChange={(e) => update('accountType', e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Número de cuenta">
-                    <input
-                      required
-                      value={editing.accountNumber}
-                      onChange={(e) => update('accountNumber', e.target.value)}
-                    />
-                  </Field>
-                </>
-              )}
             </div>
           </details>
           <div className="payroll__toolbar">
@@ -382,20 +447,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                         onClick={() => setEditing({ ...e })}
                       >
                         Editar
-                      </button>
-                      <button
-                        disabled={busy}
-                        className="payroll__link"
-                        onClick={() =>
-                          void run(() =>
-                            payrollService.employees({
-                              ...e,
-                              active: !e.active,
-                            }),
-                          )
-                        }
-                      >
-                        {e.active ? 'Inactivar' : 'Activar'}
                       </button>
                       <a
                         className="payroll__link"

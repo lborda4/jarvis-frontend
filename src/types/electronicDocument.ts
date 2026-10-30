@@ -102,6 +102,7 @@ export interface ElectronicDocumentDraftItem {
   unitValue: number
   discount: number
   ivaTaxId?: number | null
+  impoconsumoTaxId?: number | null
   retefuenteTaxId?: number | null
 }
 
@@ -135,6 +136,8 @@ export interface SuggestedItemAccount {
 export interface ElectronicDocumentListItemItem {
   productMapping?: { code: string }
   ivaPercentage?: number
+  consumptionTaxPercentage?: number
+  suggestedConsumptionTax?: SuggestedItemTax | null
   description: string
   quantity: number
   unitValue: number

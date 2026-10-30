@@ -28,6 +28,8 @@ import {
 } from './PayrollPage'
 import PayrollEditor from './PayrollEditor'
 import PayrollImport from './PayrollImport'
+import PayrollRowActions from './PayrollRowActions'
+import { useJarvisBackAction } from '../../hooks/useJarvisBackAction'
 import {
   groupPayrollPeriods,
   payrollPeriodKey,
@@ -58,6 +60,8 @@ export default function PayrollDocuments(context: PayrollContext) {
   const [selected, setSelected] = useState<string[]>([]),
     [confirmBulk, setConfirmBulk] = useState(false),
     [bulkResult, setBulkResult] = useState<string[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<PayrollDocument | null>(null)
+  const [employeeAction, setEmployeeAction] = useState<{ action: 'edit' | 'delete'; documents: PayrollDocument[] } | null>(null)
   const [detailPeriod, setDetailPeriod] = useState<string | null>(
     params.get('period') ??
       (params.get('employee') ? localDate().slice(0, 7) : null),
@@ -65,6 +69,17 @@ export default function PayrollDocuments(context: PayrollContext) {
   const period = detailPeriod?.includes('|')
     ? detailPeriod.slice(0, 7)
     : `${year}-${localDate().slice(5, 7)}`
+  useJarvisBackAction(() => {
+    if (busy) return
+    if (editor) setEditor(null)
+    else {
+      setDetailPeriod(null)
+      setSearch('')
+      setStatus('')
+      setSelected([])
+      setPage(1)
+    }
+  }, Boolean(editor || detailPeriod))
   const years = [
     ...new Set([
       year,
@@ -157,6 +172,13 @@ export default function PayrollDocuments(context: PayrollContext) {
       const full = await payrollService.get(d.id)
       setEditor({ id: d.id, state: full.state, detail: full, readOnly: !edit })
     }, '')
+  }
+  const actOnPeriod = (key: string, action: 'edit' | 'delete') => {
+    const candidates = annualDocuments.filter(document => payrollPeriodKey(document) === key && (action === 'edit' ? ['DRAFT', 'REJECTED'].includes(document.status) : document.canDelete))
+    if (candidates.length === 1) {
+      if (action === 'edit') void open(candidates[0], true)
+      else setDeleteTarget(candidates[0])
+    } else if (candidates.length > 1) setEmployeeAction({ action, documents: candidates })
   }
   const adjustment = async (d: PayrollDocument, type: number) => {
     await run(async () => {
@@ -433,24 +455,25 @@ export default function PayrollDocuments(context: PayrollContext) {
                           <span
                             className={`payroll__badge payroll__badge--${group.status}`}
                           >
-                            <span aria-hidden="true">
+                            {group.status !== 'DRAFT' && <><span aria-hidden="true">
                               {group.status === 'ACCEPTED'
                                 ? '✓'
                                 : group.status === 'REJECTED'
                                   ? '!'
                                   : '•'}
-                            </span>{' '}
+                            </span>{' '}</>}
                             {group.statusLabel}
                           </span>
                         </td>
                         <td>
-                          <button
-                            className="payroll__period-action"
-                            aria-label={`Ver ${group.label}, ${group.type}`}
-                            onClick={() => openPeriod(group.key)}
-                          >
-                            •••
-                          </button>
+                          <PayrollRowActions
+                            name={`${group.label}, ${group.type}`}
+                            disabled={busy}
+                            actions={[
+                              ...(annualDocuments.some(document => payrollPeriodKey(document) === group.key && ['DRAFT', 'REJECTED'].includes(document.status)) ? [{ label: 'Editar', onClick: () => actOnPeriod(group.key, 'edit') }] : []),
+                              ...(annualDocuments.some(document => payrollPeriodKey(document) === group.key && document.canDelete) ? [{ label: 'Eliminar', danger: true, onClick: () => actOnPeriod(group.key, 'delete') }] : []),
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -561,45 +584,19 @@ export default function PayrollDocuments(context: PayrollContext) {
                             </span>
                           </td>
                           <td>
-                            <div className="payroll__actions">
-                              {['DRAFT', 'REJECTED'].includes(d.status) && (
-                                <button
-                                  className="payroll__button"
-                                  onClick={() => void open(d, true)}
-                                >
-                                  Modificar
-                                </button>
-                              )}
-                              <button
-                                className="payroll__link"
-                                onClick={() =>
-                                  void run(async () => {
-                                    setDetail(await payrollService.get(d.id))
-                                  }, '')
-                                }
-                              >
-                                Resultado
-                              </button>
-                              {d.status === 'ACCEPTED' && (
-                                <details>
-                                  <summary aria-label="Más acciones">
-                                    •••
-                                  </summary>
-                                  <div className="payroll__menu">
-                                    <button
-                                      onClick={() => void adjustment(d, 1)}
-                                    >
-                                      Nota de reemplazo
-                                    </button>
-                                    <button
-                                      onClick={() => void adjustment(d, 2)}
-                                    >
-                                      Nota de eliminación
-                                    </button>
-                                  </div>
-                                </details>
-                              )}
-                            </div>
+                            <PayrollRowActions
+                              name={employeeName(d.employee)}
+                              disabled={busy}
+                              actions={[
+                                ...(['DRAFT', 'REJECTED'].includes(d.status) ? [{ label: 'Editar', onClick: () => void open(d, true) }] : []),
+                                ...(d.canDelete ? [{ label: 'Eliminar', danger: true, onClick: () => setDeleteTarget(d) }] : []),
+                                { label: 'Resultado', onClick: () => void run(async () => { setDetail(await payrollService.get(d.id)) }, '') },
+                                ...(d.status === 'ACCEPTED' ? [
+                                  { label: 'Nota de reemplazo', onClick: () => void adjustment(d, 1) },
+                                  { label: 'Nota de eliminación', onClick: () => void adjustment(d, 2) },
+                                ] : []),
+                              ]}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -607,12 +604,7 @@ export default function PayrollDocuments(context: PayrollContext) {
                 </table>
               </div>
             )}
-            {(totalRows > 0 || selected.length > 0) && <div className="payroll__footer">
-              {totalRows > 0 && <span>
-                Mostrando {(currentPage - 1) * pageSize + 1} a{' '}
-                {Math.min(currentPage * pageSize, totalRows)} de {totalRows}{' '}
-                {detailPeriod ? 'documentos' : 'períodos'}
-              </span>}
+            {(shouldShowTablePagination(totalRows, pageSize) || selected.length > 0) && <div className="payroll__footer">
               {shouldShowTablePagination(totalRows, pageSize) && (
                 <nav
                   className="payroll__pagination"
@@ -696,6 +688,34 @@ export default function PayrollDocuments(context: PayrollContext) {
             void reload()
           }}
         />
+      )}
+      {employeeAction && (
+        <Modal title={employeeAction.action === 'edit' ? 'Editar nómina de un empleado' : 'Eliminar nómina de un empleado'} onClose={() => setEmployeeAction(null)}>
+          <p>Selecciona el empleado. La acción se aplicará únicamente a su nómina.</p>
+          <div className="payroll__toolbar">
+            {employeeAction.documents.map(document => <button type="button" className="payroll__button" key={document.id} disabled={busy} onClick={() => {
+              const action = employeeAction.action
+              setEmployeeAction(null)
+              if (action === 'edit') void open(document, true)
+              else setDeleteTarget(document)
+            }}>{employeeName(document.employee)} · {document.employee.identification}</button>)}
+          </div>
+        </Modal>
+      )}
+      {deleteTarget && (
+        <Modal title="Eliminar borrador de nómina" onClose={() => { if (!busy) setDeleteTarget(null) }}>
+          <p>Se eliminará la nómina de {employeeName(deleteTarget.employee)} del período {deleteTarget.state.startDate.split('-').reverse().join('/')} al {deleteTarget.state.endDate.split('-').reverse().join('/')}. Esta acción no se puede deshacer.</p>
+          <div className="payroll__toolbar">
+            <button type="button" className="payroll__button" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancelar</button>
+            <button type="button" className="payroll__button payroll__button--danger" disabled={busy} onClick={() => void (async () => {
+              const ok = await run(async () => {
+                await payrollService.deleteDocument(deleteTarget.id)
+                await reload()
+              }, 'Borrador de nómina eliminado.')
+              if (ok) setDeleteTarget(null)
+            })()}>{busy ? 'Eliminando…' : 'Eliminar'}</button>
+          </div>
+        </Modal>
       )}
       {confirmBulk && (
         <Modal

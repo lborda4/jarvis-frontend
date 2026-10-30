@@ -187,7 +187,7 @@ function PayrollWorkspace() {
       ) : view === 'new' ? (
         <PayrollCreatePage data={data} reload={reload} run={run} busy={busy} />
       ) : view === 'employees' ? (
-        <PayrollEmployees data={data} reload={reload} run={run} busy={busy} />
+        <PayrollEmployees key={location.key} data={data} reload={reload} run={run} busy={busy} />
       ) : view === 'settings' ? (
         <PayrollSettingsPage
           data={data}

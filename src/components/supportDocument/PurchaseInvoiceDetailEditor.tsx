@@ -71,6 +71,7 @@ interface PurchaseInvoiceDetailEditorProps {
    * onChange todavía no había llegado. */
   onSaveDraft?: (edits: PurchaseInvoiceDetailEditorSave) => void | Promise<void>
   isSavingDraft?: boolean
+  saveLabel?: string
   /** Se dispara con CADA cambio del borrador para mantener sincronizada la
    * fila del listado (el Total de la fila colapsada sigue al "Total neto" de
    * este panel). Persistir es otra cosa: eso lo hace onSaveDraft. */
@@ -99,6 +100,7 @@ function PurchaseInvoiceDetailEditor({
   disabled = false,
   onSaveDraft,
   isSavingDraft = false,
+  saveLabel = 'Guardar cambios',
   onChange,
   fieldErrors = null,
 }: PurchaseInvoiceDetailEditorProps) {
@@ -492,7 +494,7 @@ function PurchaseInvoiceDetailEditor({
             }
             disabled={isSavingDraft}
           >
-            {isSavingDraft ? 'Guardando...' : 'Guardar cambios'}
+            {isSavingDraft ? 'Guardando...' : saveLabel}
           </Button>
         </div>
       )}

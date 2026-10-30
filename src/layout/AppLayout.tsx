@@ -5,6 +5,8 @@ import ScrollToTopButton from '../components/ScrollToTopButton'
 import SupportFab from '../components/SupportFab'
 import PurchaseInvoiceImportBadge from '../components/supportDocument/PurchaseInvoiceImportBadge'
 import JarvisDocumentQuotaNotice from '../components/JarvisDocumentQuotaNotice'
+import JarvisBackNavigation from '../components/JarvisBackNavigation'
+import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { hydrateFromStorage } from '../services/realtime/purchaseInvoiceImportJobsStore'
 import './AppLayout.css'
@@ -13,6 +15,7 @@ function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const contentRef = useRef<HTMLDivElement>(null)
   const { isJarvisCompany } = useIntegrationSetup()
+  const { user } = useAuth()
 
   useEffect(() => {
     void hydrateFromStorage()
@@ -30,7 +33,9 @@ function AppLayout() {
 
       <div className="app-layout__content" ref={contentRef}>
         <JarvisDocumentQuotaNotice />
-        <Outlet />
+        <JarvisBackNavigation key={user?.company?.id} enabled={isJarvisCompany}>
+          <Outlet />
+        </JarvisBackNavigation>
       </div>
 
       <ScrollToTopButton scrollContainerRef={contentRef} />

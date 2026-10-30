@@ -105,6 +105,7 @@ interface SupportDocumentTableProps {
    * Subtotal/IVA($)/Retenciones($)/Total calculados, y habilita el editor
    * completo (ítems, forma de pago, plazo, retenciones) al expandir la fila. */
   showSummaryColumns?: boolean
+  allowSentPurchaseEditing?: boolean
   rowDueDates?: Record<string, string | null>
   rowObservations?: Record<string, string>
   rowItems?: Record<string, PurchaseInvoiceItemDraft[]>
@@ -282,6 +283,7 @@ function SupportDocumentTable({
   onRowCostCenterChange,
   showIvaColumn = false,
   showSummaryColumns = false,
+  allowSentPurchaseEditing = false,
   rowDueDates = {},
   rowObservations = {},
   rowItems = {},
@@ -679,16 +681,14 @@ function SupportDocumentTable({
               const isDeleteAction = row.action === 'delete'
               const isRowDeleting =
                 isDeleting && deletingDocumentId === row.id
-              // Ya se está enviando a SIIGO o ya quedó con consecutivo
-              // (LISTA) — el envío es lo único que persiste de verdad estos
-              // datos (ver comentario de onChange más abajo), así que editar
-              // acá no cambiaría nada real en SIIGO y solo confundiría al
-              // usuario. El panel se puede seguir desplegando, pero queda
-              // solo para visualizar.
+              // Las compras enviadas se corrigen con PUT sobre la misma factura.
+              const canUpdatePurchase = allowSentPurchaseEditing &&
+                document?.status === 'PURCHASE_CREATED' && !document.alreadyInSiigo
               const isRowLocked =
                 isProcessing ||
-                row.importStatus === IMPORT_ROW_STATUS.LISTA ||
-                Boolean(row.siigoDocumentNumber)
+                (!canUpdatePurchase && (document?.status === 'PURCHASE_CREATED' ||
+                  row.importStatus === IMPORT_ROW_STATUS.LISTA ||
+                  Boolean(row.siigoDocumentNumber)))
               const actionDisabled =
                 isResuming ||
                 isSending ||
@@ -844,6 +844,16 @@ function SupportDocumentTable({
                     </div>
                   </td>
                   <td data-label="Acción">
+                    {canUpdatePurchase ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={actionDisabled}
+                        onClick={() => { if (!isExpanded) toggleRowExpanded(row.id) }}
+                      >
+                        Editar
+                      </Button>
+                    ) : (
                     <ActionCell
                       action={isRowDeleting ? 'processing' : row.action}
                       disabled={actionDisabled}
@@ -867,6 +877,7 @@ function SupportDocumentTable({
                           : undefined
                       }
                     />
+                    )}
                   </td>
                   {showSummaryColumns && (
                     <td data-label="Descargar" className="support-table__download-col">
@@ -929,6 +940,7 @@ function SupportDocumentTable({
                                   ? (edits) => onSaveDraft(row.id, edits)
                                   : undefined,
                                 isSavingDraft: savingDraftDocumentId === row.id,
+                                saveLabel: canUpdatePurchase ? 'Actualizar en SIIGO' : undefined,
                                 // Cada cambio actualiza directo rowItems/
                                 // rowPaymentMethods/etc. (el mismo estado que
                                 // usa "Enviar"), así que en cuanto los campos

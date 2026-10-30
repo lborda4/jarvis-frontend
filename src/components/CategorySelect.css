@@ -148,6 +148,17 @@
 .category-select__edit:hover {
   background: var(--jarvis-primary-soft);
 }
+.category-select__delete {
+  color: var(--jarvis-danger);
+}
+.category-select__delete:hover {
+  background: var(--jarvis-danger-soft);
+}
+.category-select__editor-btn--danger {
+  border: 1px solid var(--jarvis-danger);
+  background: var(--jarvis-danger);
+  color: #fff;
+}
 
 .category-select__empty {
   padding: 1rem 0.6rem;

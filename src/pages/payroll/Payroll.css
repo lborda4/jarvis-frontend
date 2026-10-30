@@ -253,6 +253,34 @@
   padding: 6px 10px;
   letter-spacing: 2px;
 }
+.payroll-row-menu {
+  position: fixed;
+  z-index: 1100;
+  width: 190px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  background: white;
+  box-shadow: var(--shadow-lg);
+}
+.payroll-row-menu button {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  text-align: left;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: white;
+  color: var(--jarvis-text);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.payroll-row-menu button:hover { background: var(--jarvis-primary-soft); }
+.payroll-row-menu .payroll-row-menu__danger { color: var(--jarvis-danger); }
 .payroll__period-card .payroll__footer {
   min-height: 76px;
   color: var(--jarvis-text-muted, #69788b);
@@ -405,15 +433,17 @@
 }
 .payroll .payroll__concepts {
   table-layout: fixed;
-  min-width: 1040px;
+  min-width: 480px;
   white-space: normal;
   font-size: 0.78rem;
 }
-.payroll__concept-col-name { width: 24%; }
-.payroll__concept-col-category, .payroll__concept-col-base, .payroll__concept-col-mode { width: 17%; }
-.payroll__concept-col-factor { width: 8%; }
-.payroll__concept-col-percent { width: 7%; }
-.payroll__concept-col-check { width: 5%; }
+.payroll__concept-col-name { width: 48%; }
+.payroll__concept-col-category { width: 32%; }
+.payroll__concept-col-check { width: 10%; }
+.payroll__concepts--removable .payroll__concept-col-name { width: 44%; }
+.payroll__concepts--removable .payroll__concept-col-category { width: 30%; }
+.payroll__concepts--removable .payroll__concept-col-check { width: 8%; }
+.payroll__concept-col-delete { width: 10%; }
 .payroll .payroll__concepts :is(th, td) {
   padding: 7px 8px;
   vertical-align: middle;
@@ -444,7 +474,7 @@
   margin: 0 auto;
   accent-color: var(--jarvis-primary, #009e9b);
 }
-.payroll .payroll__concepts :is(th, td):nth-last-child(-n + 2) { text-align: center; }
+.payroll .payroll__concepts :is(th, td):nth-child(n + 3) { text-align: center; }
 .payroll .payroll__concepts tbody tr:nth-child(even) { background: #fafcfd; }
 .payroll .payroll__concepts tbody tr:hover { background: #f0f9f9; }
 .payroll .payroll__concepts-card > summary { padding: 14px 16px; }
@@ -589,6 +619,17 @@
   display: flex;
   gap: 8px;
   align-items: center;
+}
+.payroll .payroll__button--compact {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+.payroll .payroll__button--danger {
+  color: var(--jarvis-danger, #b91c1c);
+  border-color: var(--jarvis-danger-border, #fecaca);
+  background: var(--jarvis-danger-soft, #fef2f2);
 }
 .payroll__actions details {
   position: relative;

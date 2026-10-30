@@ -19,6 +19,7 @@ type EditorState =
   | { mode: 'closed' }
   | { mode: 'create' }
   | { mode: 'edit'; categoryId: string; originalName: string }
+  | { mode: 'delete'; categoryId: string; originalName: string }
 
 export interface CategorySelectProps {
   id?: string
@@ -36,6 +37,8 @@ export interface CategorySelectProps {
    * categoría actualizada o lanzar un Error con el mensaje a mostrar.
    */
   onEdit?: (id: string, name: string) => Promise<ProductCategory>
+  onDelete?: (id: string) => Promise<void>
+  deleteDescription?: string
   itemLabel?: string
   createFields?: ReactNode
   placeholder?: string
@@ -56,6 +59,8 @@ function CategorySelect({
   categories,
   onCreate,
   onEdit,
+  onDelete,
+  deleteDescription,
   itemLabel = 'categoría',
   createFields,
   placeholder = 'Selecciona una categoría...',
@@ -199,7 +204,7 @@ function CategorySelect({
   }
 
   const saveDraft = async () => {
-    if (isSaving || editor.mode === 'closed') return
+    if (isSaving || editor.mode === 'closed' || editor.mode === 'delete') return
 
     const name = draftName.trim()
     if (!name) {
@@ -213,7 +218,7 @@ function CategorySelect({
         !(editor.mode === 'edit' && category.id === editor.categoryId),
     )
     if (duplicated) {
-      setDraftError(`Ya existe una ${itemLabel} con ese nombre.`)
+      setDraftError(`Ya existe ${itemLabel === 'cargo' ? 'un' : 'una'} ${itemLabel} con ese nombre.`)
       return
     }
 
@@ -235,13 +240,26 @@ function CategorySelect({
       setDraftError(
         error instanceof Error
           ? error.message
-          : `No se pudo guardar la ${itemLabel}.`,
+          : `No se pudo guardar ${itemLabel === 'cargo' ? 'el' : 'la'} ${itemLabel}.`,
       )
       setIsSaving(false)
     }
   }
 
   const valueLabel = selectedCategory ? selectedCategory.name : ''
+  const deleteDraft = async () => {
+    if (isSaving || editor.mode !== 'delete' || !onDelete) return
+    setIsSaving(true)
+    setDraftError(null)
+    try {
+      await onDelete(editor.categoryId)
+      if (value === editor.categoryId) onChange('')
+      closePanel()
+    } catch (error) {
+      setDraftError(error instanceof Error ? error.message : `No se pudo eliminar ${itemLabel}.`)
+      setIsSaving(false)
+    }
+  }
 
   return (
     <div className="category-select" ref={containerRef}>
@@ -313,6 +331,14 @@ function CategorySelect({
                         >
                           <PencilIcon />
                         </button>}
+                        {onDelete && <button
+                          type="button"
+                          className="category-select__edit category-select__delete"
+                          onClick={() => { setDraftError(null); setEditor({ mode: 'delete', categoryId: category.id, originalName: category.name }) }}
+                          aria-label={`Eliminar ${itemLabel} ${category.name}`}
+                        >
+                          <TrashIcon />
+                        </button>}
                       </li>
                     )
                   })
@@ -325,14 +351,25 @@ function CategorySelect({
                 onClick={startCreate}
               >
                 <PlusIcon />
-                Crear nueva {itemLabel}
+                Crear {itemLabel === 'cargo' ? 'nuevo' : 'nueva'} {itemLabel}
               </button>
             </>
+          ) : editor.mode === 'delete' ? (
+            <div className="category-select__editor">
+              <h3 className="category-select__editor-title">Eliminar {itemLabel}</h3>
+              <p>¿Eliminar «{editor.originalName}»?</p>
+              {deleteDescription && <p>{deleteDescription}</p>}
+              {draftError && <p className="category-select__editor-error" role="alert">{draftError}</p>}
+              <div className="category-select__editor-actions">
+                <button type="button" className="category-select__editor-btn category-select__editor-btn--ghost" disabled={isSaving} onClick={cancelEditor}>Cancelar</button>
+                <button type="button" className="category-select__editor-btn category-select__editor-btn--danger" disabled={isSaving} onClick={() => void deleteDraft()}>{isSaving ? 'Eliminando…' : 'Eliminar'}</button>
+              </div>
+            </div>
           ) : (
             <div className="category-select__editor">
               <h3 className="category-select__editor-title">
                 {editor.mode === 'create'
-                  ? `Nueva ${itemLabel}`
+                  ? `${itemLabel === 'cargo' ? 'Nuevo' : 'Nueva'} ${itemLabel}`
                   : `Editar ${itemLabel}`}
               </h3>
 
@@ -351,7 +388,7 @@ function CategorySelect({
                       void saveDraft()
                     }
                   }}
-                  placeholder={itemLabel === 'categoría' ? 'Ropa' : 'Nombre de la forma de pago'}
+                  placeholder={itemLabel === 'categoría' ? 'Ropa' : itemLabel === 'cargo' ? 'Nombre del cargo' : 'Nombre de la forma de pago'}
                   disabled={isSaving}
                   autoFocus
                 />
@@ -447,6 +484,12 @@ function PencilIcon() {
       />
     </svg>
   )
+}
+
+function TrashIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+  </svg>
 }
 
 function PlusIcon() {

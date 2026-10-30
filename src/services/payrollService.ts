@@ -89,6 +89,7 @@ export interface PayrollState {
 }
 export interface PayrollDocument {
   id: string
+  canDelete?: boolean
   employeeId: string
   originalId: string | null
   state: PayrollState
@@ -173,8 +174,12 @@ export const payrollService = {
     (await apiClient.put(`${root}/employees/${employee.id}`, employee)).data,
   position: async (position: Position) =>
     (await apiClient.put(`${root}/positions/${position.id}`, position)).data,
+  deletePosition: async (id: string) =>
+    (await apiClient.delete(`${root}/positions/${id}`)).data,
   parameters: async (parameters: Parameters) =>
     (await apiClient.post(`${root}/parameters`, parameters)).data,
+  updateParameters: async (parameters: Parameters) =>
+    (await apiClient.put(`${root}/parameters`, parameters)).data,
   settings: async (settings: PayrollSettings) =>
     (await apiClient.put(`${root}/settings`, settings)).data,
   environment: async () => (await apiClient.post(`${root}/environment`)).data,
@@ -186,6 +191,8 @@ export const payrollService = {
     ).data,
   get: async (id: string) =>
     (await apiClient.get<PayrollDetail>(`${root}/documents/${id}`)).data,
+  deleteDocument: async (id: string) =>
+    (await apiClient.delete(`${root}/documents/${id}`)).data,
   save: async (id: string, state: PayrollState) =>
     (await apiClient.put(`${root}/documents/${id}`, state)).data,
   validate: async (id: string) =>

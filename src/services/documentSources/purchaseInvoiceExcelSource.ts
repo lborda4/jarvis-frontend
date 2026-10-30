@@ -1,3 +1,5 @@
+import type { DocumentUploadResult } from '../../types/documentUpload'
+import { isValidCufe } from '../../utils/radianExcel'
 import { apiClient } from '../apiClient'
 import type {
   ImportSupportDocumentsResponse,
@@ -90,60 +92,80 @@ export const purchaseInvoiceExcelSource: DocumentSourceAdapter = {
         { provider: options.provider ?? 'SIIGO' },
       )
 
-    // Se registra en el store global ANTES de esperar nada más — así el
-    // badge persistente (en AppLayout) y cualquier otra pantalla ya lo ven
-    // como "en curso" aunque el usuario cierre este modal o navegue a otro
-    // lado antes de que termine.
-    startTracking(jobId, totalRows)
-
-    // 3) Progreso en vivo por WebSocket (con un refresh REST de respaldo
-    // cada tanto, ver waitForTerminalStatus) en vez de un polling fijo cada
-    // 2s — esta promesa sigue resolviendo una sola vez al final, para no
-    // romper el contrato de DocumentSourceAdapter.upload.
-    const jobState = await waitForTerminalStatus(jobId)
-    const finalStatus =
-      jobState.finalStatus ?? (await fetchPurchaseInvoiceImportJobStatus(jobId))
-
-    if (finalStatus.status === 'error') {
-      throw new Error(
-        finalStatus.validation
-          ? buildValidationErrorMessage(finalStatus.validation)
-          : (finalStatus.errorMessage ??
-              'No se pudo importar el Excel de Factura de compra.'),
-      )
-    }
-
-    const response: Partial<ImportSupportDocumentsResponse> = {
-      processedRows: finalStatus.processedRows,
-      itemsTotal: finalStatus.itemsTotal ?? 0,
-      documentsCreated: finalStatus.documentsCreated ?? 0,
-      documentIds: finalStatus.documentIds ?? [],
-      records: finalStatus.records ?? [],
-    }
-
-    const adapted = adaptSupportDocumentsImportResponse(response)
-
-    if (!adapted) {
-      throw new Error(
-        'No se pudo procesar la respuesta del Excel de Factura de compra.',
-      )
-    }
-
-    return {
-      tableData: adapted,
-      rawResponse: {
-        ...response,
-        jobId,
-        errorCount: finalStatus.errorCount,
-        successCount: finalStatus.successCount,
-        documentsReused: finalStatus.documentsReused ?? 0,
-        failedRows: finalStatus.failedRows.map((row) => ({
-          cufe: row.cufe,
-          issuerNit: row.issuerNit,
-          issuerName: row.issuerName,
-          error: row.errorMessage,
-        })),
-      },
-    }
+    return trackPurchaseInvoiceImport(jobId, totalRows)
   },
+}
+
+export async function importPurchaseInvoiceByCufe(
+  value: string,
+): Promise<DocumentUploadResult> {
+  const cufe = value.trim().toLowerCase()
+  if (!isValidCufe(cufe))
+    throw new Error('Ingresa un CUFE válido de 96 caracteres hexadecimales.')
+  const { data } = await apiClient.post<StartPurchaseInvoiceImportResponse>(
+    '/invoices/purchase-invoices/import-cufe',
+    { cufe },
+  )
+  return trackPurchaseInvoiceImport(data.jobId, data.totalRows)
+}
+
+async function trackPurchaseInvoiceImport(
+  jobId: string,
+  totalRows: number,
+): Promise<DocumentUploadResult> {
+  // Se registra en el store global ANTES de esperar nada más — así el
+  // badge persistente (en AppLayout) y cualquier otra pantalla ya lo ven
+  // como "en curso" aunque el usuario cierre este modal o navegue a otro
+  // lado antes de que termine.
+  startTracking(jobId, totalRows)
+
+  // 3) Progreso en vivo por WebSocket (con un refresh REST de respaldo
+  // cada tanto, ver waitForTerminalStatus) en vez de un polling fijo cada
+  // 2s — esta promesa sigue resolviendo una sola vez al final, para no
+  // romper el contrato de DocumentSourceAdapter.upload.
+  const jobState = await waitForTerminalStatus(jobId)
+  const finalStatus =
+    jobState.finalStatus ?? (await fetchPurchaseInvoiceImportJobStatus(jobId))
+
+  if (finalStatus.status === 'error') {
+    throw new Error(
+      finalStatus.validation
+        ? buildValidationErrorMessage(finalStatus.validation)
+        : (finalStatus.errorMessage ??
+            'No se pudo importar la factura de compra.'),
+    )
+  }
+
+  const response: Partial<ImportSupportDocumentsResponse> = {
+    processedRows: finalStatus.processedRows,
+    itemsTotal: finalStatus.itemsTotal ?? 0,
+    documentsCreated: finalStatus.documentsCreated ?? 0,
+    documentIds: finalStatus.documentIds ?? [],
+    records: finalStatus.records ?? [],
+  }
+
+  const adapted = adaptSupportDocumentsImportResponse(response)
+
+  if (!adapted) {
+    throw new Error(
+      'No se pudo procesar la respuesta de importación de compras.',
+    )
+  }
+
+  return {
+    tableData: adapted,
+    rawResponse: {
+      ...response,
+      jobId,
+      errorCount: finalStatus.errorCount,
+      successCount: finalStatus.successCount,
+      documentsReused: finalStatus.documentsReused ?? 0,
+      failedRows: finalStatus.failedRows.map((row) => ({
+        cufe: row.cufe,
+        issuerNit: row.issuerNit,
+        issuerName: row.issuerName,
+        error: row.errorMessage,
+      })),
+    },
+  }
 }

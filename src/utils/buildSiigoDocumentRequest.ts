@@ -15,6 +15,7 @@ import type {
 } from '../types/siigo'
 import { buildSiigoSupportDocumentRequest as buildSupportDocumentRequest } from './buildSiigoSupportDocumentRequest'
 import { purchaseInvoiceItemIncludedIvaRate } from './purchaseInvoicePricing'
+import { purchaseItemConsumptionRate, resolvePurchaseItemConsumptionTax } from './purchaseConsumptionTax'
 import {
   calculateSiigoSupportDocumentPaymentValue,
   roundMoney,
@@ -122,6 +123,11 @@ export function buildSiigoPurchaseSendRequest(
           item.description.trim() ||
           sourceItems[index]?.description?.trim() ||
           ''
+        const consumptionTax = item.consumptionTax === undefined ? resolvePurchaseItemConsumptionTax(document, index) : item.consumptionTax
+        if (purchaseItemConsumptionRate(document, index) > 0 && !consumptionTax) {
+          throw new Error('No se encontró el impoconsumo de esta línea en el catálogo SIIGO. Sincroniza los impuestos y revisa la factura antes de enviar.')
+        }
+        const taxes = [itemTax, consumptionTax].filter((tax): tax is SiigoTaxOption => Boolean(tax))
 
         return {
           type: item.tipo,
@@ -130,11 +136,16 @@ export function buildSiigoPurchaseSendRequest(
           quantity: item.quantity > 0 ? item.quantity : 1,
           price: item.unitValue,
           ...(item.discount > 0 ? { discount: item.discount } : {}),
-          ...(itemTax && itemTax.id > 0 ? { taxes: [{ id: itemTax.id }] } : {}),
+          ...(taxes.length ? { taxes: taxes.map(tax => ({ id: tax.id })) } : {}),
         }
       })
-    : sourceItems.map((item) => {
+    : sourceItems.map((item, index) => {
         const itemTax = document.items?.length ? item.suggestedTax : documentLevelIvaTax
+        const consumptionTax = resolvePurchaseItemConsumptionTax(document, index)
+        if (purchaseItemConsumptionRate(document, index) > 0 && !consumptionTax) {
+          throw new Error('No se encontró el impoconsumo de esta línea en el catálogo SIIGO. Sincroniza los impuestos y revisa la factura antes de enviar.')
+        }
+        const taxes = [itemTax, consumptionTax].filter((tax): tax is NonNullable<typeof tax> => Boolean(tax))
 
         return {
           type: 'Account',
@@ -145,7 +156,7 @@ export function buildSiigoPurchaseSendRequest(
           ...(item.discount && item.discount > 0
             ? { discount: item.discount }
             : {}),
-          ...(itemTax ? { taxes: [{ id: itemTax.id }] } : {}),
+          ...(taxes.length ? { taxes: taxes.map(tax => ({ id: tax.id })) } : {}),
         }
       })
   // El impuesto (elegido o sugerido) no viene del catálogo de retenciones ya
@@ -155,6 +166,11 @@ export function buildSiigoPurchaseSendRequest(
   // calcula del lado suyo al ver items[].taxes).
   const itemTaxesCatalog = dedupeTaxOptionsById([
     ...(editedItems ?? []).flatMap(item => item.ivaTax ? [item.ivaTax] : []),
+    ...(editedItems ?? []).flatMap(item => item.consumptionTax ? [item.consumptionTax] : []),
+    ...sourceItems.flatMap((_, index) => {
+      const tax = resolvePurchaseItemConsumptionTax(document, index)
+      return tax ? [tax] : []
+    }),
     ...(documentLevelIvaTax ? [documentLevelIvaTax] : []),
     ...sourceItems.flatMap(item => item.suggestedTax
       ? [{ ...item.suggestedTax, type: 'IVA' }]

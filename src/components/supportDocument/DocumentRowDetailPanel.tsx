@@ -33,6 +33,7 @@ export interface DocumentRowDetailEditableProps {
   disabled?: boolean
   onSaveDraft?: (edits: PurchaseInvoiceDetailEditorSave) => void | Promise<void>
   isSavingDraft?: boolean
+  saveLabel?: string
   onChange?: (edits: PurchaseInvoiceDetailEditorSave) => void
   fieldErrors?: SiigoSendFieldErrors | null
 }
@@ -115,6 +116,7 @@ export default function DocumentRowDetailPanel({
           disabled={editable.disabled}
           onSaveDraft={editable.onSaveDraft}
           isSavingDraft={editable.isSavingDraft}
+          saveLabel={editable.saveLabel}
           onChange={editable.onChange}
           fieldErrors={editable.fieldErrors}
         />

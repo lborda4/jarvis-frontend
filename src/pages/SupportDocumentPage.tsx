@@ -1,3 +1,4 @@
+import PurchaseInvoiceImportModal from '../components/supportDocument/PurchaseInvoiceImportModal'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoProductOption } from '../constants/siigoProductCatalog'
@@ -14,6 +15,7 @@ import {
 import {
   SUPPORT_DOCUMENT_WORKSPACE,
   type DocumentWorkspaceConfig,
+  type DocumentWorkspaceImportResult,
   type DocumentWorkspaceImportFailedRow,
   type DocumentWorkspaceProvider,
 } from '../constants/documentWorkspaceConfig'
@@ -70,6 +72,8 @@ import {
   saveElectronicDocumentDraft,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
+import { updateSiigoPurchase } from '../services/siigoService'
+import type { CreateSiigoPurchaseSendRequest } from '../types/siigo'
 import { useAuth } from '../context/AuthContext'
 import {
   createSiigoSuppliersBulk,
@@ -617,6 +621,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
   const { user } = useAuth()
   const { refreshSetupStatus } = useIntegrationSetup()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isPurchaseImportOpen, setIsPurchaseImportOpen] = useState(false)
   const controlsAnchorRef = useRef<HTMLDivElement>(null)
   const [isControlsAnchored, setIsControlsAnchored] = useState(false)
   const [documents, setDocuments] = useState<ElectronicDocumentListItem[]>([])
@@ -2470,6 +2475,11 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       return
     }
 
+    setIsPurchaseImportOpen(false)
+    runDocumentImport(() => config.importFile(file))
+  }
+
+  const runDocumentImport = (importDocuments: () => Promise<DocumentWorkspaceImportResult>) => {
     void (async () => {
       setIsImporting(true)
       setErrorMessage(null)
@@ -2488,7 +2498,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           jobId,
           errorCount,
           documentsReused,
-        } = await config.importFile(file)
+        } = await importDocuments()
 
         if (config.key === 'purchaseInvoice' && jobId && errorCount) {
           setPurchaseInvoiceRetryInfo({ jobId, errorCount, failedRows: failedRows ?? [] })
@@ -2612,7 +2622,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         null
 
       try {
-        await saveElectronicDocumentDraft(documentId, {
+        const draft = {
           costCenter: edits.costCenter && edits.costCenter.id > 0 ? edits.costCenter : null,
           items: edits.items.map((item) => ({
             tipo: item.tipo,
@@ -2622,6 +2632,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             unitValue: item.unitValue,
             discount: item.discount,
             ivaTaxId: item.ivaTax?.id ?? null,
+            impoconsumoTaxId: item.consumptionTax?.id ?? null,
             retefuenteTaxId: item.retefuenteTax?.id ?? null,
           })),
           accountCode,
@@ -2630,7 +2641,33 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           observations: edits.observations || null,
           retentionTaxIds: edits.retentions.map((retention) => retention.id),
           documentDiscount: edits.documentDiscount ?? null,
-        })
+        }
+        const document = documentsById[documentId]
+        const updating = config.provider === 'SIIGO' && config.key === 'purchaseInvoice' &&
+          document?.status === 'PURCHASE_CREATED'
+        if (updating) {
+          if (document.alreadyInSiigo) throw new Error('Solo puedes editar facturas enviadas desde JARVIS.')
+          if (!edits.paymentMethod) throw new Error('Selecciona el método de pago.')
+          const errors = collectSendFieldErrors(
+            document, documentId, IMPORT_ROW_STATUS.PENDIENTE,
+            accountCode ? { [documentId]: { code: accountCode, description: accountCode } } : rowAccounts,
+            { [documentId]: edits.paymentMethod }, { [documentId]: edits.dueDate },
+            { [documentId]: edits.items },
+            { requiresAccount: config.requiresAccount, requiresPaymentMethod: config.requiresPaymentMethod },
+          )
+          if (errors) throw new Error(errors.dueDate ?? errors.account ?? errors.paymentMethod ??
+            (errors.itemDescriptions.length ? 'Completa la descripción de todos los ítems.' : 'Asigna el código de todos los ítems.'))
+          const request = config.buildSendRequest(
+            document,
+            accountCode ? { code: accountCode, description: accountCode } : rowAccounts[documentId] ?? null,
+            edits.paymentMethod, edits.retentions, edits.costCenter ?? null,
+            rowDates[documentId], edits.dueDate ?? undefined, edits.observations,
+            rowIva[documentId] ?? null, edits.items,
+          ) as CreateSiigoPurchaseSendRequest
+          await updateSiigoPurchase({ ...request, draft: { ...draft, savedAt: new Date().toISOString() } })
+        } else {
+          await saveElectronicDocumentDraft(documentId, draft)
+        }
 
         if (accountCode) {
           setRowAccounts((current) => ({
@@ -2657,6 +2694,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
                       unitValue: item.unitValue,
                       discount: item.discount,
                       ivaTaxId: item.ivaTax?.id ?? null,
+                      impoconsumoTaxId: item.consumptionTax?.id ?? null,
                       retefuenteTaxId: item.retefuenteTax?.id ?? null,
                     })),
                     accountCode,
@@ -2674,7 +2712,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           ),
         )
 
-        setDeleteFeedbackMessage('Cambios guardados.')
+        setDeleteFeedbackMessage(updating ? 'Factura actualizada en SIIGO.' : 'Cambios guardados.')
         // El estado del documento puede cambiar al guardar (lo que faltaba
         // por completar deja de faltar), así que se recarga el listado.
         reloadDocuments({ resetPage: false })
@@ -2691,6 +2729,10 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     },
     [
       handleSaveRowEdits,
+      documentsById,
+      config,
+      rowDates,
+      rowIva,
       reloadDocuments,
       rowAccounts,
       setDeleteFeedbackMessage,
@@ -2873,7 +2915,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
               </Button>
             )}
 
-            <Button variant="primary" onClick={openFilePicker} disabled={isImporting}>
+            <Button variant="primary" onClick={config.importCufe ? () => setIsPurchaseImportOpen(true) : openFilePicker} disabled={isImporting}>
               <span className="support-document-page__import-icon" aria-hidden="true">
                 +
               </span>
@@ -2882,6 +2924,18 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           </>
         }
       />
+
+      {config.importCufe && (
+        <PurchaseInvoiceImportModal
+          isOpen={isPurchaseImportOpen}
+          onClose={() => setIsPurchaseImportOpen(false)}
+          onSelectExcel={openFilePicker}
+          onImportCufe={(cufe) => {
+            setIsPurchaseImportOpen(false)
+            runDocumentImport(() => config.importCufe!(cufe))
+          }}
+        />
+      )}
 
       <input
         ref={fileInputRef}
@@ -3141,6 +3195,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       </div>
 
       <SupportDocumentTable
+        allowSentPurchaseEditing={config.provider === 'SIIGO' && config.key === 'purchaseInvoice'}
         sentStatusLabel={config.provider === 'SIIGO' ? 'ENVIADO' : undefined}
         referenceSearch={columnFilters.referenceSearch}
         rows={tableRows}

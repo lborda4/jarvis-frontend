@@ -37,6 +37,31 @@ body:has(.app-layout),
   overflow-y: auto;
 }
 
+.app-layout__back-bar {
+  width: min(calc(100% - 3rem), var(--app-content-max-width));
+  margin: 1rem auto 0;
+}
+.app-layout__back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-md);
+  background: white;
+  color: var(--jarvis-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+.app-layout__back-button:hover { background: var(--jarvis-primary-soft); }
+.app-layout__back-button svg { width: 1rem; height: 1rem; }
+@media (max-width: 640px) {
+  .app-layout__back-bar { width: calc(100% - 2rem); margin-top: 0.75rem; }
+  .app-layout__back-button { min-height: 44px; }
+}
+
 /* Toda la tipografía del panel baja un escalón de la escala global: el menú
  * es navegación, no contenido, y a igual tamaño competía con la página. Se
  * redefinen los tokens (y no cada font-size por separado) para que también

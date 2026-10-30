@@ -1,0 +1,70 @@
+.purchase-import {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.purchase-import__methods {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.purchase-import__methods legend {
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.purchase-import__methods label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.purchase-import__methods input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #009e9e;
+}
+.purchase-import__field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.purchase-import__field label {
+  font-weight: 600;
+}
+.purchase-import__field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #c6d3e2;
+  border-radius: 8px;
+  font: inherit;
+  overflow-wrap: anywhere;
+  resize: vertical;
+}
+.purchase-import__field textarea:focus {
+  outline: 2px solid #72d2d2;
+  outline-offset: 2px;
+}
+.purchase-import__field textarea[aria-invalid='true'] {
+  border-color: #c83c3c;
+}
+.purchase-import p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+@media (max-width: 480px) {
+  .purchase-import .modal-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .purchase-import .modal-dialog__actions .btn {
+    flex: 1 1 auto;
+  }
+}

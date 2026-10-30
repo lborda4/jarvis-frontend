@@ -546,6 +546,19 @@ export async function createSiigoPurchaseSend(
   return response.data
 }
 
+export async function updateSiigoPurchase(
+  request: CreateSiigoPurchaseSendRequest & {
+    draft: import('../types/electronicDocument').ElectronicDocumentListItem['draft']
+  },
+): Promise<CreateSiigoPurchaseSendResponse> {
+  const response = await apiClient.put<CreateSiigoPurchaseSendResponse>(
+    `/integrations/siigo/purchases/${encodeURIComponent(request.documentId)}`,
+    request,
+  )
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+  return response.data
+}
+
 export async function fetchSiigoCredentialsStatus(options?: {
   force?: boolean
 }): Promise<SiigoCredentialsStatusResponse> {

@@ -36,7 +36,7 @@ export const localDate = () =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(
     new Date(),
   )
-export function blankEmployee(identifications: { id: number; name: string; code?: string }[] = []): Employee {
+export function blankEmployee(identifications: { id: number; name: string; code?: string }[] = [], date = localDate()): Employee {
   const citizenshipCard = identifications.find(document =>
     document.code === '31' || document.code?.toUpperCase() === 'CC' ||
     /cedula (de )?ciudadania/.test(document.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
@@ -53,9 +53,9 @@ export function blankEmployee(identifications: { id: number; name: string; code?
     subTypeWorkerId: 0,
     contractType: 'INDEFINITE',
     positionId: '',
-    admittanceDate: localDate(),
+    admittanceDate: date,
     retirementDate: '',
-    salary: '0',
+    salary: blankParameters(date).minimumSalary,
     integralSalary: false,
     highRiskPension: false,
     active: true,

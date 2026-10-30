@@ -5,6 +5,7 @@ import type { ElectronicDocumentListItem } from '../types/electronicDocument'
 import { pickPreferredIvaTax, resolvePreferredInvoiceIvaTax } from '../utils/siigoTaxes'
 import { roundMoney } from '../utils/siigoSupportDocumentTotal'
 import { purchaseInvoiceItemIncludedIvaRate } from '../utils/purchaseInvoicePricing'
+import { resolvePurchaseItemConsumptionTax } from '../utils/purchaseConsumptionTax'
 
 /** Valores que SIIGO acepta en items[].type — campo obligatorio del lado de
  * SIIGO, solo admite estos 3. */
@@ -27,6 +28,7 @@ export interface PurchaseInvoiceItemDraft {
   /** IVA incluido en precio y descuento originales; independiente del impuesto seleccionado. */
   includedIvaPercentage?: number
   ivaTax: SiigoTaxOption | null
+  consumptionTax?: SiigoTaxOption | null
   /** Retefuente elegida por línea (reemplaza el reparto proporcional a nivel
    * de documento — cada ítem puede tener un concepto/tarifa distinto). */
   retefuenteTax: SiigoTaxOption | null
@@ -47,6 +49,8 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
   _fallbackIvaTax: SiigoTaxOption | null = null,
   sourceDocument?: ElectronicDocumentListItem,
 ): PurchaseInvoiceItemDraft[] {
+  // Argumento conservado por compatibilidad; el impuesto corresponde a cada línea.
+  void _fallbackIvaTax
   const findTax = (
     options: SiigoTaxOption[],
     id: number | null | undefined,
@@ -63,6 +67,7 @@ export function buildPurchaseInvoiceItemDraftsFromDraft(
     discount: item.discount,
     includedIvaPercentage: sourceDocument ? purchaseInvoiceItemIncludedIvaRate(sourceDocument, index) : 0,
     ivaTax: findTax(ivaOptions, item.ivaTaxId),
+    consumptionTax: sourceDocument ? resolvePurchaseItemConsumptionTax(sourceDocument, index) : null,
     retefuenteTax: findTax(retefuenteOptions, item.retefuenteTaxId),
   }))
 }
@@ -137,6 +142,7 @@ export function createEmptyPurchaseInvoiceItemDraft(): PurchaseInvoiceItemDraft 
     unitValue: 0,
     discount: 0,
     ivaTax: null,
+    consumptionTax: null,
     retefuenteTax: null,
   }
 }
@@ -315,6 +321,7 @@ export function buildPurchaseInvoiceItemDrafts(
       includedIvaPercentage: purchaseInvoiceItemIncludedIvaRate(document, index),
       // Solo se usa el IVA de esta línea; el historial no puede cambiar su tarifa.
       ivaTax: resolveItemIvaTax(item, ivaOptions, ivaTaxFromSupplierConfig),
+      consumptionTax: resolvePurchaseItemConsumptionTax(document, index),
       retefuenteTax: retefuenteTaxFromSupplierConfig,
     }
   })
@@ -355,6 +362,7 @@ export function mergeLateItemSuggestions(
       tipo: keepStoredCode ? item.tipo : suggestion.tipo,
       producto: keepStoredCode ? item.producto : suggestion.producto,
       ivaTax: item.ivaTax,
+      consumptionTax: item.consumptionTax ?? suggestion.consumptionTax,
       retefuenteTax: item.retefuenteTax ?? suggestion.retefuenteTax,
     }
   })
@@ -407,6 +415,10 @@ export function purchaseInvoiceItemDraftRetefuenteAmount(
   return percentage > 0 ? (purchaseInvoiceItemDraftBase(item) * percentage) / 100 : 0
 }
 
+export function purchaseInvoiceItemDraftConsumptionAmount(item: PurchaseInvoiceItemDraft): number {
+  return roundMoney(purchaseInvoiceItemDraftBase(item) * (item.consumptionTax?.percentage ?? 0) / 100)
+}
+
 /** "Valor total" por línea para la tabla de ítems: reparte `documentTotal`
  * (payload.totals.total, el payable_amount certificado por la DIAN) entre
  * las líneas — nunca se muestra cantidad × valor unitario + IVA por línea
@@ -434,7 +446,7 @@ export function calculatePurchaseInvoiceItemLineTotals(
   if (items.some(item => (item.includedIvaPercentage ?? 0) > 0)) {
     // Cada línea conserva su base y su IVA; no repartir el pagable entre productos.
     return items.map((item, index) => roundMoney(
-      purchaseInvoiceItemDraftBase(item) + purchaseInvoiceItemDraftIvaAmount(item) - retefuenteAmounts[index],
+      purchaseInvoiceItemDraftBase(item) + purchaseInvoiceItemDraftIvaAmount(item) + purchaseInvoiceItemDraftConsumptionAmount(item) - retefuenteAmounts[index],
     ))
   }
   if (items.length === 1) {
@@ -443,7 +455,7 @@ export function calculatePurchaseInvoiceItemLineTotals(
 
   const grossWeights = items.map(
     (item) =>
-      purchaseInvoiceItemDraftBase(item) + purchaseInvoiceItemDraftIvaAmount(item),
+      purchaseInvoiceItemDraftBase(item) + purchaseInvoiceItemDraftIvaAmount(item) + purchaseInvoiceItemDraftConsumptionAmount(item),
   )
   const weightSum = grossWeights.reduce((sum, weight) => sum + weight, 0)
 

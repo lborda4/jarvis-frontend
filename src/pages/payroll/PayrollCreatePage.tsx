@@ -24,6 +24,8 @@ import {
 } from '../../utils/payrollPeriod'
 import { contractLabels, employeeName, localDate } from './payrollDefaults'
 import { PayrollHeading, type PayrollContext } from './PayrollPage'
+import { ensurePayrollParameters } from './ensurePayrollParameters'
+import { payrollEmploymentDays } from '../../utils/payrollEmployment'
 
 const pageSize = 10
 function RequiredField({
@@ -110,10 +112,10 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
     const employee = data.employees.find((e) => e.id === id)!
     if (!employee.active) return 'Inactivo'
     if (!bounds) return 'Disponible'
-    if (employee.admittanceDate > bounds.startDate)
-      return 'Ingreso posterior al inicio del período'
-    if (employee.retirementDate && employee.retirementDate < bounds.endDate)
-      return 'Retiro anterior al fin del período'
+    if (payrollEmploymentDays(bounds, employee).days <= 0)
+      return employee.admittanceDate > bounds.endDate
+        ? 'Ingreso posterior al fin del período'
+        : 'Retiro anterior al inicio del período'
     if (
       documents.some(
         (d) =>
@@ -181,16 +183,13 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
     const issues = validatePayrollPeriod(request)
     if (!loaded)
       issues.push('Espera a que se consulten las nóminas existentes.')
-    if (!parameters && bounds)
-      issues.push(
-        'Configura parámetros vigentes para el período seleccionado antes de crear la nómina.',
-      )
     setErrors(issues)
     if (issues.length) return
     submitting.current = true
     try {
       let key = ''
       const ok = await run(async () => {
+        if (!parameters && bounds) await ensurePayrollParameters(bounds.startDate)
         const result = await payrollService.createPeriod(groupId, request)
         key = result.key
       }, 'Nómina creada. Puedes revisar y modificar los valores de cada empleado.')

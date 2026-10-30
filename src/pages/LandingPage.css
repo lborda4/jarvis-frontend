@@ -913,7 +913,6 @@
   .landing-header__inner {
     position: relative;
   }
-
 }
 
 @media (min-width: 768px) {
@@ -959,6 +958,12 @@
     padding: 0.5rem;
     font-size: 0.65rem;
     gap: 0.3rem;
+    max-width: 48%;
+    white-space: normal;
+  }
+
+  .landing-float .landing-icon {
+    flex-shrink: 0;
   }
 }
 

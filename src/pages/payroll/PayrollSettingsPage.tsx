@@ -22,6 +22,17 @@ export default function PayrollSettingsPage({
   const [conceptNotice, setConceptNotice] = useState('')
   const newConceptRow = useRef<HTMLTableRowElement>(null)
   const newConceptCode = newConcept?.code
+  const removeConcept = (code: string) => {
+    if (busy) return
+    if (code === newConceptCode) {
+      setNewConcept(null)
+      setConceptError('')
+      return
+    }
+    if (parameters.concepts.some(concept => concept.code.startsWith('internal_') && concept.category === code)) return
+    setParameters(current => ({ ...current, concepts: current.concepts.filter(concept => concept.code !== code) }))
+    setConceptNotice('Concepto eliminado de la lista. Pulsa Guardar para aplicar el cambio.')
+  }
 
   useEffect(() => {
     if (!newConceptCode) return
@@ -75,31 +86,25 @@ export default function PayrollSettingsPage({
   const conceptSection = (kind: 'accrued' | 'deduction') => (
     <>
       <div className="payroll__scroll">
-        <table className="payroll__concepts" aria-label={kind === 'accrued' ? 'Conceptos de devengados, horas extras y recargos' : 'Conceptos de deducciones'}>
+        <table className={`payroll__concepts${kind === 'accrued' ? ' payroll__concepts--removable' : ''}`} aria-label={kind === 'accrued' ? 'Conceptos de devengados, horas extras y recargos' : 'Conceptos de deducciones'}>
           <colgroup>
             <col className="payroll__concept-col-name" />
             <col className="payroll__concept-col-category" />
-            <col className="payroll__concept-col-base" />
-            <col className="payroll__concept-col-factor" />
-            <col className="payroll__concept-col-mode" />
-            <col className="payroll__concept-col-percent" />
             <col className="payroll__concept-col-check" />
             <col className="payroll__concept-col-check" />
+            {kind === 'accrued' && <col className="payroll__concept-col-delete" />}
           </colgroup>
           <thead>
             <tr>
               {[
                 'Concepto',
                 'Categoría',
-                'Base de cálculo',
-                'Factor total',
-                'Aplicación',
-                '%',
                 'Salarial',
                 'Activo',
               ].map((t) => (
                 <th scope="col" key={t}>{t}</th>
               ))}
+              {kind === 'accrued' && <th scope="col">Eliminar</th>}
             </tr>
           </thead>
           <tbody>
@@ -123,7 +128,7 @@ export default function PayrollSettingsPage({
                       {c.code === newConceptCode && <>
                         <div className="payroll__concept-draft-actions">
                           <button type="button" className="payroll__button payroll__button--primary" disabled={busy} onClick={saveNewConcept}>Guardar concepto</button>
-                          <button type="button" className="payroll__button" onClick={() => { setNewConcept(null); setConceptError('') }}>Eliminar</button>
+                          {kind !== 'accrued' && <button type="button" className="payroll__button" onClick={() => { setNewConcept(null); setConceptError('') }}>Eliminar</button>}
                         </div>
                         {conceptError && <small role="alert" className="payroll__concept-error">{conceptError}</small>}
                       </>}
@@ -155,57 +160,6 @@ export default function PayrollSettingsPage({
                       )}
                     </td>
                     <td>
-                      <select
-                        aria-label="Base de cálculo"
-                        value={c.base}
-                        onChange={(e) => change(c.code, 'base', e.target.value)}
-                      >
-                        <option value="manual">Manual</option>
-                        <option value="salary">Salario devengado</option>
-                        <option value="hourly">
-                          Salario / horas de referencia
-                        </option>
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        aria-label="Factor total"
-                        value={c.factor}
-                        onChange={(e) => change(c.code, 'factor', e.target.value)}
-                      />
-                      {c.factor && <small>Adic.: {((Number(c.factor) - 1) * 100).toFixed(2)} %</small>}
-                    </td>
-                    <td>
-                      <select
-                        aria-label="Aplicación del factor"
-                        value={c.calculationMode ?? 'total'}
-                        onChange={(e) =>
-                          change(c.code, 'calculationMode', e.target.value)
-                        }
-                      >
-                        <option value="total">Remuneración total</option>
-                        <option value="additional">
-                          Solo recargo adicional
-                        </option>
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        aria-label="Porcentaje"
-                        value={c.percentage}
-                        onChange={(e) =>
-                          change(c.code, 'percentage', e.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
                       <input
                         type="checkbox"
                         aria-label="Salarial"
@@ -223,6 +177,18 @@ export default function PayrollSettingsPage({
                         onChange={(e) => change(c.code, 'active', e.target.checked)}
                       />
                     </td>
+                    {kind === 'accrued' && <td>
+                      <button
+                        type="button"
+                        className="payroll__button payroll__button--compact payroll__button--danger"
+                        aria-label={`Eliminar ${c.name || 'nuevo concepto'}`}
+                        title={parameters.concepts.some(concept => concept.code.startsWith('internal_') && concept.category === c.code) ? 'Reasigna o elimina primero los conceptos que usan esta categoría.' : 'Eliminar concepto'}
+                        disabled={busy || parameters.concepts.some(concept => concept.code.startsWith('internal_') && concept.category === c.code)}
+                        onClick={() => removeConcept(c.code)}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
+                      </button>
+                    </td>}
                   </tr>
                 ),
             )}
@@ -313,8 +279,8 @@ export default function PayrollSettingsPage({
         disabled={busy}
         onClick={async () => {
           const saved = await run(
-            () => payrollService.parameters(parameters),
-            'Versión de parámetros guardada.',
+            () => payrollService.updateParameters(parameters),
+            'Configuración de nómina guardada.',
           )
           if (saved) setConceptNotice('')
         }}

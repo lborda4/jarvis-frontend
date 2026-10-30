@@ -3,7 +3,10 @@ import type { SiigoCostCenterOption } from '../constants/siigoCostCenterCatalog'
 import type { SiigoPaymentMethodOption } from '../constants/siigoPaymentMethodCatalog'
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
 import { supportDocumentExcelSource } from '../services/documentSources/supportDocumentExcelSource'
-import { purchaseInvoiceExcelSource } from '../services/documentSources/purchaseInvoiceExcelSource'
+import {
+  purchaseInvoiceExcelSource,
+  importPurchaseInvoiceByCufe,
+} from '../services/documentSources/purchaseInvoiceExcelSource'
 import { downloadSupportDocumentTemplate } from '../services/supportDocumentService'
 import {
   createSiigoPurchaseSend,
@@ -86,6 +89,7 @@ export interface DocumentWorkspaceConfig {
   templateDownloadError: string
   importFileError: string
   sendProcessingLabel: string
+  importCufe?: (cufe: string) => Promise<DocumentWorkspaceImportResult>
   importButtonLabel: string
   importingButtonLabel: string
   templateButtonLabel: string
@@ -300,6 +304,12 @@ async function importPurchaseInvoiceExcel(
     provider,
     electronicDocumentType: ELECTRONIC_DOCUMENT_TYPE.PURCHASE_INVOICE,
   })
+  return normalizePurchaseInvoiceImportResult(rawResponse)
+}
+
+function normalizePurchaseInvoiceImportResult(
+  rawResponse: unknown,
+): DocumentWorkspaceImportResult {
   const response = rawResponse as {
     documentsCreated?: number
     documentsReused?: number
@@ -334,12 +344,12 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   requiresPaymentMethod: true,
   pageTitle: 'Factura de compra',
   pageDescription:
-    'Sube el Excel descargado de la DIAN. Se importan filas del Grupo “Recibido” con tipo Factura electrónica, Factura electrónica de contingencia, POS electrónico, Tiquete aéreo o Tiquete transporte pasajeros.',
+    'Importa una factura por CUFE o varias con el Excel descargado de la DIAN. Se importan filas del Grupo “Recibido” con tipo Factura electrónica, Factura electrónica de contingencia, POS electrónico, Tiquete aéreo o Tiquete transporte pasajeros.',
   loadDocumentsError: 'No se pudieron cargar las facturas de compra.',
   templateDownloadError: '',
-  importFileError: 'No se pudo importar el Excel de la DIAN.',
+  importFileError: 'No se pudieron importar las facturas de compra.',
   sendProcessingLabel: 'Enviando factura de compra a SIIGO...',
-  importButtonLabel: 'Importar Excel DIAN',
+  importButtonLabel: 'Importar facturas',
   importingButtonLabel: 'Importando...',
   templateButtonLabel: '',
   downloadingTemplateLabel: '',
@@ -348,6 +358,8 @@ export const PURCHASE_INVOICE_WORKSPACE: DocumentWorkspaceConfig = {
   showPeriodSummaryExport: true,
   supplierMissingLabel: 'Crear tercero',
   importFile: (file) => importPurchaseInvoiceExcel(file, 'SIIGO'),
+  importCufe: async (cufe) =>
+    normalizePurchaseInvoiceImportResult((await importPurchaseInvoiceByCufe(cufe)).rawResponse),
   buildSendRequest: (
     document,
     account,

@@ -1,4 +1,5 @@
 import type { SiigoTaxOption } from '../constants/siigoTaxCatalog'
+import { isSiigoConsumptionTaxType } from './purchaseConsumptionTax'
 import type { CreateSiigoSupportDocumentRequest } from '../types/siigo'
 
 type SupportDocumentItem = CreateSiigoSupportDocumentRequest['items'][number]
@@ -136,7 +137,12 @@ function calculateRetentionTotal(
   for (const item of items) {
     const breakdown = calculateLineBreakdown(item, taxesById, taxIncluded)
     subtotal = roundMoney(subtotal + breakdown.baseValue)
-    taxTotal = roundMoney(taxTotal + breakdown.taxTotal)
+    const consumption = (item.taxes ?? []).reduce((sum, ref) => {
+      const tax = taxesById.get(ref.id)
+      return tax && isSiigoConsumptionTaxType(tax.type)
+        ? roundMoney(sum + roundMoney(breakdown.baseValue * tax.percentage / 100)) : sum
+    }, 0)
+    taxTotal = roundMoney(taxTotal + Math.max(0, breakdown.taxTotal - consumption))
   }
 
   return retentions.reduce((sum, retention) => {
