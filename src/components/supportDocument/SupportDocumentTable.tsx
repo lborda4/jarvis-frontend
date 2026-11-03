@@ -41,6 +41,7 @@ import { isSupportDocumentRowSelectable } from '../../utils/mapImportRowStatus'
 import { calculatePurchaseInvoiceRowSummary } from '../../utils/purchaseInvoiceRowSummary'
 import type { SiigoSendFieldErrors } from '../../utils/supportDocumentSend'
 import DocumentRowDetailPanel from './DocumentRowDetailPanel'
+import SentPurchaseActions from './SentPurchaseActions'
 import PurchaseInvoiceDownloadButton from './PurchaseInvoiceDownloadButton'
 
 const TABLE_COLUMN_COUNT = 9
@@ -106,6 +107,7 @@ interface SupportDocumentTableProps {
    * completo (ítems, forma de pago, plazo, retenciones) al expandir la fila. */
   showSummaryColumns?: boolean
   allowSentPurchaseEditing?: boolean
+  onResendPurchase?: (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => Promise<void>
   rowDueDates?: Record<string, string | null>
   rowObservations?: Record<string, string>
   rowItems?: Record<string, PurchaseInvoiceItemDraft[]>
@@ -284,6 +286,7 @@ function SupportDocumentTable({
   showIvaColumn = false,
   showSummaryColumns = false,
   allowSentPurchaseEditing = false,
+  onResendPurchase,
   rowDueDates = {},
   rowObservations = {},
   rowItems = {},
@@ -845,14 +848,20 @@ function SupportDocumentTable({
                   </td>
                   <td data-label="Acción">
                     {canUpdatePurchase ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={actionDisabled}
-                        onClick={() => { if (!isExpanded) toggleRowExpanded(row.id) }}
-                      >
-                        Editar
-                      </Button>
+                      <SentPurchaseActions documentId={row.id} disabled={actionDisabled || savingDraftDocumentId === row.id}
+                        onEdit={() => { if (!isExpanded) toggleRowExpanded(row.id) }}
+                        onResend={async () => {
+                          if (!onResendPurchase) return
+                          await onResendPurchase(row.id, {
+                            items: effectivePurchaseInvoiceItems ?? buildPurchaseInvoiceItemDrafts(document, accountOptions, productOptions, ivaOptions, fixedAssetOptions),
+                            paymentMethod: rowPaymentMethods[row.id] ?? null,
+                            dueDate: rowDueDates[row.id] ?? null,
+                            observations: rowObservations[row.id] ?? '',
+                            costCenter: rowCostCenters[row.id] ?? null,
+                            retentions: rowRetentions[row.id] ?? [],
+                            documentDiscount: effectiveDocumentDiscount,
+                          })
+                        }} />
                     ) : (
                     <ActionCell
                       action={isRowDeleting ? 'processing' : row.action}

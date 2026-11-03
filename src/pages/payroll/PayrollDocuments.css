@@ -1,0 +1,389 @@
+.payroll__documents .page-header {
+  align-items: center;
+  margin-bottom: 22px;
+}
+.payroll__documents .page-header__actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.payroll__documents .payroll-register__year {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  color: #69788b;
+  font-size: 0.82rem;
+}
+.payroll__documents .payroll-register__year select {
+  width: 105px;
+  min-height: 40px;
+}
+.payroll-register__overview {
+  display: grid;
+  grid-template-columns: 0.65fr repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.payroll-register__overview > div {
+  border: 1px solid #dce6ec;
+  background: white;
+  border-radius: 10px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+.payroll-register__overview span {
+  display: block;
+  margin-bottom: 7px;
+  color: #69788b;
+  font-size: 0.78rem;
+}
+.payroll-register__overview strong {
+  font-size: clamp(0.95rem, 1.3vw, 1.3rem);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.payroll-register__overview > .payroll-register__overview-net {
+  background: #eaf8f6;
+  border-color: #bde6e0;
+  color: #007b78;
+}
+.payroll-register__filter-card {
+  margin: 0 0 18px;
+}
+.payroll-register__filter-card .payroll__filters {
+  border-bottom: 0;
+  padding: 16px 18px;
+  gap: 16px;
+}
+.payroll-register__filter-card .payroll__period-search {
+  flex: 2;
+}
+.payroll-register__periods {
+  display: grid;
+  gap: 12px;
+}
+.payroll-period {
+  border: 1px solid #dce6ec;
+  border-radius: 10px;
+  background: white;
+  min-width: 0;
+}
+.payroll-period--open {
+  border-color: #a5dcd7;
+  box-shadow: 0 3px 12px #16394006;
+}
+.payroll-period__header {
+  display: flex;
+  align-items: center;
+  padding: 0 12px 0 0;
+  gap: 6px;
+}
+.payroll-period__toggle {
+  display: grid;
+  grid-template-columns: 24px minmax(180px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 20px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  padding: 18px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+.payroll-period__toggle:hover {
+  background: #f7fbfb;
+}
+.payroll-period__toggle:focus-visible {
+  outline: 2px solid #009b99;
+  outline-offset: -3px;
+}
+.payroll-period__chevron {
+  display: inline-flex;
+  color: #008d8b;
+}
+.payroll-period__chevron svg {
+  width: 18px;
+  height: 18px;
+}
+.payroll-period__name {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.payroll-period__name strong {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.payroll-period__name > span,
+.payroll-period__employees {
+  color: #69788b;
+  font-size: 0.76rem;
+}
+.payroll-period__net {
+  display: grid;
+  gap: 5px;
+  text-align: right;
+  white-space: nowrap;
+}
+.payroll-period__net small {
+  color: #69788b;
+  font-size: 0.7rem;
+}
+.payroll-period__net strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+.payroll-period__body {
+  border-top: 1px solid #d9eeeb;
+}
+.payroll-period__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: #f8fbfc;
+}
+.payroll-period__toolbar h2 {
+  margin: 0 0 5px;
+  font-size: 0.86rem;
+}
+.payroll-period__toolbar p {
+  margin: 0;
+  color: #69788b;
+  font-size: 0.76rem;
+}
+.payroll-period__toolbar .payroll__button {
+  padding: 7px 11px;
+  min-height: 34px;
+  font-size: 0.76rem;
+}
+.payroll-period__totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: #f5fbfa;
+  border-radius: 0 0 10px 10px;
+  font-size: 0.78rem;
+}
+.payroll-period__totals span {
+  display: flex;
+  gap: 8px;
+  color: #69788b;
+}
+.payroll-period__totals strong {
+  color: #007f7b;
+  font-variant-numeric: tabular-nums;
+}
+.payroll__documents .payroll-documents-table table {
+  table-layout: fixed;
+  white-space: normal;
+  width: 100%;
+}
+.payroll-documents-table__check {
+  width: 4%;
+}
+.payroll-documents-table__employee {
+  width: 28%;
+}
+.payroll-documents-table__status {
+  width: 17%;
+}
+.payroll-documents-table__actions {
+  width: 7%;
+}
+.payroll__documents .payroll-documents-table :is(th, td) {
+  padding: 12px 10px;
+  font-size: 0.76rem;
+  vertical-align: middle;
+}
+.payroll-documents-table th:nth-child(n + 3):nth-child(-n + 5),
+.payroll-documents-table td:nth-child(n + 3):nth-child(-n + 5) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.payroll-documents-table td:nth-child(6) {
+  text-align: center;
+}
+.payroll-documents-table th:nth-child(6) {
+  text-align: center;
+}
+.payroll-documents-table td:last-child {
+  text-align: right;
+}
+.payroll-documents-table__person button {
+  text-align: left;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.payroll-documents-table__person button:hover {
+  text-decoration: underline;
+}
+.payroll-documents-table__person small {
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+.payroll__documents .payroll-documents-table input[type='checkbox'] {
+  min-width: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #009b99;
+}
+.payroll-documents-table .payroll__badge {
+  font-size: 0.68rem;
+  padding: 4px 7px;
+}
+.payroll-documents-table__selected {
+  background: #edf9f7;
+}
+.payroll-register__pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.payroll-register__selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid #a9ded7;
+  background: #edf9f6;
+  border-radius: 10px;
+  margin-top: 16px;
+  position: sticky;
+  bottom: 12px;
+  z-index: 3;
+  box-shadow: 0 4px 20px #193d3510;
+}
+.payroll-register__selection > strong {
+  color: #007e79;
+  font-size: 0.82rem;
+}
+.payroll-register__summary {
+  margin-top: 0;
+}
+@media (max-width: 1100px) {
+  .payroll-period__toggle {
+    grid-template-columns: 20px minmax(160px, 1fr) auto auto;
+    gap: 12px;
+  }
+  .payroll-period__employees {
+    display: none;
+  }
+  .payroll-register__overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .payroll__documents .page-header__actions {
+    justify-content: flex-start;
+  }
+  .payroll-register__overview {
+    gap: 8px;
+  }
+  .payroll-register__overview > div {
+    padding: 12px;
+  }
+  .payroll-period__toggle {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 14px 10px;
+  }
+  .payroll-period__name {
+    grid-column: 2 / -1;
+  }
+  .payroll-period__net {
+    grid-column: 2;
+    text-align: left;
+  }
+  .payroll-period__toggle > .payroll__badge {
+    grid-column: 3;
+    font-size: 0.65rem;
+  }
+  .payroll-period__header {
+    align-items: flex-start;
+    padding-right: 4px;
+  }
+  .payroll-period__header > .payroll__period-action {
+    margin-top: 10px;
+  }
+  .payroll-period__toolbar {
+    padding: 14px;
+    gap: 12px;
+  }
+  .payroll-period__totals {
+    padding: 14px;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .payroll-period__totals span {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .payroll-documents-table table,
+  .payroll-documents-table tbody {
+    display: block;
+  }
+  .payroll-documents-table colgroup,
+  .payroll-documents-table thead {
+    display: none;
+  }
+  .payroll__documents .payroll-documents-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+    position: relative;
+    border-bottom: 1px solid #e2e9ee;
+  }
+  .payroll__documents .payroll-documents-table td {
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .payroll-documents-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: #69788b;
+    font-size: 0.66rem;
+    margin-bottom: 4px;
+  }
+  .payroll-documents-table tr:has(.payroll-documents-table__person) td:first-child {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+  .payroll-documents-table td:first-child::before,
+  .payroll-documents-table__person::before {
+    display: none;
+  }
+  .payroll-documents-table__person {
+    grid-column: 1 / -1;
+    padding-right: 28px !important;
+  }
+  .payroll__documents .payroll-documents-table td.payroll__empty {
+    grid-column: 1 / -1;
+    padding: 24px 12px;
+    text-align: center;
+  }
+  .payroll__documents .payroll-documents-table td:last-child {
+    text-align: right;
+  }
+  .payroll-register__selection {
+    flex-direction: column;
+    align-items: stretch;
+    position: static;
+  }
+  .payroll-register__selection .payroll__toolbar {
+    justify-content: space-between;
+  }
+}

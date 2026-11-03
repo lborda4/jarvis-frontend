@@ -12,10 +12,12 @@ import {
   type PayrollDocument,
   type PayrollState,
 } from '../../services/payrollService'
-import { cents, money } from '../../utils/payrollDomain'
+import { filterPayrollList, payrollListStatusOptions } from './payrollListPresentation'
+import PayrollDocumentTable from './PayrollDocumentTable'
+import PayrollPeriodAccordion from './PayrollPeriodAccordion'
+import './PayrollDocuments.css'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
 import {
-  currency,
   employeeName,
   localDate,
   statusLabels,
@@ -27,13 +29,13 @@ import {
   type PayrollContext,
 } from './PayrollPage'
 import PayrollEditor from './PayrollEditor'
+import PayrollNovelties from './PayrollNovelties'
 import PayrollImport from './PayrollImport'
 import PayrollRowActions from './PayrollRowActions'
 import { useJarvisBackAction } from '../../hooks/useJarvisBackAction'
 import {
   groupPayrollPeriods,
   payrollPeriodKey,
-  periodLabel,
 } from './payrollPeriods'
 const pageSize = 10
 export default function PayrollDocuments(context: PayrollContext) {
@@ -61,25 +63,34 @@ export default function PayrollDocuments(context: PayrollContext) {
     [confirmBulk, setConfirmBulk] = useState(false),
     [bulkResult, setBulkResult] = useState<string[]>([])
   const [deleteTarget, setDeleteTarget] = useState<PayrollDocument | null>(null)
-  const [employeeAction, setEmployeeAction] = useState<{ action: 'edit' | 'delete'; documents: PayrollDocument[] } | null>(null)
+  const [employeeAction, setEmployeeAction] = useState<{
+    action: 'edit' | 'delete'
+    documents: PayrollDocument[]
+  } | null>(null)
   const [detailPeriod, setDetailPeriod] = useState<string | null>(
     params.get('period') ??
       (params.get('employee') ? localDate().slice(0, 7) : null),
   )
+  const isSummaryView = Boolean(
+    detailPeriod && params.get('view') === 'summary',
+  )
   const period = detailPeriod?.includes('|')
     ? detailPeriod.slice(0, 7)
     : `${year}-${localDate().slice(5, 7)}`
-  useJarvisBackAction(() => {
-    if (busy) return
-    if (editor) setEditor(null)
-    else {
-      setDetailPeriod(null)
-      setSearch('')
-      setStatus('')
-      setSelected([])
-      setPage(1)
-    }
-  }, Boolean(editor || detailPeriod))
+  useJarvisBackAction(
+    () => {
+      if (busy) return
+      if (editor) setEditor(null)
+      else {
+        setDetailPeriod(null)
+        setSearch('')
+        setStatus('')
+        setSelected([])
+        setPage(1)
+      }
+    },
+    Boolean(editor || (detailPeriod && (isSummaryView || params.get('view') === 'novelties' || params.has('employee')))),
+  )
   const years = [
     ...new Set([
       year,
@@ -125,21 +136,13 @@ export default function PayrollDocuments(context: PayrollContext) {
       d.state.startDate.startsWith(`${year}-`) &&
       (!params.get('employee') || d.employeeId === params.get('employee')),
   )
-  const groups = groupPayrollPeriods(annualDocuments).filter(
-    (group) =>
-      (!status || group.status === status) &&
-      `${group.label} ${group.monthLabel} ${group.period} ${group.type} ${group.start} ${group.end}`
-        .toLocaleLowerCase('es')
-        .includes(search.toLocaleLowerCase('es').trim()),
-  )
-  const filtered = annualDocuments.filter(
-    (d) =>
-      (!status || d.status === status) &&
-      (!params.get('employee') || d.employeeId === params.get('employee')) &&
-      `${employeeName(d.employee)} ${d.employee.identification} ${d.prefix ?? ''}${d.number ?? ''}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  )
+  const statusScope = annualDocuments.filter(document => !isSummaryView ||
+    (detailPeriod!.includes('|') ? payrollPeriodKey(document) === detailPeriod : document.state.period === detailPeriod))
+  const statusOptions = payrollListStatusOptions(filterPayrollList(statusScope, search, ''))
+  const effectiveStatus = statusOptions.some(option => option.value === status) ? status : ''
+  const matchingDocuments = filterPayrollList(annualDocuments, search, effectiveStatus)
+  const groups = groupPayrollPeriods(matchingDocuments)
+  const filtered = matchingDocuments
   const visible = filtered.filter(
     (d) =>
       !detailPeriod ||
@@ -147,9 +150,7 @@ export default function PayrollDocuments(context: PayrollContext) {
         ? payrollPeriodKey(d) === detailPeriod
         : d.state.period === detailPeriod),
   )
-  const sum = (key: 'accrued' | 'deductions' | 'net') =>
-    money(visible.reduce((s, d) => s + cents(d[key]), 0n))
-  const totalRows = detailPeriod ? visible.length : groups.length
+  const totalRows = isSummaryView ? visible.length : groups.length
   const pageCount = Math.max(1, Math.ceil(totalRows / pageSize))
   const currentPage = Math.min(page, pageCount)
   const periodRows = groups.slice(
@@ -161,11 +162,8 @@ export default function PayrollDocuments(context: PayrollContext) {
     currentPage * pageSize,
   )
   const openPeriod = (key: string) => {
-    setDetailPeriod(key)
-    setSearch('')
-    setStatus('')
+    setDetailPeriod((current) => (current === key ? null : key))
     setSelected([])
-    setPage(1)
   }
   const open = async (d: PayrollDocument, edit = false) => {
     await run(async () => {
@@ -174,11 +172,18 @@ export default function PayrollDocuments(context: PayrollContext) {
     }, '')
   }
   const actOnPeriod = (key: string, action: 'edit' | 'delete') => {
-    const candidates = annualDocuments.filter(document => payrollPeriodKey(document) === key && (action === 'edit' ? ['DRAFT', 'REJECTED'].includes(document.status) : document.canDelete))
+    const candidates = matchingDocuments.filter(
+      (document) =>
+        payrollPeriodKey(document) === key &&
+        (action === 'edit'
+          ? ['DRAFT', 'REJECTED'].includes(document.status)
+          : document.canDelete),
+    )
     if (candidates.length === 1) {
       if (action === 'edit') void open(candidates[0], true)
       else setDeleteTarget(candidates[0])
-    } else if (candidates.length > 1) setEmployeeAction({ action, documents: candidates })
+    } else if (candidates.length > 1)
+      setEmployeeAction({ action, documents: candidates })
   }
   const adjustment = async (d: PayrollDocument, type: number) => {
     await run(async () => {
@@ -194,9 +199,9 @@ export default function PayrollDocuments(context: PayrollContext) {
       })
     }, '')
   }
-  const exportExcel = () => {
+  const exportExcel = (items = isSummaryView ? visible : matchingDocuments) => {
     const sheet = XLSX.utils.json_to_sheet(
-      visible.map((d) => ({
+      items.map((d) => ({
         Documento: `${d.prefix ?? ''}${d.number ?? ''}`,
         Empleado: employeeName(d.employee),
         Identificacion: d.employee.identification,
@@ -209,7 +214,55 @@ export default function PayrollDocuments(context: PayrollContext) {
     )
     const book = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(book, sheet, 'Nóminas')
-    XLSX.writeFile(book, `Nomina-${period}.xlsx`)
+    XLSX.writeFile(book, `Nomina-${items[0]?.state.period ?? year}.xlsx`)
+  }
+  const documentActions = (document: PayrollDocument) => [
+    ...(['DRAFT', 'REJECTED'].includes(document.status)
+      ? [{ label: 'Editar', onClick: () => void open(document, true) }]
+      : []),
+    ...(document.canDelete
+      ? [
+          {
+            label: 'Eliminar',
+            danger: true,
+            onClick: () => setDeleteTarget(document),
+          },
+        ]
+      : []),
+    {
+      label: 'Resultado',
+      onClick: () =>
+        void run(async () => {
+          setDetail(await payrollService.get(document.id))
+        }, ''),
+    },
+    ...(document.status === 'ACCEPTED'
+      ? [
+          {
+            label: 'Nota de reemplazo',
+            onClick: () => void adjustment(document, 1),
+          },
+          {
+            label: 'Nota de eliminación',
+            onClick: () => void adjustment(document, 2),
+          },
+        ]
+      : []),
+  ]
+  const backToPeriods = () => {
+    setDetailPeriod(null)
+    setSearch('')
+    setStatus('')
+    setSelected([])
+    setPage(1)
+    navigate(`/nomina?year=${year}`, { replace: true })
+  }
+  const manageNovelties = (key: string) => {
+    setDetailPeriod(key)
+    navigate(
+      `/nomina?period=${encodeURIComponent(key)}&year=${year}&view=novelties`,
+      { replace: true },
+    )
   }
   const bulk = async () => {
     setConfirmBulk(false)
@@ -232,68 +285,124 @@ export default function PayrollDocuments(context: PayrollContext) {
       setBulkResult(results)
     }, 'Procesamiento masivo finalizado.')
   }
+  if (detailPeriod && params.get('view') === 'novelties' && !editor) {
+    return (
+      <PayrollNovelties
+        context={context}
+        documents={annualDocuments.filter((document) =>
+          detailPeriod.includes('|')
+            ? payrollPeriodKey(document) === detailPeriod
+            : document.state.period === detailPeriod,
+        )}
+        allDocuments={documents}
+        reload={reload}
+        onBack={() => {
+          setDetailPeriod(null)
+          setSearch('')
+          setStatus('')
+          setPage(1)
+          navigate(`/nomina?year=${year}`, { replace: true })
+        }}
+        onFinish={() =>
+          navigate(
+            `/nomina?period=${encodeURIComponent(detailPeriod)}&year=${year}&view=summary`,
+            { replace: true },
+          )
+        }
+        onOpenDocument={(document) =>
+          void open(document, ['DRAFT', 'REJECTED'].includes(document.status))
+        }
+      />
+    )
+  }
   return (
-    <>
+    <div className="payroll__documents">
       <PayrollHeading
         title={
           editor
             ? 'Nómina electrónica'
-            : detailPeriod
-              ? (groupPayrollPeriods(annualDocuments).find(
-                  (group) => group.key === detailPeriod,
-                )?.label ??
-                `Nómina de ${periodLabel(period).toLocaleLowerCase('es')}`)
+            : isSummaryView
+              ? 'Resumen de nómina'
               : 'Nóminas'
         }
         description={
-          detailPeriod || editor
-            ? 'Administra los empleados y novedades de este período.'
-            : 'Gestiona tus períodos de nómina electrónica.'
+          editor
+            ? 'Revisa y ajusta la nómina del empleado.'
+            : isSummaryView
+              ? 'Revisa los valores del período antes de enviar la nómina.'
+              : 'Organiza tus períodos y consulta los empleados de cada nómina.'
         }
         actions={
           !editor && (
             <>
-              <select
-                aria-label="Año de nómina"
-                className="payroll__year"
-                value={year}
-                onChange={(e) => {
-                  setYear(e.target.value)
-                  setPage(1)
-                  setDetailPeriod(null)
-                  setSelected([])
-                  setSearch('')
-                  setStatus('')
-                }}
-              >
-                {years.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="payroll__button payroll__button--primary"
-                onClick={() => navigate(`/nomina/nueva?period=${period}`)}
-              >
-                + Nueva nómina (por período)
-              </button>
-              <details className="payroll__header-menu payroll__actions">
-                <summary aria-label="Más opciones de nómina">•••</summary>
-                <div className="payroll__menu">
+              {isSummaryView ? (
+                <>
                   <button
-                    type="button"
-                    onClick={(e) => {
-                      setImporting(true)
-                      e.currentTarget
-                        .closest('details')
-                        ?.removeAttribute('open')
-                    }}
+                    className="payroll__button"
+                    disabled={busy}
+                    onClick={backToPeriods}
                   >
-                    Importar Excel
+                    Volver a períodos
                   </button>
-                </div>
-              </details>
+                  <button
+                    className="payroll__button"
+                    disabled={busy}
+                    onClick={() => manageNovelties(detailPeriod!)}
+                  >
+                    Editar novedades
+                  </button>
+                  <button
+                    className="payroll__button"
+                    disabled={busy}
+                    onClick={() => exportExcel()}
+                  >
+                    Exportar Excel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="payroll-register__year">
+                    <span>Año</span>
+                    <select
+                      aria-label="Año de nómina"
+                      value={year}
+                      disabled={busy}
+                      onChange={(event) => {
+                        setYear(event.target.value)
+                        setPage(1)
+                        setDetailPeriod(null)
+                        setSelected([])
+                        setSearch('')
+                        setStatus('')
+                      }}
+                    >
+                      {years.map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="payroll__button payroll__button--primary"
+                    disabled={busy}
+                    onClick={() => navigate(`/nomina/nueva?period=${period}`)}
+                  >
+                    + Nueva nómina
+                  </button>
+                  <PayrollRowActions
+                    name="nóminas"
+                    disabled={busy}
+                    actions={[
+                      {
+                        label: 'Importar Excel',
+                        onClick: () => setImporting(true),
+                      },
+                      { label: 'Exportar Excel', onClick: () => exportExcel() },
+                    ]}
+                  />
+                </>
+              )}
             </>
           )
         }
@@ -311,30 +420,6 @@ export default function PayrollDocuments(context: PayrollContext) {
         />
       ) : (
         <>
-          {detailPeriod && (
-            <div className="payroll__toolbar">
-              <button
-                className="payroll__button"
-                onClick={() => {
-                  setDetailPeriod(null)
-                  setSearch('')
-                  setStatus('')
-                  setSelected([])
-                  setPage(1)
-                }}
-              >
-                ← Períodos
-              </button>
-              <button className="payroll__button" onClick={exportExcel}>
-                Exportar Excel
-              </button>
-              <span>
-                Total devengados: <strong>{currency(sum('accrued'))}</strong> ·
-                Deducciones: <strong>{currency(sum('deductions'))}</strong> ·
-                Neto: <strong>{currency(sum('net'))}</strong>
-              </span>
-            </div>
-          )}
           {loadError && (
             <div
               className="payroll__notice payroll__notice--error"
@@ -349,329 +434,221 @@ export default function PayrollDocuments(context: PayrollContext) {
               </button>
             </div>
           )}
-          <section className="payroll__card payroll__period-card">
-            <div className="payroll__filters payroll__period-filters">
-              <label className="payroll__period-search">
-                <span className="payroll__sr-only">
-                  {detailPeriod
-                    ? 'Buscar empleado o documento'
-                    : 'Buscar período'}
-                </span>
-                <span className="payroll__search-control">
-                  <SearchIcon />
-                  <input
-                    placeholder={
-                      detailPeriod
-                        ? 'Buscar empleado (nombre o identificación)'
-                        : 'Buscar período (mes o año)'
-                    }
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value)
+          <section
+            className="payroll-register"
+            aria-label={
+              isSummaryView ? 'Empleados de la nómina' : 'Períodos de nómina'
+            }
+          >
+            <div className="payroll__card payroll-register__filter-card">
+              <div className="payroll__filters payroll__period-filters">
+                <label className="payroll__period-search">
+                  <span className="payroll__sr-only">
+                    Buscar período o empleado
+                  </span>
+                  <span className="payroll__search-control">
+                    <SearchIcon />
+                    <input
+                      placeholder={
+                        isSummaryView
+                          ? 'Buscar empleado o identificación'
+                          : 'Buscar período, empleado o identificación'
+                      }
+                      value={search}
+                      onChange={(event) => {
+                        setSearch(event.target.value)
+                        const options = payrollListStatusOptions(filterPayrollList(statusScope, event.target.value, ''))
+                        setStatus(current => options.some(option => option.value === current) ? current : '')
+                        setPage(1)
+                        setSelected([])
+                      }}
+                    />
+                  </span>
+                </label>
+                <Field label="Estado">
+                  <select
+                    value={effectiveStatus}
+                    onChange={(event) => {
+                      setStatus(event.target.value)
                       setPage(1)
+                      setSelected([])
                     }}
-                  />
-                </span>
-              </label>
-              <Field label="Estado">
-                <select
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value)
+                  >
+                    <option value="">Todos</option>
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <button
+                  className="payroll__clear-filters"
+                  onClick={() => {
+                    setSearch('')
+                    setStatus('')
                     setPage(1)
+                    setSelected([])
                   }}
                 >
-                  <option value="">Todos</option>
-                  {Object.entries(statusLabels).map(([key, name]) => (
-                    <option key={key} value={key}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <button
-                className="payroll__clear-filters"
-                onClick={() => {
-                  setSearch('')
-                  setStatus('')
-                  setPage(1)
-                }}
-              >
-                <span aria-hidden="true">↻</span> Limpiar filtros
-              </button>
+                  <span aria-hidden="true">↻</span> Limpiar filtros
+                </button>
+              </div>
             </div>
             {!loaded ? (
-              <div className="payroll__empty">Cargando nóminas…</div>
-            ) : detailPeriod && !visible.length ? (
-              <div className="payroll__empty">
-                No hay nóminas para este período y estos filtros.
+              <div className="payroll__card payroll__empty">
+                Cargando nóminas…
               </div>
-            ) : !detailPeriod ? (
-              <div className="payroll__scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      {[
-                        'Período',
-                        'Tipo de liquidación',
-                        'Fecha inicial',
-                        'Fecha final',
-                        'Empleados',
-                        'Total ingresos',
-                        'Total deducciones',
-                        'Total neto',
-                        'Estado',
-                        'Acciones',
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {periodRows.map((group) => (
-                      <tr key={group.key}>
-                        <td>
-                          <button
-                            className="payroll__link payroll__period-link"
-                            onClick={() => openPeriod(group.key)}
-                          >
-                            <span>
-                              {group.label}
-                              {group.label !== group.monthLabel && (
-                                <small>{group.monthLabel}</small>
-                              )}
-                            </span>
-                            <ChevronRightIcon />
-                          </button>
-                        </td>
-                        <td>{group.type}</td>
-                        <td>{group.start.split('-').reverse().join('/')}</td>
-                        <td>{group.end.split('-').reverse().join('/')}</td>
-                        <td>{group.employees}</td>
-                        <td>{currency(group.accrued)}</td>
-                        <td>{currency(group.deductions)}</td>
-                        <td>{currency(group.net)}</td>
-                        <td>
-                          <span
-                            className={`payroll__badge payroll__badge--${group.status}`}
-                          >
-                            {group.status !== 'DRAFT' && <><span aria-hidden="true">
-                              {group.status === 'ACCEPTED'
-                                ? '✓'
-                                : group.status === 'REJECTED'
-                                  ? '!'
-                                  : '•'}
-                            </span>{' '}</>}
-                            {group.statusLabel}
-                          </span>
-                        </td>
-                        <td>
-                          <PayrollRowActions
-                            name={`${group.label}, ${group.type}`}
-                            disabled={busy}
-                            actions={[
-                              ...(annualDocuments.some(document => payrollPeriodKey(document) === group.key && ['DRAFT', 'REJECTED'].includes(document.status)) ? [{ label: 'Editar', onClick: () => actOnPeriod(group.key, 'edit') }] : []),
-                              ...(annualDocuments.some(document => payrollPeriodKey(document) === group.key && document.canDelete) ? [{ label: 'Eliminar', danger: true, onClick: () => actOnPeriod(group.key, 'delete') }] : []),
-                            ]}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    {!groups.length && (
-                      <tr>
-                        <td colSpan={10} className="payroll__empty">
-                          No hay períodos de nómina para el año y los filtros
-                          seleccionados.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            ) : isSummaryView ? (
+              <div className="payroll__card payroll-register__summary">
+                <div className="payroll-period__toolbar">
+                  <div>
+                    <h2>
+                      {annualDocuments.find(
+                        (document) =>
+                          payrollPeriodKey(document) === detailPeriod,
+                      )?.state.payrollName || 'Empleados del período'}
+                    </h2>
+                    <p>
+                      {detailPeriod
+                        ?.split('|')
+                        .slice(0, 2)
+                        .map((date) => date.split('-').reverse().join('/'))
+                        .join(' – ')}
+                    </p>
+                  </div>
+                </div>
+                <PayrollDocumentTable
+                  documents={rows}
+                  selected={selected}
+                  busy={busy}
+                  onSelection={setSelected}
+                  onOpen={(document) => void open(document)}
+                  actions={documentActions}
+                />
               </div>
             ) : (
-              <div className="payroll__scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>
-                        <input
-                          type="checkbox"
-                          aria-label="Seleccionar borradores visibles"
-                          checked={
-                            rows.filter((d) => d.status === 'DRAFT').length >
-                              0 &&
-                            rows
-                              .filter((d) => d.status === 'DRAFT')
-                              .every((d) => selected.includes(d.id))
-                          }
-                          onChange={(e) =>
-                            setSelected(
-                              e.target.checked
-                                ? rows
-                                    .filter((d) => d.status === 'DRAFT')
-                                    .map((d) => d.id)
-                                : [],
-                            )
-                          }
-                        />
-                      </th>
-                      {[
-                        'Documento',
-                        'Empleado',
-                        'Identificación',
-                        'Período',
-                        'Devengados',
-                        'Deducciones',
-                        'Neto',
-                        'Estado',
-                        'Acciones',
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows
-                      .filter(
-                        (d) =>
-                          !detailPeriod.includes('|') ||
-                          payrollPeriodKey(d) === detailPeriod,
-                      )
-                      .map((d) => (
-                        <tr key={d.id}>
-                          <td>
-                            {d.status === 'DRAFT' && (
-                              <input
-                                type="checkbox"
-                                aria-label={`Seleccionar ${employeeName(d.employee)}`}
-                                checked={selected.includes(d.id)}
-                                onChange={(e) =>
-                                  setSelected(
-                                    e.target.checked
-                                      ? [...selected, d.id]
-                                      : selected.filter((id) => id !== d.id),
-                                  )
-                                }
-                              />
-                            )}
-                          </td>
-                          <td>
-                            {d.number
-                              ? `${d.prefix}${d.number}`
-                              : 'Sin asignar'}
-                            {d.originalId && <small>Nota de ajuste</small>}
-                          </td>
-                          <td>
-                            <button
-                              className="payroll__link"
-                              onClick={() => void open(d)}
-                            >
-                              {employeeName(d.employee)}
-                            </button>
-                          </td>
-                          <td>{d.employee.identification}</td>
-                          <td>
-                            {d.state.startDate} / {d.state.endDate}
-                          </td>
-                          <td>{currency(d.accrued)}</td>
-                          <td>{currency(d.deductions)}</td>
-                          <td>{currency(d.net)}</td>
-                          <td>
-                            <span
-                              className={`payroll__badge payroll__badge--${d.status}`}
-                            >
-                              {statusLabels[d.status]}
-                            </span>
-                          </td>
-                          <td>
-                            <PayrollRowActions
-                              name={employeeName(d.employee)}
-                              disabled={busy}
-                              actions={[
-                                ...(['DRAFT', 'REJECTED'].includes(d.status) ? [{ label: 'Editar', onClick: () => void open(d, true) }] : []),
-                                ...(d.canDelete ? [{ label: 'Eliminar', danger: true, onClick: () => setDeleteTarget(d) }] : []),
-                                { label: 'Resultado', onClick: () => void run(async () => { setDetail(await payrollService.get(d.id)) }, '') },
-                                ...(d.status === 'ACCEPTED' ? [
-                                  { label: 'Nota de reemplazo', onClick: () => void adjustment(d, 1) },
-                                  { label: 'Nota de eliminación', onClick: () => void adjustment(d, 2) },
-                                ] : []),
-                              ]}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+              <div className="payroll-register__periods">
+                {periodRows.map((group) => {
+                  const items = matchingDocuments.filter(
+                    (document) => payrollPeriodKey(document) === group.key,
+                  )
+                  return (
+                    <PayrollPeriodAccordion
+                      key={group.key}
+                      group={group}
+                      documents={items}
+                      expanded={
+                        detailPeriod === group.key ||
+                        detailPeriod === group.period
+                      }
+                      busy={busy}
+                      selected={selected}
+                      onToggle={() => openPeriod(group.key)}
+                      onSelection={setSelected}
+                      onOpen={(document) => void open(document)}
+                      onNovelties={() => manageNovelties(group.key)}
+                      onExport={() => exportExcel(items)}
+                      actions={documentActions}
+                      periodActions={[
+                        ...(items.some((document) =>
+                          ['DRAFT', 'REJECTED'].includes(document.status),
+                        )
+                          ? [
+                              {
+                                label: 'Editar',
+                                onClick: () => actOnPeriod(group.key, 'edit'),
+                              },
+                            ]
+                          : []),
+                        ...(items.some((document) => document.canDelete)
+                          ? [
+                              {
+                                label: 'Eliminar',
+                                danger: true,
+                                onClick: () => actOnPeriod(group.key, 'delete'),
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                  )
+                })}
+                {!groups.length && (
+                  <div className="payroll__card payroll__empty">
+                    <h2>No hay nóminas para mostrar</h2>
+                    <p>Prueba con otro año o limpia los filtros.</p>
+                  </div>
+                )}
               </div>
             )}
-            {(shouldShowTablePagination(totalRows, pageSize) || selected.length > 0) && <div className="payroll__footer">
-              {shouldShowTablePagination(totalRows, pageSize) && (
-                <nav
-                  className="payroll__pagination"
-                  aria-label={
-                    detailPeriod
-                      ? 'Páginas de documentos'
-                      : 'Páginas de períodos'
-                  }
-                >
-                  <button
-                    className="payroll__button"
-                    aria-label="Página anterior"
-                    disabled={currentPage <= 1}
-                    onClick={() => setPage(currentPage - 1)}
-                  >
-                    <ChevronLeftIcon />
-                  </button>
-                  {Array.from({ length: pageCount }, (_, i) => i + 1)
-                    .filter(
-                      (value) =>
-                        value === 1 ||
-                        value === pageCount ||
-                        Math.abs(value - currentPage) <= 1,
-                    )
-                    .map((value, index, pages) => (
-                      <span key={value}>
-                        {index > 0 && value - pages[index - 1] > 1 && (
-                          <span className="payroll__pagination-gap">…</span>
-                        )}
-                        <button
-                          className="payroll__button"
-                          aria-label={`Página ${value}`}
-                          aria-current={
-                            value === currentPage ? 'page' : undefined
-                          }
-                          onClick={() => setPage(value)}
-                        >
-                          {value}
-                        </button>
-                      </span>
-                    ))}
-                  <button
-                    className="payroll__button"
-                    aria-label="Página siguiente"
-                    disabled={currentPage >= pageCount}
-                    onClick={() => setPage(currentPage + 1)}
-                  >
-                    <ChevronRightIcon />
-                  </button>
-                </nav>
-              )}
-              {!!selected.length && (
+            {shouldShowTablePagination(totalRows, pageSize) && (
+              <nav
+                className="payroll__pagination payroll-register__pagination"
+                aria-label={
+                  isSummaryView ? 'Páginas de empleados' : 'Páginas de períodos'
+                }
+              >
                 <button
-                  className="payroll__button payroll__button--primary"
-                  disabled={busy}
-                  onClick={() => setConfirmBulk(true)}
+                  className="payroll__button"
+                  aria-label="Página anterior"
+                  disabled={busy || currentPage <= 1}
+                  onClick={() => {
+                    setPage(currentPage - 1)
+                    setSelected([])
+                  }}
                 >
-                  Enviar {selected.length} borradores
+                  <ChevronLeftIcon />
                 </button>
-              )}
-            </div>}
+                <span>
+                  {currentPage} / {pageCount}
+                </span>
+                <button
+                  className="payroll__button"
+                  aria-label="Página siguiente"
+                  disabled={busy || currentPage >= pageCount}
+                  onClick={() => {
+                    setPage(currentPage + 1)
+                    setSelected([])
+                  }}
+                >
+                  <ChevronRightIcon />
+                </button>
+              </nav>
+            )}
+            {!!selected.length && (
+              <div className="payroll-register__selection">
+                <strong>
+                  {selected.length}{' '}
+                  {selected.length === 1
+                    ? 'borrador seleccionado'
+                    : 'borradores seleccionados'}
+                </strong>
+                <div className="payroll__toolbar">
+                  <button
+                    className="payroll__button"
+                    disabled={busy}
+                    onClick={() => setSelected([])}
+                  >
+                    Quitar selección
+                  </button>
+                  <button
+                    className="payroll__button payroll__button--primary"
+                    disabled={busy}
+                    onClick={() => setConfirmBulk(true)}
+                  >
+                    Enviar {selected.length}{' '}
+                    {selected.length === 1 ? 'borrador' : 'borradores'}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
           {!!bulkResult.length && (
             <div className="payroll__card payroll__section">
-              <h2>Resultado del procesamiento masivo</h2>
-              {bulkResult.map((r) => (
-                <p key={r}>{r}</p>
+              <h2>Resultado del procesamiento</h2>
+              {bulkResult.map((result) => (
+                <p key={result}>{result}</p>
               ))}
             </div>
           )}
@@ -690,30 +667,78 @@ export default function PayrollDocuments(context: PayrollContext) {
         />
       )}
       {employeeAction && (
-        <Modal title={employeeAction.action === 'edit' ? 'Editar nómina de un empleado' : 'Eliminar nómina de un empleado'} onClose={() => setEmployeeAction(null)}>
-          <p>Selecciona el empleado. La acción se aplicará únicamente a su nómina.</p>
+        <Modal
+          title={
+            employeeAction.action === 'edit'
+              ? 'Editar nómina de un empleado'
+              : 'Eliminar nómina de un empleado'
+          }
+          onClose={() => setEmployeeAction(null)}
+        >
+          <p>
+            Selecciona el empleado. La acción se aplicará únicamente a su
+            nómina.
+          </p>
           <div className="payroll__toolbar">
-            {employeeAction.documents.map(document => <button type="button" className="payroll__button" key={document.id} disabled={busy} onClick={() => {
-              const action = employeeAction.action
-              setEmployeeAction(null)
-              if (action === 'edit') void open(document, true)
-              else setDeleteTarget(document)
-            }}>{employeeName(document.employee)} · {document.employee.identification}</button>)}
+            {employeeAction.documents.map((document) => (
+              <button
+                type="button"
+                className="payroll__button"
+                key={document.id}
+                disabled={busy}
+                onClick={() => {
+                  const action = employeeAction.action
+                  setEmployeeAction(null)
+                  if (action === 'edit') void open(document, true)
+                  else setDeleteTarget(document)
+                }}
+              >
+                {employeeName(document.employee)} ·{' '}
+                {document.employee.identification}
+              </button>
+            ))}
           </div>
         </Modal>
       )}
       {deleteTarget && (
-        <Modal title="Eliminar borrador de nómina" onClose={() => { if (!busy) setDeleteTarget(null) }}>
-          <p>Se eliminará la nómina de {employeeName(deleteTarget.employee)} del período {deleteTarget.state.startDate.split('-').reverse().join('/')} al {deleteTarget.state.endDate.split('-').reverse().join('/')}. Esta acción no se puede deshacer.</p>
+        <Modal
+          title="Eliminar borrador de nómina"
+          onClose={() => {
+            if (!busy) setDeleteTarget(null)
+          }}
+        >
+          <p>
+            Se eliminará la nómina de {employeeName(deleteTarget.employee)} del
+            período{' '}
+            {deleteTarget.state.startDate.split('-').reverse().join('/')} al{' '}
+            {deleteTarget.state.endDate.split('-').reverse().join('/')}. Esta
+            acción no se puede deshacer.
+          </p>
           <div className="payroll__toolbar">
-            <button type="button" className="payroll__button" disabled={busy} onClick={() => setDeleteTarget(null)}>Cancelar</button>
-            <button type="button" className="payroll__button payroll__button--danger" disabled={busy} onClick={() => void (async () => {
-              const ok = await run(async () => {
-                await payrollService.deleteDocument(deleteTarget.id)
-                await reload()
-              }, 'Borrador de nómina eliminado.')
-              if (ok) setDeleteTarget(null)
-            })()}>{busy ? 'Eliminando…' : 'Eliminar'}</button>
+            <button
+              type="button"
+              className="payroll__button"
+              disabled={busy}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="payroll__button payroll__button--danger"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  const ok = await run(async () => {
+                    await payrollService.deleteDocument(deleteTarget.id)
+                    await reload()
+                  }, 'Borrador de nómina eliminado.')
+                  if (ok) setDeleteTarget(null)
+                })()
+              }
+            >
+              {busy ? 'Eliminando…' : 'Eliminar'}
+            </button>
           </div>
         </Modal>
       )}
@@ -814,6 +839,6 @@ export default function PayrollDocuments(context: PayrollContext) {
           )}
         </Modal>
       )}
-    </>
+    </div>
   )
 }

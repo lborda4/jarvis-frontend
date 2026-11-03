@@ -72,7 +72,7 @@ import {
   saveElectronicDocumentDraft,
 } from '../services/electronicDocumentService'
 import { getApiErrorMessage } from '../services/apiClient'
-import { updateSiigoPurchase } from '../services/siigoService'
+import { updateSiigoPurchase, resendSiigoPurchase } from '../services/siigoService'
 import type { CreateSiigoPurchaseSendRequest } from '../types/siigo'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -2609,7 +2609,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
    * vivían solo en memoria y se perdían al recargar o cambiar de sección: lo
    * único que los persistía era el envío a SIIGO. */
   const handleSaveDraft = useCallback(
-    async (documentId: string, edits: PurchaseInvoiceDetailEditorSave) => {
+    async (documentId: string, edits: PurchaseInvoiceDetailEditorSave, resend = false) => {
       setSavingDraftDocumentId(documentId)
       setErrorMessage(null)
       handleSaveRowEdits(documentId, edits)
@@ -2645,6 +2645,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
         const document = documentsById[documentId]
         const updating = config.provider === 'SIIGO' && config.key === 'purchaseInvoice' &&
           document?.status === 'PURCHASE_CREATED'
+        if (resend && !updating) throw new Error('Actualiza el listado y consulta nuevamente la factura antes de reenviar.')
         if (updating) {
           if (document.alreadyInSiigo) throw new Error('Solo puedes editar facturas enviadas desde JARVIS.')
           if (!edits.paymentMethod) throw new Error('Selecciona el método de pago.')
@@ -2664,7 +2665,8 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             rowDates[documentId], edits.dueDate ?? undefined, edits.observations,
             rowIva[documentId] ?? null, edits.items,
           ) as CreateSiigoPurchaseSendRequest
-          await updateSiigoPurchase({ ...request, draft: { ...draft, savedAt: new Date().toISOString() } })
+          const savePurchase = resend ? resendSiigoPurchase : updateSiigoPurchase
+          await savePurchase({ ...request, draft: { ...draft, savedAt: new Date().toISOString() } })
         } else {
           await saveElectronicDocumentDraft(documentId, draft)
         }
@@ -2712,7 +2714,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
           ),
         )
 
-        setDeleteFeedbackMessage(updating ? 'Factura actualizada en SIIGO.' : 'Cambios guardados.')
+        setDeleteFeedbackMessage(updating ? (resend ? 'Nueva factura de compra creada en SIIGO.' : 'Factura actualizada en SIIGO.') : 'Cambios guardados.')
         // El estado del documento puede cambiar al guardar (lo que faltaba
         // por completar deja de faltar), así que se recarga el listado.
         reloadDocuments({ resetPage: false })
@@ -2723,6 +2725,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
             'No se pudieron guardar los cambios. Intenta nuevamente.',
           ),
         )
+        if (resend) throw error
       } finally {
         setSavingDraftDocumentId(null)
       }
@@ -3196,6 +3199,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
 
       <SupportDocumentTable
         allowSentPurchaseEditing={config.provider === 'SIIGO' && config.key === 'purchaseInvoice'}
+        onResendPurchase={(documentId, edits) => handleSaveDraft(documentId, edits, true)}
         sentStatusLabel={config.provider === 'SIIGO' ? 'ENVIADO' : undefined}
         referenceSearch={columnFilters.referenceSearch}
         rows={tableRows}

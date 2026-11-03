@@ -559,6 +559,23 @@ export async function updateSiigoPurchase(
   return response.data
 }
 
+export async function refreshSiigoPurchase(documentId: string): Promise<{ exists: boolean; siigoPurchaseId: string }> {
+  const response = await apiClient.post<{ exists: boolean; siigoPurchaseId: string }>(
+    `/integrations/siigo/purchases/${encodeURIComponent(documentId)}/refresh`,
+  )
+  return response.data
+}
+
+export async function resendSiigoPurchase(
+  request: CreateSiigoPurchaseSendRequest & { draft: import('../types/electronicDocument').ElectronicDocumentListItem['draft'] },
+): Promise<CreateSiigoPurchaseSendResponse> {
+  const response = await apiClient.post<CreateSiigoPurchaseSendResponse>(
+    `/integrations/siigo/purchases/${encodeURIComponent(request.documentId)}/resend`, request,
+  )
+  invalidateQueryCache(companyQueryKey(['electronic-documents']))
+  return response.data
+}
+
 export async function fetchSiigoCredentialsStatus(options?: {
   force?: boolean
 }): Promise<SiigoCredentialsStatusResponse> {

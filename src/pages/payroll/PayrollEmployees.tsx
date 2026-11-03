@@ -45,7 +45,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
     const employee = editing
     const key = lookupKey
     const request = ++lookupRequest.current
-    setLookup({ key, message: 'Consultando cédula en NextPyme…', pending: true })
+    setLookup({ key, message: 'Consultando cédula…', pending: true })
     try {
       const result = await lookupJarvisTerceroByNit(employee.identification, 'CC')
       if (request !== lookupRequest.current) return
@@ -257,7 +257,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                       name: name.trim(),
                       salary: editing.salary,
                       active: true,
-                    }), 'Cargo creado.')
+                    }), '')
                     if (!saved) throw new Error('No se pudo crear el cargo. Intenta nuevamente.')
                     return { id, name: name.trim() }
                   }}
@@ -311,11 +311,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   </label>
                 ),
               )}
-              <Field label="Estado del empleado">
-                <span className={`payroll__badge ${isPayrollEmployeeActive(editing.retirementDate) ? 'payroll__badge--ACCEPTED' : ''}`}>
-                  {isPayrollEmployeeActive(editing.retirementDate) ? 'Activo' : 'Inactivo'}
-                </span>
-              </Field>
+              <Field label="Método de pago"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
             </div>
             {editing.contractType === 'APPRENTICE' && (
               <div className="payroll__section">
@@ -372,12 +368,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                 </div>
               </div>
             )}
-          </details>
-          <details className="payroll__card" open>
-            <summary>Información de pago</summary>
-            <div className="payroll__section payroll__grid">
-              <Field label="Método de pago"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
-            </div>
           </details>
           <div className="payroll__toolbar">
             <button
@@ -466,7 +456,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               su nómina.
             </div>
           )}
-          <div className="payroll__footer">{list.length} empleados</div>
         </div>
       )}
       {importing && (

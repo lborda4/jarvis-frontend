@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useIntegrationSetup } from '../../context/IntegrationSetupContext'
 import PageHeader from '../../components/PageHeader'
@@ -226,13 +226,7 @@ export function PayrollHeading({
     <PageHeader
       title={title}
       description={description}
-      actions={
-        actions ?? (
-          <Link className="payroll__button" to="/nomina">
-            Volver a nóminas
-          </Link>
-        )
-      }
+      actions={actions}
     />
   )
 }

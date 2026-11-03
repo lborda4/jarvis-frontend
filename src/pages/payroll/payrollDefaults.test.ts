@@ -24,6 +24,12 @@ it('conserva el salario personalizado y los demás parámetros guardados', () =>
   expect(payrollParametersForSettings(saved, '2026-10-27')).toEqual(saved)
 })
 
+it('propone los valores vigentes cuando los guardados son inferiores a los de este año', () => {
+  const saved = { ...blankParameters('2026-01-01'), minimumSalary: '1000000', transportAllowance: '100000' }
+  expect(payrollParametersForSettings(saved, '2026-10-29')).toMatchObject({ minimumSalary: '1750905', transportAllowance: '249095' })
+  expect(saved).toMatchObject({ minimumSalary: '1000000', transportAllowance: '100000' })
+})
+
 it.each(['0', ''])('precarga el salario cuando el valor inicial guardado es %s', minimumSalary => {
   const saved = { ...blankParameters('2026-01-01'), minimumSalary }
   expect(payrollParametersForSettings(saved, '2026-10-27').minimumSalary).toBe('1750905')

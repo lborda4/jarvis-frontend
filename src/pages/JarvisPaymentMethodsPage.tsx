@@ -77,7 +77,7 @@ export default function JarvisPaymentMethodsPage() {
     </section>
     {open && <JarvisPaymentMethodModal editing={editing} onClose={() => setOpen(false)} onSaved={item => {
       setItems(current => editing ? current.map(row => row.id === item.id ? item : row) : [...current, item])
-      setOpen(false); setError(null); setSuccess('Forma de pago guardada.')
+      setOpen(false); setError(null); setSuccess(editing ? 'Forma de pago guardada.' : null)
     }} />}
     <ConfirmDialog isOpen={!!pendingDelete} title="Eliminar forma de pago" message={`¿Eliminar «${pendingDelete?.name ?? ''}»? Dejará de estar disponible para nuevos documentos.`} confirmLabel="Eliminar" variant="danger" isBusy={deleting} onConfirm={() => void remove()} onCancel={() => { if (!deleting) setPendingDelete(null) }} />
   </main>

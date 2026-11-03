@@ -194,7 +194,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
         key = result.key
       }, 'Nómina creada. Puedes revisar y modificar los valores de cada empleado.')
       if (ok)
-        navigate(`/nomina?period=${encodeURIComponent(key)}&year=${year}`, {
+        navigate(`/nomina?period=${encodeURIComponent(key)}&year=${year}&view=novelties`, {
           replace: true,
         })
     } finally {
@@ -230,7 +230,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
               disabled={busy || !loaded}
               className="payroll__button payroll__button--primary"
             >
-              {busy ? 'Creando…' : 'Crear nómina'}
+              {busy ? 'Creando…' : 'Continuar a novedades'}
             </button>
           </>
         }

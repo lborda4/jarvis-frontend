@@ -38,8 +38,15 @@ body:has(.app-layout),
 }
 
 .app-layout__back-bar {
+  display: flex;
   width: min(calc(100% - 3rem), var(--app-content-max-width));
   margin: 1rem auto 0;
+}
+/* La página ya queda debajo de Atrás: evitar que su padding superior
+   vuelva a separar el encabezado del botón compartido. */
+.app-layout__back-bar + :is(main, section, div) {
+  margin-top: 0;
+  padding-top: 0;
 }
 .app-layout__back-button {
   display: inline-flex;

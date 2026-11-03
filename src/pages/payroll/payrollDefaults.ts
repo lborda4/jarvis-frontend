@@ -194,10 +194,10 @@ export function payrollParametersForSettings(saved?: Parameters, date = localDat
   if (!saved) return defaults
   return {
     ...saved,
-    minimumSalary: saved.minimumSalary.trim() && Number(saved.minimumSalary) > 0
+    minimumSalary: Number.isFinite(Number(saved.minimumSalary)) && Number(saved.minimumSalary) > 0 && Number(saved.minimumSalary) >= Number(defaults.minimumSalary)
       ? saved.minimumSalary
       : defaults.minimumSalary,
-    transportAllowance: saved.transportAllowance.trim() && Number(saved.transportAllowance) > 0
+    transportAllowance: Number.isFinite(Number(saved.transportAllowance)) && Number(saved.transportAllowance) > 0 && Number(saved.transportAllowance) >= Number(defaults.transportAllowance)
       ? saved.transportAllowance
       : defaults.transportAllowance,
     weeklyHours: Number(saved.weeklyHours) > 0 ? saved.weeklyHours : defaults.weeklyHours,

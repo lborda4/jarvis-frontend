@@ -86,13 +86,13 @@ export default function PayrollSettingsPage({
   const conceptSection = (kind: 'accrued' | 'deduction') => (
     <>
       <div className="payroll__scroll">
-        <table className={`payroll__concepts${kind === 'accrued' ? ' payroll__concepts--removable' : ''}`} aria-label={kind === 'accrued' ? 'Conceptos de devengados, horas extras y recargos' : 'Conceptos de deducciones'}>
+        <table className="payroll__concepts payroll__concepts--removable" aria-label={kind === 'accrued' ? 'Conceptos de devengados, horas extras y recargos' : 'Conceptos de deducciones'}>
           <colgroup>
             <col className="payroll__concept-col-name" />
             <col className="payroll__concept-col-category" />
             <col className="payroll__concept-col-check" />
             <col className="payroll__concept-col-check" />
-            {kind === 'accrued' && <col className="payroll__concept-col-delete" />}
+            <col className="payroll__concept-col-delete" />
           </colgroup>
           <thead>
             <tr>
@@ -104,7 +104,7 @@ export default function PayrollSettingsPage({
               ].map((t) => (
                 <th scope="col" key={t}>{t}</th>
               ))}
-              {kind === 'accrued' && <th scope="col">Eliminar</th>}
+              <th scope="col">Eliminar</th>
             </tr>
           </thead>
           <tbody>
@@ -128,7 +128,6 @@ export default function PayrollSettingsPage({
                       {c.code === newConceptCode && <>
                         <div className="payroll__concept-draft-actions">
                           <button type="button" className="payroll__button payroll__button--primary" disabled={busy} onClick={saveNewConcept}>Guardar concepto</button>
-                          {kind !== 'accrued' && <button type="button" className="payroll__button" onClick={() => { setNewConcept(null); setConceptError('') }}>Eliminar</button>}
                         </div>
                         {conceptError && <small role="alert" className="payroll__concept-error">{conceptError}</small>}
                       </>}
@@ -177,7 +176,7 @@ export default function PayrollSettingsPage({
                         onChange={(e) => change(c.code, 'active', e.target.checked)}
                       />
                     </td>
-                    {kind === 'accrued' && <td>
+                    <td>
                       <button
                         type="button"
                         className="payroll__button payroll__button--compact payroll__button--danger"
@@ -188,7 +187,7 @@ export default function PayrollSettingsPage({
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
                       </button>
-                    </td>}
+                    </td>
                   </tr>
                 ),
             )}
