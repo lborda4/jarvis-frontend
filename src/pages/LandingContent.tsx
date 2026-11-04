@@ -11,9 +11,9 @@ import './LandingPage.css'
 const DEMO_HREF = WHATSAPP_DEMO_HREF
 
 const NAV_LINKS = [
+  { href: '/', label: 'Inicio' },
   { href: '/siigo', label: 'Para Siigo' },
   { href: '/facturacion-electronica', label: 'Facturación electrónica' },
-  { href: '#precios', label: 'Precios' },
   { href: '#contacto', label: 'Contacto' },
 ] as const
 
@@ -434,7 +434,7 @@ function LandingContent({ product }: { product?: Product }) {
             {NAV_LINKS.map((link) => (
               link.href.startsWith('/') ? (
                 <Link key={link.href} to={link.href} onClick={closeMenu}
-                  aria-current={selectedProduct?.path === link.href ? 'page' : undefined}>
+                  aria-current={(selectedProduct?.path ?? '/') === link.href ? 'page' : undefined}>
                   {link.label}
                 </Link>
               ) : <a key={link.href} href={link.href} onClick={closeMenu}>{link.label}</a>
