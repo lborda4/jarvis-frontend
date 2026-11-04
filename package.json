@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prerender.mjs && node --test scripts/seo.test.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:seo": "node --test scripts/seo.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

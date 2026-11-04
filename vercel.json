@@ -1,5 +1,16 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/siigo/index.html", "destination": "/siigo", "permanent": true },
+    { "source": "/facturacion-electronica/index.html", "destination": "/facturacion-electronica", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/siigo", "destination": "/siigo/index.html" },
+    { "source": "/facturacion-electronica", "destination": "/facturacion-electronica/index.html" },
+    { "source": "/(.*)", "destination": "/app.html" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

@@ -29,6 +29,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import LandingPage from './pages/LandingPage'
 import PayrollPage from './pages/payroll/PayrollPage'
 import RegisterPage from './pages/RegisterPage'
+import './styles/integration.css'
 
 function App() {
   return (
@@ -38,6 +39,8 @@ function App() {
           <ImportSessionProvider>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/siigo" element={<LandingPage product="siigo" />} />
+            <Route path="/facturacion-electronica" element={<LandingPage product="billing" />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/olvide-mi-contrasena" element={<ForgotPasswordPage />} />
             <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />

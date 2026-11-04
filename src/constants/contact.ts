@@ -1,6 +1,6 @@
 const WHATSAPP_NUMBER = '573195355387'
 
-function buildWhatsappHref(message: string): string {
+export function buildWhatsappHref(message: string): string {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
 }
 

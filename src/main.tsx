@@ -1,14 +1,21 @@
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
-import App from './App.tsx'
-import './styles/integration.css'
+import PublicApp, { hasBrowserSession } from './marketing/PublicApp'
+import { isPublicPath } from './marketing/catalog'
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')!
+const app = (
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <PublicApp />
     </BrowserRouter>
-  </StrictMode>,
+  </StrictMode>
 )
+
+if (root.hasChildNodes() && isPublicPath(window.location.pathname) && !hasBrowserSession()) {
+  hydrateRoot(root, app)
+} else {
+  createRoot(root).render(app)
+}
