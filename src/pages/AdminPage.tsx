@@ -1082,8 +1082,8 @@ function AdminPage() {
       {[INTEGRATION_PROVIDER.SIIGO, INTEGRATION_PROVIDER.JARVIS].map(provider => {
         const rows = companies.filter(company => company.integrations.some(item => item.provider === provider));
         const columns = provider === INTEGRATION_PROVIDER.SIIGO
-          ? [1, 2, 14, 3, 6, 7, 8, 11, 13]
-          : [1, 2, 14, 6, 7, 11, 12];
+          ? [0, 1, 2, 14, 3, 6, 7, 8, 11, 13]
+          : [0, 1, 2, 14, 6, 7, 11, 12];
         const headings = ['Código de invitación', 'NIT', 'Empresa', 'Descripción', 'Tipo', 'Persona a cargo', 'Integración', 'Plan', 'Documentos', 'Suscripción', 'Creada', 'Token NextPyme', 'IDSoftware', 'Ciudad', 'Correo'];
         return <section className="admin-card" key={provider}>
           <div className="admin-card__header"><h2>Empresas con integración {formatProviderLabel(provider)}</h2></div>

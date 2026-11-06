@@ -72,7 +72,9 @@ export function SalesInvoicePdfDocument({ data, qr }: { data: PurchaseInvoiceDow
             0
           const lineTax = item.taxes?.reduce((sum, t) => sum + t.amount, 0) ?? (item.ivaAmount ?? 0)
           const withheld = item.withholdings?.reduce((sum, t) => sum + (t.amount ?? 0), 0) ?? 0
-          const cells = [String(i + 1), item.name || item.code || item.description, item.description, String(item.quantity), money(item.unitValue), money(item.discount ?? 0), String(item.ivaPercentage ?? 0), String(rate('06')), String(rate('07')), String(rate('05')), money(item.total + lineTax - withheld)]
+          const name = item.name?.trim()
+          const productName = name && name !== item.code?.trim() ? name : item.description.trim() || '—'
+          const cells = [String(i + 1), productName, item.description, String(item.quantity), money(item.unitValue), money(item.discount ?? 0), String(item.ivaPercentage ?? 0), String(rate('06')), String(rate('07')), String(rate('05')), money(item.total + lineTax - withheld)]
           return <View key={i} style={s.tableRow} wrap={false}>{cells.map((text, j) => <Text key={j} style={[s.cell, { width: widths[j], textAlign: j < 3 ? 'left' : 'right' }]}>{text}</Text>)}</View>
         })}
       </View>

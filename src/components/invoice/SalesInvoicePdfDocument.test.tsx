@@ -20,6 +20,20 @@ describe('sales invoice HTML template adaptation', () => {
     return ''
   }
 
+  it('muestra el nombre del producto y conserva su descripción en otra columna', () => {
+    const item = { ...data.items[0], name: 'Activación de facturación', code: 'FV-01' }
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, items: [item] }, qr: '' }))
+    expect(text).toContain(`1${item.name}${item.description}2`)
+    expect(text).not.toContain(item.code)
+  })
+
+  it.each([undefined, null, '', '   ', 'ABC'])('usa la descripción si el nombre es %s sin mostrar el código', name => {
+    const item = { ...data.items[0], name }
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, items: [item] }, qr: '' }))
+    expect(text).toContain(`1${item.description}${item.description}2`)
+    expect(text).not.toContain(item.code!)
+  })
+
   it('muestra el contado y el saldo a crédito con sus medios e importes', () => {
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, paymentBreakdown: [
       { methodId: 'cash', methodName: 'Efectivo', nextpymeMethodId: 10, negotiation: 'CASH', amount: 100 },

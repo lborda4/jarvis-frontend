@@ -23,6 +23,7 @@ import type {
   UpdateJarvisTaxResponse,
 } from '../types/jarvis'
 import { apiClient } from './apiClient'
+import { fetchProducts } from './productService'
 import { isDefaultProductIva } from '../utils/productTaxes'
 import {
   cachedQuery,
@@ -187,7 +188,21 @@ export interface JarvisInvoiceDetail extends JarvisSalesInvoice {
 
 export async function fetchJarvisInvoicePdfData(id: string): Promise<import('../types/electronicDocument').PurchaseInvoiceDownload> {
   const { data } = await apiClient.get<import('../types/electronicDocument').PurchaseInvoiceDownload>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/pdf-data`)
-  return data
+  const needsProductName = (item: typeof data.items[number]) =>
+    Boolean(item.code?.trim()) && (!item.name?.trim() || item.name.trim() === item.code?.trim())
+  if (!data.items.some(needsProductName)) return data
+
+  // Older PDF payloads only contain the SKU and the line description.
+  // Keep the document available if its product catalog cannot be loaded.
+  const products = await fetchProducts().catch(() => null)
+  if (!products) return data
+  const namesBySku = new Map(products.items.map(product => [product.sku.trim(), product.name]))
+  return {
+    ...data,
+    items: data.items.map(item => needsProductName(item)
+      ? { ...item, name: namesBySku.get(item.code!.trim()) ?? item.name }
+      : item),
+  }
 }
 
 export async function sendJarvisDocumentEmail(id: string, request: { additionalEmails: string[]; message: string }): Promise<{ success: boolean }> {
