@@ -45,6 +45,9 @@ export type JarvisDocumentType =
   (typeof JARVIS_DOCUMENT_TYPE)[keyof typeof JARVIS_DOCUMENT_TYPE]
 
 export interface SaveJarvisCredentialsRequest {
+  person_type?: import('./admin').CompanyPersonType
+  given_names?: string
+  surnames?: string
   business_name: string
   trade_name?: string
   tax_regime: JarvisTaxRegime
@@ -206,6 +209,9 @@ export function isResolutionOfDocumentType(
 }
 
 export interface JarvisCredentialsStatusResponse {
+  person_type?: import('./admin').CompanyPersonType
+  given_names?: string
+  surnames?: string
   configured: boolean
   subscription: JarvisSubscriptionStatus
   business_name?: string

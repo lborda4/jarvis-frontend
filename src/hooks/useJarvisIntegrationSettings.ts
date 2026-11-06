@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
 import { parseRegistrationRut } from '../services/authService'
+import { COMPANY_PERSON_TYPE, type CompanyPersonType } from '../types/admin'
 import {
   fetchJarvisAvailableResolutions,
   fetchJarvisCredentialsStatus,
@@ -185,6 +186,12 @@ export function useJarvisIntegrationSettings() {
   const showSetupRequiredNotice = !isCheckingSetup && requiresSetup
 
   const [businessName, setBusinessName] = useState('')
+  const [personType, setPersonType] = useState<CompanyPersonType>(COMPANY_PERSON_TYPE.LEGAL_ENTITY)
+  const [givenNames, setGivenNames] = useState('')
+  const [surnames, setSurnames] = useState('')
+  const isNaturalPerson = personType === COMPANY_PERSON_TYPE.NATURAL_PERSON
+  const legalName = isNaturalPerson ? `${givenNames.trim()} ${surnames.trim()}`.trim() : businessName.trim()
+  const hasValidIdentity = isNaturalPerson ? Boolean(givenNames.trim() && surnames.trim()) : Boolean(businessName.trim())
   const [tradeName, setTradeName] = useState('')
   const [economicActivity, setEconomicActivity] = useState('')
   const [taxRegime, setTaxRegime] = useState<JarvisTaxRegime>(
@@ -301,6 +308,9 @@ export function useJarvisIntegrationSettings() {
         }
 
         if (status.business_name) setBusinessName(status.business_name)
+        if (status.person_type) setPersonType(status.person_type)
+        setGivenNames(status.given_names ?? '')
+        setSurnames(status.surnames ?? '')
         if (status.trade_name) setTradeName(status.trade_name)
         if (status.economic_activity) setEconomicActivity(status.economic_activity)
         if (status.tax_regime) setTaxRegime(status.tax_regime)
@@ -388,7 +398,10 @@ export function useJarvisIntegrationSettings() {
       const response = await parseRegistrationRut(file)
       const credentials = response.data.jarvisCredentials
 
-      if (credentials.business_name) setBusinessName(credentials.business_name)
+      setPersonType(response.data.personType)
+      setGivenNames(credentials.given_names ?? '')
+      setSurnames(credentials.surnames ?? '')
+      setBusinessName(credentials.business_name || response.data.name || '')
       if (credentials.trade_name) setTradeName(credentials.trade_name)
       if (credentials.economic_activity) {
         setEconomicActivity(credentials.economic_activity)
@@ -507,13 +520,21 @@ export function useJarvisIntegrationSettings() {
         return
       }
 
+      if (!hasValidIdentity) {
+        setErrorMessage(isNaturalPerson ? 'Complete los nombres y apellidos.' : 'Complete la razón social.')
+        setSuccessMessage(null)
+        return
+      }
+
       setIsSaving(true)
       setErrorMessage(null)
       setSuccessMessage(null)
 
       try {
         const response = await saveJarvisCredentials({
-          business_name: businessName.trim(),
+          business_name: legalName,
+          person_type: personType,
+          ...(isNaturalPerson ? { given_names: givenNames.trim(), surnames: surnames.trim() } : {}),
           ...(tradeName.trim() ? { trade_name: tradeName.trim() } : {}),
           tax_regime: taxRegime,
           vat_regime: vatRegime,
@@ -547,7 +568,12 @@ export function useJarvisIntegrationSettings() {
     },
     [
       address,
-      businessName,
+      personType,
+      givenNames,
+      surnames,
+      isNaturalPerson,
+      legalName,
+      hasValidIdentity,
       city,
       country,
       department,
@@ -862,6 +888,14 @@ export function useJarvisIntegrationSettings() {
     isAuthLoading,
     hasCompany: Boolean(user?.company),
     businessName,
+    personType,
+    givenNames,
+    surnames,
+    isNaturalPerson,
+    hasValidIdentity,
+    setPersonType,
+    setGivenNames,
+    setSurnames,
     tradeName,
     economicActivity,
     taxRegime,

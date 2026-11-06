@@ -195,6 +195,9 @@ export interface UpdateCompanyDescriptionResponse {
 }
 
 export interface ParsedRutJarvisCredentials {
+  person_type?: CompanyPersonType
+  given_names?: string | null
+  surnames?: string | null
   business_name: string | null
   trade_name: string | null
   tax_regime: string | null

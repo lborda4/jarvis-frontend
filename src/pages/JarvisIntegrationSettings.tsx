@@ -7,6 +7,7 @@ import { CheckIcon } from '../components/icons/SidebarIcons'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
+import { COMPANY_PERSON_TYPE, type CompanyPersonType } from '../types/admin'
 import {
   useJarvisIntegrationSettings,
   type JarvisSetupStepId,
@@ -36,6 +37,14 @@ function JarvisIntegrationSettings() {
   const {
     hasCompany,
     businessName,
+    personType,
+    givenNames,
+    surnames,
+    isNaturalPerson,
+    hasValidIdentity,
+    setPersonType,
+    setGivenNames,
+    setSurnames,
     tradeName,
     economicActivity,
     taxRegime,
@@ -94,7 +103,7 @@ function JarvisIntegrationSettings() {
 
   const canSubmitCompany =
     hasCompany &&
-    businessName.trim().length > 0 &&
+    hasValidIdentity &&
     economicActivity.trim().length > 0 &&
     country.trim().length > 0 &&
     department.trim().length > 0 &&
@@ -106,7 +115,7 @@ function JarvisIntegrationSettings() {
     Boolean(taxRegime) &&
     Boolean(vatRegime) &&
     Boolean(taxResponsibility) &&
-    !isSaving
+    !isBusy
 
   const handleStepClick = (stepId: JarvisSetupStepId) => {
     if (!isStepUnlocked(stepId) && !isStepComplete(stepId)) {
@@ -344,6 +353,52 @@ function JarvisIntegrationSettings() {
 
                 <form className="settings-form" onSubmit={handleSubmit}>
                   <div className="settings-form__field">
+                    <label htmlFor="jarvis-person-type">Tipo de persona *</label>
+                    <select
+                      id="jarvis-person-type"
+                      value={personType}
+                      disabled={isBusy}
+                      required
+                      onChange={(event) => setPersonType(event.target.value as CompanyPersonType)}
+                    >
+                      <option value={COMPANY_PERSON_TYPE.LEGAL_ENTITY}>Persona jurídica</option>
+                      <option value={COMPANY_PERSON_TYPE.NATURAL_PERSON}>Persona natural</option>
+                    </select>
+                  </div>
+
+                  {isNaturalPerson ? <>
+                    {businessName && (
+                      <p className="settings-card__description">
+                        Nombre registrado: {businessName}. Revise los nombres y apellidos antes de guardar.
+                      </p>
+                    )}
+                    <div className="settings-form__field">
+                      <label htmlFor="jarvis-given-names">Nombres *</label>
+                      <input
+                        id="jarvis-given-names"
+                        type="text"
+                        value={givenNames}
+                        onChange={(event) => setGivenNames(event.target.value)}
+                        autoComplete="given-name"
+                        placeholder="Primer nombre y demás nombres"
+                        disabled={isBusy}
+                        required
+                      />
+                    </div>
+                    <div className="settings-form__field">
+                      <label htmlFor="jarvis-surnames">Apellidos *</label>
+                      <input
+                        id="jarvis-surnames"
+                        type="text"
+                        value={surnames}
+                        onChange={(event) => setSurnames(event.target.value)}
+                        autoComplete="family-name"
+                        placeholder="Apellidos completos"
+                        disabled={isBusy}
+                        required
+                      />
+                    </div>
+                  </> : <div className="settings-form__field">
                     <label htmlFor="jarvis-business-name">Razón social *</label>
                     <input
                       id="jarvis-business-name"
@@ -354,7 +409,7 @@ function JarvisIntegrationSettings() {
                       disabled={isBusy}
                       required
                     />
-                  </div>
+                  </div>}
 
                   <div className="settings-form__field">
                     <label htmlFor="jarvis-trade-name">Nombre comercial</label>
