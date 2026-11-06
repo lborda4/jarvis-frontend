@@ -9,6 +9,7 @@ import type { InvoiceAttachment } from '../services/invoiceAttachmentService'
 import { fetchJarvisInvoicePdfData } from '../services/jarvisService'
 import { useAuth } from '../context/AuthContext'
 import { jarvisPdfCopy, jarvisPdfKindFromFlags } from '../utils/jarvisPdfDocument'
+import { loadSalesInvoicePdfRenderer, PdfModuleLoadError } from '../utils/loadSalesInvoicePdfRenderer'
 
 export default function SalesInvoicePreviewPage({
   supportDocument = false,
@@ -28,23 +29,29 @@ export default function SalesInvoicePreviewPage({
   const companyId = user?.company?.id
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<{ key: string; url: string; number: string; documentLabel: string; listPath: string; kind: string; code: string; codeLabel: string; attachment?: InvoiceAttachment } | null>(null)
-  const [failure, setFailure] = useState<{ key: string } | null>(null)
+  const [failure, setFailure] = useState<{ key: string; reload: boolean } | null>(null)
   const key = `${companyId}:${id}:${attempt}`
   useEffect(() => {
     let active = true
     let url: string | undefined
     async function load() {
+      let stage = 'carga de datos y generador'
       try {
-        const [data, renderer] = await Promise.all([fetchJarvisInvoicePdfData(id), import('../utils/salesInvoicePdf')])
+        const [data, renderer] = await Promise.all([fetchJarvisInvoicePdfData(id), loadSalesInvoicePdfRenderer()])
         if (!active) return
+        stage = 'generación del PDF'
         const blob = await renderer.generateSalesInvoicePdf(data)
         if (!active) return
+        stage = 'apertura de la vista previa'
         url = URL.createObjectURL(blob)
         const kind = data.documentKind ?? jarvisPdfKindFromFlags({ supportDocument, creditNote, debitNote, adjustmentNote })
         const copy = jarvisPdfCopy(kind)
         setResult({ key, url, number: data.invoiceNumber || id, documentLabel: copy.shortTitle, listPath: copy.listPath, kind, code: data.cufe ?? '', codeLabel: copy.uniqueCode, attachment: data.attachment })
-      } catch {
-        if (active) setFailure({ key })
+      } catch (error) {
+        if (active) {
+          console.error('[Jarvis PDF] Falló la preparación de la factura.', { documentId: id, stage }, error)
+          setFailure({ key, reload: error instanceof PdfModuleLoadError })
+        }
       }
     }
     void load()
@@ -55,7 +62,10 @@ export default function SalesInvoicePreviewPage({
   const listPath = current?.listPath ?? fallback.listPath
   return <main className="integration-page sales-invoice-preview">
     <Link to={listPath}>← Volver a la lista</Link>
-    {error ? <PdfPreviewError onRetry={() => setAttempt(value => value + 1)} />
+    {error ? <PdfPreviewError onRetry={() => {
+      if (failure?.reload) window.location.reload()
+      else setAttempt(value => value + 1)
+    }} />
       : current ? <InvoicePdfPreview standalone number={current.number} documentLabel={current.documentLabel} documentCode={current.code} codeLabel={current.codeLabel} pdfUrl={current.url} onClose={() => navigate(listPath)} actions={<><DocumentPreviewActions key={`${companyId}:${id}`} id={id} number={current.number} kind={current.kind} />{current.attachment && <InvoiceAttachmentAction key={`attachment:${companyId}:${id}`} id={id} attachment={current.attachment} />}</>} />
       : <LoadingIndicator message={`Preparando el PDF de ${fallback.shortTitle.toLowerCase()}…`} />}
   </main>

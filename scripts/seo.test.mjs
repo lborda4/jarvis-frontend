@@ -64,3 +64,16 @@ test('sitemap includes only the three canonical public pages, with matching rewr
   assert.ok(robots.includes('Sitemap: https://www.jarviscol.com/sitemap.xml'))
   assert.ok(!robots.includes('Disallow: /'), 'Crawlers must be able to read public pages, assets and noindex instructions')
 })
+
+test('missing deployment assets never resolve to application HTML', async () => {
+  const config = JSON.parse(await read('vercel.json'))
+  const fallback = config.rewrites.at(-1)
+  assert.equal(fallback.destination, '/app.html')
+  const pattern = new RegExp(`^${fallback.source}$`)
+  for (const path of ['/assets/salesInvoicePdf-old.js', '/assets/JarvisPdfViewer-old.js', '/assets/pdf.worker-old.mjs', '/assets/missing.css', '/assets']) {
+    assert.ok(!pattern.test(path), `${path} must return a missing-file response, not app.html`)
+  }
+  for (const path of ['/factura-venta/abc', '/documento-soporte/abc', '/login', '/admin']) {
+    assert.ok(pattern.test(path), `${path} must retain SPA navigation`)
+  }
+})

@@ -9,7 +9,7 @@
     { "source": "/", "destination": "/index.html" },
     { "source": "/siigo", "destination": "/siigo/index.html" },
     { "source": "/facturacion-electronica", "destination": "/facturacion-electronica/index.html" },
-    { "source": "/(.*)", "destination": "/app.html" }
+    { "source": "/((?!assets(?:/|$)).*)", "destination": "/app.html" }
   ],
   "headers": [
     {
