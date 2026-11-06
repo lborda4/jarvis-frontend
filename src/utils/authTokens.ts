@@ -1,5 +1,6 @@
 import type { AuthCompany, AuthSession, AuthTokens, AuthUser } from '../types/auth'
 import { USER_ROLE } from '../constants/userRole'
+import { JARVIS_MODULES, type JarvisModule } from '../types/companyModules'
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
@@ -53,6 +54,9 @@ function extractCompany(
     id: companyId,
     name: companyName,
     nit: companyNit,
+    ...(Array.isArray(companyRecord.jarvisModules) ? {
+      jarvisModules: companyRecord.jarvisModules.filter((module): module is JarvisModule => JARVIS_MODULES.includes(module as JarvisModule)),
+    } : {}),
   }
 }
 

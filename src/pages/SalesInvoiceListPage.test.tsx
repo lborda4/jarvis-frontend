@@ -20,8 +20,17 @@ it('muestra guardados y enviados en una sola tabla sin avisos de borradores', ()
   expect(html).toContain('Enviada a DIAN')
   expect(html).toContain('/factura-venta/nueva?borrador=saved-1')
   expect(html).toContain('/factura-venta/sent-1/visualizar')
+  expect(html).toContain('/factura-venta/nueva?duplicar=sent-1')
+  expect(html).not.toContain('?duplicar=saved-1')
   expect(html).not.toContain('Borradores')
   expect(html).not.toContain('No tienes borradores')
+})
+
+it('permite duplicar documentos soporte desde su propio formulario', () => {
+  mocks.cached = { items: [{ id: 'support-1', prefix: 'DS', number: '1', status: 'SENT', issueDate: '2026-10-16', customerName: 'Proveedor', customerIdentification: '123', currency: 'COP', total: '100' }], total: 1, page: 1, pageSize: 20 }
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage supportDocument /></MemoryRouter>)
+  expect(html).toContain('/documento-soporte/nuevo?duplicar=support-1')
+  expect(html).not.toContain('sales-history__pagination')
 })
 
 it('no añade un bloque de borradores cuando no hay documentos', () => {

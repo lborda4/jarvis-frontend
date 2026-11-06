@@ -14,6 +14,7 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
   id: string; number: string; documentLabel: string; partyLabel: string; onClose: () => void
 }) {
   const [email, setEmail] = useState('')
+  const [copyEmails, setCopyEmails] = useState<string[]>([])
   const [additional, setAdditional] = useState('')
   const [message, setMessage] = useState(`Hola,\nAdjuntamos ${documentLabel} ${number}.\nQuedamos atentos a cualquier inquietud.`)
   const [loading, setLoading] = useState(true)
@@ -24,7 +25,7 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
   useEffect(() => {
     let active = true
     fetchJarvisInvoicePdfData(id).then(data => {
-      if (active) { setEmail(data.buyer.email?.trim() ?? ''); setError(null) }
+      if (active) { setEmail(data.buyer.email?.trim() ?? ''); setCopyEmails(data.recipientCopyEmails ?? []); setError(null) }
     }).catch(() => {
       if (active) setError('No se pudo consultar el correo registrado. Inténtalo más tarde o comunícate con soporte.')
     }).finally(() => { if (active) setLoading(false) })
@@ -38,7 +39,7 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
     if (additionalEmails.some(value => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) {
       setError('Revisa los correos adicionales y sepáralos con coma.'); return
     }
-    if (!email && !additionalEmails.length) { setError('Agrega al menos un correo para enviar el documento.'); return }
+    if (!email && !additionalEmails.length && !copyEmails.length) { setError('Agrega al menos un correo para enviar el documento.'); return }
     setSaving(true); setError(null)
     try {
       const result = await sendJarvisDocumentEmail(id, { additionalEmails, message: message.trim() })
@@ -54,6 +55,7 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
       : loading ? <LoadingIndicator message="Consultando correo registrado..." />
       : <form onSubmit={event => void send(event)}>
         <label className="document-email__field">Correo del {partyLabel.toLowerCase()}<span className="document-email__registered"><input aria-label={`Correo del ${partyLabel.toLowerCase()}`} value={email} readOnly placeholder="Sin correo registrado" />{email && <span>Correo registrado</span>}</span></label>
+        {copyEmails.length > 0 && <label className="document-email__field">Copias guardadas del tercero (CC)<input readOnly value={copyEmails.join(', ')} /><small>Estas copias se incluyen automáticamente al enviar el documento.</small></label>}
         <label className="document-email__field">Correos adicionales (opcional)<input value={additional} onChange={event => setAdditional(event.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" disabled={saving} /><small>Separa los correos con coma (,)</small></label>
         <label className="document-email__field">Mensaje (opcional)<textarea value={message} maxLength={500} rows={4} onChange={event => setMessage(event.target.value)} disabled={saving} /><small className="document-email__counter">{message.length}/500</small></label>
         {error && <ErrorMessage inline message={error} />}

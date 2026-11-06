@@ -38,6 +38,7 @@ interface AuthContextValue {
   register: (payload: RegisterRequest) => Promise<void>
   switchCompany: (companyId: string) => Promise<void>
   logout: () => void
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -188,6 +189,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanies([])
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    const session = await fetchCurrentUser()
+    setUser(session.user)
+    setCompanies(session.companies)
+    setStoredSessionSnapshot(session.user, session.companies)
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -199,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       switchCompany,
       logout,
+      refreshUser,
     }),
     [
       user,
@@ -209,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       switchCompany,
       logout,
+      refreshUser,
     ],
   )
 

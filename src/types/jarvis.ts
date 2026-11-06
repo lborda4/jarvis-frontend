@@ -238,6 +238,7 @@ export interface JarvisCredentialsStatusResponse {
 }
 
 export interface JarvisTercero {
+  copy_emails?: string[]
   id: string
   document_type: string
   document_number: string
@@ -262,6 +263,7 @@ export interface JarvisTercerosListResponse {
 }
 
 export interface CreateJarvisTerceroRequest {
+  copy_emails?: string[]
   document_type: JarvisDocumentType
   document_number: string
   name: string

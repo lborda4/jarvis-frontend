@@ -67,6 +67,21 @@ export function calculateSalesInvoiceTax(base: number, selectedId: string, perce
   return Number.isFinite(rate) ? Math.round(Math.max(0, base) * Math.max(0, rate)) / 100 : 0
 }
 
+export function salesInvoiceTaxesForIssuer(taxes: SalesInvoiceTaxOption[], nonResponsibleForIva: boolean) {
+  return nonResponsibleForIva
+    ? taxes.filter(tax => normalizeTaxType(tax.type) !== 'iva' || tax.percentage === 0)
+    : taxes
+}
+
+export function salesInvoiceLineForIssuer<T extends { taxChargeId: string; taxPercent: string }>(
+  line: T, taxes: SalesInvoiceTaxOption[], nonResponsibleForIva: boolean,
+): T {
+  const selected = taxes.find(tax => tax.id === line.taxChargeId)
+  if (!nonResponsibleForIva || !selected || normalizeTaxType(selected.type) !== 'iva' || selected.percentage === 0) return line
+  const zeroIva = taxes.find(tax => normalizeTaxType(tax.type) === 'iva' && tax.percentage === 0)
+  return { ...line, taxChargeId: zeroIva?.id ?? '', taxPercent: '0' }
+}
+
 export function requireSalesInvoiceTaxCatalogId(tax: SalesInvoiceTaxOption): number {
   if (tax.catalogId == null) {
     throw new Error(`El tipo de impuesto "${tax.type}" de "${tax.name}" no coincide con el catálogo de facturación. Revise su configuración.`)

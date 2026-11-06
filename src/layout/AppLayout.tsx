@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { companyJarvisModules, jarvisModuleForPath } from '../types/companyModules'
 import Sidebar from './Sidebar'
 import ScrollToTopButton from '../components/ScrollToTopButton'
 import SupportFab from '../components/SupportFab'
@@ -16,6 +17,10 @@ function AppLayout() {
   const contentRef = useRef<HTMLDivElement>(null)
   const { isJarvisCompany } = useIntegrationSetup()
   const { user } = useAuth()
+  const location = useLocation()
+  const modules = companyJarvisModules(user?.company?.jarvisModules)
+  const requiredModule = jarvisModuleForPath(location.pathname)
+  const moduleUnavailable = isJarvisCompany && requiredModule && !modules.includes(requiredModule)
 
   useEffect(() => {
     void hydrateFromStorage()
@@ -34,7 +39,7 @@ function AppLayout() {
       <div className="app-layout__content" ref={contentRef}>
         <JarvisDocumentQuotaNotice />
         <JarvisBackNavigation key={user?.company?.id} enabled={isJarvisCompany}>
-          <Outlet />
+          {moduleUnavailable ? <Navigate to="/inicio" replace /> : <Outlet />}
         </JarvisBackNavigation>
       </div>
 

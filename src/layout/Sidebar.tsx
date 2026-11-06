@@ -22,6 +22,7 @@ import {
   SettingsIcon,
 } from '../components/icons/SidebarIcons'
 import { isAdminRole } from '../constants/userRole'
+import { companyJarvisModules } from '../types/companyModules'
 
 // const BANK_STATEMENTS_ROOT = '/extractos-bancarios'
 // const BANK_STATEMENT_CHILDREN = [
@@ -90,6 +91,9 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     documentsRemaining: totalDocumentsRemaining,
   } = useIntegrationSetup()
   const activePolicy = getIntegrationPolicy(integrationMode)
+  const modules = companyJarvisModules(user?.company?.jarvisModules)
+  const hasBilling = modules.includes('BILLING')
+  const hasPayroll = modules.includes('PAYROLL')
   const companyName = user?.company?.name ?? 'Mi Empresa'
   const activeCompanyId = user?.company?.id ?? ''
   const userName = user?.name?.trim() || 'Usuario'
@@ -117,14 +121,14 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
   const navItems: NavItem[] = [
     ...(isJarvisCompany ? [{ label: 'Inicio', to: '/inicio', icon: HomeIcon }] : []),
-    ...(isJarvisCompany ? [{ label: 'Reportes', to: '/reportes', icon: DocumentIcon }] : []),
+    ...(isJarvisCompany && hasBilling ? [{ label: 'Reportes', to: '/reportes', icon: DocumentIcon }] : []),
     ...(!isJarvisCompany ? [{
       label: settingsLabel,
       to: setupPath,
       icon: SettingsIcon,
     }] : []),
     ...(isJarvisCompany
-      ? [
+      ? (hasBilling ? [
           {
             label: 'Documentos electrónicos',
             to: 'documentos-electronicos',
@@ -156,7 +160,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               { label: 'Eventos RADIAN', to: '/eventos-radian', icon: DocumentIcon, featureEnabled: isJarvisCompanyConfigured },
             ],
           },
-        ]
+        ] : [])
       : [
           ...(hasSupportDocumentAccess
             ? [
@@ -179,7 +183,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               ]
             : []),
         ]),
-    ...(isJarvisCompany ? [{
+    ...(isJarvisCompany && hasPayroll ? [{
       label: 'Nómina electrónica',
       to: 'nomina-electronica',
       icon: DocumentIcon,
@@ -189,7 +193,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         {label: 'Configuración', to: '/nomina/configuracion', icon: SettingsIcon},
       ],
     }] : []),
-    ...(isJarvisCompany
+    ...(isJarvisCompany && hasBilling
       ? [{
           label: 'Categorías',
           to: 'categorias',

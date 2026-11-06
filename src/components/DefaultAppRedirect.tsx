@@ -1,10 +1,13 @@
 import { Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { companyJarvisModules } from '../types/companyModules'
 import LoadingIndicator from './LoadingIndicator'
 import JarvisDashboardPage from '../pages/JarvisDashboardPage'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import '../pages/AuthPages.css'
 
 function DefaultAppRedirect() {
+  const { user } = useAuth()
   const {
     isCheckingSetup,
     requiresSetup,
@@ -22,7 +25,8 @@ function DefaultAppRedirect() {
     )
   }
 
-  if (isJarvisCompany) return <JarvisDashboardPage />
+  if (isJarvisCompany) return companyJarvisModules(user?.company?.jarvisModules).includes('BILLING')
+    ? <JarvisDashboardPage /> : <Navigate to="/nomina" replace />
 
   if (requiresSetup) {
     return (

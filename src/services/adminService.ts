@@ -30,6 +30,10 @@ import { apiClient } from './apiClient'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
 
+export async function updateCompanyJarvisModules(companyId: string, jarvisModules: import('../types/companyModules').JarvisModule[]): Promise<CreateAdminCompanyResponse> {
+  return (await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis-modules`, { jarvisModules })).data
+}
+
 export async function fetchAdminDocumentPackage(companyId: string): Promise<{ data: unknown }> {
   return (await apiClient.get<{ data: unknown }>(`${ADMIN_COMPANIES_ENDPOINT}/${companyId}/nextpyme/package`)).data
 }

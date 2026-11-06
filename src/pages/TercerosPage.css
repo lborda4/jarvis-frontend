@@ -160,6 +160,7 @@
 }
 
 .terceros-page__field input,
+.terceros-page__field textarea,
 .terceros-page__field select {
   width: 100%;
   padding: 0.65rem 0.75rem;

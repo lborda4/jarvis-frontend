@@ -1,4 +1,5 @@
 export interface AuthCompany {
+  jarvisModules?: import('./companyModules').JarvisModule[] | null
   id: string
   name: string
   nit: string

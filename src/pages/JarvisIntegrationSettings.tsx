@@ -274,14 +274,17 @@ function JarvisIntegrationSettings() {
         description={
           allRequiredStepsComplete
             ? 'Su configuración ya está completa. Abra una sección solo si necesita actualizarla.'
-            : 'Complete el paso a paso: primero la empresa y luego las resoluciones DIAN según su plan.'
+            : showResolutionsStep
+              ? 'Complete el paso a paso: primero la empresa y luego las resoluciones DIAN según su plan.'
+              : 'Complete los datos de su empresa para usar Jarvis con nómina.'
         }
       />
 
       {showSetupRequiredNotice && (
         <div className="settings-page__setup-notice" role="status">
-          Complete todos los pasos del asistente. Hasta finalizar, Documento
-          soporte y Factura de Venta permanecerán bloqueados.
+          {showResolutionsStep
+            ? 'Complete todos los pasos del asistente. Hasta finalizar, Documento soporte y Factura de Venta permanecerán bloqueados.'
+            : 'Complete los datos de la empresa para terminar su configuración.'}
         </div>
       )}
 

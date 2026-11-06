@@ -20,6 +20,18 @@ describe('sales invoice HTML template adaptation', () => {
     return ''
   }
 
+  it.each(['emission', 'current'] as const)('muestra régimen IVA y CIIU con origen %s sin ocultar el tributo del XML', source => {
+    const text = textContent(SalesInvoicePdfDocument({ data: {
+      ...data, issuer: { ...party, fiscalRegime: 'R-99-PN', taxResponsibility: '01 - IVA' },
+      issuerTaxProfile: { vatRegime: 'non_vat_responsible', economicActivity: '4923', source },
+    }, qr: '' }))
+    const suffix = source === 'current' ? ' (configuración actual)' : ''
+    expect(text).toContain(`Régimen IVA${suffix}: No responsable de IVA`)
+    expect(text).toContain(`Actividad económica${suffix}: 4923`)
+    expect(text).toContain('Tributo (XML): 01 - IVA')
+    expect(text).toContain('Responsabilidad fiscal (XML): R-99-PN')
+  })
+
   it('muestra el nombre del producto y conserva su descripción en otra columna', () => {
     const item = { ...data.items[0], name: 'Activación de facturación', code: 'FV-01' }
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, items: [item] }, qr: '' }))

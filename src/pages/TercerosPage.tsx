@@ -253,9 +253,10 @@ function TercerosPage() {
                     <td>{formatEntityType(item.entity_type)}</td>
                     <td>{formatTaxRegime(item)}</td>
                     <td>
-                      {item.email || item.phone ? (
+                      {item.email || item.phone || item.copy_emails?.length ? (
                         <>
                           {item.email ? <span>{item.email}</span> : null}
+                          {Boolean(item.copy_emails?.length) && <span className="terceros-page__muted">CC: {item.copy_emails!.join(', ')}</span>}
                           {item.phone ? (
                             <span className="terceros-page__muted">{item.phone}</span>
                           ) : null}

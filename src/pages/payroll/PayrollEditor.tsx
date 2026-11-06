@@ -13,6 +13,7 @@ import {
 } from '../../utils/payrollDomain'
 import { suggestPayrollAmount } from '../../utils/payrollCalculation'
 import { blankPayroll, currency, employeeName } from './payrollDefaults'
+import { movePayrollStatePeriod } from '../../utils/documentDuplication'
 import { Field, Modal, type PayrollContext } from './PayrollPage'
 import PayrollMoneyInput from './PayrollMoneyInput'
 import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
@@ -193,14 +194,10 @@ export default function PayrollEditor({
               type="month"
               disabled={readOnly || !!state.payrollGroupId}
               value={state.period}
-              onChange={(e) =>
-                setState({
-                  ...state,
-                  ...blankPayroll(e.target.value),
-                  employeeId: state.employeeId,
-                  lines: state.lines,
-                })
-              }
+              onChange={(e) => {
+                if (/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value))
+                  setState(movePayrollStatePeriod(state, e.target.value))
+              }}
             />
           </Field>
           {(['startDate', 'endDate', 'issueDate'] as const).map((key, i) => (

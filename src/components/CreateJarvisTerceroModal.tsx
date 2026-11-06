@@ -31,6 +31,7 @@ import {
 import type { SiigoSupplierPersonType } from '../types/siigo'
 import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
 import { entityTypeFromDocumentType, terceroToForm } from '../utils/jarvisTerceroForm'
+import { parseCopyEmails } from '../utils/copyEmails'
 import '../pages/TercerosPage.css'
 import '../pages/InvoiceUpload.css'
 
@@ -187,6 +188,7 @@ function CreateJarvisTerceroModal({
   editingTercero,
 }: CreateJarvisTerceroModalProps) {
   const [form, setForm] = useState<CreateJarvisTerceroRequest>(EMPTY_FORM)
+  const [copyEmailsInput, setCopyEmailsInput] = useState('')
   const [typeLiabilities, setTypeLiabilities] = useState<JarvisTypeLiability[]>(
     [],
   )
@@ -286,6 +288,7 @@ function CreateJarvisTerceroModal({
     openedKeyRef.current = openKey
     const documentType = resolveDocumentType(initialDocumentType)
     const documentNumber = initialDocumentNumber?.trim() || ''
+    setCopyEmailsInput(editingTercero?.copy_emails?.join(', ') ?? '')
     setForm(editingTercero ? terceroToForm(editingTercero) : {
       ...EMPTY_FORM,
       document_type: documentType,
@@ -394,6 +397,7 @@ function CreateJarvisTerceroModal({
           : {}),
         type_regime_id: form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
         ...(form.email?.trim() ? { email: form.email.trim() } : {}),
+        ...(provider === 'JARVIS' ? { copy_emails: parseCopyEmails(copyEmailsInput, form.email) } : {}),
         ...(form.phone?.trim() ? { phone: form.phone.trim() } : {}),
         ...(form.address?.trim() ? { address: form.address.trim() } : {}),
       }
@@ -764,7 +768,7 @@ function CreateJarvisTerceroModal({
             </div>
 
             <div className="terceros-page__field">
-              <label htmlFor="tercero-email">Correo</label>
+              <label htmlFor="tercero-email">Correo principal</label>
               <input
                 id="tercero-email"
                 type="email"
@@ -778,6 +782,12 @@ function CreateJarvisTerceroModal({
                 disabled={isSaving || isLookingUpNit}
               />
             </div>
+
+            {provider === 'JARVIS' && <div className="terceros-page__field">
+              <label htmlFor="tercero-copy-emails">Correos para copia (CC)</label>
+              <textarea id="tercero-copy-emails" value={copyEmailsInput} onChange={event => setCopyEmailsInput(event.target.value)} disabled={isSaving || isLookingUpNit} rows={2} maxLength={2550} placeholder="contabilidad@empresa.com, otro@correo.com" />
+              <small>Hasta 10 correos separados por coma. Recibirán copia al emitir facturas, documentos soporte y notas de este tercero.</small>
+            </div>}
 
             <div className="terceros-page__field">
               <label htmlFor="tercero-phone">Teléfono</label>

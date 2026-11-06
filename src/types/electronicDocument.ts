@@ -329,6 +329,13 @@ export interface PurchaseInvoiceDownloadWithholding {
 
 /** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
 export interface PurchaseInvoiceDownload {
+  recipientCopyEmails?: string[]
+  issuerTaxProfile?: {
+    vatRegime?: string
+    economicActivity?: string
+    taxResponsibility?: string
+    source: 'emission' | 'current'
+  }
   attachment?: import('../services/invoiceAttachmentService').InvoiceAttachment
   paymentBreakdown?: import('../utils/paymentNegotiation').InvoicePaymentAllocation[]
   sellers?: Array<{ id: string; name: string }>

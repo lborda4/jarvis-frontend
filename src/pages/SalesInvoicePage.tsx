@@ -2,8 +2,9 @@ import { calculateJarvisRetention } from '../utils/jarvisTaxTechnical'
 import MoneyInput from '../components/MoneyInput'
 import InvoiceSellerSelect from '../components/InvoiceSellerSelect'
 import InvoiceAttachmentAction from '../components/InvoiceAttachmentAction'
-import { uploadInvoiceAttachment, deleteInvoiceAttachment, type InvoiceAttachment } from '../services/invoiceAttachmentService'
-import type { JarvisSeller } from '../services/jarvisSellerService'
+import { uploadInvoiceAttachment, deleteInvoiceAttachment, fetchInvoiceAttachment, type InvoiceAttachment } from '../services/invoiceAttachmentService'
+import { fetchJarvisSellers, type JarvisSeller } from '../services/jarvisSellerService'
+import { duplicateInvoicePrefill } from '../utils/documentDuplication'
 import { saveInvoiceDraft, fetchInvoiceDraft, deleteInvoiceDraft, type InvoiceDraftKind } from '../services/invoiceDraftService'
 import { balancePayments, type PaymentEntry } from '../utils/paymentBalance'
 import { alignPaymentMethods, paymentMethodsForNegotiation, isCreditPaymentMethod, buildPaymentBreakdown, primaryPaymentForNegotiation } from '../utils/paymentNegotiation'
@@ -51,6 +52,8 @@ import {
   calculateSalesInvoiceTax,
   formatSalesInvoiceTaxLabel,
   requireSalesInvoiceTaxCatalogId,
+  salesInvoiceTaxesForIssuer,
+  salesInvoiceLineForIssuer,
   type SalesInvoiceTaxOption,
 } from '../utils/salesInvoiceTaxes'
 import {
@@ -213,11 +216,13 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const draftId = searchParams.get('borrador')
+  const duplicateId = !isNote && !draftId ? searchParams.get('duplicar') : null
+  const [duplicateLoaded, setDuplicateLoaded] = useState(false)
   const documentKind: InvoiceDraftKind = debitNote ? 'DEBIT_NOTE' : adjustmentNote ? 'SUPPORT_CREDIT_NOTE' : isNote ? 'CREDIT_NOTE' : supportDocument ? 'SUPPORT_DOCUMENT' : 'ELECTRONIC_INVOICE'
   const sourceInvoiceId = isNote ? searchParams.get('factura') || searchParams.get('documento') : null
   const [draftSourceInvoiceId, setDraftSourceInvoiceId] = useState<string | null>(null)
   const isBillingReferenceLocked = isNote && Boolean(sourceInvoiceId || draftSourceInvoiceId)
-  const [sourceLoading, setSourceLoading] = useState(Boolean(sourceInvoiceId || draftId))
+  const [sourceLoading, setSourceLoading] = useState(Boolean(sourceInvoiceId || draftId || duplicateId))
   const [draftLoaded, setDraftLoaded] = useState(!draftId)
   const draftIdRef = useRef(draftId ?? crypto.randomUUID())
   const hydratedDraftRef = useRef<string | null>(null)
@@ -260,6 +265,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const [footNote, setFootNote] = useState('')
   const [discountIsPercent, setDiscountIsPercent] = useState(false)
   const [generalDiscount, setGeneralDiscount] = useState('0')
+  const [issuerNonResponsibleForIva, setIssuerNonResponsibleForIva] = useState(false)
 
   const [customerQuery, setCustomerQuery] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<InvoiceCustomer | null>(null)
@@ -396,6 +402,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     if (draftId && hydratedDraftRef.current === `${documentKind}:${draftId}`) return
     let cancelled = false
     async function loadCatalogs() {
+      if (duplicateId) { setSourceLoading(true); setDuplicateLoaded(false) }
       if (draftId) setDraftLoaded(false)
       try {
         const [catalogs, jarvisStatus, savedTaxes, savedPaymentMethods, source, siigoStatus, draft] = await Promise.all([
@@ -405,8 +412,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             : fetchJarvisCredentialsStatus().catch(() => null),
           fetchJarvisTaxes().catch(() => ({ items: [] as never[] })),
           fetchJarvisPaymentMethods().catch(() => ({ items: [] as never[] })),
-          sourceInvoiceId
-            ? (adjustmentNote ? fetchJarvisSupportDocumentDetail(sourceInvoiceId) : fetchJarvisInvoiceDetail(sourceInvoiceId))
+          sourceInvoiceId || duplicateId
+            ? (adjustmentNote || supportDocument ? fetchJarvisSupportDocumentDetail((sourceInvoiceId || duplicateId)!) : fetchJarvisInvoiceDetail((sourceInvoiceId || duplicateId)!))
             : Promise.resolve(null),
           isSiigoCompany && creditNote
             ? fetchSiigoCredentialsStatus().catch(() => null)
@@ -414,7 +421,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           draftId ? fetchInvoiceDraft<InvoiceDraftState>(draftId) : Promise.resolve(null),
         ])
         if (cancelled) return
-        const mergedTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
+        const allTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
+        const nonResponsibleForIva = !isNote && !supportDocument && jarvisStatus?.vat_regime === 'non_vat_responsible'
+        setIssuerNonResponsibleForIva(nonResponsibleForIva)
+        const mergedTaxes = salesInvoiceTaxesForIssuer(allTaxes, nonResponsibleForIva)
+        const normalizeIssuerLine = (line: LineItem) => salesInvoiceLineForIssuer(line, allTaxes, nonResponsibleForIva)
+        setLines(current => current.map(normalizeIssuerLine))
         setTaxes(mergedTaxes)
         setPaymentMethods(savedPaymentMethods.items)
         setPaymentForms(catalogs.paymentForms ?? [])
@@ -423,8 +435,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         if (savedPaymentMethods.items[0]) setPayments([{ ...createEmptyPayment(), methodId: savedPaymentMethods.items[0].id }])
         const hasCop = (catalogs.currencies ?? []).some((item) => (item.code ?? '').trim().toUpperCase() === 'COP')
         if (!hasCop) { const fc = catalogs.currencies?.[0]?.code?.trim(); if (fc) setCurrency(fc.toUpperCase()) }
-        const ivaDefault = mergedTaxes.find((tax) => tax.category === 'IMPUESTO' && isIvaTax(tax) && tax.percentage === DEFAULT_IVA_PERCENT)
-        if (ivaDefault) setLines((current) => current.map((line) => line.taxChargeId ? line : { ...line, taxChargeId: String(ivaDefault.id), taxPercent: String(DEFAULT_IVA_PERCENT) }))
+        const defaultIvaPercent = nonResponsibleForIva ? 0 : DEFAULT_IVA_PERCENT
+        const ivaDefault = mergedTaxes.find((tax) => tax.category === 'IMPUESTO' && isIvaTax(tax) && tax.percentage === defaultIvaPercent)
+        if (ivaDefault) setLines((current) => current.map((line) => line.taxChargeId ? line : { ...line, taxChargeId: String(ivaDefault.id), taxPercent: String(defaultIvaPercent) }))
         const resolution = creditNote && siigoStatus?.creditNoteResolution
           ? siigoStatus.creditNoteResolution
           : debitNote
@@ -454,13 +467,52 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           setIssueDate(state.issueDate); setDueDate(state.dueDate); setCurrency(state.currency)
           setNotes(state.notes); setHeadNote(state.headNote); setFootNote(state.footNote)
           setDiscountIsPercent(state.discountIsPercent); setGeneralDiscount(state.generalDiscount)
-          setLines(state.lines); setPaymentFormId(state.paymentFormId); setPayments(state.paymentEntries)
+          setLines(state.lines.map(normalizeIssuerLine)); setPaymentFormId(state.paymentFormId); setPayments(state.paymentEntries)
           setReteIcaId(state.reteIcaId); setReteIvaId(state.reteIvaId)
           setBillingNumber(state.billingNumber); setBillingUuid(state.billingUuid); setBillingDate(state.billingDate)
           setReasonCode(state.reasonCode); setReasonDescription(state.reasonDescription); setSeze(state.seze)
           draftIdRef.current = draftId!
           hydratedDraftRef.current = `${documentKind}:${draftId}`
           setDraftLoaded(true)
+        } else if (source && duplicateId) {
+          const today = todayLocalDate()
+          const prefill = duplicateInvoicePrefill(source, mergedTaxes, today)
+          const request = prefill.request
+          const [sellers, attachmentBlob] = await Promise.all([
+            request.sellerIds?.length ? fetchJarvisSellers() : Promise.resolve([]),
+            source.sourceRequest?.attachment ? fetchInvoiceAttachment(source.id) : Promise.resolve(null),
+          ])
+          if (cancelled) return
+          if (request.sellerIds?.some(id => !sellers.some(seller => seller.id === id)))
+            throw new Error('Uno de los vendedores del documento ya no está disponible. No se pudo completar la copia.')
+          setSelectedSellers(sellers.filter(seller => request.sellerIds?.includes(seller.id)))
+          if (attachmentBlob && source.sourceRequest?.attachment) {
+            setAttachedFile(new File([attachmentBlob], source.sourceRequest.attachment.name, { type: source.sourceRequest.attachment.mimeType }))
+          }
+          setSelectedCustomer({ id: `invoice:${source.id}`, document_type: request.customerDocumentType, document_number: request.customerIdentification, name: request.customerName || source.customerName })
+          setCustomerQuery(`${request.customerIdentification} — ${request.customerName || source.customerName}`)
+          setIssueDate(today); setDueDate(request.payment?.due_date ?? today)
+          setCurrency(request.currency || source.currency)
+          setTaxes(salesInvoiceTaxesForIssuer(prefill.taxes, nonResponsibleForIva))
+          setLines(prefill.lines.map(line => salesInvoiceLineForIssuer(line, prefill.taxes, nonResponsibleForIva)))
+          setReteIcaId(prefill.reteIcaId); setReteIvaId(prefill.reteIvaId)
+          setDiscountIsPercent(false)
+          setNotes(request.observations ?? ''); setHeadNote(request.headNote ?? ''); setFootNote(request.footNote ?? '')
+          const payment = resolveInvoicePaymentPrefill(request.payment, savedPaymentMethods.items, catalogs.paymentForms ?? [])
+          if (payment?.paymentFormId) setPaymentFormId(payment.paymentFormId)
+          if (request.paymentBreakdown?.length && !supportDocument) {
+            if (request.paymentBreakdown.some(entry => !savedPaymentMethods.items.some(method => method.id === entry.methodId)))
+              throw new Error('Una forma de pago del documento ya no está disponible. No se pudo completar la copia.')
+            const negotiations = new Set(request.paymentBreakdown.map(entry => entry.negotiation))
+            if (negotiations.size > 1) setPaymentFormId('MIXED')
+            setPayments(request.paymentBreakdown.map(entry => ({ id: crypto.randomUUID(), methodId: entry.methodId, amount: String(entry.amount), automatic: false })))
+          } else if (payment?.methodId) {
+            setPayments([{ ...createEmptyPayment(), methodId: payment.methodId }])
+          } else if (request.payment) {
+            throw new Error('El medio de pago del documento ya no está disponible. No se pudo completar la copia.')
+          }
+          setDuplicateLoaded(true)
+          setSourceWarning('Copia lista para revisar. La fecha es la actual y se conserva el plazo de pago; tendrá un consecutivo nuevo al enviarla.')
         } else if (source) {
           const prefill = creditNotePrefill(source, mergedTaxes)
           setBillingNumber(prefill.billingNumber); setBillingUuid(prefill.billingUuid); setBillingDate(prefill.billingDate)
@@ -491,7 +543,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     void loadCatalogs()
     return () => { cancelled = true }
-  }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, adjustmentNote, isSiigoCompany, affectedDocumentLabel, affectedCodeLabel, partyLabel, draftId, documentKind])
+  }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, adjustmentNote, isSiigoCompany, affectedDocumentLabel, affectedCodeLabel, partyLabel, draftId, documentKind, duplicateId])
 
   const resetForm = useCallback(() => {
     setDraftSourceInvoiceId(null)
@@ -538,11 +590,11 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
   const handleSelectProduct = useCallback(
     (lineId: string, product: ProductResponse) => {
-      const productIvaTax = findProductIvaTax(product)
+      const productIvaTax = issuerNonResponsibleForIva ? undefined : findProductIvaTax(product)
       const ivaRate = productIvaTax?.rate ?? null
       const productRetefuenteTax = findProductRetefuenteTax(product)
 
-      const priceOptions = getSalesInvoicePrices(product)
+      const priceOptions = getSalesInvoicePrices(product, !issuerNonResponsibleForIva)
       const firstPrice = priceOptions[0]
 
       let taxChargeId: string | undefined
@@ -619,7 +671,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         return next
       })
     },
-    [chargeTaxes, lines, retentionTaxes],
+    [chargeTaxes, lines, retentionTaxes, issuerNonResponsibleForIva],
   )
 
   const removePayment = (id: string) => {
@@ -713,7 +765,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
       items: lines.filter((line) => line.description.trim()).map((line) => ({
         description: line.description.trim(),
-        ...(isNote && line.notes?.trim() ? { notes: line.notes.trim() } : {}),
+        ...(line.notes?.trim() ? { notes: line.notes.trim() } : {}),
         quantity: parseAmount(line.quantity),
         unitValue: parseAmount(line.unitValue),
         discount: lineDiscountAmount(line, discountIsPercent),
@@ -762,6 +814,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
   const handleSubmit = async (mode: SubmitMode) => {
     if (sourceLoading || isSubmitting) return
+    if (duplicateId && !duplicateLoaded) { setErrorMessage('No se pudo completar la copia. Vuelve a duplicar el documento desde el listado.'); return }
     if (draftId && !draftLoaded) { setErrorMessage('Espera a que se cargue el borrador. Si hubo un error, vuelve a abrirlo desde el listado.'); return }
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -773,7 +826,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         await persistAttachment(true)
         hydratedDraftRef.current = `${documentKind}:${draftIdRef.current}`
         setDraftLoaded(true)
-        setSearchParams(current => { const next = new URLSearchParams(current); next.set('borrador', draftIdRef.current); return next }, { replace: true })
+        setSearchParams(current => { const next = new URLSearchParams(current); next.delete('duplicar'); next.set('borrador', draftIdRef.current); return next }, { replace: true })
         setSuccessMessage('Borrador guardado. Puedes seguir editándolo; aún no se ha enviado a la DIAN.')
       } catch (error) {
         setErrorMessage(getApiErrorMessage(error, 'No se pudo guardar el borrador.'))
@@ -795,6 +848,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           : (nextConsecutive ?? 1) + 1,
       )
       resetForm()
+      if (duplicateId) setSearchParams(current => { const next = new URLSearchParams(current); next.delete('duplicar'); return next }, { replace: true })
       if ((draftId || attachment) && (!attachment || response.invoice.historyId)) {
         try { await deleteInvoiceDraft(draftIdRef.current) }
         catch { setErrorMessage('El documento se envió, pero no se pudo retirar el borrador del listado. No lo vuelvas a enviar.') }
@@ -959,6 +1013,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
         {/* Detalle productos/servicios */}
         <section className="ds-individual__section">
+          {issuerNonResponsibleForIva && <p role="status">El emisor está configurado como no responsable de IVA. Esta factura de venta se calcula sin cobrar IVA.</p>}
           <div className="ds-individual__section-head">
             <h2>Detalle de productos o servicios</h2>
             <button type="button" className="ds-individual__add-line" onClick={() => setLines((current) => [...current, createEmptyLine()])}>

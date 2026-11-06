@@ -1,8 +1,18 @@
 ﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from './apiClient'
-import { fetchAdminBoldCredentials, saveAdminBoldCredentials, fetchBoldBindedTerminals, saveBoldCashRegister } from './adminService'
+import { fetchAdminBoldCredentials, saveAdminBoldCredentials, fetchBoldBindedTerminals, saveBoldCashRegister, updateCompanyJarvisModules, createAdminCompany } from './adminService'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn(), patch: vi.fn(), post: vi.fn() } }))
+
+it('envía los módulos al crear y editar la empresa', async () => {
+  vi.mocked(apiClient.post).mockResolvedValue({ data: { company: { id: 'company' } } })
+  vi.mocked(apiClient.patch).mockResolvedValue({ data: { company: { id: 'company', jarvisModules: ['PAYROLL'] } } })
+  const request = { nit: '123', name: 'Empresa', personType: 'LEGAL_ENTITY' as const, integrations: ['JARVIS' as const], jarvisModules: ['PAYROLL' as const] }
+  await createAdminCompany(request)
+  expect(apiClient.post).toHaveBeenCalledWith('/admin/companies', request)
+  expect((await updateCompanyJarvisModules('company', ['PAYROLL'])).company.jarvisModules).toEqual(['PAYROLL'])
+  expect(apiClient.patch).toHaveBeenCalledWith('/admin/companies/company/jarvis-modules', { jarvisModules: ['PAYROLL'] })
+})
 
 describe('credenciales Bold por empresa', () => {
   beforeEach(() => vi.resetAllMocks())

@@ -15,6 +15,10 @@ const product: ProductResponse = {
 }
 
 describe('precios del producto en factura de venta', () => {
+  it('conserva el precio de venta sin separar un IVA que el emisor no cobra', () => {
+    expect(getSalesInvoicePrices({ ...product, priceIncludesIva: true }, false)
+      .map(price => price.unitValue)).toEqual(['11900', '9520', '8330'])
+  })
   it('usa el orden configurado, conserva los tres precios y no modifica el producto', () => {
     expect(getSalesInvoicePrices(product)).toEqual([
       { id: 'first', name: 'General', unitValue: '11900' },

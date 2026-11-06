@@ -29,6 +29,7 @@ import {
   type PayrollContext,
 } from './PayrollPage'
 import PayrollEditor from './PayrollEditor'
+import { duplicatePayrollState } from '../../utils/documentDuplication'
 import PayrollNovelties from './PayrollNovelties'
 import PayrollImport from './PayrollImport'
 import PayrollRowActions from './PayrollRowActions'
@@ -199,6 +200,12 @@ export default function PayrollDocuments(context: PayrollContext) {
       })
     }, '')
   }
+  const duplicate = async (document: PayrollDocument) => {
+    await run(async () => {
+      const full = await payrollService.get(document.id)
+      setEditor({ state: duplicatePayrollState(full.state, localDate()) })
+    }, 'Copia lista para revisar. Se actualizó la fecha de emisión y el período al mes actual; revisa las fechas de las novedades antes de guardar.')
+  }
   const exportExcel = (items = isSummaryView ? visible : matchingDocuments) => {
     const sheet = XLSX.utils.json_to_sheet(
       items.map((d) => ({
@@ -217,6 +224,9 @@ export default function PayrollDocuments(context: PayrollContext) {
     XLSX.writeFile(book, `Nomina-${items[0]?.state.period ?? year}.xlsx`)
   }
   const documentActions = (document: PayrollDocument) => [
+    ...(!document.originalId
+      ? [{ label: 'Duplicar', onClick: () => void duplicate(document) }]
+      : []),
     ...(['DRAFT', 'REJECTED'].includes(document.status)
       ? [{ label: 'Editar', onClick: () => void open(document, true) }]
       : []),

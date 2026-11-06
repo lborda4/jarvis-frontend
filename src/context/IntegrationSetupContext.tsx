@@ -12,6 +12,7 @@ import {
 import { fetchIntegrationProviders } from '../services/integrationService'
 import { readIntegrationSetupSnapshot, saveIntegrationSetupSnapshot, removeIntegrationSetupSnapshot } from '../utils/integrationSetupSnapshot'
 import { fetchJarvisCredentialsStatus } from '../services/jarvisService'
+import { companyJarvisModules } from '../types/companyModules'
 import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import {
   resolveIntegrationMode,
@@ -93,6 +94,7 @@ function isJarvisSetupComplete({
 export function IntegrationSetupProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth()
   const companyId = user?.company?.id
+  const hasJarvisBilling = companyJarvisModules(user?.company?.jarvisModules).includes('BILLING')
   const [initialSnapshot] = useState(() => readIntegrationSetupSnapshot<IntegrationSetupContextValue>(user?.id, companyId))
   const [isCheckingSetup, setIsCheckingSetup] = useState(!initialSnapshot)
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(initialSnapshot ? companyId ?? null : null)
@@ -234,7 +236,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         const invoiceResolutionConfigured = Boolean(
           status.electronicInvoiceResolutionConfigured,
         )
-        const fullyConfigured = isJarvisSetupComplete({
+        const fullyConfigured = !hasJarvisBilling ? companyConfigured : isJarvisSetupComplete({
           companyConfigured,
           supportResolutionConfigured,
           invoiceResolutionConfigured,
@@ -301,7 +303,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
         setIsCheckingSetup(false)
       }
     }
-  }, [companyId, user?.id, isAuthLoading, isAuthenticated, resetJarvisFlags])
+  }, [companyId, hasJarvisBilling, isAuthLoading, isAuthenticated, resetJarvisFlags])
 
   useEffect(() => {
     let active = true
@@ -332,7 +334,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     invoiceResolutionConfigured: isElectronicInvoiceResolutionConfigured,
   })
   const isConfigured = isJarvisCompany
-    ? isJarvisFullyConfigured
+    ? (hasJarvisBilling ? isJarvisFullyConfigured : isJarvisCompanyConfigured)
     : isSiigoFullyConfigured
   const setupPath = isJarvisCompany ? JARVIS_SETUP_PATH : SIIGO_SETUP_PATH
   const isSetupStatusPending = isAuthLoading || isCheckingSetup || (Boolean(companyId) && resolvedCompanyId !== companyId)
@@ -340,10 +342,10 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     !isSetupStatusPending &&
     integrationMode !== 'unknown' &&
     !isConfigured
-  const hasSupportDocumentAccess = isJarvisCompany || includedDocumentTypes.includes(
+  const hasSupportDocumentAccess = isJarvisCompany ? hasJarvisBilling : includedDocumentTypes.includes(
     'SUPPORT_DOCUMENT',
   )
-  const hasPurchaseInvoiceAccess = isJarvisCompany || includedDocumentTypes.includes(
+  const hasPurchaseInvoiceAccess = isJarvisCompany ? hasJarvisBilling : includedDocumentTypes.includes(
     'PURCHASE_INVOICE',
   )
   // En Jarvis cada tipo de documento se emite contra SU resolución DIAN, así
@@ -365,6 +367,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
    * factura electrónica. */
   const isSalesInvoiceEnabled =
     isJarvisCompany &&
+    hasJarvisBilling &&
     isJarvisCompanyConfigured &&
     isElectronicInvoiceResolutionConfigured
   /** Las notas crédito de venta son exclusivas de la integración Jarvis. */

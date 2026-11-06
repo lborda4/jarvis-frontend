@@ -27,6 +27,7 @@ export function terceroToForm(tercero: JarvisTercero): CreateJarvisTerceroReques
     municipality_id: tercero.municipality_id ?? undefined,
     type_regime_id: tercero.type_regime_id ?? undefined,
     email: tercero.email ?? '',
+    copy_emails: tercero.copy_emails?.slice() ?? [],
     phone: tercero.phone ?? '',
     address: tercero.address ?? '',
   }

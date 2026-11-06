@@ -4,6 +4,8 @@ import AdminDocumentPackages from '../components/AdminDocumentPackages'
 import AdminBoldSettings from '../components/AdminBoldSettings'
 import AdminTracking from '../components/AdminTracking'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
+import CompanyModuleSelect from '../components/CompanyModuleSelect'
+import { JARVIS_MODULES, JARVIS_MODULE_LABELS, companyJarvisModules, type JarvisModule } from '../types/companyModules'
 import { Fragment, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Autocomplete from '../components/Autocomplete'
@@ -24,6 +26,7 @@ import {
   updateCompanyDescription,
   updateCompanyNextPymeToken,
   updateCompanyIdSoftware,
+  updateCompanyJarvisModules,
   updateIntegrationSubscription,
 } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -103,7 +106,10 @@ function AdminPage() {
   const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking' | 'plans'>('jarvis')
   const [commercial, setCommercial] = useState('')
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
-  const { logout } = useAuth()
+  const { logout, refreshUser } = useAuth()
+  const [jarvisModules, setJarvisModules] = useState<JarvisModule[]>([...JARVIS_MODULES])
+  const [editingModules, setEditingModules] = useState<{ companyId: string; modules: JarvisModule[] } | null>(null)
+  const [savingModules, setSavingModules] = useState(false)
   const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([])
   const [plans, setPlans] = useState<AdminPlan[]>([])
@@ -282,6 +288,7 @@ function AdminPage() {
         INTEGRATION_PROVIDER.JARVIS,
       )
       const trimmedIdSoftware = idSoftware.trim()
+      if (includesJarvis && !jarvisModules.length) throw new Error('Selecciona al menos un módulo de Jarvis.')
       const trimmedTokenNextPyme = companyNextPymeToken.trim()
       const mergedJarvisCredentials: JarvisCredentialsSeed | undefined =
         includesJarvis
@@ -327,6 +334,7 @@ function AdminPage() {
         ...(includesJarvis
           ? {
               jarvisPlanId,
+              jarvisModules,
             }
           : {}),
         ...(includesSiigo && selectedDocumentTypes.length > 0
@@ -359,6 +367,7 @@ function AdminPage() {
       setCompanyNextPymeToken('')
       setSelectedCity(null)
       setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
+      setJarvisModules([...JARVIS_MODULES])
       setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
       setSiigoPlanId(siigoPlans[0]?.id ?? '')
       setJarvisPlanId(jarvisPlans[0]?.id ?? '')
@@ -930,6 +939,8 @@ function AdminPage() {
             </label>
           </fieldset>
 
+          {includesJarvis && <CompanyModuleSelect value={jarvisModules} onChange={setJarvisModules} disabled={isSubmitting} />}
+
           {includesSiigo && (
             <div className="admin-form__field admin-form__field--wide">
               <label htmlFor="admin-company-description">
@@ -1068,7 +1079,7 @@ function AdminPage() {
               !personType ||
               (includesSiigo &&
                 (!siigoPlanId || selectedDocumentTypes.length === 0)) ||
-              (includesJarvis && !jarvisPlanId)
+              (includesJarvis && (!jarvisPlanId || !jarvisModules.length))
             }
           >
             {isSubmitting ? 'Creando empresa...' : 'Crear empresa'}
@@ -1182,6 +1193,27 @@ function AdminPage() {
                   <td>
                       <div className="admin-integration-stack">
                         {company.integrations.map(integration => <span key={integration.id}>{formatProviderLabel(integration.provider)}</span>)}
+                        {company.integrations.some(integration => integration.provider === INTEGRATION_PROVIDER.JARVIS) && (
+                          editingModules?.companyId === company.id ? <div>
+                            <CompanyModuleSelect value={editingModules.modules} disabled={savingModules} onChange={modules => setEditingModules({ companyId: company.id, modules })} />
+                            <button type="button" disabled={savingModules || !editingModules.modules.length} onClick={async () => {
+                              setSavingModules(true); setErrorMessage(null)
+                              try {
+                                const response = await updateCompanyJarvisModules(company.id, editingModules.modules)
+                                setCompanies(current => current.map(item => item.id === company.id ? response.company : item))
+                                setEditingModules(null)
+                                setSuccessMessage(`Módulos de ${company.name} actualizados.`)
+                                void refreshUser().catch(() => undefined)
+                              } catch (error) {
+                                setErrorMessage(getApiErrorMessage(error, 'No se pudieron actualizar los módulos.'))
+                              } finally { setSavingModules(false) }
+                            }}>{savingModules ? 'Guardando…' : 'Guardar módulos'}</button>
+                            <button type="button" disabled={savingModules} onClick={() => setEditingModules(null)}>Cancelar</button>
+                          </div> : <div>
+                            <span>{companyJarvisModules(company.jarvisModules).map(module => JARVIS_MODULE_LABELS[module]).join(' · ')}</span>
+                            <button type="button" disabled={savingModules} onClick={() => setEditingModules({ companyId: company.id, modules: [...companyJarvisModules(company.jarvisModules)] })}>Editar módulos</button>
+                          </div>
+                        )}
                       </div>
                       <select
                         aria-label={`Agregar integración a ${company.name}`}

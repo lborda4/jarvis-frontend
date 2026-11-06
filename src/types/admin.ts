@@ -58,6 +58,7 @@ export interface AdminIntegrationItem {
 }
 
 export interface AdminCompanyListItem {
+  jarvisModules?: import('./companyModules').JarvisModule[] | null
   email?: string | null
   commercial?: string | null
   billingCycle?: 'MONTHLY' | 'ANNUAL' | null
@@ -101,6 +102,7 @@ export interface ListAdminPlansResponse {
 }
 
 export interface CreateAdminCompanyRequest {
+  jarvisModules?: import('./companyModules').JarvisModule[]
   commercial?: string
   billingCycle?: 'MONTHLY' | 'ANNUAL'
   nit: string

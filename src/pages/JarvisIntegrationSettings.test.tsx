@@ -27,6 +27,12 @@ function render(overrides: Record<string, unknown> = {}) {
 
 describe('identidad en la configuración de Jarvis', () => {
   beforeEach(() => vi.clearAllMocks())
+  it('no muestra pasos ni avisos de facturación para una empresa solo de nómina', () => {
+    const html = render({ showSetupRequiredNotice: true })
+    expect(html).toContain('usar Jarvis con nómina')
+    expect(html).not.toContain('Factura de Venta permanecerán bloqueados')
+    expect(html).not.toContain('jarvis-step-panel-resolutions')
+  })
 
   it('pide razón social para persona jurídica y conserva el nombre comercial', () => {
     const html = render()
