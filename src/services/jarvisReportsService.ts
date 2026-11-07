@@ -28,6 +28,16 @@ export interface JarvisReportResult {
   warnings: string[]
 }
 const endpoint = '/integrations/jarvis/reports'
+export interface JarvisReportSuggestion { value: string; label: string }
+export interface JarvisReportSuggestions {
+  customers: JarvisReportSuggestion[]
+  products: JarvisReportSuggestion[]
+  sellers: JarvisReportSuggestion[]
+  search: JarvisReportSuggestion[]
+}
+export async function fetchJarvisReportSuggestions(filters: Pick<JarvisReportFilters, 'report' | 'from' | 'to' | 'kind'>, signal?: AbortSignal): Promise<JarvisReportSuggestions> {
+  return (await apiClient.get<JarvisReportSuggestions>(`${endpoint}/suggestions`, { params: filters, signal, timeout: 120000 })).data
+}
 export async function fetchJarvisReport(filters: JarvisReportFilters, signal?: AbortSignal): Promise<JarvisReportResult> {
   return (await apiClient.get<JarvisReportResult>(endpoint, { params: filters, signal, timeout: 120000 })).data
 }

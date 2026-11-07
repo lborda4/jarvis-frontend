@@ -48,6 +48,8 @@ function JarvisIntegrationSettings() {
     setSurnames,
     tradeName,
     economicActivity,
+    icaRate,
+    setIcaRate,
     taxRegime,
     vatRegime,
     taxResponsibility,
@@ -504,6 +506,14 @@ function JarvisIntegrationSettings() {
                       disabled={isBusy}
                       required
                     />
+                  </div>
+
+                  <div className="settings-form__field">
+                    <label htmlFor="jarvis-ica-rate">Tarifa de ICA (‰)</label>
+                    <input id="jarvis-ica-rate" type="number" min="0" step="any" value={icaRate}
+                      onChange={event => setIcaRate(event.target.value)} placeholder="0" disabled={isBusy}
+                      aria-describedby="jarvis-ica-rate-hint" />
+                    <small id="jarvis-ica-rate-hint">Tarifa por mil. Si dejas este campo vacío, se guardará en 0.</small>
                   </div>
 
                   <div className="settings-form__field">

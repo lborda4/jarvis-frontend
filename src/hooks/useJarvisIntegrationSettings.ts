@@ -194,6 +194,7 @@ export function useJarvisIntegrationSettings() {
   const hasValidIdentity = isNaturalPerson ? Boolean(givenNames.trim() && surnames.trim()) : Boolean(businessName.trim())
   const [tradeName, setTradeName] = useState('')
   const [economicActivity, setEconomicActivity] = useState('')
+  const [icaRate, setIcaRate] = useState('0')
   const [taxRegime, setTaxRegime] = useState<JarvisTaxRegime>(
     JARVIS_TAX_REGIME.COMMON,
   )
@@ -313,6 +314,7 @@ export function useJarvisIntegrationSettings() {
         setSurnames(status.surnames ?? '')
         if (status.trade_name) setTradeName(status.trade_name)
         if (status.economic_activity) setEconomicActivity(status.economic_activity)
+        setIcaRate(String(status.ica_rate ?? 0))
         if (status.tax_regime) setTaxRegime(status.tax_regime)
         if (status.vat_regime) setVatRegime(status.vat_regime)
         if (status.tax_responsibility) {
@@ -540,6 +542,7 @@ export function useJarvisIntegrationSettings() {
           vat_regime: vatRegime,
           tax_responsibility: taxResponsibility,
           economic_activity: economicActivity.trim(),
+          ica_rate: Number(icaRate.trim() || 0),
           country: country.trim(),
           department: department.trim(),
           municipality: municipality.trim(),
@@ -550,6 +553,7 @@ export function useJarvisIntegrationSettings() {
         })
 
         markConfigured()
+        setIcaRate(String(Number(icaRate.trim() || 0)))
         setSuccessMessage(
           `Configuración de empresa guardada para ${response.business_name}.`,
         )
@@ -578,6 +582,7 @@ export function useJarvisIntegrationSettings() {
       country,
       department,
       economicActivity,
+      icaRate,
       email,
       goToNextStep,
       isSaving,
@@ -898,6 +903,8 @@ export function useJarvisIntegrationSettings() {
     setSurnames,
     tradeName,
     economicActivity,
+    icaRate,
+    setIcaRate,
     taxRegime,
     vatRegime,
     taxResponsibility,

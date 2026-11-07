@@ -1,10 +1,19 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { apiClient } from './apiClient'
-import { exportJarvisReport, fetchJarvisReport, type JarvisReportFilters } from './jarvisReportsService'
+import { exportJarvisReport, fetchJarvisReport, fetchJarvisReportSuggestions, type JarvisReportFilters } from './jarvisReportsService'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn() } }))
 beforeEach(() => vi.resetAllMocks())
 const filters: JarvisReportFilters = { report: 'products', view: 'detail', from: '2026-10-01', to: '2026-10-31', search: 'NC1', customer: 'Cliente', seller: 'Ana', product: 'Servicio', kind: 'CREDIT_NOTE', currency: 'COP', page: 3, pageSize: 20 }
+
+it('carga sugerencias del contexto completo con cancelación al cambiar de empresa', async () => {
+  const context = { report: filters.report, from: filters.from, to: filters.to, kind: filters.kind }
+  const signal = new AbortController().signal
+  const options = { customers: [{ value: '123', label: 'Cliente — 123' }], products: [], sellers: [], search: [] }
+  vi.mocked(apiClient.get).mockResolvedValue({ data: options })
+  await expect(fetchJarvisReportSuggestions(context, signal)).resolves.toEqual(options)
+  expect(apiClient.get).toHaveBeenCalledWith('/integrations/jarvis/reports/suggestions', { params: context, signal, timeout: 120000 })
+})
 
 it('envía todos los filtros y permite cancelar una consulta al cambiar de empresa', async () => {
   const signal = new AbortController().signal

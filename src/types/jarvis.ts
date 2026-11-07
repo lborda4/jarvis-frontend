@@ -45,6 +45,7 @@ export type JarvisDocumentType =
   (typeof JARVIS_DOCUMENT_TYPE)[keyof typeof JARVIS_DOCUMENT_TYPE]
 
 export interface SaveJarvisCredentialsRequest {
+  ica_rate?: number
   person_type?: import('./admin').CompanyPersonType
   given_names?: string
   surnames?: string
@@ -209,6 +210,7 @@ export function isResolutionOfDocumentType(
 }
 
 export interface JarvisCredentialsStatusResponse {
+  ica_rate?: number
   person_type?: import('./admin').CompanyPersonType
   given_names?: string
   surnames?: string

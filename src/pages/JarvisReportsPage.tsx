@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
@@ -9,7 +9,7 @@ import { CalendarIcon, InvoiceIcon } from '../components/icons/SidebarIcons'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
-import { exportJarvisReport, fetchJarvisReport, type JarvisReportFilters, type JarvisReportResult } from '../services/jarvisReportsService'
+import { exportJarvisReport, fetchJarvisReport, fetchJarvisReportSuggestions, type JarvisReportFilters, type JarvisReportResult, type JarvisReportSuggestions } from '../services/jarvisReportsService'
 import './JarvisReportsPage.css'
 
 const reportOptions = [
@@ -17,7 +17,7 @@ const reportOptions = [
 ] as const
 function initialFilters(): JarvisReportFilters {
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-  return { report: 'sales', view: 'detail', from: `${today.slice(0, 7)}-01`, to: today, search: '', customer: '', seller: '', product: '', kind: '', currency: 'COP', page: 1, pageSize: 10 }
+  return { report: 'sales', view: 'detail', from: `${today.slice(0, 7)}-01`, to: today, search: '', customer: '', seller: '', product: '', kind: '', currency: '', page: 1, pageSize: 10 }
 }
 
 export default function JarvisReportsPage() {
@@ -26,10 +26,14 @@ export default function JarvisReportsPage() {
   const companyId = user?.company?.id ?? ''
   const [filters, setFilters] = useState(initialFilters)
   const [draft, setDraft] = useState(filters)
+  const suggestionId = useId()
+  const [suggestionAttempt, setSuggestionAttempt] = useState(0)
+  const suggestionKey = JSON.stringify([user?.id, companyId, draft.report, draft.from, draft.to, draft.kind, suggestionAttempt])
+  const [suggestionEntry, setSuggestionEntry] = useState<{ key: string; data: JarvisReportSuggestions | null; failed: boolean } | null>(null)
+  const suggestions = suggestionEntry?.key === suggestionKey ? suggestionEntry.data : null
   const [attempt, setAttempt] = useState(0)
   const [entry, setEntry] = useState<{ key: string; data: JarvisReportResult | null; error: string } | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [moreFilters, setMoreFilters] = useState(false)
   const [exportError, setExportError] = useState<{ key: string; message: string } | null>(null)
   const requestKey = JSON.stringify([user?.id, companyId, filters, attempt])
   const currentKey = useRef(requestKey)
@@ -40,6 +44,17 @@ export default function JarvisReportsPage() {
   const data = entry?.key === requestKey ? entry.data : null
   const error = entry?.key === requestKey ? entry.error : ''
   const loading = entry?.key !== requestKey
+
+  useEffect(() => {
+    if (!isJarvisCompany || isCheckingSetup || !companyId || !draft.from || !draft.to || draft.from > draft.to) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void fetchJarvisReportSuggestions({ report: draft.report, from: draft.from, to: draft.to, kind: draft.kind }, controller.signal)
+        .then(data => { if (!controller.signal.aborted) setSuggestionEntry({ key: suggestionKey, data, failed: false }) })
+        .catch(() => { if (!controller.signal.aborted) setSuggestionEntry({ key: suggestionKey, data: null, failed: true }) })
+    }, 250)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [companyId, draft.report, draft.from, draft.to, draft.kind, isCheckingSetup, isJarvisCompany, suggestionKey])
 
   useEffect(() => {
     if (!isJarvisCompany || isCheckingSetup || !companyId) return
@@ -56,7 +71,7 @@ export default function JarvisReportsPage() {
 
   const consult = (event: FormEvent) => {
     event.preventDefault()
-    setFilters({ ...draft, currency: draft.currency.trim().toUpperCase(), view: filters.view, pageSize: filters.pageSize, page: 1 })
+    setFilters({ ...draft, view: filters.view, pageSize: filters.pageSize, page: 1 })
     setAttempt(value => value + 1)
   }
   const selectReport = (report: JarvisReportFilters['report']) => {
@@ -101,17 +116,18 @@ export default function JarvisReportsPage() {
       const next = { ...filters, from: range.dateFrom ?? initialFilters().from, to: range.dateTo ?? initialFilters().to, page: 1 }
       setFilters(next); setDraft(current => ({ ...current, from: next.from, to: next.to }))
     }} /></div><Button disabled={!data || exporting || loading} onClick={() => void download()}><InvoiceIcon />{exporting ? 'Generando Excel…' : 'Exportar a Excel'}</Button></div></header>
-    <form className="integration-card jarvis-reports__filters" onSubmit={consult}>
-      {draft.report === 'sales' ? <label>Buscar por cliente, número o identificación<input type="search" value={draft.search ?? ''} maxLength={200} placeholder="Buscar…" onChange={event => setDraft({ ...draft, search: event.target.value })} /></label> : <label>Buscar por producto<input value={draft.product} maxLength={200} placeholder="Buscar por código o nombre…" onChange={event => setDraft({ ...draft, product: event.target.value })} /></label>}
-      <label>{draft.report === 'taxes' ? 'Cliente / proveedor' : 'Cliente'}<input value={draft.customer} maxLength={200} placeholder="Identificación o nombre" onChange={event => setDraft({ ...draft, customer: event.target.value })} /></label>
-      <label>Vendedor<input value={draft.seller} maxLength={200} placeholder="Nombre del vendedor" onChange={event => setDraft({ ...draft, seller: event.target.value })} /></label>
+    <form className={`integration-card jarvis-reports__filters${draft.report === 'customers' ? ' jarvis-reports__filters--customers' : ''}`} onSubmit={consult}>
+      {draft.report !== 'customers' && (draft.report === 'sales' ? <label>Buscar por cliente, número o identificación<input type="search" list={`${suggestionId}-search`} autoComplete="off" value={draft.search ?? ''} maxLength={200} placeholder="Buscar…" onChange={event => setDraft({ ...draft, search: event.target.value })} /></label> : <label>Buscar por producto<input list={`${suggestionId}-products`} autoComplete="off" value={draft.product} maxLength={200} placeholder="Buscar por código o nombre…" onChange={event => setDraft({ ...draft, product: event.target.value })} /></label>)}
+      <label>{draft.report === 'taxes' ? 'Cliente / proveedor' : 'Cliente'}<input list={`${suggestionId}-customers`} autoComplete="off" value={draft.customer} maxLength={200} placeholder="Identificación o nombre" onChange={event => setDraft({ ...draft, customer: event.target.value })} /></label>
+      {draft.report !== 'customers' && <label>Vendedor<input list={`${suggestionId}-sellers`} autoComplete="off" value={draft.seller} maxLength={200} placeholder="Nombre del vendedor" onChange={event => setDraft({ ...draft, seller: event.target.value })} /></label>}
       <label>Tipo de comprobante<select value={draft.kind} onChange={event => setDraft({ ...draft, kind: event.target.value })}>
         <option value="">Todos</option><option value="ELECTRONIC_INVOICE">Factura de venta</option><option value="CREDIT_NOTE">Nota crédito</option><option value="DEBIT_NOTE">Nota débito</option>
         {draft.report === 'taxes' && <><option value="SUPPORT_DOCUMENT">Documento soporte</option><option value="SUPPORT_CREDIT_NOTE">Nota de ajuste</option></>}
       </select></label>
       {draft.report === 'sales' && <><label>Fecha inicial<input type="date" required value={draft.from} max={draft.to || undefined} onChange={event => setDraft({ ...draft, from: event.target.value })} /></label><label>Fecha final<input type="date" required value={draft.to} min={draft.from || undefined} onChange={event => setDraft({ ...draft, to: event.target.value })} /></label></>}
-      {moreFilters && <div id="jarvis-reports-more-filters" className="jarvis-reports__advanced"><label>Moneda<input value={draft.currency} maxLength={3} pattern="[A-Za-z]{3}|^$" placeholder="Todas" onChange={event => setDraft({ ...draft, currency: event.target.value })} /></label></div>}
-      <div className="jarvis-reports__filter-actions"><Button variant="outline" aria-expanded={moreFilters} aria-controls="jarvis-reports-more-filters" onClick={() => setMoreFilters(value => !value)}>☷ Más filtros</Button><Button type="submit" disabled={loading}>Consultar</Button><Button className="jarvis-reports__clear" variant="ghost" onClick={clearFilters}>↻ Limpiar filtros</Button></div>
+      <div className="jarvis-reports__filter-actions"><Button type="submit" disabled={loading}>Consultar</Button><Button className="jarvis-reports__clear" variant="ghost" onClick={clearFilters}>↻ Limpiar filtros</Button></div>
+      {(['customers', 'products', 'sellers', 'search'] as const).map(field => <datalist key={field} id={`${suggestionId}-${field}`}>{(suggestions?.[field] ?? []).map(option => <option key={option.value} value={option.value} label={option.label} />)}</datalist>)}
+      {suggestionEntry?.key === suggestionKey && suggestionEntry.failed && <p className="jarvis-reports__suggestions-status" role="status">No pudimos cargar las sugerencias. Puedes escribir el filtro y consultar. <Button variant="ghost" onClick={() => setSuggestionAttempt(value => value + 1)}>Reintentar sugerencias</Button></p>}
     </form>
     <div className="jarvis-reports__view"><span>Vista del reporte</span><div role="group" aria-label="Vista del reporte">{(['detail', 'summary'] as const).map(view => <Button key={view} variant={filters.view === view ? 'primary' : 'outline'} aria-pressed={filters.view === view} onClick={() => setFilters({ ...filters, view, page: 1 })}>{view === 'summary' ? 'Consolidado' : 'Registros individuales'}</Button>)}</div></div>
     <p className="jarvis-reports__period">Período consultado: {filters.from} a {filters.to}. La exportación incluye todos los registros filtrados, sus consolidados y totales por moneda.</p>
