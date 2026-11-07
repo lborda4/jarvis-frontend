@@ -52,8 +52,6 @@ import {
   calculateSalesInvoiceTax,
   formatSalesInvoiceTaxLabel,
   requireSalesInvoiceTaxCatalogId,
-  salesInvoiceTaxesForIssuer,
-  salesInvoiceLineForIssuer,
   type SalesInvoiceTaxOption,
 } from '../utils/salesInvoiceTaxes'
 import {
@@ -265,7 +263,6 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   const [footNote, setFootNote] = useState('')
   const [discountIsPercent, setDiscountIsPercent] = useState(false)
   const [generalDiscount, setGeneralDiscount] = useState('0')
-  const [issuerNonResponsibleForIva, setIssuerNonResponsibleForIva] = useState(false)
 
   const [customerQuery, setCustomerQuery] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<InvoiceCustomer | null>(null)
@@ -421,12 +418,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           draftId ? fetchInvoiceDraft<InvoiceDraftState>(draftId) : Promise.resolve(null),
         ])
         if (cancelled) return
-        const allTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
-        const nonResponsibleForIva = !isNote && !supportDocument && jarvisStatus?.vat_regime === 'non_vat_responsible'
-        setIssuerNonResponsibleForIva(nonResponsibleForIva)
-        const mergedTaxes = salesInvoiceTaxesForIssuer(allTaxes, nonResponsibleForIva)
-        const normalizeIssuerLine = (line: LineItem) => salesInvoiceLineForIssuer(line, allTaxes, nonResponsibleForIva)
-        setLines(current => current.map(normalizeIssuerLine))
+        const mergedTaxes = buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes ?? [])
         setTaxes(mergedTaxes)
         setPaymentMethods(savedPaymentMethods.items)
         setPaymentForms(catalogs.paymentForms ?? [])
@@ -435,7 +427,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         if (savedPaymentMethods.items[0]) setPayments([{ ...createEmptyPayment(), methodId: savedPaymentMethods.items[0].id }])
         const hasCop = (catalogs.currencies ?? []).some((item) => (item.code ?? '').trim().toUpperCase() === 'COP')
         if (!hasCop) { const fc = catalogs.currencies?.[0]?.code?.trim(); if (fc) setCurrency(fc.toUpperCase()) }
-        const defaultIvaPercent = nonResponsibleForIva ? 0 : DEFAULT_IVA_PERCENT
+        const defaultIvaPercent = DEFAULT_IVA_PERCENT
         const ivaDefault = mergedTaxes.find((tax) => tax.category === 'IMPUESTO' && isIvaTax(tax) && tax.percentage === defaultIvaPercent)
         if (ivaDefault) setLines((current) => current.map((line) => line.taxChargeId ? line : { ...line, taxChargeId: String(ivaDefault.id), taxPercent: String(defaultIvaPercent) }))
         const resolution = creditNote && siigoStatus?.creditNoteResolution
@@ -467,7 +459,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           setIssueDate(state.issueDate); setDueDate(state.dueDate); setCurrency(state.currency)
           setNotes(state.notes); setHeadNote(state.headNote); setFootNote(state.footNote)
           setDiscountIsPercent(state.discountIsPercent); setGeneralDiscount(state.generalDiscount)
-          setLines(state.lines.map(normalizeIssuerLine)); setPaymentFormId(state.paymentFormId); setPayments(state.paymentEntries)
+          setLines(state.lines); setPaymentFormId(state.paymentFormId); setPayments(state.paymentEntries)
           setReteIcaId(state.reteIcaId); setReteIvaId(state.reteIvaId)
           setBillingNumber(state.billingNumber); setBillingUuid(state.billingUuid); setBillingDate(state.billingDate)
           setReasonCode(state.reasonCode); setReasonDescription(state.reasonDescription); setSeze(state.seze)
@@ -493,8 +485,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           setCustomerQuery(`${request.customerIdentification} — ${request.customerName || source.customerName}`)
           setIssueDate(today); setDueDate(request.payment?.due_date ?? today)
           setCurrency(request.currency || source.currency)
-          setTaxes(salesInvoiceTaxesForIssuer(prefill.taxes, nonResponsibleForIva))
-          setLines(prefill.lines.map(line => salesInvoiceLineForIssuer(line, prefill.taxes, nonResponsibleForIva)))
+          setTaxes(prefill.taxes)
+          setLines(prefill.lines)
           setReteIcaId(prefill.reteIcaId); setReteIvaId(prefill.reteIvaId)
           setDiscountIsPercent(false)
           setNotes(request.observations ?? ''); setHeadNote(request.headNote ?? ''); setFootNote(request.footNote ?? '')
@@ -590,11 +582,11 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
   const handleSelectProduct = useCallback(
     (lineId: string, product: ProductResponse) => {
-      const productIvaTax = issuerNonResponsibleForIva ? undefined : findProductIvaTax(product)
+      const productIvaTax = findProductIvaTax(product)
       const ivaRate = productIvaTax?.rate ?? null
       const productRetefuenteTax = findProductRetefuenteTax(product)
 
-      const priceOptions = getSalesInvoicePrices(product, !issuerNonResponsibleForIva)
+      const priceOptions = getSalesInvoicePrices(product)
       const firstPrice = priceOptions[0]
 
       let taxChargeId: string | undefined
@@ -671,7 +663,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         return next
       })
     },
-    [chargeTaxes, lines, retentionTaxes, issuerNonResponsibleForIva],
+    [chargeTaxes, lines, retentionTaxes],
   )
 
   const removePayment = (id: string) => {
@@ -1013,7 +1005,6 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
         {/* Detalle productos/servicios */}
         <section className="ds-individual__section">
-          {issuerNonResponsibleForIva && <p role="status">El emisor está configurado como no responsable de IVA. Esta factura de venta se calcula sin cobrar IVA.</p>}
           <div className="ds-individual__section-head">
             <h2>Detalle de productos o servicios</h2>
             <button type="button" className="ds-individual__add-line" onClick={() => setLines((current) => [...current, createEmptyLine()])}>

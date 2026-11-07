@@ -39,6 +39,28 @@ describe('sales invoice HTML template adaptation', () => {
     expect(text).not.toContain(item.code)
   })
 
+  it.each([4.14, 0, undefined])('muestra actividad completa y omite la tarifa ICA %s si no es positiva', icaRate => {
+    const activity = '1410 - Confección de prendas de vestir, excepto prendas de piel'
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data,
+      issuer: { ...party, economicActivity: '1410' },
+      issuerTaxProfile: { source: 'emission', economicActivity: activity, icaRate },
+    }, qr: '' }))
+    expect(text).toContain(`Actividad económica: ${activity}`)
+    if (icaRate) expect(text).toContain(` · Tarifa ICA: ${icaRate} ‰`)
+    else expect(text).not.toContain('Tarifa ICA:')
+    expect(text.indexOf('Actividad económica:')).toBeGreaterThan(text.indexOf('Vigencia:'))
+    expect(text.indexOf('CUFE:')).toBeGreaterThan(text.indexOf('Actividad económica:'))
+  })
+  it('respeta la actividad del XML si su código difiere y no inventa una tarifa histórica ausente', () => {
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data,
+      issuer: { ...party, economicActivity: '4923' },
+      issuerTaxProfile: { source: 'emission', economicActivity: '1410 - Otra actividad' },
+    }, qr: '' }))
+    expect(text).toContain('Actividad económica: 4923')
+    expect(text).not.toContain('Tarifa ICA:')
+    expect(text).not.toContain('Otra actividad')
+  })
+
   it.each([undefined, null, '', '   ', 'ABC'])('usa la descripción si el nombre es %s sin mostrar el código', name => {
     const item = { ...data.items[0], name }
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, items: [item] }, qr: '' }))

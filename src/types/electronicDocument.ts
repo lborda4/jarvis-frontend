@@ -331,6 +331,7 @@ export interface PurchaseInvoiceDownloadWithholding {
 export interface PurchaseInvoiceDownload {
   recipientCopyEmails?: string[]
   issuerTaxProfile?: {
+    icaRate?: number
     vatRegime?: string
     economicActivity?: string
     taxResponsibility?: string

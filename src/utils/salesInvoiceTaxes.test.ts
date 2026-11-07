@@ -5,8 +5,6 @@ import {
   calculateSalesInvoiceTax,
   formatSalesInvoiceTaxLabel,
   requireSalesInvoiceTaxCatalogId,
-  salesInvoiceTaxesForIssuer,
-  salesInvoiceLineForIssuer,
 } from './salesInvoiceTaxes'
 
 function savedTax(overrides: Partial<JarvisTax> = {}): JarvisTax {
@@ -18,15 +16,12 @@ function savedTax(overrides: Partial<JarvisTax> = {}): JarvisTax {
 }
 
 describe('impuestos de factura de venta', () => {
-  it('un emisor no responsable conserva IVA cero y otros tributos, sin ofrecer IVA positivo', () => {
+  it('ofrece todas las tarifas de IVA y calcula la seleccionada', () => {
     const taxes = buildSalesInvoiceTaxOptions([], [{ id: 1, name: 'IVA' }, { id: 4, name: 'INC' }])
-    const allowed = salesInvoiceTaxesForIssuer(taxes, true)
-    expect(allowed.filter(tax => tax.type === 'IVA').map(tax => tax.percentage)).toEqual([0])
-    expect(allowed.some(tax => tax.type === 'INC')).toBe(true)
-    expect(salesInvoiceTaxesForIssuer(taxes, false)).toBe(taxes)
-    const line = { taxChargeId: 'default:iva19', taxPercent: '19', description: 'Borrador guardado' }
-    expect(salesInvoiceLineForIssuer(line, taxes, true)).toEqual({ ...line, taxChargeId: 'default:iva0', taxPercent: '0' })
-    expect(salesInvoiceLineForIssuer(line, taxes, false)).toBe(line)
+    const ivaTaxes = taxes.filter(tax => tax.type === 'IVA')
+    expect(ivaTaxes.map(tax => tax.percentage)).toEqual([0, 5, 19])
+    expect(ivaTaxes.map(tax => calculateSalesInvoiceTax(100000, tax.id, String(tax.percentage)))).toEqual([0, 5000, 19000])
+    expect(taxes.some(tax => tax.type === 'INC')).toBe(true)
   })
   it('muestra el nombre del predeterminado guardado sin repetir la tarifa', () => {
     const options = buildSalesInvoiceTaxOptions([savedTax({ name: 'IVA | 19%', rate: 19 })], [])

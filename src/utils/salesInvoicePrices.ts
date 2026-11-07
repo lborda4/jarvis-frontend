@@ -7,7 +7,7 @@ export interface SalesInvoicePriceOption {
   unitValue: string
 }
 
-export function getSalesInvoicePrices(product: ProductResponse, chargeIva = true): SalesInvoicePriceOption[] {
+export function getSalesInvoicePrices(product: ProductResponse): SalesInvoicePriceOption[] {
   const ivaRate = productIvaRate(product)
   return [...(product.priceLists ?? [])]
     .filter((list) => list.enabled)
@@ -15,7 +15,7 @@ export function getSalesInvoicePrices(product: ProductResponse, chargeIva = true
     .map((list) => ({
       id: list.id,
       name: list.name || `Precio ${list.position}`,
-      unitValue: String(chargeIva && product.priceIncludesIva && ivaRate
+      unitValue: String(product.priceIncludesIva && ivaRate
         ? Math.round((list.price / (1 + ivaRate / 100)) * 100) / 100
         : list.price),
     }))
