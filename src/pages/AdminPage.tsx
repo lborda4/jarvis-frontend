@@ -5,6 +5,7 @@ import AdminBoldSettings from '../components/AdminBoldSettings'
 import AdminTracking from '../components/AdminTracking'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import CompanyModuleSelect from '../components/CompanyModuleSelect'
+import AdminCompanyWelcome from '../components/AdminCompanyWelcome'
 import { JARVIS_MODULES, JARVIS_MODULE_LABELS, companyJarvisModules, type JarvisModule } from '../types/companyModules'
 import { Fragment, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -21,7 +22,6 @@ import {
   fetchAdminCompanies,
   fetchAdminPlans,
   lookupAdminCompanyName,
-  regenerateCompanyInviteCode,
   updateCompanyCity,
   updateCompanyDescription,
   updateCompanyNextPymeToken,
@@ -119,10 +119,7 @@ function AdminPage() {
   const [updatingIntegrationId, setUpdatingIntegrationId] = useState<
     string | null
   >(null)
-  const [regeneratingCompanyId, setRegeneratingCompanyId] = useState<
-    string | null
-  >(null)
-  const [copiedCompanyId, setCopiedCompanyId] = useState<string | null>(null)
+  const [registrationEmail, setRegistrationEmail] = useState('')
   const [editingTokenCompanyId, setEditingTokenCompanyId] = useState<
     string | null
   >(null)
@@ -309,6 +306,7 @@ function AdminPage() {
         commercial: commercial.trim(),
         billingCycle,
         nit: nit.trim(),
+        registrationEmail: registrationEmail.trim(),
         name: name.trim(),
         ...(includesSiigo && description.trim()
           ? { description: description.trim() }
@@ -352,9 +350,11 @@ function AdminPage() {
       })
 
       setCompanies((current) => [response.company, ...current])
-      setSuccessMessage(`Empresa ${response.company.name} creada correctamente.`)
+      setSuccessMessage(`Empresa ${response.company.name} creada correctamente.${response.welcome?.status === 'SENT' ? ' Se envió el correo de bienvenida.' : ''}`)
+      if (response.welcome?.status === 'FAILED') setErrorMessage(response.welcome.message)
 
       setNit('')
+      setRegistrationEmail('')
       setCommercial('')
       setBillingCycle('MONTHLY')
       setName('')
@@ -462,53 +462,6 @@ function AdminPage() {
       )
     } finally {
       setUpdatingIntegrationId(null)
-    }
-  }
-
-  const handleCopyInviteCode = async (company: AdminCompanyListItem) => {
-    try {
-      await navigator.clipboard.writeText(company.inviteCode)
-      setCopiedCompanyId(company.id)
-      window.setTimeout(() => {
-        setCopiedCompanyId((current) =>
-          current === company.id ? null : current,
-        )
-      }, 2000)
-    } catch {
-      setErrorMessage('No se pudo copiar el código. Cópialo manualmente.')
-    }
-  }
-
-  const handleRegenerateInviteCode = async (company: AdminCompanyListItem) => {
-    const confirmed = window.confirm(
-      `¿Regenerar el código de invitación de ${company.name}? El código actual dejará de funcionar.`,
-    )
-
-    if (!confirmed) {
-      return
-    }
-
-    setErrorMessage(null)
-    setSuccessMessage(null)
-    setRegeneratingCompanyId(company.id)
-
-    try {
-      const response = await regenerateCompanyInviteCode(company.id)
-
-      setCompanies((current) =>
-        current.map((item) =>
-          item.id === company.id
-            ? { ...item, inviteCode: response.company.inviteCode }
-            : item,
-        ),
-      )
-      setSuccessMessage(`Código de invitación regenerado para ${company.name}.`)
-    } catch (error) {
-      setErrorMessage(
-        getApiErrorMessage(error, 'No se pudo regenerar el código.'),
-      )
-    } finally {
-      setRegeneratingCompanyId(null)
     }
   }
 
@@ -868,6 +821,12 @@ function AdminPage() {
             </div>
           </div>
 
+          <div className="admin-form__field">
+            <label htmlFor="admin-registration-email">Correo de bienvenida</label>
+            <input id="admin-registration-email" type="email" value={registrationEmail} onChange={event => setRegistrationEmail(event.target.value)} required maxLength={254} disabled={isSubmitting} placeholder="usuario@empresa.com" />
+            <small>Enviaremos a este correo el enlace para crear el usuario de la empresa. El destinatario solo tendrá que definir su contraseña.</small>
+          </div>
+
           <fieldset className="admin-form__responsible">
             <legend>Persona a cargo (opcional)</legend>
             <div className="admin-form__grid">
@@ -1079,6 +1038,7 @@ function AdminPage() {
               !personType ||
               (includesSiigo &&
                 (!siigoPlanId || selectedDocumentTypes.length === 0)) ||
+              !registrationEmail.trim() ||
               (includesJarvis && (!jarvisPlanId || !jarvisModules.length))
             }
           >
@@ -1095,7 +1055,7 @@ function AdminPage() {
         const columns = provider === INTEGRATION_PROVIDER.SIIGO
           ? [0, 1, 2, 14, 3, 6, 7, 8, 11, 13]
           : [0, 1, 2, 14, 6, 7, 11, 12];
-        const headings = ['Código de invitación', 'NIT', 'Empresa', 'Descripción', 'Tipo', 'Persona a cargo', 'Integración', 'Plan', 'Documentos', 'Suscripción', 'Creada', 'Token NextPyme', 'IDSoftware', 'Ciudad', 'Correo'];
+        const headings = ['Acceso de usuario', 'NIT', 'Empresa', 'Descripción', 'Tipo', 'Persona a cargo', 'Integración', 'Plan', 'Documentos', 'Suscripción', 'Creada', 'Token NextPyme', 'IDSoftware', 'Ciudad', 'Correo'];
         return <section className="admin-card" key={provider}>
           <div className="admin-card__header"><h2>Empresas con integración {formatProviderLabel(provider)}</h2></div>
           {isLoading ? <LoadingIndicator message="Cargando empresas..." /> : rows.length === 0 ? <p className="admin-empty">No hay empresas con esta integración.</p> :
@@ -1107,28 +1067,7 @@ function AdminPage() {
                 };
                 const cells = [
                   <td>
-                        <div className="admin-invite-code">
-                          <code>{company.inviteCode}</code>
-                          <button
-                            type="button"
-                            onClick={() => void handleCopyInviteCode(company)}
-                          >
-                            {copiedCompanyId === company.id
-                              ? 'Copiado'
-                              : 'Copiar'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={regeneratingCompanyId === company.id}
-                            onClick={() =>
-                              void handleRegenerateInviteCode(company)
-                            }
-                          >
-                            {regeneratingCompanyId === company.id
-                              ? 'Regenerando...'
-                              : 'Regenerar'}
-                          </button>
-                        </div>
+                        <AdminCompanyWelcome company={company} onSent={email => setCompanies(current => current.map(item => item.id === company.id ? { ...item, registrationEmail: email } : item))} />
                       </td>,
                   <td>{company.nit}</td>,
                   <td>{company.name}</td>,

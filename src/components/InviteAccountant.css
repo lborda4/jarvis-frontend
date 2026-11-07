@@ -1,0 +1,24 @@
+.invite-accountant {
+  margin: 1.25rem 0;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  background: var(--jarvis-surface, #fff);
+  border: 1px solid var(--jarvis-border, #dce6ec);
+  border-radius: var(--r-lg, 16px);
+}
+
+.invite-accountant__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.invite-accountant h2 { margin: 0 0 .5rem; font-size: 1.1rem; color: var(--jarvis-navy); }
+.invite-accountant p { margin: 0; max-width: 65ch; color: var(--jarvis-text-muted); line-height: 1.6; }
+.invite-accountant__form { margin-top: 1.25rem; max-width: 38rem; }
+.invite-accountant__form small { line-height: 1.6; color: var(--jarvis-text-muted); }
+.invite-accountant__actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+.invite-accountant__cancel { padding: .6rem 1rem; border: 1px solid var(--jarvis-border, #dce6ec); border-radius: var(--r-md, 8px); background: transparent; color: var(--jarvis-navy); cursor: pointer; }
+.invite-accountant__cancel:disabled { opacity: .6; cursor: not-allowed; }
+.invite-accountant__cancel:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }

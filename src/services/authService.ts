@@ -13,6 +13,7 @@ import {
   AUTH_RESET_PASSWORD_ENDPOINT,
   AUTH_REFRESH_ENDPOINT,
   AUTH_REGISTER_ENDPOINT,
+  AUTH_REGISTRATION_POLICY_ENDPOINT,
   AUTH_RUT_PARSE_ENDPOINT,
   AUTH_SWITCH_COMPANY_ENDPOINT,
 } from '../constants/authEndpoints'
@@ -60,6 +61,14 @@ export async function register(request: RegisterRequest): Promise<AuthSession> {
   setTokens(session.tokens)
 
   return session
+}
+
+export async function fetchRegistrationPolicy(registrationToken: string): Promise<import('../types/auth').RegistrationLinkInfo> {
+  return (await apiClient.post<import('../types/auth').RegistrationLinkInfo>(AUTH_REGISTRATION_POLICY_ENDPOINT, { registrationToken })).data
+}
+
+export async function inviteAccountant(email: string): Promise<{ status: 'SENT' | 'FAILED'; message: string }> {
+  return (await apiClient.post<{ status: 'SENT' | 'FAILED'; message: string }>('/auth/company/invite-accountant', { email })).data
 }
 
 export async function parseRegistrationRut(

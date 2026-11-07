@@ -31,7 +31,7 @@ import {
 import type { SiigoSupplierPersonType } from '../types/siigo'
 import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
 import { entityTypeFromDocumentType, terceroToForm } from '../utils/jarvisTerceroForm'
-import { parseCopyEmails } from '../utils/copyEmails'
+import { addCopyEmail } from '../utils/copyEmails'
 import '../pages/TercerosPage.css'
 import '../pages/InvoiceUpload.css'
 
@@ -188,7 +188,10 @@ function CreateJarvisTerceroModal({
   editingTercero,
 }: CreateJarvisTerceroModalProps) {
   const [form, setForm] = useState<CreateJarvisTerceroRequest>(EMPTY_FORM)
-  const [copyEmailsInput, setCopyEmailsInput] = useState('')
+  const [copyEmails, setCopyEmails] = useState<string[]>([])
+  const [copyEmailDraft, setCopyEmailDraft] = useState('')
+  const [copyEmailError, setCopyEmailError] = useState('')
+  const copyEmailInputRef = useRef<HTMLInputElement>(null)
   const [typeLiabilities, setTypeLiabilities] = useState<JarvisTypeLiability[]>(
     [],
   )
@@ -288,7 +291,9 @@ function CreateJarvisTerceroModal({
     openedKeyRef.current = openKey
     const documentType = resolveDocumentType(initialDocumentType)
     const documentNumber = initialDocumentNumber?.trim() || ''
-    setCopyEmailsInput(editingTercero?.copy_emails?.join(', ') ?? '')
+    setCopyEmails([...(editingTercero?.copy_emails ?? [])])
+    setCopyEmailDraft('')
+    setCopyEmailError('')
     setForm(editingTercero ? terceroToForm(editingTercero) : {
       ...EMPTY_FORM,
       document_type: documentType,
@@ -373,6 +378,18 @@ function CreateJarvisTerceroModal({
     [municipalities, form.municipality_id],
   )
 
+  const handleAddCopyEmail = () => {
+    if (isSaving || isLookingUpNit || !copyEmailDraft.trim()) return
+    try {
+      setCopyEmails(addCopyEmail(copyEmails, copyEmailDraft, form.email))
+      setCopyEmailDraft('')
+      setCopyEmailError('')
+      copyEmailInputRef.current?.focus()
+    } catch (error) {
+      setCopyEmailError(error instanceof Error ? error.message : 'Revisa el correo adicional.')
+    }
+  }
+
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (isSaving || isLookingUpNit) return
@@ -397,7 +414,7 @@ function CreateJarvisTerceroModal({
           : {}),
         type_regime_id: form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
         ...(form.email?.trim() ? { email: form.email.trim() } : {}),
-        ...(provider === 'JARVIS' ? { copy_emails: parseCopyEmails(copyEmailsInput, form.email) } : {}),
+        ...(provider === 'JARVIS' ? { copy_emails: addCopyEmail(copyEmails, copyEmailDraft, form.email) } : {}),
         ...(form.phone?.trim() ? { phone: form.phone.trim() } : {}),
         ...(form.address?.trim() ? { address: form.address.trim() } : {}),
       }
@@ -783,12 +800,6 @@ function CreateJarvisTerceroModal({
               />
             </div>
 
-            {provider === 'JARVIS' && <div className="terceros-page__field">
-              <label htmlFor="tercero-copy-emails">Correos para copia (CC)</label>
-              <textarea id="tercero-copy-emails" value={copyEmailsInput} onChange={event => setCopyEmailsInput(event.target.value)} disabled={isSaving || isLookingUpNit} rows={2} maxLength={2550} placeholder="contabilidad@empresa.com, otro@correo.com" />
-              <small>Hasta 10 correos separados por coma. Recibirán copia al emitir facturas, documentos soporte y notas de este tercero.</small>
-            </div>}
-
             <div className="terceros-page__field">
               <label htmlFor="tercero-phone">Teléfono</label>
               <input
@@ -821,6 +832,41 @@ function CreateJarvisTerceroModal({
               />
             </div>
           </div>
+
+          {provider === 'JARVIS' && <div className="terceros-page__field terceros-page__copy-emails">
+            <label htmlFor="tercero-copy-emails">Correos adicionales (CC)</label>
+            <div className="terceros-page__copy-email-entry">
+              <input
+                ref={copyEmailInputRef}
+                id="tercero-copy-emails"
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+                value={copyEmailDraft}
+                onChange={event => { setCopyEmailDraft(event.target.value); setCopyEmailError('') }}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault()
+                    handleAddCopyEmail()
+                  }
+                }}
+                disabled={isSaving || isLookingUpNit}
+                maxLength={254}
+                placeholder="contabilidad@empresa.com"
+                aria-invalid={Boolean(copyEmailError)}
+                aria-describedby={copyEmailError ? 'tercero-copy-emails-hint tercero-copy-emails-error' : 'tercero-copy-emails-hint'}
+              />
+              <Button type="button" variant="secondary" onClick={handleAddCopyEmail} disabled={isSaving || isLookingUpNit || !copyEmailDraft.trim()}>Guardar</Button>
+            </div>
+            <small id="tercero-copy-emails-hint">Agrega hasta 10 correos con Guardar o Enter. Recibirán copia de los documentos de este tercero.</small>
+            {copyEmailError && <small id="tercero-copy-emails-error" className="terceros-page__copy-email-error" role="alert">{copyEmailError}</small>}
+            {copyEmails.length > 0 && <ul className="terceros-page__copy-email-list" aria-label="Correos adicionales" aria-live="polite">
+              {copyEmails.map(email => <li key={email}>
+                <span>{email}</span>
+                <button type="button" aria-label={`Quitar ${email}`} disabled={isSaving || isLookingUpNit} onClick={() => { setCopyEmails(current => current.filter(item => item !== email)); setCopyEmailError('') }}>×</button>
+              </li>)}
+            </ul>}
+          </div>}
 
           <div className="modal-dialog__actions">
             <Button

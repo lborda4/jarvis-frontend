@@ -1,5 +1,6 @@
 import SiigoDocumentQuotasSettings from '../components/SiigoDocumentQuotasSettings'
 import CompanyAiSettings from '../components/CompanyAiSettings'
+import InviteAccountant from '../components/InviteAccountant'
 import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
@@ -185,6 +186,7 @@ function SiigoIntegrationSettings() {
         subscription={subscription}
         onUpdated={setSubscription}
       />
+      <InviteAccountant />
 
       {planBlockedReason && (isSiigoConfigured || hasSiigoAccounts) && (
         <div className="settings-page__setup-notice" role="status">

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { type FormEvent, useState } from 'react'
 import AuthLoginFrame from '../components/AuthLoginFrame'
+import AuthStatusNotice from '../components/AuthStatusNotice'
 import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -9,9 +10,6 @@ import { getApiErrorMessage } from '../services/apiClient'
 import { requestPasswordReset } from '../services/authService'
 import { publicAuthResetError } from '../utils/passwordResetError'
 import './AuthPages.css'
-
-const SENT_MESSAGE =
-  'Si hay una cuenta con ese correo, enviamos un enlace para restablecer la contraseña. Revisa también el correo no deseado.'
 
 function ForgotPasswordPage() {
   const { isWaking, ensureReady, loadingMessage } = useBackendWakeup()
@@ -55,7 +53,7 @@ function ForgotPasswordPage() {
     <AuthLoginFrame
       titleId="forgot-password-title"
       title="Olvidé mi contraseña"
-      description="Escribe el correo de tu cuenta y te enviaremos un enlace para elegir una nueva."
+      description={sent ? undefined : 'Escribe el correo de tu cuenta y te enviaremos un enlace para elegir una nueva.'}
       footer={
         <p className="auth-login-shell__footer">
           <Link to="/login">Volver a iniciar sesión</Link>
@@ -63,7 +61,9 @@ function ForgotPasswordPage() {
       }
     >
       {sent ? (
-        <p className="auth-login-form__note">{SENT_MESSAGE}</p>
+        <AuthStatusNotice title="Revisa tu correo" hint="¿No lo encuentras? Revisa también la carpeta de spam o correo no deseado.">
+          Si hay una cuenta asociada al correo que ingresaste, recibirás un enlace para crear una nueva contraseña.
+        </AuthStatusNotice>
       ) : (
         <form className="auth-login-form" onSubmit={handleSubmit}>
           <div className="auth-login-form__field">

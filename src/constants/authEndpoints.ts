@@ -2,6 +2,7 @@ export const AUTH_LOGIN_ENDPOINT = '/auth/login'
 export const AUTH_FORGOT_PASSWORD_ENDPOINT = '/auth/forgot-password'
 export const AUTH_RESET_PASSWORD_ENDPOINT = '/auth/reset-password'
 export const AUTH_REGISTER_ENDPOINT = '/auth/register'
+export const AUTH_REGISTRATION_POLICY_ENDPOINT = '/auth/registration-policy'
 export const AUTH_RUT_PARSE_ENDPOINT = '/auth/rut/parse'
 export const AUTH_REFRESH_ENDPOINT = '/auth/refresh'
 export const AUTH_ME_ENDPOINT = '/auth/me'
@@ -17,6 +18,7 @@ export function isAuthRequestUrl(url: string | undefined): boolean {
     url.includes(AUTH_FORGOT_PASSWORD_ENDPOINT) ||
     url.includes(AUTH_RESET_PASSWORD_ENDPOINT) ||
     url.includes(AUTH_REGISTER_ENDPOINT) ||
+    url.includes(AUTH_REGISTRATION_POLICY_ENDPOINT) ||
     url.includes(AUTH_RUT_PARSE_ENDPOINT) ||
     url.includes(AUTH_REFRESH_ENDPOINT)
   )

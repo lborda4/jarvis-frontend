@@ -153,6 +153,50 @@
   grid-column: 1 / -1;
 }
 
+.terceros-page__copy-emails {
+  margin-bottom: 1.25rem;
+}
+
+.terceros-page__copy-email-entry {
+  display: flex;
+  align-items: stretch;
+  gap: .55rem;
+}
+
+.terceros-page__copy-email-entry input { flex: 1; min-width: 0; }
+.terceros-page__copy-email-entry .btn { flex-shrink: 0; }
+.terceros-page__copy-emails small { font-size: var(--text-sm); color: var(--jarvis-text-muted); line-height: 1.5; }
+.terceros-page__copy-emails .terceros-page__copy-email-error { color: var(--jarvis-danger); }
+.terceros-page__copy-email-entry input[aria-invalid="true"] { border-color: var(--jarvis-danger); }
+
+.terceros-page__copy-email-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  list-style: none;
+  padding: 0;
+  margin: .4rem 0 0;
+}
+
+.terceros-page__copy-email-list li {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  max-width: 100%;
+  padding: .25rem .4rem .25rem .65rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--jarvis-primary-border, #bde4e0);
+  background: var(--jarvis-primary-soft);
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+}
+
+.terceros-page__copy-email-list span { overflow-wrap: anywhere; min-width: 0; }
+.terceros-page__copy-email-list button { flex-shrink: 0; width: 1.8rem; height: 1.8rem; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--jarvis-text-muted); font-size: 1.3rem; cursor: pointer; }
+.terceros-page__copy-email-list button:hover:not(:disabled) { color: var(--jarvis-danger); background: var(--jarvis-danger-soft); }
+.terceros-page__copy-email-list button:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 1px; }
+.terceros-page__copy-email-list button:disabled { opacity: .5; cursor: not-allowed; }
+
 .terceros-page__field label {
   font-size: var(--text-sm);
   font-weight: 600;

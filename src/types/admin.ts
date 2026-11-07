@@ -58,6 +58,7 @@ export interface AdminIntegrationItem {
 }
 
 export interface AdminCompanyListItem {
+  registrationEmail?: string | null
   jarvisModules?: import('./companyModules').JarvisModule[] | null
   email?: string | null
   commercial?: string | null
@@ -102,6 +103,7 @@ export interface ListAdminPlansResponse {
 }
 
 export interface CreateAdminCompanyRequest {
+  registrationEmail?: string
   jarvisModules?: import('./companyModules').JarvisModule[]
   commercial?: string
   billingCycle?: 'MONTHLY' | 'ANNUAL'
@@ -145,6 +147,7 @@ export interface JarvisCredentialsSeed {
 
 export interface CreateAdminCompanyResponse {
   company: AdminCompanyListItem
+  welcome?: { status: 'SENT' | 'FAILED'; message: string }
 }
 
 export interface RegenerateCompanyInviteCodeResponse {

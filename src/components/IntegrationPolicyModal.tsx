@@ -4,8 +4,8 @@ import Button from './Button'
 import type { IntegrationPolicy } from '../constants/integrationPolicies'
 import './IntegrationPolicyModal.css'
 
-export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onClose, accepting = false }: {
-  policy: IntegrationPolicy; onAccept?: () => void; onLogout?: () => void; onClose?: () => void; accepting?: boolean
+export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onClose, onCancel, accepting = false }: {
+  policy: IntegrationPolicy; onAccept?: () => void; onLogout?: () => void; onClose?: () => void; onCancel?: () => void; accepting?: boolean
 }) {
   const content = useRef<HTMLDivElement>(null)
   const [readToEnd, setReadToEnd] = useState(false)
@@ -16,8 +16,8 @@ export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onC
     element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
   }
 
-  const readingOnly = Boolean(onClose)
-  return <Modal isOpen onClose={onClose ?? onLogout ?? (() => undefined)} dismissible={readingOnly} labelledBy="integration-policy-title" size="lg" className={`integration-policy${readingOnly ? ' integration-policy--reading' : ''}`}>
+  const readingOnly = !onAccept
+  return <Modal isOpen onClose={onClose ?? onCancel ?? onLogout ?? (() => undefined)} dismissible={readingOnly || Boolean(onCancel)} busy={accepting} labelledBy="integration-policy-title" size="lg" className={`integration-policy${readingOnly || onCancel ? ' integration-policy--reading' : ''}`}>
     <header className="integration-policy__header">
       <span>Integración {policy.integrationLabel} · Versión {policy.version}</span>
       <h2 id="integration-policy-title">{policy.title}</h2>
@@ -39,7 +39,8 @@ export default function IntegrationPolicyModal({ policy, onAccept, onLogout, onC
     <footer className="integration-policy__footer">
       {!readingOnly && <p aria-live="polite">{readToEnd ? 'Ya puedes confirmar tu aceptación.' : 'Desplázate hasta el final para habilitar la aceptación.'}</p>}
       <div className="integration-policy__buttons">
-        {!readingOnly && <Button type="button" variant="ghost" onClick={onLogout}>Cerrar sesión</Button>}
+        {!readingOnly && onLogout && <Button type="button" variant="ghost" onClick={onLogout}>Cerrar sesión</Button>}
+        {!readingOnly && onCancel && <Button type="button" variant="ghost" disabled={accepting} onClick={onCancel}>Volver al registro</Button>}
         {readingOnly ? <Button type="button" onClick={onClose}>Cerrar</Button> : <Button type="button" disabled={!readToEnd || accepting} onClick={() => { if (readToEnd && !accepting) onAccept?.() }}>{accepting ? 'Guardando...' : 'He leído y acepto'}</Button>}
       </div>
     </footer>

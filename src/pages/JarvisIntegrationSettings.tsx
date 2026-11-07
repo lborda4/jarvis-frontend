@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import CompanyLogoSettings from '../components/CompanyLogoSettings'
+import InviteAccountant from '../components/InviteAccountant'
 import JarvisDocumentQuotaCard from '../components/JarvisDocumentQuotaCard'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
 import ErrorMessage from '../components/ErrorMessage'
@@ -296,6 +297,7 @@ function JarvisIntegrationSettings() {
       )}
 
       <JarvisDocumentQuotaCard />
+      <InviteAccountant />
 
       {/* Sin barra de pasos, igual que en SIIGO: el acordeón ya numera cada
           paso y muestra su estado (Completo / Bloqueado). */}

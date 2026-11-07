@@ -282,11 +282,91 @@
   line-height: 1.5;
 }
 
+.auth-status-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  border-top: 3px solid var(--jarvis-primary);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, #ecfdf5, #f0fdfa 65%, #ffffff);
+  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.06);
+}
+
+.auth-status-notice__icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgba(13, 148, 136, 0.15);
+  border-radius: 50%;
+  color: var(--jarvis-primary);
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.08);
+}
+
+.auth-status-notice__icon svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.auth-status-notice__eyebrow {
+  color: #0f766e;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.auth-status-notice__content h2 {
+  margin: 0.3rem 0 0.5rem;
+  color: var(--jarvis-navy);
+  font-size: clamp(1.15rem, 3.5vw, 1.4rem);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.auth-status-notice__content p {
+  margin: 0;
+  color: #425a65;
+  font-size: var(--text-base);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.auth-status-notice__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(13, 148, 136, 0.15);
+  color: #526775;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+@media (max-width: 380px) {
+  .auth-status-notice { grid-template-columns: 1fr; }
+}
+
 .auth-login-form {
   display: flex;
   flex-direction: column;
   gap: clamp(0.85rem, 1.8vh, 1rem);
 }
+
+.auth-registration-recipient {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem;
+  background: #eefaf8;
+  border: 1px solid #cdebe5;
+  border-radius: var(--r-md);
+  overflow-wrap: anywhere;
+}
+.auth-registration-recipient span, .auth-registration-recipient small { color: #526575; font-size: var(--text-sm); }
+.auth-registration-recipient strong { color: var(--jarvis-navy); }
 
 .auth-login-shell__footer {
   margin: 0;

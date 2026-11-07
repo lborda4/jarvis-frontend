@@ -5,7 +5,7 @@ import { applyMarketingSeo } from '../marketing/seo'
 import { BILLING_TOP_UPS, SIIGO_PLANS as PLANS, type Product } from '../marketing/catalog'
 import { BILLING_SOLUTIONS, MARKETING_FAQS, MARKETING_STEPS } from '../marketing/content'
 import { buildWhatsappHref, WHATSAPP_DEMO_HREF } from '../constants/contact'
-import { PRIVACY_POLICY_URL } from '../constants/privacyPolicy'
+import PrivacyPolicyLink from '../components/PrivacyPolicyLink'
 import './LandingPage.css'
 
 const DEMO_HREF = WHATSAPP_DEMO_HREF
@@ -669,13 +669,9 @@ function LandingContent({ product }: { product?: Product }) {
               Términos y condiciones
             </a>
             <span aria-hidden="true"> · </span>
-            <a
-              href={PRIVACY_POLICY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <PrivacyPolicyLink mode={product === 'siigo' ? 'siigo' : 'jarvis'}>
               Política de privacidad
-            </a>
+            </PrivacyPolicyLink>
           </p>
         </div>
       </footer>

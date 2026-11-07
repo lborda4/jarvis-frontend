@@ -26,6 +26,7 @@ import SalesInvoicePreviewPage from './pages/SalesInvoicePreviewPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import LandingPage from './pages/LandingPage'
 import PayrollPage from './pages/payroll/PayrollPage'
 import RegisterPage from './pages/RegisterPage'
@@ -45,6 +46,7 @@ function App() {
             <Route path="/olvide-mi-contrasena" element={<ForgotPasswordPage />} />
             <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
             <Route path="/registro" element={<RegisterPage />} />
+            <Route path="/politica-de-tratamiento-de-datos" element={<PrivacyPolicyPage />} />
             <Route path="/admin" element={<AdminRoute />} />
 
             <Route element={<ProtectedRoute />}>

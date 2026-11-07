@@ -30,12 +30,19 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string
-  email: string
+  registrationToken: string
   password: string
-  nit: string
-  inviteCode: string
   acceptPrivacyPolicy: boolean
+  acceptedIntegrationPolicyId?: string
+}
+
+export interface RegistrationLinkInfo {
+  companyId: string
+  companyName: string
+  email: string
+  existingAccount: boolean
+  policyId: string
+  version: string
 }
 
 export interface RefreshTokenRequest {

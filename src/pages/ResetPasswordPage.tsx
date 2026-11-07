@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { type FormEvent, useEffect, useState } from 'react'
 import AuthLoginFrame from '../components/AuthLoginFrame'
+import AuthStatusNotice from '../components/AuthStatusNotice'
 import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -21,6 +22,7 @@ function ResetPasswordPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [updated, setUpdated] = useState(false)
+  const passwordsDiffer = confirmation.length > 0 && password !== confirmation
 
   useEffect(() => {
     if (searchParams.has('token')) {
@@ -38,7 +40,6 @@ function ResetPasswordPage() {
     }
 
     if (password !== confirmation) {
-      setErrorMessage('Las contraseñas no coinciden.')
       return
     }
 
@@ -68,7 +69,7 @@ function ResetPasswordPage() {
     <AuthLoginFrame
       titleId="reset-password-title"
       title="Nueva contraseña"
-      description="Elige una contraseña de al menos 6 caracteres."
+      description={updated ? undefined : 'Elige una contraseña de al menos 6 caracteres.'}
       footer={
         <p className="auth-login-shell__footer">
           <Link to="/login">Volver a iniciar sesión</Link>
@@ -76,9 +77,9 @@ function ResetPasswordPage() {
       }
     >
       {updated ? (
-        <p className="auth-login-form__note">
-          Tu contraseña fue actualizada. Ya puedes iniciar sesión.
-        </p>
+        <AuthStatusNotice variant="success" title="¡Tu contraseña está lista!">
+          La actualizamos correctamente. Ya puedes iniciar sesión con tu nueva contraseña.
+        </AuthStatusNotice>
       ) : !token ? (
         <p className="auth-login-form__note">
           El enlace no es válido o ya expiró.{' '}
@@ -116,7 +117,7 @@ function ResetPasswordPage() {
               </button>
             </div>
           </div>
-          <div className="auth-login-form__field">
+          <div className={`auth-login-form__field${passwordsDiffer ? ' auth-login-form__field--invalid' : ''}`}>
             <label htmlFor="reset-password-confirm">Confirmar contraseña</label>
             <input
               id="reset-password-confirm"
@@ -124,19 +125,22 @@ function ResetPasswordPage() {
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               value={confirmation}
+              aria-invalid={passwordsDiffer || undefined}
+              aria-describedby={passwordsDiffer ? 'reset-password-mismatch' : undefined}
               onChange={(event) => setConfirmation(event.target.value)}
               placeholder="Repite la contraseña"
               required
               minLength={6}
               disabled={isSubmitting}
             />
+            {passwordsDiffer && <p id="reset-password-mismatch" role="alert">Las contraseñas no coinciden.</p>}
           </div>
           {errorMessage && <ErrorMessage message={errorMessage} />}
           <Button
             type="submit"
             variant="primary"
             className="auth-login-form__submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || password !== confirmation}
           >
             {isSubmitting ? 'Guardando...' : 'Guardar contraseña'}
           </Button>

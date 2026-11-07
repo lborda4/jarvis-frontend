@@ -29,6 +29,9 @@ import type { IntegrationProvider } from '../types/admin'
 import { apiClient } from './apiClient'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
+export async function sendCompanyWelcome(companyId: string, email: string): Promise<{ status: 'SENT' | 'FAILED'; message: string }> {
+  return (await apiClient.post<{ status: 'SENT' | 'FAILED'; message: string }>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/welcome`, { email })).data
+}
 
 export async function updateCompanyJarvisModules(companyId: string, jarvisModules: import('../types/companyModules').JarvisModule[]): Promise<CreateAdminCompanyResponse> {
   return (await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis-modules`, { jarvisModules })).data

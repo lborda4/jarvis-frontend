@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { PRIVACY_POLICY_URL } from '../constants/privacyPolicy'
+import PrivacyPolicyLink from './PrivacyPolicyLink'
 
 function AuthLoginFrame({
   titleId,
@@ -11,7 +11,7 @@ function AuthLoginFrame({
 }: {
   titleId: string
   title: string
-  description: string
+  description?: string
   children: ReactNode
   footer?: ReactNode
 }) {
@@ -46,16 +46,14 @@ function AuthLoginFrame({
         <section className="auth-login-card" aria-labelledby={titleId}>
           <div className="auth-login-card__intro">
             <h1 id={titleId}>{title}</h1>
-            <p>{description}</p>
+            {description && <p>{description}</p>}
           </div>
           {children}
         </section>
 
         {footer}
         <p className="auth-login-shell__legal">
-          <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
-            Política de tratamiento de datos
-          </a>
+          <PrivacyPolicyLink />
         </p>
       </div>
     </main>

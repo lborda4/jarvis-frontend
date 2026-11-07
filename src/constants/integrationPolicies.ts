@@ -30,3 +30,7 @@ const policies: Partial<Record<IntegrationMode, IntegrationPolicy>> = {
 export function getIntegrationPolicy(mode: IntegrationMode): IntegrationPolicy | undefined {
   return policies[mode]
 }
+
+export function getIntegrationPolicyById(id: string): IntegrationPolicy | undefined {
+  return Object.values(policies).find(policy => policy?.id === id)
+}
