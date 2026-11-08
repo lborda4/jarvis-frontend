@@ -7,7 +7,7 @@ export interface ModalProps {
   onClose: () => void
   labelledBy: string
   children: ReactNode
-  /** Si es false, ni la X, ni Escape, ni el click en el overlay cierran el modal. */
+  /** Habilita la X de cierre. El fondo y Escape nunca cierran el modal. */
   dismissible?: boolean
   /** Mientras el modal está ocupado (guardando, etc.) la X se muestra pero deshabilitada. */
   busy?: boolean
@@ -29,21 +29,6 @@ function Modal({
   const canClose = dismissible && !busy
 
   useEffect(() => {
-    if (!isOpen || !canClose) {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, canClose, onClose])
-
-  useEffect(() => {
     if (isOpen) {
       dialogRef.current?.focus()
     }
@@ -51,12 +36,6 @@ function Modal({
 
   if (!isOpen) {
     return null
-  }
-
-  const handleOverlayClick = () => {
-    if (canClose) {
-      onClose()
-    }
   }
 
   const dialogClassName = [
@@ -68,7 +47,7 @@ function Modal({
     .join(' ')
 
   return (
-    <div className="modal-overlay" role="presentation" onClick={handleOverlayClick}>
+    <div className="modal-overlay" role="presentation" onClick={event => event.stopPropagation()}>
       <div
         ref={dialogRef}
         className={dialogClassName}

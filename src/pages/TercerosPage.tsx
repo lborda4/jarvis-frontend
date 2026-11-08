@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Button from '../components/Button'
 import CatalogRowActions from '../components/CatalogRowActions'
@@ -8,6 +8,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
+import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteJarvisTercero, fetchJarvisTerceros } from '../services/jarvisService'
 import {
@@ -26,6 +27,8 @@ import {
 } from '../types/jarvis'
 import './TercerosPage.css'
 import './InvoiceUpload.css'
+
+const ImportJarvisTercerosModal = lazy(() => import('../components/ImportJarvisTercerosModal'))
 
 function formatEntityType(value: JarvisEntityType | null): string {
   if (!value) return '—'
@@ -59,6 +62,7 @@ function TercerosPage() {
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingTercero, setEditingTercero] = useState<JarvisTercero | null>(null)
   const [pendingDelete, setPendingDelete] = useState<JarvisTercero | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -182,9 +186,14 @@ function TercerosPage() {
         title="Terceros"
         description="Consulta y crea los terceros de tu empresa Jarvis."
         actions={
-          <Button variant="primary" onClick={openCreate}>
-            Crear
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+              <ImportIcon />Importar terceros
+            </Button>
+            <Button variant="primary" onClick={openCreate}>
+              <PlusIcon />Crear tercero
+            </Button>
+          </>
         }
       />
 
@@ -278,6 +287,12 @@ function TercerosPage() {
         message={`¿Seguro que quieres eliminar "${pendingDelete?.name ?? ''}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" variant="danger" isBusy={isDeleting}
         onConfirm={() => void confirmDelete()} onCancel={() => { if (!isDeleting) setPendingDelete(null) }} />
+      {isImportOpen && <Suspense fallback={<LoadingIndicator message="Cargando importador de terceros…" />}>
+        <ImportJarvisTercerosModal onClose={() => setIsImportOpen(false)} onImported={(saved) => {
+          setSuccessMessage(`Se guardaron ${saved} terceros en Jarvis correctamente.`)
+          void loadTerceros(search)
+        }} />
+      </Suspense>}
       {editingTercero && <CreateJarvisTerceroModal
         key={editingTercero.id} isOpen editingTercero={editingTercero}
         onClose={() => setEditingTercero(null)}

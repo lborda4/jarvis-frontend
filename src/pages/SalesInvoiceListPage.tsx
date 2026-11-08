@@ -5,14 +5,19 @@ import { deleteInvoiceDraft } from '../services/invoiceDraftService'
 import DateRangeFilter from '../components/DateRangeFilter'
 import InvoiceNoteActions from '../components/InvoiceNoteActions'
 import DocumentEmailModal, { MailIcon } from '../components/DocumentEmailModal'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
+import SuccessMessage from '../components/SuccessMessage'
+import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
 import { getApiErrorMessage } from '../services/apiClient'
 import { jarvisHistoryQueryKey, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSalesInvoices, fetchJarvisSupportCreditNotes, fetchJarvisSupportInvoices, type JarvisSalesInvoiceList } from '../services/jarvisService'
 import './SalesInvoiceListPage.css'
+
+const ImportSupportDocumentsModal = lazy(() => import('../components/ImportSupportDocumentsModal'))
+const ImportSalesInvoicesModal = lazy(() => import('../components/ImportSalesInvoicesModal'))
 
 function InvoiceIcon() {
   return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Z" strokeLinejoin="round"/><path d="M14 3v5h5M8 12h8M8 16h5" strokeLinecap="round"/></svg>
@@ -40,10 +45,13 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
   const [data, setData] = useState<JarvisSalesInvoiceList>(() => cached ?? { items: [], total: 0, page: 1, pageSize: 20 })
   const [isLoading, setIsLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState('')
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [emailDocument, setEmailDocument] = useState<JarvisSalesInvoiceList['items'][number] | null>(null)
   const isSalesInvoice = !supportDocument && !creditNote && !debitNote && !adjustmentNote
+  const ImportModal = supportDocument ? ImportSupportDocumentsModal : ImportSalesInvoicesModal
   const showNoteActions = isSalesInvoice || supportDocument
   const listPath = debitNote ? '/nota-debito' : adjustmentNote ? '/nota-ajuste' : creditNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
   const documentLabel = debitNote ? 'nota débito' : adjustmentNote ? 'nota de ajuste' : creditNote ? 'nota crédito' : supportDocument ? 'documento' : 'factura'
@@ -92,8 +100,18 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
     <PageHeader
       title={debitNote ? 'Notas débito' : adjustmentNote ? 'Notas de ajuste' : creditNote ? 'Notas crédito' : supportDocument ? 'Documentos soporte' : 'Facturas de venta'}
       description={`Consulta tus ${plural} y crea ${supportDocument ? 'uno nuevo' : 'una nueva'} cuando lo necesites.`}
-      actions={<Link className="sales-history__new" to={newPath}>{newLabel}</Link>}
+      actions={<>
+        {!isNoteList && <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />{supportDocument ? 'Importar documentos soporte' : 'Importar facturas de venta'}</Button>}
+        <Link className="sales-history__new" to={newPath}>{!isNoteList && <PlusIcon />}{newLabel}</Link>
+      </>}
     />
+    {success && <SuccessMessage message={success} />}
+    {isImportOpen && !isNoteList && <Suspense fallback={<LoadingIndicator message="Cargando importador…" />}>
+      <ImportModal key={supportDocument ? 'support' : 'sales'} onClose={() => setIsImportOpen(false)} onImported={count => {
+        setSuccess(`Se guardaron ${count} ${supportDocument ? 'documentos soporte' : 'facturas de venta'}. Puedes abrirlos desde el listado para revisar y enviar a DIAN.`)
+        reload()
+      }} />
+    </Suspense>}
 
     <section className="sales-history__card integration-card" aria-label={`Historial de ${plural}`}>
       <div className="sales-history__heading integration-card-header">

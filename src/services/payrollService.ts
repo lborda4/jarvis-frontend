@@ -7,12 +7,18 @@ import type {
 } from '../utils/payrollPeriod'
 export interface Employee {
   id: string
+  /** Consecutivo asignado por el servidor al guardar; se conserva al editar. */
+  workerCode?: string
   identification: string
   documentTypeId: number
   firstName: string
   secondName: string
   surname: string
   secondSurname: string
+  /** Opcional para mantener compatibles los empleados guardados antes de solicitar correo. */
+  email?: string
+  address?: string
+  municipalityId?: number
   typeWorkerId: number
   subTypeWorkerId: number
   contractType: string

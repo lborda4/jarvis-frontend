@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
 import CatalogRowActions from '../components/CatalogRowActions'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -8,6 +8,7 @@ import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { PackageIcon } from '../components/icons/SidebarIcons'
+import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteProduct, fetchProducts, type ProductResponse } from '../services/productService'
 import {
@@ -17,6 +18,8 @@ import {
 import type { ProductsListResponse } from '../services/productService'
 import './CreateProductPage.css'
 import './ProductListPage.css'
+
+const ImportProductsModal = lazy(() => import('../components/ImportProductsModal'))
 
 type KindFilter = 'all' | 'product' | 'service'
 
@@ -61,6 +64,7 @@ function ProductListPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ProductResponse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -157,12 +161,15 @@ function ProductListPage() {
         title="Listar productos"
         description="Consulta el catálogo de productos y servicios registrados en Jarvis."
         actions={
-          <Button
-            variant="primary"
-            onClick={() => setIsCreateOpen(true)}
-          >
-            Crear producto
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />Importar productos</Button>
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateOpen(true)}
+            >
+              <PlusIcon />Crear producto
+            </Button>
+          </>
         }
       />
 
@@ -314,6 +321,12 @@ function ProductListPage() {
         message={`¿Seguro que quieres eliminar "${pendingDelete?.name ?? ''}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" variant="danger" isBusy={isDeleting}
         onConfirm={() => void confirmDelete()} onCancel={() => { if (!isDeleting) setPendingDelete(null) }} />
+      {isImportOpen && <Suspense fallback={<LoadingIndicator message="Cargando importador de productos…" />}>
+        <ImportProductsModal onClose={() => setIsImportOpen(false)} onImported={(saved) => {
+          setSuccessMessage(`Se guardaron ${saved} productos en Jarvis correctamente.`)
+          void loadProducts(search)
+        }} />
+      </Suspense>}
       <CreateProductModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}

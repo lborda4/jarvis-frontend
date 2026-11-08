@@ -45,7 +45,7 @@ function AccountMappingModal({
   onRetry,
 }: AccountMappingModalProps) {
   const isBusy = view === 'saving_account' || view === 'creating_purchase'
-  // Dismissing (X, Escape, overlay click) always maps to the action equivalent
+  // Closing with X always maps to the action equivalent
   // to that view's primary "leave" button, so no side effect is ever skipped.
   const dismissHandler = view === 'purchase_success' ? onAccept : onCancel
 

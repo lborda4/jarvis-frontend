@@ -11,6 +11,7 @@ import type {
   JarvisDocumentType,
   JarvisTaxesListResponse,
   JarvisTercerosListResponse,
+  JarvisTerceroPaymentMethod,
   ListJarvisAvailableResolutionsResponse,
   ListJarvisMunicipalitiesResponse,
   ListJarvisTypeLiabilitiesResponse,
@@ -343,6 +344,7 @@ export async function fetchJarvisAvailableResolutions(): Promise<ListJarvisAvail
 
 export async function fetchJarvisTerceros(
   search?: string,
+  options?: { force?: boolean },
 ): Promise<JarvisTercerosListResponse> {
   const trimmedSearch = search?.trim()
 
@@ -366,6 +368,7 @@ export async function fetchJarvisTerceros(
       )
       return response.data
     },
+    options,
   )
 }
 
@@ -392,6 +395,15 @@ export async function fetchJarvisMunicipalities(): Promise<ListJarvisMunicipalit
       )
       return response.data
     },
+  )
+}
+
+export function fetchJarvisTerceroPaymentMethods(options?: { force?: boolean }) {
+  return cachedQuery(
+    companyQueryKey(['jarvis', 'tercero-payment-methods']),
+    QUERY_STALE_MS.catalogs,
+    async () => (await apiClient.get<{ items: JarvisTerceroPaymentMethod[] }>(`${JARVIS_TERCEROS_ENDPOINT}/payment-methods`)).data,
+    options,
   )
 }
 
@@ -501,6 +513,7 @@ export function ensureDefaultProductIva(): Promise<import('../types/jarvis').Jar
   const request = (async () => {
     // Read fresh data so another product saved since opening the modal can be reused.
     const { data } = await apiClient.get<JarvisTaxesListResponse>(JARVIS_TAXES_ENDPOINT)
+    if (key !== companyQueryKey(['jarvis', 'default-product-iva'])) throw new Error('La empresa activa cambió. Vuelve a intentar el guardado.')
     const existing = data.items.find(tax => tax.is_active && isDefaultProductIva(tax))
     if (existing) return existing
     const response = await createJarvisTax({ category: 'IMPUESTO', name: 'IVA', tax_type: 'IVA', rate: 19 })

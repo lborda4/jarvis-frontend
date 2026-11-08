@@ -1,0 +1,70 @@
+.excel-import-modal.modal-dialog { width: min(100%, 800px); padding: 28px; box-sizing: border-box; border-radius: 24px; color: var(--jarvis-text); }
+.excel-import-modal.modal-dialog {
+  scrollbar-width: thin;
+  scrollbar-color: #9bbfba transparent;
+}
+/* Permite personalizar las esquinas y quitar las flechas en Chrome, Edge y Safari. */
+@supports selector(::-webkit-scrollbar) {
+  .excel-import-modal.modal-dialog { scrollbar-width: auto; scrollbar-color: auto; }
+}
+.excel-import-modal::-webkit-scrollbar { width: 6px; height: 6px; }
+.excel-import-modal::-webkit-scrollbar-track { background: transparent; margin-block: 24px; }
+.excel-import-modal::-webkit-scrollbar-thumb { background: #9bbfba; border-radius: 999px; }
+.excel-import-modal::-webkit-scrollbar-thumb:hover { background: #648f89; }
+.excel-import-modal::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.excel-import-modal::-webkit-scrollbar-corner { background: transparent; }
+.excel-import-modal .modal-dialog__close { top: 23px; right: 22px; }
+.excel-import__header { display: flex; align-items: flex-start; gap: 18px; padding-right: 24px; margin-bottom: 30px; }
+.excel-import__file-icon { display: grid; place-items: center; flex-shrink: 0; width: 64px; height: 64px; border-radius: 15px; background: #e0f4f1; color: #117e6e; }
+.excel-import__header h2 { margin: 3px 0 5px; color: var(--jarvis-navy); font-size: 1.5rem; line-height: 1.2; }
+.excel-import__header p, .excel-import__step p { margin: 0; color: var(--jarvis-text-muted); font-size: .94rem; line-height: 1.55; }
+.excel-import__steps { list-style: none; margin: 0; padding: 0 0 0 52px; }
+.excel-import__step { position: relative; padding: 0 0 26px 8px; }
+.excel-import__step:not(:last-child)::before { content: ''; position: absolute; left: -32px; top: 34px; bottom: 5px; width: 2px; background: #dce6e5; }
+.excel-import__number { position: absolute; left: -47px; top: 0; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--jarvis-primary); color: white; font-size: 1rem; font-weight: 700; box-shadow: 0 2px 5px #0d94851a; }
+.excel-import__step h3, .excel-import__review h3 { margin: 0 0 10px; color: var(--jarvis-navy); font-size: 1.15rem; line-height: 1.4; }
+.excel-import__step--template { display: flex; gap: 10px; align-items: center; }
+.excel-import__step--template .excel-import__step-content { flex: 1; }
+.excel-import__step--template .btn { margin-top: 12px; border-color: var(--jarvis-primary); color: var(--jarvis-primary); }
+.excel-import__illustration { width: 165px; flex-shrink: 0; }
+.excel-import__dropzone { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; min-height: 175px; padding: 20px 12px; box-sizing: border-box; border: 1.5px dashed #22998c; border-radius: 15px; background: #f0faf8; text-align: center; transition: background .15s, border-color .15s; }
+.excel-import__dropzone--active { background: #d7f3ed; border-color: #08776e; }
+.excel-import__dropzone--busy { opacity: .65; }
+.excel-import__cloud { color: #0c8d83; margin-bottom: 2px; }
+.excel-import__dropzone > strong { font-size: 1.1rem; color: var(--jarvis-navy); }
+.excel-import__dropzone > span { font-size: .9rem; color: var(--jarvis-text); }
+.excel-import__select { border: 0; padding: 0; background: none; color: #087d72; text-decoration: underline; font: inherit; font-weight: 600; cursor: pointer; }
+.excel-import__select:disabled { cursor: not-allowed; }
+.excel-import__select:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 3px; }
+.excel-import__format { padding: 4px 9px; border: 1px solid #dde7e8; border-radius: 8px; background: #f5f8f9; color: var(--jarvis-text-muted); font-size: .75rem; }
+.excel-import__review-hint { display: flex; align-items: center; gap: 16px; }
+.excel-import__review-hint svg { flex-shrink: 0; }
+.excel-import__selected-file { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 9px; overflow-wrap: anywhere; }
+.excel-import__selected-file svg { width: 18px; height: 22px; color: var(--jarvis-primary); flex-shrink: 0; }
+.excel-import__selected-file span { min-width: 0; }
+.excel-import__selected-file strong { font-size: .75rem; font-weight: 500; color: var(--jarvis-primary); }
+.excel-import__status { color: var(--jarvis-primary); font-size: .9rem; }
+.excel-import__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--jarvis-border); padding-top: 18px; margin-top: 4px; }
+.excel-import__footer > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-left: auto; }
+.excel-import__footer .btn { min-height: 43px; min-width: 120px; }
+.excel-import__footer .btn > span { font-size: 1.5rem; line-height: 1; margin-left: 5px; }
+.excel-import__review { margin-bottom: 20px; }
+@media (max-width: 600px) {
+  .excel-import-modal.modal-dialog { padding: 20px 16px; border-radius: 18px; }
+  .excel-import__header { gap: 12px; margin-bottom: 24px; }
+  .excel-import__file-icon { width: 46px; height: 50px; border-radius: 10px; }
+  .excel-import__file-icon svg { width: 26px; height: 32px; }
+  .excel-import__header h2 { font-size: 1.2rem; }
+  .excel-import__header p, .excel-import__step p { font-size: .86rem; }
+  .excel-import__steps { padding-left: 34px; }
+  .excel-import__number { left: -34px; width: 26px; height: 26px; font-size: .85rem; }
+  .excel-import__step:not(:last-child)::before { left: -22px; top: 30px; }
+  .excel-import__step { padding-left: 4px; }
+  .excel-import__illustration { display: none; }
+  .excel-import__step h3 { font-size: 1rem; }
+  .excel-import__dropzone { min-height: 180px; }
+  .excel-import__dropzone > strong { font-size: 1rem; }
+  .excel-import__review-hint { gap: 10px; }
+  .excel-import__review-hint svg { width: 48px; }
+  .excel-import__footer .btn { min-width: 0; white-space: normal; }
+}

@@ -14,20 +14,30 @@ import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
 import Autocomplete from '../../components/Autocomplete'
 import CategorySelect from '../../components/CategorySelect'
 import { lookupJarvisTerceroByNit } from '../../services/jarvisService'
-import { employeeNamesFromFullName } from './employeeLookup'
+import { applyEmployeeLookup, employeeDetailsFromLookup } from './employeeLookup'
 import { useJarvisBackAction } from '../../hooks/useJarvisBackAction'
 import { isPayrollEmployeeActive } from '../../utils/payrollEmployeeStatus'
+import type { LookupJarvisTerceroNitResponse } from '../../types/jarvis'
+import { formatMunicipalityLabel, isMunicipalityMatch } from '../../utils/jarvisMunicipality'
 export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   const {
     catalogs,
     error: catalogError,
     reload: reloadCatalogs,
+    municipalities, municipalitiesError, municipalitiesLoading, reloadMunicipalities,
   } = usePayrollCatalogs()
   const [editing, setEditing] = useState<Employee | null>(null),
     [search, setSearch] = useState(''),
     [importing, setImporting] = useState(false)
   const lookupRequest = useRef(0)
   const [lookup, setLookup] = useState<{ key: string; message: string; pending: boolean } | null>(null)
+  const [lookupResult, setLookupResult] = useState<{ request: number; employee: Employee; result: LookupJarvisTerceroNitResponse } | null>(null)
+  useEffect(() => {
+    if (!lookupResult || lookupResult.request !== lookupRequest.current) return
+    const details = employeeDetailsFromLookup(lookupResult.result, municipalities)
+    // La respuesta y el catálogo llegan por separado; completar la ciudad cuando ambos estén disponibles.
+    setEditing(current => current ? applyEmployeeLookup(current, lookupResult.employee, details) : current)
+  }, [lookupResult, municipalities])
   useJarvisBackAction(() => {
     if (busy) return
     if (importing) setImporting(false)
@@ -49,32 +59,32 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
     try {
       const result = await lookupJarvisTerceroByNit(employee.identification, 'CC')
       if (request !== lookupRequest.current) return
-      const names = result.found && result.name ? employeeNamesFromFullName(result.name) : null
-      if (!names) {
-        setLookup({ key, message: 'No se encontraron nombres para esta cédula. Puedes ingresarlos manualmente.', pending: false })
+      const details = employeeDetailsFromLookup(result, municipalities)
+      const hasCity = result.found && (result.cityCode || result.cityName || result.municipalityId)
+      if (!details.names && !details.email && !details.address && !hasCity) {
+        setLookup({ key, message: 'No se encontraron datos para esta cédula. Puedes ingresar la información manualmente.', pending: false })
         return
       }
-      setEditing(current => {
-        if (!current || current.id !== employee.id || current.identification !== employee.identification || current.documentTypeId !== employee.documentTypeId) return current
-        // No reemplazar nombres que el usuario haya escrito durante la consulta.
-        if ((['firstName', 'secondName', 'surname', 'secondSurname'] as const).some(field => current[field] !== employee[field])) return current
-        return { ...current, ...names }
-      })
-      setLookup({ key, message: `Nombre encontrado: ${result.name}. Revisa el orden de los nombres y apellidos antes de guardar.`, pending: false })
+      setLookupResult({ request, employee, result })
+      const message = details.names
+        ? `Nombre encontrado: ${result.name}. Revisa y completa los datos personales y de ubicación antes de guardar.`
+        : 'Se encontraron datos para esta cédula. Revisa y completa la información antes de guardar.'
+      setLookup({ key, message, pending: false })
     } catch {
-      if (request === lookupRequest.current) setLookup({ key, message: 'No se pudo consultar la cédula. Puedes ingresar los nombres manualmente o volver a salir del campo para reintentar.', pending: false })
+      if (request === lookupRequest.current) setLookup({ key, message: 'No se pudo consultar la cédula. Puedes ingresar la información manualmente o volver a salir del campo para reintentar.', pending: false })
     }
   }
   const update = (key: keyof Employee, value: Employee[keyof Employee]) => {
     if (key === 'identification' || key === 'documentTypeId') {
       lookupRequest.current += 1
       setLookup(null)
+      setLookupResult(null)
     }
     setEditing((e) => (e ? { ...e, [key]: value } : e))
   }
   const save = async (e: FormEvent) => {
     e.preventDefault()
-    if (editing && (await run(() => payrollService.employees({ ...editing, active: isPayrollEmployeeActive(editing.retirementDate) }))))
+    if (editing && (await run(() => payrollService.employees({ ...editing, email: editing.email?.trim() ?? '', address: editing.address?.trim() ?? '', active: isPayrollEmployeeActive(editing.retirementDate) }))))
       setEditing(null)
   }
   const catalogField = (
@@ -113,7 +123,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
     </Field>
   )
   const list = data.employees.map(employee => ({ ...employee, active: isPayrollEmployeeActive(employee.retirementDate) })).filter((e) =>
-    `${employeeName(e)} ${e.identification}`
+    `${e.workerCode ?? ''} ${employeeName(e)} ${e.identification}`
       .toLocaleLowerCase()
       .includes(search.toLocaleLowerCase()),
   )
@@ -164,6 +174,13 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
           <details className="payroll__card" open>
             <summary>Información personal</summary>
             <div className="payroll__section payroll__grid">
+              <Field label="Código del empleado">
+                <input
+                  readOnly
+                  value={editing.workerCode ?? ''}
+                  placeholder="Se asigna al guardar, p. ej. EMP001"
+                />
+              </Field>
               {catalogField(
                 'documentTypeId',
                 'Tipo de documento',
@@ -200,6 +217,44 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   />
                 </Field>
               ))}
+              <Field label="Correo electrónico">
+                <input
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="email"
+                  value={editing.email ?? ''}
+                  onChange={(e) => update('email', e.target.value)}
+                  onBlur={(e) => update('email', e.target.value.trim())}
+                  placeholder="empleado@correo.com"
+                />
+              </Field>
+              <Field label="Dirección">
+                <input
+                  required
+                  autoComplete="street-address"
+                  value={editing.address ?? ''}
+                  onChange={event => update('address', event.target.value)}
+                  onBlur={event => update('address', event.target.value.trim())}
+                  placeholder="Calle, carrera, número y complemento"
+                />
+              </Field>
+              <Field label="Ciudad">
+                <Autocomplete
+                  value={municipalities.find(city => city.id === editing.municipalityId) ?? null}
+                  onChange={city => update('municipalityId', city?.id ?? 0)}
+                  options={municipalities}
+                  required
+                  disabled={municipalitiesLoading || busy}
+                  placeholder={municipalitiesLoading ? 'Cargando ciudades…' : 'Buscar ciudad'}
+                  emptyMessage="No se encontraron ciudades."
+                  clearLabel="Quitar ciudad"
+                  getOptionKey={city => city.id}
+                  getOptionLabel={formatMunicipalityLabel}
+                  isOptionMatch={isMunicipalityMatch}
+                />
+                {municipalitiesError && <small role="alert">{municipalitiesError} <button type="button" className="payroll__link" onClick={reloadMunicipalities}>Reintentar ciudades</button></small>}
+              </Field>
             </div>
           </details>
           <details className="payroll__card" open>
@@ -378,7 +433,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               Cancelar
             </button>
             <button
-              disabled={busy}
+              disabled={busy || municipalitiesLoading}
               className="payroll__button payroll__button--primary"
             >
               Guardar empleado
@@ -390,7 +445,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
           <div className="payroll__filters">
             <Field label="Buscar empleado">
               <input
-                placeholder="Nombre o identificación"
+                placeholder="Código, nombre o identificación"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -401,6 +456,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               <thead>
                 <tr>
                   {[
+                    'Código',
                     'Identificación',
                     'Nombre',
                     'Cargo',
@@ -416,6 +472,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               <tbody>
                 {list.map((e) => (
                   <tr key={e.id}>
+                    <td>{e.workerCode || '—'}</td>
                     <td>{e.identification}</td>
                     <td>{employeeName(e)}</td>
                     <td>

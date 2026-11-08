@@ -89,6 +89,7 @@ export interface ProductsListResponse {
 
 export async function fetchProducts(
   search?: string,
+  options?: { force?: boolean },
 ): Promise<ProductsListResponse> {
   const trimmedSearch = search?.trim()
 
@@ -110,6 +111,7 @@ export async function fetchProducts(
       )
       return data
     },
+    options,
   )
 }
 

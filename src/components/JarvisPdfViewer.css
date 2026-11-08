@@ -8,7 +8,8 @@
 .jarvis-pdf :focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: -2px; }
 .jarvis-pdf__zoom > span { min-width: 3rem; text-align: center; font-variant-numeric: tabular-nums; }
 .jarvis-pdf__viewport { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b4c9cc transparent; position: relative; }
-.jarvis-pdf__paper { position: relative; width: max-content; margin: 16px auto; background: white; box-shadow: 0 4px 20px #16335b1a; }
+.jarvis-pdf__document { display: flex; flex-direction: column; align-items: center; gap: 16px; width: max-content; min-width: 100%; padding: 16px; box-sizing: border-box; }
+.jarvis-pdf__paper { position: relative; flex-shrink: 0; background: white; box-shadow: 0 4px 20px #16335b1a; }
 .jarvis-pdf__paper canvas { display: block; }
 .jarvis-pdf__message { padding: 2rem; text-align: center; color: var(--jarvis-text-muted); }
 .jarvis-pdf__viewport { scrollbar-gutter: stable; }

@@ -1,3 +1,6 @@
+.product-list-page .page-header { flex-wrap: wrap; }
+.product-list-page .page-header__actions { flex-wrap: wrap; flex-shrink: 1; }
+
 /* Barra de filtros */
 .product-filters {
   display: flex;

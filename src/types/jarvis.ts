@@ -240,6 +240,7 @@ export interface JarvisCredentialsStatusResponse {
 }
 
 export interface JarvisTercero {
+  payment_method_id?: number | null
   copy_emails?: string[]
   id: string
   document_type: string
@@ -265,6 +266,7 @@ export interface JarvisTercerosListResponse {
 }
 
 export interface CreateJarvisTerceroRequest {
+  payment_method_id?: number
   copy_emails?: string[]
   document_type: JarvisDocumentType
   document_number: string
@@ -285,6 +287,12 @@ export interface CreateJarvisTerceroResponse {
   tercero: JarvisTercero
 }
 
+export interface JarvisTerceroPaymentMethod {
+  id: number
+  code: string
+  name: string
+}
+
 export interface LookupJarvisTerceroNitResponse {
   found: boolean
   document_number: string
@@ -295,6 +303,9 @@ export interface LookupJarvisTerceroNitResponse {
   address: string | null
   cityCode?: string | null
   cityName?: string | null
+  stateCode?: string | null
+  /** ID interno de NextPyme, distinto del código DANE de cityCode. */
+  municipalityId?: number | null
 }
 
 /** Proveedor distinto (NIT + tipo de documento) pendiente de crear como

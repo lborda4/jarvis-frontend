@@ -45,7 +45,8 @@ import {
 import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { fetchProducts, type ProductResponse } from '../services/productService'
-import { getSalesInvoicePrices, type SalesInvoicePriceOption } from '../utils/salesInvoicePrices'
+import { getSalesInvoicePrices } from '../utils/salesInvoicePrices'
+import type { InvoiceDraftState, InvoiceDraftLine as LineItem, InvoiceDraftCustomer as InvoiceCustomer } from '../types/invoiceDraft'
 import type { JarvisTercero } from '../types/jarvis'
 import {
   buildSalesInvoiceTaxOptions,
@@ -75,52 +76,6 @@ const CURRENCY_LABELS: Record<string, string> = {
   MXN: 'Peso mexicano', BRL: 'Real brasileño', ARS: 'Peso argentino', CLP: 'Peso chileno',
   PEN: 'Sol peruano', CAD: 'Dólar canadiense', CHF: 'Franco suizo',
   JPY: 'Yen japonés', CNY: 'Yuan chino', AUD: 'Dólar australiano',
-}
-
-interface LineItem {
-  notes?: string
-  id: string
-  productSearch: string
-  code?: string
-  description: string
-  quantity: string
-  unitValue: string
-  priceOptions: SalesInvoicePriceOption[]
-  selectedPriceId: string
-  discount: string
-  taxChargeId: string
-  taxRetentionId: string
-  taxPercent: string
-}
-
-type InvoiceCustomer = Pick<JarvisTercero, 'id' | 'document_type' | 'document_number' | 'name'> & { check_digit?: string | null }
-
-interface InvoiceDraftState {
-  sourceInvoiceId?: string | null
-  attachment?: InvoiceAttachment
-  documentTotal?: number
-  selectedSellers?: JarvisSeller[]
-  selectedCustomer: InvoiceCustomer | null
-  customerQuery: string
-  issueDate: string
-  dueDate: string
-  currency: string
-  notes: string
-  headNote: string
-  footNote: string
-  discountIsPercent: boolean
-  generalDiscount: string
-  lines: LineItem[]
-  paymentFormId: string
-  paymentEntries: PaymentEntry[]
-  reteIcaId: string
-  reteIvaId: string
-  billingNumber: string
-  billingUuid: string
-  billingDate: string
-  reasonCode: string
-  reasonDescription: string
-  seze: string
 }
 
 function todayLocalDate(): string {

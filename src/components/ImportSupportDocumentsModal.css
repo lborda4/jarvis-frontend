@@ -1,0 +1,24 @@
+.support-import { width: min(100%, 960px); }
+.support-import > p { line-height: 1.6; }
+.support-import__file-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin: 1.25rem 0 .5rem; }
+.support-import__file-actions label { display: flex; flex-direction: column; gap: .4rem; font-weight: 600; min-width: 0; }
+.support-import__file-actions input { max-width: 100%; font: inherit; }
+.support-import__help { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.support-import__filename { overflow-wrap: anywhere; }
+.support-import__summary { padding: .75rem 1rem; border-radius: var(--r-sm); background: var(--jarvis-gray-50); }
+.support-import__table-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--jarvis-border); border-radius: var(--r-sm); }
+.support-import__table-wrap table { width: 100%; border-collapse: collapse; }
+.support-import__table-wrap :is(th, td) { padding: .7rem .8rem; text-align: left; vertical-align: top; min-width: 70px; }
+.support-import__table-wrap th { position: sticky; top: 0; background: var(--jarvis-gray-50); }
+.support-import__table-wrap td { border-top: 1px solid var(--jarvis-border); overflow-wrap: anywhere; }
+.support-import__table-wrap td:last-child { min-width: 220px; }
+.support-import__table-wrap ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+.support-import__table-wrap td > span { display: block; margin-top: .3rem; }
+.support-import__status--saved { color: var(--jarvis-primary); }
+.support-import__status--invalid, .support-import__status--failed { color: var(--jarvis-danger); }
+.support-import__status--duplicate { color: var(--jarvis-text-muted); }
+.support-import__pagination { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: .75rem; margin-top: .8rem; }
+.support-import__table-wrap:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
+
+.support-import__missing { padding: 1rem; border: 1px solid var(--jarvis-danger); border-radius: var(--r-sm); background: var(--jarvis-danger-soft); }
+.support-import__status--missing_supplier { color: var(--jarvis-danger); }

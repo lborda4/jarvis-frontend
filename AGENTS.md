@@ -1,5 +1,11 @@
 # Reglas generales de la interfaz
 
+## Cierre de modales
+
+- Los modales no se cierran al hacer clic o tocar fuera de su contenido ni al pulsar Escape.
+- Usar la X para el cierre manual y respetar los bloqueos de cierre durante operaciones en curso (`busy`) o cuando `dismissible` sea `false`.
+- Reutilizar `src/components/Modal.tsx` en los modales nuevos para aplicar esta regla por defecto. Los contenedores personalizados, como el de nómina, también deben cumplirla.
+
 ## Tablas y paginación
 
 - Con menos de 10 registros, no mostrar controles de paginación: números de página, flechas de navegación ni selector de filas por página. Esto incluye tablas vacías y resultados filtrados.

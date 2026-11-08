@@ -46,16 +46,11 @@ export function Modal({
   children: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  useEffect(() => {
-    closeRef.current = onClose
-  }, [onClose])
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
     const root = ref.current
     root?.focus()
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeRef.current()
       if (e.key !== 'Tab' || !root) return
       const focusable = [
         ...root.querySelectorAll<HTMLElement>(
@@ -79,7 +74,7 @@ export function Modal({
     }
   }, [])
   return (
-    <div className="payroll__modal-backdrop">
+    <div className="payroll__modal-backdrop" onClick={event => event.stopPropagation()}>
       <div
         className="payroll__modal"
         role="dialog"

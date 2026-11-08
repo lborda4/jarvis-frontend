@@ -8,7 +8,6 @@ GlobalWorkerOptions.workerSrc = workerUrl
 
 export default function JarvisPdfViewer({ url }: { url: string }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
-  const [page, setPage] = useState(1)
   const [zoom, setZoom] = useState<number | 'page' | 'width'>(1.4)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [error, setError] = useState('')
@@ -16,11 +15,11 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
   const [scaleLabel, setScaleLabel] = useState('')
   const [attempt, setAttempt] = useState(0)
   const viewportRef = useRef<HTMLDivElement>(null)
-  const paperRef = useRef<HTMLDivElement>(null)
+  const pagesRef = useRef<HTMLDivElement>(null)
   // Scrollbars can change the available size. A fixed zoom does not depend on it.
   const renderWidth = typeof zoom === 'number' ? 0 : size.width
   const renderHeight = zoom === 'page' ? size.height : 0
-  const renderKey = `${url}:${page}:${zoom}:${renderWidth}:${renderHeight}:${attempt}`
+  const renderKey = `${url}:${zoom}:${renderWidth}:${renderHeight}:${attempt}`
 
   useEffect(() => {
     const task = getDocument({ url, useSystemFonts: true, isEvalSupported: false })
@@ -47,47 +46,56 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
     let active = true
     let task: RenderTask | undefined
     let textLayer: TextLayer | undefined
+    pagesRef.current?.replaceChildren()
+    viewportRef.current?.scrollTo({ top: 0, left: 0 })
     async function render() {
       try {
-        const documentPage = await pdf!.getPage(page)
-        if (!active) return
-        const original = documentPage.getViewport({ scale: 1 })
-        const widthScale = Math.max(100, renderWidth - 32) / original.width
-        const scale = zoom === 'page' ? Math.min(widthScale, Math.max(100, renderHeight - 32) / original.height)
-          : zoom === 'width' ? widthScale : zoom
-        const viewport = documentPage.getViewport({ scale })
-        const density = Math.min(window.devicePixelRatio || 1, 2)
-        // Each render owns its canvas, so rapid zoom/page changes cannot reuse a busy canvas.
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.ceil(viewport.width * density)
-        canvas.height = Math.ceil(viewport.height * density)
-        canvas.style.width = `${viewport.width}px`
-        canvas.style.height = `${viewport.height}px`
-        canvas.setAttribute('aria-hidden', 'true')
-        task = documentPage.render({ canvas, viewport, transform: [density, 0, 0, density, 0, 0] })
-        await task.promise
-        if (!active) return
-        const text = document.createElement('div')
-        text.className = 'jarvis-pdf__text'
-        text.style.setProperty('--scale-factor', String(scale))
-        text.style.setProperty('--total-scale-factor', String(scale))
-        const textContent = await documentPage.getTextContent()
-        if (!active) return
-        textLayer = new TextLayer({ textContentSource: textContent, container: text, viewport })
-        await textLayer.render()
-        if (!active || !paperRef.current) return
-        paperRef.current.replaceChildren(canvas, text)
+        for (let page = 1; page <= pdf!.numPages; page++) {
+          const documentPage = await pdf!.getPage(page)
+          if (!active) return
+          const original = documentPage.getViewport({ scale: 1 })
+          const widthScale = Math.max(100, renderWidth - 32) / original.width
+          const scale = zoom === 'page' ? Math.min(widthScale, Math.max(100, renderHeight - 32) / original.height)
+            : zoom === 'width' ? widthScale : zoom
+          const viewport = documentPage.getViewport({ scale })
+          const density = Math.min(window.devicePixelRatio || 1, 2)
+          // Each render owns its canvas, so rapid zoom changes cannot reuse a busy canvas.
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.ceil(viewport.width * density)
+          canvas.height = Math.ceil(viewport.height * density)
+          canvas.style.width = `${viewport.width}px`
+          canvas.style.height = `${viewport.height}px`
+          canvas.setAttribute('aria-hidden', 'true')
+          task = documentPage.render({ canvas, viewport, transform: [density, 0, 0, density, 0, 0] })
+          await task.promise
+          if (!active) return
+          const text = document.createElement('div')
+          text.className = 'jarvis-pdf__text'
+          text.style.setProperty('--scale-factor', String(scale))
+          text.style.setProperty('--total-scale-factor', String(scale))
+          const textContent = await documentPage.getTextContent()
+          if (!active) return
+          textLayer = new TextLayer({ textContentSource: textContent, container: text, viewport })
+          await textLayer.render()
+          if (!active || !pagesRef.current) return
+          const paper = document.createElement('div')
+          paper.className = 'jarvis-pdf__paper'
+          paper.setAttribute('role', 'region')
+          paper.setAttribute('aria-label', `Página ${page}`)
+          paper.append(canvas, text)
+          // Publish pages in order as they finish, so the document can be read while loading.
+          pagesRef.current.append(paper)
+          if (page === 1) setScaleLabel(`${Math.round(scale * 100)}%`)
+        }
         setRendered(renderKey)
-        setScaleLabel(`${Math.round(scale * 100)}%`)
         setError('')
-        viewportRef.current?.scrollTo({ top: 0, left: 0 })
       } catch (failure) {
-        if (active && !(failure instanceof Error && failure.name === 'RenderingCancelledException')) setError('No pudimos mostrar esta página. Puedes reintentar o descargar el PDF.')
+        if (active && !(failure instanceof Error && failure.name === 'RenderingCancelledException')) setError('No pudimos mostrar el documento completo. Puedes reintentar o descargar el PDF.')
       }
     }
     void render()
     return () => { active = false; task?.cancel(); textLayer?.cancel() }
-  }, [pdf, page, zoom, renderWidth, renderHeight, renderKey])
+  }, [pdf, zoom, renderWidth, renderHeight, renderKey])
 
   const changeZoom = (delta: number) => {
     const current = typeof zoom === 'number' ? zoom : (parseInt(scaleLabel) || 100) / 100
@@ -96,9 +104,7 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
   return <div className="jarvis-pdf">
     <div className="jarvis-pdf__toolbar" aria-label="Controles del documento">
       <div className="jarvis-pdf__pages">
-        {pdf && pdf.numPages > 1 && <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>‹</button>}
-        <span aria-live="polite">{pdf ? `Página ${page} de ${pdf.numPages}` : 'Cargando documento…'}</span>
-        {pdf && pdf.numPages > 1 && <button type="button" aria-label="Página siguiente" disabled={page >= pdf.numPages} onClick={() => setPage(value => value + 1)}>›</button>}
+        <span aria-live="polite">{pdf ? (pdf.numPages === 1 ? '1 página' : `${pdf.numPages} páginas · Desliza para verlas todas`) : 'Cargando documento…'}</span>
       </div>
       <div className="jarvis-pdf__zoom">
         <button type="button" aria-label="Alejar" disabled={!pdf || zoom === .25} onClick={() => changeZoom(-.15)}>−</button>
@@ -110,7 +116,7 @@ export default function JarvisPdfViewer({ url }: { url: string }) {
     </div>
     <div ref={viewportRef} className="jarvis-pdf__viewport" tabIndex={0} aria-label="Contenido de la factura" aria-busy={!error && rendered !== renderKey}>
       {error ? <PdfPreviewError onRetry={() => { setError(''); setPdf(null); setRendered(''); setAttempt(value => value + 1) }} />
-        : <>{rendered !== renderKey && <div className="jarvis-pdf__loading" role="status">Preparando página…</div>}<div className="jarvis-pdf__paper" ref={paperRef} /></>}
+        : <>{rendered !== renderKey && <div className="jarvis-pdf__loading" role="status">Preparando documento…</div>}<div className="jarvis-pdf__document" ref={pagesRef} /></>}
     </div>
   </div>
 }
