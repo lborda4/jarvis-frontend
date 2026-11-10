@@ -57,6 +57,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
     [periodicity, setPeriodicity] = useState<PayrollPeriodicity | ''>(''),
     [month, setMonth] = useState(initial.slice(5, 7)),
     [year, setYear] = useState(initial.slice(0, 4)),
+    [paymentDate, setPaymentDate] = useState(''),
     [search, setSearch] = useState(''),
     [selected, setSelected] = useState<string[]>([]),
     [page, setPage] = useState(1)
@@ -179,6 +180,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
       period,
       periodicity: periodicity as PayrollPeriodicity,
       employeeIds: chosen,
+      paymentDate,
     }
     const issues = validatePayrollPeriod(request)
     if (!loaded)
@@ -192,7 +194,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
         if (!parameters && bounds) await ensurePayrollParameters(bounds.startDate)
         const result = await payrollService.createPeriod(groupId, request)
         key = result.key
-      }, 'Nómina creada. Puedes revisar y modificar los valores de cada empleado.')
+      }, '')
       if (ok)
         navigate(`/nomina?period=${encodeURIComponent(key)}&year=${year}&view=novelties`, {
           replace: true,
@@ -309,6 +311,15 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
                   </option>
                 ))}
               </select>
+            </RequiredField>
+            <RequiredField label="Fecha de pago">
+              <input
+                type="date"
+                name="paymentDate"
+                required
+                value={paymentDate}
+                onChange={event => setPaymentDate(event.target.value)}
+              />
             </RequiredField>
           </div>
           {bounds && (
@@ -432,7 +443,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
                           : undefined
                       }
                     >
-                      <td>
+                      <td className="payroll__checkbox-column">
                         <input
                           type="checkbox"
                           aria-label={`Incluir a ${employeeName(employee)}`}

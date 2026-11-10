@@ -1,3 +1,6 @@
+import { payrollWorkedTime } from './payrollEmployment'
+import { overtimeDefinition, overtimeErrors } from './payrollOvertime'
+
 /** Monetary values are decimal strings; integer arithmetic avoids binary rounding. */
 export function cents(value: unknown): bigint {
   const text = String(value ?? '')
@@ -32,6 +35,10 @@ export interface PayrollLine {
   percentage?: string
   startDate?: string
   endDate?: string
+  nonWorkingDays?: string
+  startTime?: string
+  endTime?: string
+  overtimeSurchargeId?: number
   formula?: string
   manual?: boolean
   mapping?: string
@@ -70,6 +77,8 @@ export const VERIFIED_CONCEPTS = [
   'transportation_allowance',
   'eps',
   'pension',
+  'overtime_day',
+  'overtime_night',
 ]
 export function totals(lines: PayrollLine[]) {
   let accrued = 0n,
@@ -99,6 +108,13 @@ export function validatePayroll(
   transmission = false,
 ): string[] {
   const errors: string[] = []
+  if (employee) {
+    try {
+      payrollWorkedTime(state.endDate, employee)
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : 'Revisa el tiempo laborado.')
+    }
+  }
   if (!employee) errors.push('Selecciona un empleado de esta empresa.')
   if (
     !validDate(state.startDate) ||
@@ -113,9 +129,9 @@ export function validatePayroll(
     state.endDate?.slice(0, 7) !== state.period
   )
     errors.push('El período debe coincidir con las fechas de liquidación.')
-  if (!Array.isArray(state.lines) || !state.lines.length)
+  if (!Array.isArray(state.lines) || (transmission && !state.lines.length))
     errors.push('Agrega al menos un devengado.')
-  else {
+  else if (state.lines.length) {
     if (state.lines.some((l: PayrollLine) => !l || typeof l !== 'object'))
       return ['Revisa los conceptos de nómina.']
     try {
@@ -144,6 +160,7 @@ export function validatePayroll(
     )
       errors.push('La naturaleza de un concepto es incorrecta.')
     for (const line of state.lines as PayrollLine[]) {
+      errors.push(...overtimeErrors(line, state.period))
       try {
         if (cents(line.quantity) < 0n) errors.push('Cantidad inválida.')
         if (line.percentage !== undefined && cents(line.percentage) > 10000n)
@@ -215,12 +232,15 @@ export function buildPayrollPayload(
 ) {
   const errors = validatePayroll(state, worker, true)
   if (errors.length) throw new Error(errors.join(' '))
-  const accrued: Record<string, { payment: string; worked_days: string }[]> =
+  const accrued: Record<string, Record<string, string | number>[]> =
       {},
     deductions: Record<string, { payment: string; percentage: string }> = {}
   for (const line of state.lines as PayrollLine[]) {
     const key = line.mapping ?? line.concept
-    if (line.kind === 'accrued')
+    const overtime = overtimeDefinition(key)
+    if (overtime)
+      (accrued[overtime.bodyKey] ??= []).push({ start_time: line.startTime!, end_time: line.endTime!, quantity: Number(line.quantity), percentage: line.overtimeSurchargeId!, payment: money(cents(line.amount)) })
+    else if (line.kind === 'accrued')
       (accrued[key] ??= []).push({
         payment: money(cents(line.amount)),
         worked_days: money(cents(line.quantity)),
@@ -250,10 +270,10 @@ export function buildPayrollPayload(
     number,
     prefix,
     period: {
-      admittance_date: worker.admittanceDate,
+      admision_date: worker.admittanceDate,
       settlement_start_date: state.startDate,
       settlement_end_date: state.endDate,
-      worked_time: money(cents(state.workedDays)),
+      worked_time: payrollWorkedTime(state.endDate, worker),
       issue_date: state.issueDate,
     },
     worker: {
@@ -263,7 +283,7 @@ export function buildPayrollPayload(
       identification_number: worker.identification,
       surname: worker.surname,
       first_name: worker.firstName,
-      high_risk_pension: !!worker.highRiskPension,
+      high_risk_pension: false,
       integral_salary: !!worker.integralSalary,
       salary: money(cents(worker.salary)),
     },

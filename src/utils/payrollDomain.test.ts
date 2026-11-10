@@ -46,6 +46,11 @@ const state = {
   ],
 }
 describe('nómina: precisión y validación', () => {
+  it('permite guardar un borrador vacío sin permitir enviarlo', () => {
+    const empty = { ...state, lines: [] }
+    expect(validatePayroll(empty, worker)).toEqual([])
+    expect(validatePayroll(empty, worker, true)).toContain('Agrega al menos un devengado.')
+  })
   it('bloquea un campo de trabajador cuyo mapeo no está verificado', () =>
     expect(
       validatePayroll(state, { ...worker, secondSurname: 'López' }, true).join(
@@ -123,6 +128,13 @@ describe('nómina: precisión y validación', () => {
   it('construye estructura verificada sin datos internos', () => {
     const payload = buildPayrollPayload(state, worker, 1, 'NE')
     expect(payload.type_document_id).toBe(9)
+    expect(payload.period).toEqual({
+      admision_date: '2026-01-01',
+      settlement_start_date: '2026-10-01',
+      settlement_end_date: '2026-10-31',
+      worked_time: 300,
+      issue_date: '2026-11-01',
+    })
     expect(payload.predecessor).toEqual({})
     expect(payload.accrued.salary[0]).toEqual({
       payment: '2000000.10',
@@ -150,5 +162,13 @@ describe('nómina: precisión y validación', () => {
     expect(payload.type_document_id).toBe(10)
     expect(payload).toMatchObject({ type_note: 2 })
     expect(payload.predecessor).toEqual(predecessor)
+  })
+  it('separa antigüedad acumulada y días de la quincena sin usar la fecha de emisión', () => {
+    const payload = buildPayrollPayload({
+      ...state, endDate: '2026-10-15', issueDate: '2026-11-20', workedDays: '15',
+      lines: [{ ...state.lines[0], quantity: '15' }],
+    }, worker, 1, 'SETP')
+    expect(payload.period.worked_time).toBe(285)
+    expect(payload.accrued.salary[0].worked_days).toBe('15.00')
   })
 })

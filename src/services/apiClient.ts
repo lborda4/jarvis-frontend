@@ -1,4 +1,4 @@
-import { clientFacingError } from '../utils/clientFacingError'
+import { CLIENT_ERROR_FALLBACK, clientFacingError } from '../utils/clientFacingError'
 import { companyQueryKey, getActiveCompanyId, peekCachedQuery } from './queryCache'
 import axios, {
   type AxiosError,
@@ -153,6 +153,7 @@ export function getApiErrorMessage(
       .trim()
 
   if (axios.isAxiosError(error)) {
+    if ((error.response?.status ?? 0) >= 500) return CLIENT_ERROR_FALLBACK
     const data = error.response?.data
 
     if (typeof data === 'object' && data !== null && 'message' in data) {
@@ -173,11 +174,11 @@ export function getApiErrorMessage(
     // rutas internas y no le dicen nada al usuario. Se cae al mensaje por
     // estado o al fallback de quien llama.
     if (error.response?.status) {
-      return `Error del servidor (${error.response.status}). Intenta nuevamente.`
+      return sanitize(fallbackMessage) || CLIENT_ERROR_FALLBACK
     }
 
     if (error.code === 'ERR_NETWORK') {
-      return 'No se pudo conectar con el servidor.'
+      return 'No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'
     }
 
     return sanitize(error.message) || fallbackMessage

@@ -3,10 +3,10 @@ import {
   payrollService,
   type PayrollWorkerCatalogs,
 } from '../../services/payrollService'
-import { getApiErrorMessage } from '../../services/apiClient'
 import { fetchJarvisMunicipalities } from '../../services/jarvisService'
 import type { JarvisMunicipality } from '../../types/jarvis'
-export default function usePayrollCatalogs() {
+const OPTIONS_ERROR = 'No pudimos cargar las opciones para registrar el empleado. Inténtalo de nuevo. Si el problema continúa, comunícate con soporte.'
+export default function usePayrollCatalogs(enabled: boolean, onLoaded?: (value: PayrollWorkerCatalogs) => void) {
   const [catalogs, setCatalogs] = useState<PayrollWorkerCatalogs | null>(null),
     [error, setError] = useState('')
   const [municipalities, setMunicipalities] = useState<JarvisMunicipality[]>([])
@@ -14,16 +14,17 @@ export default function usePayrollCatalogs() {
   const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true)
   const [municipalitiesAttempt, setMunicipalitiesAttempt] = useState(0)
   useEffect(() => {
+    if (!enabled) return
     let active = true
     void fetchJarvisMunicipalities().then(response => {
       if (!active) return
       setMunicipalities(response.items)
       setMunicipalitiesError('')
-    }).catch(error => {
-      if (active) setMunicipalitiesError(getApiErrorMessage(error, 'No se pudieron cargar las ciudades.'))
+    }).catch(() => {
+      if (active) setMunicipalitiesError('No pudimos cargar las ciudades. Inténtalo de nuevo. Si el problema continúa, comunícate con soporte.')
     }).finally(() => { if (active) setMunicipalitiesLoading(false) })
     return () => { active = false }
-  }, [municipalitiesAttempt])
+  }, [enabled, municipalitiesAttempt])
   const reloadMunicipalities = () => {
     setMunicipalitiesLoading(true)
     setMunicipalitiesError('')
@@ -34,13 +35,14 @@ export default function usePayrollCatalogs() {
       const value = await payrollService.workerCatalogs()
       setCatalogs(value)
       setError('')
-    } catch (e) {
-      setError(
-        getApiErrorMessage(e, 'No se pudieron cargar los catálogos de nómina.'),
-      )
+      onLoaded?.(value)
+      return value
+    } catch {
+      setError(OPTIONS_ERROR)
     }
-  }, [])
+  }, [onLoaded])
   useEffect(() => {
+    if (!enabled) return
     let active = true
     void payrollService
       .workerCatalogs()
@@ -48,14 +50,15 @@ export default function usePayrollCatalogs() {
         if (active) {
           setCatalogs(value)
           setError('')
+          onLoaded?.(value)
         }
       })
       .catch(() => {
-        if (active) setError('No se pudieron cargar los catálogos de nómina.')
+        if (active) setError(OPTIONS_ERROR)
       })
     return () => {
       active = false
     }
-  }, [])
+  }, [enabled, onLoaded])
   return { catalogs, error, reload, municipalities, municipalitiesError, municipalitiesLoading, reloadMunicipalities }
 }

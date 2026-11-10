@@ -29,7 +29,7 @@ import PayrollNoveltyModal from './PayrollNoveltyModal'
 import {
   canEditPayrollNovelties,
   payrollNoveltyTotals,
-  recalculatePayrollNovelties,
+  preparePayrollNovelties,
   stateForAddedPayrollEmployee,
 } from './payrollNoveltyDomain'
 import './PayrollNovelties.css'
@@ -141,8 +141,12 @@ export default function PayrollNovelties({
         throw cause
       }
     }, 'Novedad guardada.')
-    if (ok) setNovelty(null)
-    else throw new Error(saveError)
+    if (ok) {
+      setNovelty(current => current && ({
+        detail: { ...current.detail, state },
+      }))
+      setDetail(current => current?.id === novelty.detail.id ? { ...current, state } : current)
+    } else throw new Error(saveError)
   }
   const removeLine = async (line: PayrollLine) => {
     if (!detail) return
@@ -159,19 +163,17 @@ export default function PayrollNovelties({
     }, 'Novedad eliminada.')
     if (!ok) return
   }
-  const calculate = async (finish = false) => {
+  const liquidate = async () => {
     setConfirmLiquidate(false)
     const ok = await run(
       async () => {
         const pending: { id: string; state: PayrollState }[] = []
         for (const document of editable) {
           const full = await payrollService.get(document.id)
-          const state = recalculatePayrollNovelties(
-            full.state,
-            full.employee_snapshot,
-            full.parameter_snapshot,
-          )
+          const state = preparePayrollNovelties(full.state)
           const errors = validatePayroll(state, full.employee_snapshot)
+          if (!state.lines.some(line => line.kind === 'accrued' && Number(line.amount) > 0))
+            errors.push('Ingresa el salario y los demás valores antes de liquidar.')
           if (errors.length)
             throw new Error(
               `${employeeName(full.employee_snapshot)}: ${errors.join(' ')}`,
@@ -185,11 +187,9 @@ export default function PayrollNovelties({
           await reload()
         }
       },
-      finish
-        ? 'Nómina liquidada. Revisa el resumen y continúa con el envío cuando esté lista.'
-        : 'Valores recalculados. Se conservaron los valores manuales.',
+      'Nómina liquidada. Revisa el resumen y continúa con el envío cuando esté lista.',
     )
-    if (ok && finish) onFinish()
+    if (ok) onFinish()
   }
   const availableEmployees = reference
     ? data.employees.filter(
@@ -242,13 +242,6 @@ export default function PayrollNovelties({
               onClick={onBack}
             >
               Regresar
-            </button>
-            <button
-              className="payroll__button"
-              disabled={busy || !editable.length}
-              onClick={() => void calculate()}
-            >
-              Recalcular
             </button>
             <button
               className="payroll__button payroll__button--primary"
@@ -536,7 +529,7 @@ export default function PayrollNovelties({
           onClose={() => setConfirmLiquidate(false)}
         >
           <p>
-            Se recalcularán y guardarán las novedades de {editable.length}{' '}
+            Se guardarán los valores ingresados para {editable.length}{' '}
             empleados antes de revisar el resumen de la nómina.
           </p>
           <div className="payroll__toolbar">
@@ -549,7 +542,7 @@ export default function PayrollNovelties({
             <button
               className="payroll__button payroll__button--primary"
               disabled={busy}
-              onClick={() => void calculate(true)}
+              onClick={() => void liquidate()}
             >
               Liquidar
             </button>

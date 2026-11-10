@@ -8,8 +8,8 @@ const cities = [
   { id: 11, code: '76400', name: 'La Unión' },
 ]
 describe('municipios compartidos por terceros y empleados', () => {
-  it('muestra nombre y código DANE, y busca sin depender de tildes', () => {
-    expect(formatMunicipalityLabel(cities[0])).toBe('Bogotá, D.C. (11001)')
+  it('muestra solo el nombre y conserva la búsqueda por nombre o código', () => {
+    expect(formatMunicipalityLabel(cities[0])).toBe('Bogotá, D.C.')
     expect(isMunicipalityMatch(cities[1], 'medellin')).toBe(true)
     expect(isMunicipalityMatch(cities[1], '05001')).toBe(true)
   })

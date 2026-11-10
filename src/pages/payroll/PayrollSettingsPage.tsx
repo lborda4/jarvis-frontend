@@ -5,10 +5,8 @@ import {
   type Concept,
 } from '../../services/payrollService'
 import { VERIFIED_CONCEPTS } from '../../utils/payrollDomain'
-import { monthlyHoursForWeek, payrollParametersForSettings } from './payrollDefaults'
-import { Field, PayrollHeading, type PayrollContext } from './PayrollPage'
-import PayrollMoneyInput from './PayrollMoneyInput'
-import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
+import { payrollParametersForSettings } from './payrollDefaults'
+import { PayrollHeading, type PayrollContext } from './PayrollPage'
 export default function PayrollSettingsPage({
   data,
   run,
@@ -70,19 +68,6 @@ export default function PayrollSettingsPage({
     setConceptError('')
     setConceptNotice('Concepto agregado. Pulsa Guardar para guardar los cambios de configuración.')
   }
-  const field = (key: keyof Parameters, label: string, type = 'number') => (
-    <Field label={label}>
-      {key === 'minimumSalary' || key === 'transportAllowance' ? <PayrollMoneyInput value={parameters[key]} onValueChange={value => setParameters({ ...parameters, [key]: value })} /> : <input
-        type={type}
-        min={type === 'number' ? '0' : undefined}
-        step={type === 'number' ? '0.01' : undefined}
-        value={String(parameters[key])}
-        onChange={(e) =>
-          setParameters({ ...parameters, [key]: e.target.value, ...(key === 'weeklyHours' ? { monthlyHours: monthlyHoursForWeek(e.target.value) } : {}) })
-        }
-      />}
-    </Field>
-  )
   const conceptSection = (kind: 'accrued' | 'deduction') => (
     <>
       <div className="payroll__scroll">
@@ -240,26 +225,8 @@ export default function PayrollSettingsPage({
     <>
       <PayrollHeading
         title="Configuración de nómina electrónica"
-        description="Administra los parámetros, conceptos y factores utilizados para preparar tus nóminas electrónicas."
+        description="Administra los conceptos utilizados para preparar tus nóminas electrónicas."
       />
-      <details className="payroll__card" open>
-        <summary>Parámetros generales</summary>
-        <div className="payroll__section">
-          <p className="payroll__muted">
-            Revisa los parámetros antes de guardarlos. El salario mínimo y el
-            auxilio de transporte y la jornada semanal se proponen según la fecha actual y puedes modificarlos.
-          </p>
-          <div className="payroll__grid">
-            {field('minimumSalary', 'Salario mínimo legal')}
-            {field('transportAllowance', 'Auxilio de transporte')}
-            {field('weeklyHours', 'Jornada máxima semanal (horas)')}
-            {field('monthlyDays', 'Días de referencia mensual')}
-            <Field label="Método de pago predeterminado">
-              <PayrollPaymentMethodSelect value={parameters.paymentMethodId} savedId={parameters.jarvisPaymentMethodId} savedName={parameters.paymentMethodName} onChange={method => setParameters({ ...parameters, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} />
-            </Field>
-          </div>
-        </div>
-      </details>
       <details className="payroll__card payroll__concepts-card">
         <summary>Devengados, horas extras y recargos</summary>
         {conceptSection('accrued')}

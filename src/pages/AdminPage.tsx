@@ -10,6 +10,7 @@ import { JARVIS_MODULES, JARVIS_MODULE_LABELS, companyJarvisModules, type Jarvis
 import { Fragment, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Autocomplete from '../components/Autocomplete'
+import { formatMunicipalityLabel } from '../utils/jarvisMunicipality'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
@@ -600,7 +601,7 @@ function AdminPage() {
     setEditingCityCompanyId(company.id)
     setCityDraft(
       company.cityCode
-        ? { code: company.cityCode, name: company.cityName ?? company.cityCode }
+        ? { code: company.cityCode, name: company.cityName ?? cities.find(city => city.code === company.cityCode)?.name ?? 'Ciudad sin nombre' }
         : null,
     )
   }
@@ -816,7 +817,7 @@ function AdminPage() {
                 placeholder="Buscar ciudad..."
                 emptyMessage="No se encontraron ciudades"
                 getOptionKey={(city) => city.code}
-                getOptionLabel={(city) => `${city.name} (${city.code})`}
+                getOptionLabel={formatMunicipalityLabel}
               />
             </div>
           </div>
@@ -1465,9 +1466,7 @@ function AdminPage() {
                               placeholder="Buscar ciudad..."
                               emptyMessage="No se encontraron ciudades"
                               getOptionKey={(city) => city.code}
-                              getOptionLabel={(city) =>
-                                `${city.name} (${city.code})`
-                              }
+                              getOptionLabel={formatMunicipalityLabel}
                             />
                             <div className="admin-nextpyme-token__actions">
                               <button

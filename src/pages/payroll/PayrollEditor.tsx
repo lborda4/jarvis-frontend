@@ -11,7 +11,6 @@ import {
   VERIFIED_CONCEPTS,
   type PayrollLine,
 } from '../../utils/payrollDomain'
-import { suggestPayrollAmount } from '../../utils/payrollCalculation'
 import { blankPayroll, currency, employeeName } from './payrollDefaults'
 import { movePayrollStatePeriod } from '../../utils/documentDuplication'
 import { Field, Modal, type PayrollContext } from './PayrollPage'
@@ -45,7 +44,6 @@ export default function PayrollEditor({
     [concept, setConcept] = useState('salary'),
     [quantity, setQuantity] = useState('1'),
     [amount, setAmount] = useState('0'),
-    [manual, setManual] = useState(false),
     [dates, setDates] = useState({
       startDate: state.startDate,
       endDate: state.endDate,
@@ -59,19 +57,6 @@ export default function PayrollEditor({
     data.parameters.find((p) => p.validFrom <= state.startDate)?.data
   const concepts = parameters?.concepts ?? []
   const selectedConcept = concepts.find((c) => c.code === concept)
-  let suggestion: { amount: string; formula: string } | null = null
-  try {
-    if (employee && parameters && selectedConcept)
-      suggestion = suggestPayrollAmount(
-        employee,
-        parameters,
-        selectedConcept,
-        quantity,
-        state.workedDays,
-      )
-  } catch {
-    /* incomplete input */
-  }
   let total = { accrued: '0', deductions: '0', net: '0' }
   try {
     total = totals(state.lines)
@@ -79,30 +64,7 @@ export default function PayrollEditor({
     /* validation displays the error */
   }
   const chooseEmployee = (employeeId: string) => {
-    const e = data.employees.find((w) => w.id === employeeId)
-    let lines: PayrollLine[] = []
-    const salary = parameters?.concepts.find((c) => c.code === 'salary')
-    if (e && parameters && salary) {
-      const suggested = suggestPayrollAmount(
-        e,
-        parameters,
-        salary,
-        state.workedDays,
-        state.workedDays,
-      )
-      if (suggested)
-        lines = [
-          {
-            id: crypto.randomUUID(),
-            concept: 'salary',
-            kind: 'accrued',
-            amount: suggested.amount,
-            quantity: state.workedDays,
-            formula: suggested.formula,
-          },
-        ]
-    }
-    setState({ ...state, employeeId, lines })
+    setState({ ...state, employeeId, lines: [] })
   }
   const save = async () => {
     const validation = validatePayroll(state, employee)
@@ -134,10 +96,9 @@ export default function PayrollEditor({
         : selectedConcept.code,
       kind: selectedConcept.kind,
       quantity: selectedConcept.code === 'salary' ? state.workedDays : quantity,
-      amount: manual ? amount : (suggestion?.amount ?? amount),
+      amount,
       percentage: selectedConcept.percentage || '0',
-      manual: manual || !suggestion,
-      formula: !manual ? suggestion?.formula : undefined,
+      manual: true,
       ...(['Incapacidades', 'Licencias', 'Vacaciones'].includes(
         selectedConcept.category,
       )
@@ -228,35 +189,8 @@ export default function PayrollEditor({
                 setState((s) => ({
                   ...s,
                   workedDays: days,
-                  lines: s.lines.map((l) => {
-                    if (
-                      l.concept !== 'salary' ||
-                      l.manual ||
-                      !employee ||
-                      !parameters
-                    )
-                      return l
-                    try {
-                      const c = concepts.find((c) => c.code === 'salary')!
-                      const v = suggestPayrollAmount(
-                        employee,
-                        parameters,
-                        c,
-                        days,
-                        days,
-                      )
-                      return v
-                        ? {
-                            ...l,
-                            quantity: days,
-                            amount: v.amount,
-                            formula: v.formula,
-                          }
-                        : l
-                    } catch {
-                      return l
-                    }
-                  }),
+                  lines: s.lines.map(line => line.concept === 'salary'
+                    ? { ...line, quantity: days, manual: true, formula: undefined } : line),
                 }))
               }}
             />
@@ -339,30 +273,6 @@ export default function PayrollEditor({
                             value={l.quantity}
                             onChange={(e) => {
                               const quantity = e.target.value
-                              const concept = concepts.find(
-                                (c) => c.code === l.concept,
-                              )
-                              let suggestion: {
-                                amount: string
-                                formula: string
-                              } | null = null
-                              try {
-                                if (
-                                  employee &&
-                                  parameters &&
-                                  concept &&
-                                  !l.manual
-                                )
-                                  suggestion = suggestPayrollAmount(
-                                    employee,
-                                    parameters,
-                                    concept,
-                                    quantity,
-                                    state.workedDays,
-                                  )
-                              } catch {
-                                /* incomplete quantity */
-                              }
                               setState({
                                 ...state,
                                 lines: state.lines.map((line) =>
@@ -370,12 +280,8 @@ export default function PayrollEditor({
                                     ? {
                                         ...line,
                                         quantity,
-                                        ...(suggestion
-                                          ? {
-                                              amount: suggestion.amount,
-                                              formula: suggestion.formula,
-                                            }
-                                          : {}),
+                                        manual: true,
+                                        formula: undefined,
                                       }
                                     : line,
                                 ),
@@ -465,7 +371,6 @@ export default function PayrollEditor({
                   setAdding(kind)
                   setTab(kind === 'deduction' ? 'Deducciones' : 'Salario')
                   setConcept(kind === 'deduction' ? 'eps' : 'salary')
-                  setManual(false)
                   setQuantity('1')
                   setAmount('0')
                 }}
@@ -570,7 +475,6 @@ export default function PayrollEditor({
                 value={concept}
                 onChange={(e) => {
                   setConcept(e.target.value)
-                  setManual(false)
                 }}
               >
                 {concepts
@@ -603,18 +507,13 @@ export default function PayrollEditor({
                 <input readOnly value={selectedConcept.factor} />
               </Field>
             )}
-            <Field
-              label={
-                suggestion && !manual ? 'Valor calculado' : 'Valor liquidado'
-              }
-            >
+            <Field label="Valor liquidado">
               <PayrollMoneyInput
                 min="0"
                 step="0.01"
-                value={!manual && suggestion ? suggestion.amount : amount}
+                value={amount}
                 onValueChange={(value) => {
                   setAmount(value)
-                  setManual(true)
                 }}
               />
             </Field>
@@ -645,9 +544,7 @@ export default function PayrollEditor({
               )}
           </div>
           <p className="payroll__muted">
-            {suggestion && !manual
-              ? suggestion.formula
-              : 'Ingresa el valor liquidado; no hay una regla automática verificada para este concepto.'}
+            Ingresa el valor liquidado para este concepto.
           </p>
           {!VERIFIED_CONCEPTS.includes(
             selectedConcept?.code.startsWith('internal_')

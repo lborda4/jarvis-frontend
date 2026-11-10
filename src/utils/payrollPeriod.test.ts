@@ -5,8 +5,15 @@ const request = {
   period: '2026-10',
   periodicity: 'FIRST_HALF' as const,
   employeeIds: ['11111111-1111-4111-8111-111111111111'],
+  paymentDate: '2026-10-20',
 }
 describe('crear un período de nómina', () => {
+  it.each(['', '2026-02-30', '2026-13-01', '31/01/2026'])('exige una fecha de pago real: %s', paymentDate => {
+    expect(validatePayrollPeriod({ ...request, paymentDate })).toContain('Selecciona una fecha de pago válida.')
+  })
+  it('permite que la fecha de pago sea posterior al período liquidado', () => {
+    expect(validatePayrollPeriod({ ...request, paymentDate: '2026-11-05' })).toEqual([])
+  })
   it('calcula la primera quincena y la segunda hasta el último día real del mes', () => {
     expect(payrollPeriodBounds('2026-10', 'FIRST_HALF')).toEqual({
       startDate: '2026-10-01',

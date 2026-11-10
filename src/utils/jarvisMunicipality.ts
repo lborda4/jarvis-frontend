@@ -1,8 +1,7 @@
 import type { JarvisMunicipality } from '../types/jarvis'
 
-export function formatMunicipalityLabel(item: JarvisMunicipality): string {
-  const code = item.code?.trim()
-  return code ? `${item.name} (${code})` : item.name
+export function formatMunicipalityLabel(item: Pick<JarvisMunicipality, 'name'>): string {
+  return item.name
 }
 
 function normalizeName(value: string) {
@@ -16,7 +15,8 @@ function normalizeCode(value?: string | null) {
 }
 
 export function isMunicipalityMatch(item: JarvisMunicipality, query: string): boolean {
-  return normalizeName(formatMunicipalityLabel(item)).includes(normalizeName(query)) || String(item.id).includes(query.trim())
+  return normalizeName(item.name).includes(normalizeName(query)) ||
+    Boolean(item.code?.includes(query.trim())) || String(item.id).includes(query.trim())
 }
 
 /** Devuelve siempre el ID real del catálogo, nunca un código DANE como si fuera un ID. */

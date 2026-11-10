@@ -78,6 +78,22 @@
   color: var(--jarvis-navy);
   text-transform: capitalize;
 }
+.date-picker__month-year { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+.date-picker__month-year select {
+  min-width: 0;
+  max-width: 7.5rem;
+  padding: .35rem .15rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f4f8fa;
+  color: var(--jarvis-navy, #16324d);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.date-picker__month-year select:last-child { max-width: 5rem; }
+.date-picker__month-year select:focus-visible { outline: 2px solid var(--jarvis-primary, #009b99); outline-offset: 1px; }
 
 .date-picker__nav {
   display: inline-flex;

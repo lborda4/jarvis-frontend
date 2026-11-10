@@ -1,0 +1,14 @@
+.report-filter-combobox { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 6px; color: #53667a; font-size: 13px; }
+.report-filter-combobox__field { position: relative; }
+.jarvis-reports__filters .report-filter-combobox__field input { padding-right: 64px; text-overflow: ellipsis; }
+.report-filter-combobox__field button { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; color: #53667a; background: transparent; cursor: pointer; font-size: 20px; }
+.report-filter-combobox__toggle { right: 5px; }
+.report-filter-combobox__clear { right: 32px; }
+.report-filter-combobox__field button:hover { background: #edf8f7; color: #008d87; }
+.report-filter-combobox__field button:focus-visible { outline: 2px solid #12a39c; }
+.report-filter-combobox__options { position: absolute; top: 100%; left: 0; right: 0; z-index: 20; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: 6px 0 0; padding: 5px; list-style: none; border: 1px solid #cedae3; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px #142c431a; }
+.report-filter-combobox__options li { padding: 10px; border-radius: 5px; overflow-wrap: anywhere; line-height: 1.5; }
+.report-filter-combobox__options [role='option'] { cursor: pointer; color: #17334c; }
+.report-filter-combobox__options .report-filter-combobox__option--active { color: #006b70; background: #e7f7f6; }
+.report-filter-combobox__options [aria-selected='true'] { font-weight: 600; }
+.report-filter-combobox__status { color: #637588; }

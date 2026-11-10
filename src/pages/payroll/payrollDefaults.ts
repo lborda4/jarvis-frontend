@@ -36,15 +36,17 @@ export const localDate = () =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(
     new Date(),
   )
-export function blankEmployee(identifications: { id: number; name: string; code?: string }[] = [], date = localDate()): Employee {
+export function defaultPayrollDocumentType(identifications: { id: number; name: string; code?: string }[] = []): number {
   const citizenshipCard = identifications.find(document =>
-    document.code === '31' || document.code?.toUpperCase() === 'CC' ||
-    /cedula (de )?ciudadania/.test(document.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
-  )
+    /cedula (de )?ciudadania/.test(document.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ')),
+  ) ?? identifications.find(document => document.code?.trim().toUpperCase() === 'CC')
+  return citizenshipCard?.id ?? 0
+}
+export function blankEmployee(identifications: { id: number; name: string; code?: string }[] = [], date?: string): Employee {
   return {
     id: crypto.randomUUID(),
     identification: '',
-    documentTypeId: citizenshipCard?.id ?? 0,
+    documentTypeId: defaultPayrollDocumentType(identifications),
     firstName: '',
     secondName: '',
     surname: '',
@@ -56,9 +58,9 @@ export function blankEmployee(identifications: { id: number; name: string; code?
     subTypeWorkerId: 0,
     contractType: 'INDEFINITE',
     positionId: '',
-    admittanceDate: date,
+    admittanceDate: date ?? '',
     retirementDate: '',
-    salary: blankParameters(date).minimumSalary,
+    salary: blankParameters(date ?? localDate()).minimumSalary,
     integralSalary: false,
     highRiskPension: false,
     active: true,

@@ -22,6 +22,7 @@ export interface Employee {
   typeWorkerId: number
   subTypeWorkerId: number
   contractType: string
+  typeContractId?: number
   positionId: string
   admittanceDate: string
   retirementDate: string
@@ -75,7 +76,7 @@ export interface Position {
 }
 export interface PayrollSettings {
   environment: number
-  prefix: string
+  readonly prefix: string
   enabled: boolean
 }
 export interface PayrollState {
@@ -136,6 +137,7 @@ export interface PayrollBootstrap {
   nextNumber: string
 }
 export interface PayrollWorkerCatalogs {
+  contractTypes?: { key: string; id: number; name: string; code?: string | null }[]
   workerTypes: { id: number; name: string; code?: string }[]
   workerSubtypes: { id: number; name: string; code?: string }[]
   paymentMethods?: { id: number; name: string; code?: string }[]
@@ -174,10 +176,12 @@ export const payrollService = {
     ).data,
   workerCatalogs: async () =>
     (await apiClient.get<PayrollWorkerCatalogs>(`${root}/catalogs`)).data,
+  overtimeSurcharges: async () =>
+    (await apiClient.get<{ id: number; name: string; code?: string | null }[]>(`${root}/overtime-surcharges`)).data,
   bootstrap: async () =>
     (await apiClient.get<PayrollBootstrap>(`${root}/bootstrap`)).data,
   employees: async (employee: Employee) =>
-    (await apiClient.put(`${root}/employees/${employee.id}`, employee)).data,
+    (await apiClient.put(`${root}/employees/${employee.id}`, { ...employee, highRiskPension: false })).data,
   position: async (position: Position) =>
     (await apiClient.put(`${root}/positions/${position.id}`, position)).data,
   deletePosition: async (id: string) =>
@@ -186,7 +190,7 @@ export const payrollService = {
     (await apiClient.post(`${root}/parameters`, parameters)).data,
   updateParameters: async (parameters: Parameters) =>
     (await apiClient.put(`${root}/parameters`, parameters)).data,
-  settings: async (settings: PayrollSettings) =>
+  settings: async (settings: Pick<PayrollSettings, 'environment' | 'enabled'>) =>
     (await apiClient.put(`${root}/settings`, settings)).data,
   environment: async () => (await apiClient.post(`${root}/environment`)).data,
   list: async (period?: string) =>

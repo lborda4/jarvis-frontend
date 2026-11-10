@@ -9,41 +9,33 @@ import {
   cents,
   money,
   totals,
+  validDate,
   validatePayroll,
   type PayrollLine,
 } from '../../utils/payrollDomain'
-import { suggestPayrollAmount } from '../../utils/payrollCalculation'
 import { payrollEmploymentDays } from '../../utils/payrollEmployment'
 import { prorate } from '../../utils/payrollDomain'
 
 export const canEditPayrollNovelties = (document: Pick<PayrollDocument, 'status'>) =>
   ['DRAFT', 'REJECTED'].includes(document.status)
 
-export function recalculatePayrollNovelties(
-  state: PayrollState,
-  employee: Employee,
-  parameters: Parameters,
-): PayrollState {
-  return {
-    ...state,
-    lines: state.lines.map((line) => {
-      if (line.manual) return line
-      const concept = parameters.concepts.find(
-        (item) => item.code === line.concept && item.kind === line.kind,
-      )
-      if (!concept) return line
-      const result = suggestPayrollAmount(
-        employee,
-        parameters,
-      { ...concept, percentage: line.percentage ?? concept.percentage },
-        line.quantity,
-        state.workedDays,
-      )
-      return result
-        ? { ...line, amount: result.amount, formula: result.formula }
-        : line
-    }),
-  }
+export function preparePayrollNovelties(state: PayrollState): PayrollState {
+  return { ...state, lines: state.lines.map(line => ({ ...line, manual: true, formula: undefined })) }
+}
+
+export function payrollNoveltyDateBounds(period: string) {
+  const [year, month] = period.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return { min: `${period}-01`, max: `${period}-${String(lastDay).padStart(2, '0')}` }
+}
+
+export function payrollNoveltyDateQuantity(startDate: string, endDate: string, nonWorkingDays = '0'): string {
+  if (!validDate(startDate) || !validDate(endDate) || startDate > endDate)
+    throw new Error('Revisa la fecha de inicio y la fecha de fin de la novedad.')
+  const totalDays = (Date.parse(endDate) - Date.parse(startDate)) / 86400000 + 1
+  if (!/^\d+$/.test(nonWorkingDays) || !Number.isSafeInteger(Number(nonWorkingDays)) || Number(nonWorkingDays) >= totalDays)
+    throw new Error('Los días no hábiles deben ser un número entero entre cero y uno menos que los días del rango.')
+  return String(totalDays - Number(nonWorkingDays))
 }
 
 export function payrollNoveltyLine(
@@ -58,8 +50,15 @@ export function payrollNoveltyLine(
     formula?: string
     startDate?: string
     endDate?: string
+    nonWorkingDays?: string
+    startTime?: string
+    endTime?: string
+    overtimeSurchargeId?: number
   },
 ): PayrollLine {
+  const bounds = payrollNoveltyDateBounds(state.period)
+  if ([input.startDate, input.endDate].some(date => date && (date < bounds.min || date > bounds.max)))
+    throw new Error('Las fechas de la novedad deben estar dentro del mes de la nómina.')
   if (cents(input.amount) <= 0n || cents(input.quantity) <= 0n)
     throw new Error('La cantidad y el valor deben ser mayores que cero.')
   const line: PayrollLine = {
@@ -123,25 +122,10 @@ export function stateForAddedPayrollEmployee(
           String(employment.days),
           String(employment.periodDays),
         )
-  const salary = parameters.concepts.find(
-    (item) => item.code === 'salary' && item.active,
-  )
-  if (!salary)
-    throw new Error('Activa el concepto de salario básico en configuración.')
   return {
     ...reference,
     employeeId: employee.id,
     workedDays,
-    lines: [
-      {
-        id: crypto.randomUUID(),
-        concept: 'salary',
-        kind: 'accrued',
-        quantity: workedDays,
-        amount: prorate(employee.salary, workedDays, parameters.monthlyDays),
-        manual: false,
-        formula: `${employee.salary} / ${parameters.monthlyDays} días × ${workedDays} días`,
-      },
-    ],
+    lines: [],
   }
 }

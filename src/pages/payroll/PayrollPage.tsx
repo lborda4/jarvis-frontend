@@ -39,11 +39,13 @@ export function Modal({
   subtitle,
   onClose,
   children,
+  className,
 }: {
   title: string
   subtitle?: string
   onClose: () => void
   children: ReactNode
+  className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -76,7 +78,7 @@ export function Modal({
   return (
     <div className="payroll__modal-backdrop" onClick={event => event.stopPropagation()}>
       <div
-        className="payroll__modal"
+        className={['payroll__modal', className].filter(Boolean).join(' ')}
         role="dialog"
         aria-modal="true"
         aria-label={title}

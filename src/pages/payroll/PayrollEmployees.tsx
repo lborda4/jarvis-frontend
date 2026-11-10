@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { payrollService, type Employee } from '../../services/payrollService'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { payrollService, type Employee, type PayrollWorkerCatalogs } from '../../services/payrollService'
 import {
   blankEmployee,
+  defaultPayrollDocumentType,
   contractLabels,
   currency,
   employeeName,
@@ -11,8 +12,12 @@ import PayrollImport from './PayrollImport'
 import usePayrollCatalogs from './usePayrollCatalogs'
 import PayrollMoneyInput from './PayrollMoneyInput'
 import PayrollPaymentMethodSelect from './PayrollPaymentMethodSelect'
+import { employeeBankFields, employeePaymentType } from './employeePayment'
+import { canSavePayrollEmployee } from './employeeFormValidity'
 import Autocomplete from '../../components/Autocomplete'
 import CategorySelect from '../../components/CategorySelect'
+import DatePicker from '../../components/DatePicker'
+import { SearchIcon } from '../../components/icons/SidebarIcons'
 import { lookupJarvisTerceroByNit } from '../../services/jarvisService'
 import { applyEmployeeLookup, employeeDetailsFromLookup } from './employeeLookup'
 import { useJarvisBackAction } from '../../hooks/useJarvisBackAction'
@@ -20,16 +25,21 @@ import { isPayrollEmployeeActive } from '../../utils/payrollEmployeeStatus'
 import type { LookupJarvisTerceroNitResponse } from '../../types/jarvis'
 import { formatMunicipalityLabel, isMunicipalityMatch } from '../../utils/jarvisMunicipality'
 export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
+  const [editing, setEditing] = useState<Employee | null>(null),
+    [search, setSearch] = useState(''),
+    [importing, setImporting] = useState(false)
+  const applyCatalogDefaults = useCallback((value: PayrollWorkerCatalogs) => {
+    const documentTypeId = defaultPayrollDocumentType(value.identifications)
+    if (documentTypeId) setEditing(current => current && !current.documentTypeId ? { ...current, documentTypeId } : current)
+  }, [])
   const {
     catalogs,
     error: catalogError,
     reload: reloadCatalogs,
     municipalities, municipalitiesError, municipalitiesLoading, reloadMunicipalities,
-  } = usePayrollCatalogs()
-  const [editing, setEditing] = useState<Employee | null>(null),
-    [search, setSearch] = useState(''),
-    [importing, setImporting] = useState(false)
+  } = usePayrollCatalogs(Boolean(editing), applyCatalogDefaults)
   const lookupRequest = useRef(0)
+  const lookupInFlight = useRef<string | null>(null)
   const [lookup, setLookup] = useState<{ key: string; message: string; pending: boolean } | null>(null)
   const [lookupResult, setLookupResult] = useState<{ request: number; employee: Employee; result: LookupJarvisTerceroNitResponse } | null>(null)
   useEffect(() => {
@@ -45,16 +55,20 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   }, Boolean(editing) || importing)
   useEffect(() => () => { lookupRequest.current += 1 }, [])
   const lookupKey = editing ? `${editing.id}:${editing.documentTypeId}:${editing.identification}` : ''
+  const isNewEmployee = Boolean(editing && !data.employees.some(employee => employee.id === editing.id))
+  const identificationType = catalogs?.identifications?.find(item => item.id === editing?.documentTypeId)
+  const lookupSupported = identificationType?.code?.trim().toUpperCase() === 'CC' ||
+    /cedula (de )?ciudadania/.test(identificationType?.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() ?? '')
+  const lookupPending = lookup?.key === lookupKey && lookup.pending
+  const canLookup = isNewEmployee && lookupSupported && /^\d{5,15}$/.test(editing?.identification ?? '') && !busy && !lookupPending
+  const paymentType = employeePaymentType(editing?.paymentMethodId ?? 0, catalogs?.paymentMethods)
+  const canSave = !busy && !municipalitiesLoading && canSavePayrollEmployee(editing, catalogs, municipalities, data.positions)
   const lookupEmployee = async () => {
-    if (!editing || data.employees.some(employee => employee.id === editing.id)) return
-    const document = catalogs?.identifications?.find(item => item.id === editing.documentTypeId)
-    const normalizedType = document?.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() ?? ''
-    if (!(document?.code?.toUpperCase() === 'CC' || /cedula (de )?ciudadania/.test(normalizedType))) return
-    if (!/^\d{5,15}$/.test(editing.identification)) return
-    if (lookup?.key === lookupKey && lookup.pending) return
+    if (!editing || !canLookup || lookupInFlight.current === lookupKey) return
     const employee = editing
     const key = lookupKey
     const request = ++lookupRequest.current
+    lookupInFlight.current = key
     setLookup({ key, message: 'Consultando cédula…', pending: true })
     try {
       const result = await lookupJarvisTerceroByNit(employee.identification, 'CC')
@@ -66,12 +80,15 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
         return
       }
       setLookupResult({ request, employee, result })
+      setEditing(current => current ? applyEmployeeLookup(current, employee, details) : current)
       const message = details.names
         ? `Nombre encontrado: ${result.name}. Revisa y completa los datos personales y de ubicación antes de guardar.`
         : 'Se encontraron datos para esta cédula. Revisa y completa la información antes de guardar.'
       setLookup({ key, message, pending: false })
     } catch {
-      if (request === lookupRequest.current) setLookup({ key, message: 'No se pudo consultar la cédula. Puedes ingresar la información manualmente o volver a salir del campo para reintentar.', pending: false })
+      if (request === lookupRequest.current) setLookup({ key, message: 'No pudimos autocompletar los datos. Puedes ingresarlos manualmente o pulsar Autocompletar para intentar de nuevo.', pending: false })
+    } finally {
+      if (lookupInFlight.current === key) lookupInFlight.current = null
     }
   }
   const update = (key: keyof Employee, value: Employee[keyof Employee]) => {
@@ -82,9 +99,8 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
     }
     setEditing((e) => (e ? { ...e, [key]: value } : e))
   }
-  const save = async (e: FormEvent) => {
-    e.preventDefault()
-    if (editing && (await run(() => payrollService.employees({ ...editing, email: editing.email?.trim() ?? '', address: editing.address?.trim() ?? '', active: isPayrollEmployeeActive(editing.retirementDate) }))))
+  const save = async () => {
+    if (canSave && editing && (await run(() => payrollService.employees({ ...editing, typeContractId: catalogs?.contractTypes?.find(contract => contract.key === editing.contractType)?.id, ...(paymentType ? employeeBankFields(editing, paymentType) : {}), email: editing.email?.trim() ?? '', address: editing.address?.trim() ?? '', active: isPayrollEmployeeActive(editing.retirementDate) }))))
       setEditing(null)
   }
   const catalogField = (
@@ -107,7 +123,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
         selectOnFocus
       /> : <select
         required
-        disabled={!catalogs}
+        disabled={!catalogs || !rows?.length}
         value={editing?.[key] || ''}
         onChange={(e) => update(key, Number(e.target.value))}
       >
@@ -120,6 +136,10 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
           </option>
         ))}
       </select>}
+      {key === 'documentTypeId' && catalogs && !rows?.length && <small role="alert">
+        No pudimos cargar los tipos de documento. Inténtalo de nuevo. Si el problema continúa, comunícate con soporte.{' '}
+        <button type="button" className="payroll__link" disabled={busy} onClick={() => void reloadCatalogs()}>Reintentar tipos de documento</button>
+      </small>}
     </Field>
   )
   const list = data.employees.map(employee => ({ ...employee, active: isPayrollEmployeeActive(employee.retirementDate) })).filter((e) =>
@@ -142,7 +162,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
             </button>
             <button
               className="payroll__button payroll__button--primary"
-              disabled={!catalogs}
+              disabled={busy}
               onClick={() =>
                 setEditing({
                   ...blankEmployee(catalogs?.identifications),
@@ -158,7 +178,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
           </>
         }
       />
-      {catalogError && (
+      {editing && catalogError && (
         <div role="alert" className="payroll__notice payroll__notice--error">
           {catalogError}{' '}
           <button
@@ -170,30 +190,36 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
         </div>
       )}
       {editing ? (
-        <form onSubmit={(e) => void save(e)}>
+        <form onSubmit={(event) => event.preventDefault()}>
           <details className="payroll__card" open>
             <summary>Información personal</summary>
             <div className="payroll__section payroll__grid">
-              <Field label="Código del empleado">
-                <input
-                  readOnly
-                  value={editing.workerCode ?? ''}
-                  placeholder="Se asigna al guardar, p. ej. EMP001"
-                />
-              </Field>
               {catalogField(
                 'documentTypeId',
                 'Tipo de documento',
                 catalogs?.identifications,
               )}
               <Field label="Identificación">
+                <div className="payroll__identification-control">
                 <input
+                  aria-label="Identificación"
                   required
                   pattern="[0-9]{5,20}"
                   value={editing.identification}
                   onChange={(e) => update('identification', e.target.value)}
-                  onBlur={() => void lookupEmployee()}
                 />
+                {isNewEmployee && <button
+                  type="button"
+                  className="payroll__autofill-button"
+                  disabled={!canLookup}
+                  aria-busy={lookupPending || undefined}
+                  onClick={() => void lookupEmployee()}
+                  title={lookupSupported ? 'Buscar y completar los datos disponibles de esta cédula' : 'Disponible para cédula de ciudadanía'}
+                >
+                  <SearchIcon />
+                  <span>{lookupPending ? 'Consultando…' : 'Autocompletar'}</span>
+                </button>}
+                </div>
                 {lookup?.key === lookupKey && <small role="status" aria-live="polite">{lookup.message}</small>}
               </Field>
               {(
@@ -220,7 +246,6 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               <Field label="Correo electrónico">
                 <input
                   type="email"
-                  required
                   maxLength={254}
                   autoComplete="email"
                   value={editing.email ?? ''}
@@ -272,17 +297,21 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               )}
               <Field label="Tipo de contrato">
                 <select
-                  value={editing.contractType}
-                  onChange={(e) => update('contractType', e.target.value)}
+                  required
+                  disabled={!catalogs || busy}
+                  value={catalogs?.contractTypes?.some(contract => contract.key === editing.contractType) ? editing.contractType : ''}
+                  onChange={event => setEditing(current => current ? { ...current, contractType: event.target.value, typeContractId: catalogs?.contractTypes?.find(contract => contract.key === event.target.value)?.id } : current)}
                 >
-                  {Object.entries(contractLabels).map(([key, name]) => (
-                    <option key={key} value={key}>
-                      {name}
+                  <option value="">{!catalogs ? 'Cargando contratos…' : 'Seleccionar contrato'}</option>
+                  {catalogs?.contractTypes?.map(contract => (
+                    <option key={contract.key} value={contract.key}>
+                      {contract.name}
                     </option>
                   ))}
                 </select>
+                {catalogs && !catalogs.contractTypes?.length && <small role="alert">No pudimos cargar los tipos de contrato. Inténtalo de nuevo. Si el problema continúa, comunícate con soporte. <button type="button" className="payroll__link" onClick={() => void reloadCatalogs()}>Reintentar contratos</button></small>}
               </Field>
-              <Field label="Cargo">
+              <Field label="Cargo (opcional)">
                 <CategorySelect
                   value={editing.positionId}
                   categories={data.positions.filter(position => position.active || position.id === editing.positionId)}
@@ -319,14 +348,16 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                 />
               </Field>
               <Field label="Fecha de ingreso">
-                <input
-                  type="date"
-                  required
+                <DatePicker
+                  className="payroll__employee-date"
+                  placeholder="Seleccionar fecha"
+                  monthYearNavigation
+                  disabled={busy}
                   value={editing.admittanceDate}
-                  onChange={(e) => update('admittanceDate', e.target.value)}
+                  onChange={value => update('admittanceDate', value)}
                 />
               </Field>
-              <Field label="Fecha de retiro">
+              <Field label="Fecha de retiro (opcional)">
                 <input
                   type="date"
                   min={editing.admittanceDate}
@@ -349,24 +380,32 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   onValueChange={value => update('salary', value)}
                 />
               </Field>
-              {(['integralSalary', 'highRiskPension'] as const).map(
-                (key, i) => (
-                  <label className="payroll__check" key={key}>
-                    <input
-                      type="checkbox"
-                      checked={editing[key]}
-                      onChange={(e) => update(key, e.target.checked)}
-                    />
-                    {
-                      [
-                        'Salario integral',
-                        'Pensión de alto riesgo',
-                      ][i]
-                    }
-                  </label>
-                ),
-              )}
+              <label className="payroll__check">
+                <input
+                  type="checkbox"
+                  checked={editing.integralSalary}
+                  onChange={event => update('integralSalary', event.target.checked)}
+                />
+                Salario integral
+              </label>
               <Field label="Método de pago"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
+              {paymentType === 'transfer' && <>
+                <Field label="Nombre del banco">
+                  <input required name="bank_name" autoComplete="off" value={editing.bankName ?? ''}
+                    onChange={event => update('bankName', event.target.value)}
+                    onBlur={event => update('bankName', event.target.value.trim())} />
+                </Field>
+                <Field label="Tipo de cuenta">
+                  <select required name="account_type" value={editing.accountType ?? ''} onChange={event => update('accountType', event.target.value)}>
+                    <option value="">Seleccionar</option><option value="AHORROS">AHORROS</option><option value="CORRIENTE">CORRIENTE</option>
+                  </select>
+                </Field>
+                <Field label="Número de cuenta">
+                  <input required name="account_number" type="text" inputMode="numeric" pattern="[0-9]+" autoComplete="off"
+                    title="Ingresa únicamente números." value={editing.accountNumber ?? ''}
+                    onChange={event => update('accountNumber', event.target.value.trim())} />
+                </Field>
+              </>}
             </div>
             {editing.contractType === 'APPRENTICE' && (
               <div className="payroll__section">
@@ -433,8 +472,12 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
               Cancelar
             </button>
             <button
-              disabled={busy || municipalitiesLoading}
+              type="button"
+              disabled={!canSave}
               className="payroll__button payroll__button--primary"
+              onClick={(event) => {
+                if (event.currentTarget.form?.reportValidity()) void save()
+              }}
             >
               Guardar empleado
             </button>

@@ -30,6 +30,7 @@ interface DatePickerProps {
   minDate?: string
   className?: string
   invalid?: boolean
+  monthYearNavigation?: boolean
 }
 
 function parseIsoDate(value: string): Date | null {
@@ -83,6 +84,7 @@ function DatePicker({
   minDate,
   className,
   invalid = false,
+  monthYearNavigation = false,
 }: DatePickerProps) {
   const dialogId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -98,17 +100,24 @@ function DatePicker({
   const selectedDate = useMemo(() => parseIsoDate(value), [value])
   const [viewYear, setViewYear] = useState(() => (selectedDate ?? new Date()).getFullYear())
   const [viewMonth, setViewMonth] = useState(() => (selectedDate ?? new Date()).getMonth())
+  const lastOpenedValue = useRef(value)
+  const firstYear = Math.min(1900, viewYear)
+  const lastYear = Math.max(new Date().getFullYear() + 100, viewYear)
   const minDateObj = useMemo(
     () => (minDate ? parseIsoDate(minDate) : null),
     [minDate],
   )
 
   const openPanel = useCallback(() => {
-    const base = selectedDate ?? new Date()
-    setViewYear(base.getFullYear())
-    setViewMonth(base.getMonth())
+    if (lastOpenedValue.current !== value) {
+      if (selectedDate) {
+        setViewYear(selectedDate.getFullYear())
+        setViewMonth(selectedDate.getMonth())
+      }
+      lastOpenedValue.current = value
+    }
     setIsOpen(true)
-  }, [selectedDate])
+  }, [selectedDate, value])
 
   const updatePanelPosition = useCallback(() => {
     const container = containerRef.current
@@ -235,9 +244,16 @@ function DatePicker({
               >
                 <ChevronLeftIcon />
               </button>
-              <span className="date-picker__month-label">
+              {monthYearNavigation ? <div className="date-picker__month-year" role="group" aria-label="Cambiar mes y año">
+                <select aria-label="Mes" value={viewMonth} onChange={event => setViewMonth(Number(event.target.value))}>
+                  {MONTH_LABELS.map((month, index) => <option key={month} value={index}>{month}</option>)}
+                </select>
+                <select aria-label="Año" value={viewYear} onChange={event => setViewYear(Number(event.target.value))}>
+                  {Array.from({ length: lastYear - firstYear + 1 }, (_, index) => firstYear + index).map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div> : <span className="date-picker__month-label">
                 {MONTH_LABELS[viewMonth]} {viewYear}
-              </span>
+              </span>}
               <button
                 type="button"
                 className="date-picker__nav"

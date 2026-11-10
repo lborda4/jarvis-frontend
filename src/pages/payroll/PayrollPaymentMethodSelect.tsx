@@ -68,7 +68,7 @@ export default function PayrollPaymentMethodSelect({ value, savedId, savedName, 
           throw new Error(getApiErrorMessage(error, 'No se pudo crear la forma de pago.'), { cause: error })
         }
       }}
-      createFields={<label className="category-select__editor-field"><span>Medio de pago</span><select value={base} onChange={event => setBase(event.target.value as 'cash' | 'transfer')}><option value="cash">Efectivo</option><option value="transfer">Transferencia bancaria</option></select></label>}
+      createFields={<label className="category-select__editor-field"><span>Medio de pago</span><select value={base} onChange={event => setBase(event.target.value as 'cash' | 'transfer')}><option value="cash">Efectivo</option><option value="transfer">Consignación bancaria</option></select></label>}
     />
     {selectionError && !selected && <span role="alert">Selecciona una forma de pago de nómina.</span>}
     {loaded?.error && <span role="alert">{methods.length ? 'No se pudo actualizar la lista. Se muestran las formas de pago guardadas.' : loaded.error} <button type="button" className="payroll__link" onClick={() => setAttempt(count => count + 1)}>Reintentar</button></span>}
