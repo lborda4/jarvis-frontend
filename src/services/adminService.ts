@@ -61,7 +61,7 @@ export async function addAdminCompanyIntegration(companyId: string, provider: In
   )).data
 }
 
-export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingCycle: 'MONTHLY' | 'ANNUAL' }) {
+export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingMonths: number; paymentReceived?: boolean; expectedDueDate?: string | null }) {
   const { data } = await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/tracking`, request)
   return data.company
 }

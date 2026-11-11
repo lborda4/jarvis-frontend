@@ -214,6 +214,7 @@ export interface JarvisSalesInvoice {
   cufe: string | null
   sentAt: string
   status: 'SENT' | 'SAVED'
+  adjustmentStatus?: 'NONE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'CREDIT_AND_DEBIT'
 }
 
 export interface JarvisSalesInvoiceList {

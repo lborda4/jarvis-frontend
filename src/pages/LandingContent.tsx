@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CloseIcon, MenuIcon } from '../components/icons/SidebarIcons'
 import { applyMarketingSeo } from '../marketing/seo'
-import { BILLING_TOP_UPS, SIIGO_PLANS as PLANS, type Product } from '../marketing/catalog'
+import { BILLING_TOP_UPS, SIIGO_PLANS as PLANS, type Product, type MarketingProduct } from '../marketing/catalog'
 import { BILLING_SOLUTIONS, MARKETING_FAQS, MARKETING_STEPS } from '../marketing/content'
 import { buildWhatsappHref, WHATSAPP_DEMO_HREF } from '../constants/contact'
 import PrivacyPolicyLink from '../components/PrivacyPolicyLink'
 import './LandingPage.css'
+import SolutionLanding from './SolutionLanding'
+import PayrollLandingPage from './PayrollLandingPage'
 
 const DEMO_HREF = WHATSAPP_DEMO_HREF
 
@@ -14,6 +16,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Inicio' },
   { href: '/siigo', label: 'Para Siigo' },
   { href: '/facturacion-electronica', label: 'Facturación electrónica' },
+  { href: '/nomina-electronica', label: 'Nómina electrónica' },
   { href: '#contacto', label: 'Contacto' },
 ] as const
 
@@ -410,6 +413,8 @@ function LandingContent({ product }: { product?: Product }) {
 
   const closeMenu = () => setMenuOpen(false)
 
+  if (!product) return <SolutionLanding />
+
   return (
     <div className="landing-page">
       <a href="#contenido" className="landing-skip">
@@ -679,4 +684,6 @@ function LandingContent({ product }: { product?: Product }) {
   )
 }
 
-export default LandingContent
+export default function MarketingContent({ product }: { product?: MarketingProduct }) {
+  return product === 'payroll' ? <PayrollLandingPage /> : <LandingContent product={product} />
+}

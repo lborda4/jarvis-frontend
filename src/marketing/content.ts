@@ -10,9 +10,9 @@ export const BILLING_SOLUTIONS = [
 
 export const MARKETING_FAQS: Record<Product | 'home', { question: string; answer: string }[]> = {
   home: [
-    { question: '¿Cuál es la diferencia entre JARVIS para Siigo y Facturación JARVIS?', answer: 'JARVIS para Siigo automatiza procesos de tu operación contable en una cuenta de Siigo existente. Facturación JARVIS ofrece factura de venta, documento soporte, nota débito, nota crédito y gestión de eventos RADIAN, directamente con la DIAN. Cada solución tiene sus propios planes.' },
+    { question: '¿Qué solución JARVIS necesita mi negocio?', answer: 'Puedes elegir facturación electrónica para emitir tus documentos directamente con la DIAN, nómina electrónica para gestionar la nómina de tus empleados o causación automática para agilizar tu operación contable con Siigo. Cada solución tiene sus propios planes y acompañamiento personalizado.' },
     { question: '¿Necesito Siigo para facturar electrónicamente con JARVIS?', answer: 'No. La facturación electrónica directa con la DIAN funciona desde JARVIS sin necesitar una cuenta de Siigo. La cuenta de Siigo se necesita cuando eliges la solución de automatización conectada con ese sistema.' },
-    { question: '¿Cómo puedo conocer la solución adecuada para mi empresa?', answer: 'Si ya usas Siigo y quieres reducir trabajo manual, revisa la automatización con IA. Si buscas emitir facturas electrónicas desde JARVIS, revisa la facturación directa con la DIAN. Puedes escribirnos por WhatsApp para conocer cada opción antes de elegir.' },
+    { question: '¿Puedo recibir ayuda para elegir e implementar mi solución?', answer: 'Sí. Escríbenos por WhatsApp para revisar las necesidades de facturación, nómina o causación de tu empresa. Te orientamos sobre los planes y te acompañamos durante la implementación.' },
   ],
   siigo: [
     { question: '¿JARVIS reemplaza mi cuenta de Siigo?', answer: 'No. Esta solución se conecta con tu cuenta de Siigo para automatizar tareas. Siigo sigue siendo el sistema contable al que envías los documentos que preparas y revisas en JARVIS.' },

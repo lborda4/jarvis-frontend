@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { isCreditPaymentMethod } from '../utils/paymentNegotiation'
 import { shouldShowTablePagination } from '../utils/tablePagination'
 import Button from '../components/Button'
+import { useCreateFromQuery } from '../hooks/useCreateFromQuery'
 import CatalogRowActions from '../components/CatalogRowActions'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ErrorMessage from '../components/ErrorMessage'
@@ -24,7 +25,7 @@ export default function JarvisPaymentMethodsPage() {
   const [page, setPage] = useState(1)
   const [revision, setRevision] = useState(0)
   const [editing, setEditing] = useState<JarvisPaymentMethod | null>(null)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useCreateFromQuery()
   const [pendingDelete, setPendingDelete] = useState<JarvisPaymentMethod | null>(null)
   const [deleting, setDeleting] = useState(false)
   useEffect(() => {

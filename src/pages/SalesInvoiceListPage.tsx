@@ -23,10 +23,20 @@ function InvoiceIcon() {
   return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Z" strokeLinejoin="round"/><path d="M14 3v5h5M8 12h8M8 16h5" strokeLinecap="round"/></svg>
 }
 
+function ViewIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+}
+
 function displayDate(date: string) {
   if (!date) return '—'
   return new Date(`${date}T12:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+const adjustmentLabels = {
+  CREDIT_NOTE: 'Con nota crédito',
+  DEBIT_NOTE: 'Con nota débito',
+  CREDIT_AND_DEBIT: 'Con nota crédito y débito',
+} as const
 
 export default function SalesInvoiceListPage({ supportDocument = false, creditNote = false, debitNote = false, adjustmentNote = false }: { supportDocument?: boolean; creditNote?: boolean; debitNote?: boolean; adjustmentNote?: boolean }) {
   const newPath = debitNote ? '/nota-debito/nueva' : adjustmentNote ? '/nota-ajuste/nueva' : creditNote ? '/nota-credito/nueva' : supportDocument ? '/documento-soporte/nuevo' : '/factura-venta/nueva'
@@ -135,25 +145,32 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
             <p>{hasFilters ? `Prueba otro número, tercero, ${codeLabel} o rango de fechas.` : 'Los documentos aparecerán en este listado.'}</p>
             {hasFilters ? <Button variant="outline" onClick={clearFilters}>Limpiar filtros</Button> : <Link className="sales-history__new" to={newPath}>{newLabel}</Link>}
           </div> : <>
-            <div className="sales-history__table-wrap"><table className="integration-table">
-              <thead><tr><th>{debitNote ? 'Nota débito' : adjustmentNote ? 'Nota de ajuste' : creditNote ? 'Nota crédito' : supportDocument ? 'Documento soporte' : 'Factura'}</th><th>Fecha de emisión</th><th>{partyLabel}</th><th className="sales-history__amount">Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <div className="sales-history__table-wrap" role="region" aria-label={`Tabla de ${plural}`} tabIndex={0}><table className={`integration-table${isSalesInvoice ? ' sales-history__table--sales' : ''}`}>
+              <colgroup>
+                <col className="sales-history__col--number" /><col className="sales-history__col--date" />
+                <col className="sales-history__col--customer" /><col className="sales-history__col--amount" />
+                <col className="sales-history__col--status" />{isSalesInvoice && <col className="sales-history__col--adjustment" />}
+                <col className="sales-history__col--actions" />
+              </colgroup>
+              <thead><tr><th>{debitNote ? 'Nota débito' : adjustmentNote ? 'Nota de ajuste' : creditNote ? 'Nota crédito' : supportDocument ? 'Documento soporte' : 'Factura'}</th><th>Fecha de emisión</th><th>{partyLabel}</th><th className="sales-history__amount">Total</th><th className="sales-history__state-cell">Estado</th>{isSalesInvoice && <th className="sales-history__state-cell">Estado de ajuste</th>}<th>Acciones</th></tr></thead>
               <tbody>{data.items.map((invoice) => <tr key={invoice.id}>
-                <td><strong className="sales-history__number">{invoice.status === 'SAVED' ? 'Sin número' : `${invoice.prefix}${invoice.number.startsWith(invoice.prefix) ? invoice.number.slice(invoice.prefix.length) : invoice.number}`}</strong>
+                <td data-label={isNoteList ? 'Nota' : supportDocument ? 'Documento soporte' : 'Factura'}>{invoice.status === 'SAVED' ? <span className="sales-history__muted">—</span> : <strong className="sales-history__number">{`${invoice.prefix}${invoice.number.startsWith(invoice.prefix) ? invoice.number.slice(invoice.prefix.length) : invoice.number}`}</strong>}
                   {invoice.cufe && <><button type="button" className="sales-history__detail" aria-expanded={expandedId === invoice.id} onClick={() => setExpandedId(expandedId === invoice.id ? null : invoice.id)}>{expandedId === invoice.id ? `Ocultar ${codeLabel}` : `Ver ${codeLabel}`}</button>{expandedId === invoice.id && <p className="sales-history__cufe">{invoice.cufe}</p>}</>}
                 </td>
-                <td>{displayDate(invoice.issueDate)}</td>
-                <td><strong>{invoice.customerName || '—'}</strong><span className="sales-history__muted">{invoice.customerIdentification}</span></td>
-                <td className="sales-history__amount"><strong>{invoice.total ? Number(invoice.total).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</strong><span className="sales-history__muted">{invoice.currency}</span></td>
-                <td><span className={`sales-history__status${invoice.status === 'SAVED' ? ' sales-history__status--saved' : ''}`}>{invoice.status === 'SAVED' ? 'Guardado' : <><span aria-hidden="true">✓</span> {supportDocument ? 'Enviado' : 'Enviada'} a DIAN</>}</span></td>
-                <td><div className="sales-history__actions">
+                <td data-label="Fecha de emisión">{displayDate(invoice.issueDate)}</td>
+                <td data-label={partyLabel}><strong>{invoice.customerName || '—'}</strong><span className="sales-history__muted">{invoice.customerIdentification}</span></td>
+                <td data-label="Total" className="sales-history__amount"><strong>{invoice.total ? Number(invoice.total).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</strong><span className="sales-history__muted">{invoice.currency}</span></td>
+                <td data-label="Estado" className="sales-history__state-cell"><span className={`sales-history__status${invoice.status === 'SAVED' ? ' sales-history__status--draft' : ''}`}>{invoice.status === 'SAVED' ? 'Borrador' : `${supportDocument ? 'Enviado' : 'Enviada'} a DIAN`}</span></td>
+                {isSalesInvoice && <td data-label="Estado de ajuste" className="sales-history__state-cell">{invoice.status === 'SAVED' || !invoice.adjustmentStatus || invoice.adjustmentStatus === 'NONE' ? <span className="sales-history__muted">—</span> : <span className="sales-history__status sales-history__status--adjusted">{adjustmentLabels[invoice.adjustmentStatus]}</span>}</td>}
+                <td data-label="Acciones" className="sales-history__actions-cell"><div className="sales-history__actions">
                   {invoice.status === 'SAVED' ? <>
-                    <Link className="sales-history__view" to={`${newPath}?borrador=${encodeURIComponent(invoice.id)}`}>Editar</Link>
-                    <button type="button" className="sales-history__view" disabled={deletingId !== null} onClick={() => void removeSaved(invoice.id)}>{deletingId === invoice.id ? 'Eliminando...' : 'Eliminar'}</button>
+                    <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar?borrador=1`} title="Visualizar" aria-label={`Visualizar ${documentLabel} sin enviar`}><ViewIcon /></Link>
+                    <Link className="sales-history__view" to={`${newPath}?borrador=${encodeURIComponent(invoice.id)}`} title="Editar" aria-label={`Editar ${documentLabel} sin enviar`}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m16 3 5 5L8 21H3v-5L16 3ZM13 6l5 5" strokeLinecap="round" strokeLinejoin="round" /></svg></Link>
+                    <button type="button" className="sales-history__view" title={deletingId === invoice.id ? 'Eliminando...' : 'Eliminar'} aria-label={`Eliminar ${documentLabel} sin enviar`} aria-busy={deletingId === invoice.id} disabled={deletingId !== null} onClick={() => void removeSaved(invoice.id)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
                   </> : <>
-                  <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar`} aria-label={`Visualizar ${documentLabel} ${invoice.prefix}${invoice.number}`}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg> Visualizar
+                  <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar`} title="Visualizar" aria-label={`Visualizar ${documentLabel} ${invoice.prefix}${invoice.number}`}>
+                    <ViewIcon />
                   </Link>
-                  {!isNoteList && <Link className="sales-history__view" to={`${newPath}?duplicar=${encodeURIComponent(invoice.id)}`} aria-label={`Duplicar ${documentLabel} ${invoice.prefix}${invoice.number}`}>Duplicar</Link>}
                   <button type="button" className="sales-history__view" title="Enviar correo" aria-label={`Enviar correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
                   {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`} />}
                   </>}

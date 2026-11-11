@@ -10,8 +10,8 @@
   height: 2.5rem;
   padding: 0;
   border: 1px solid var(--jarvis-gray-200);
-  border-radius: 50%;
-  background-color: #ffffff;
+  border-radius: var(--r-round);
+  background-color: var(--jarvis-white);
   color: var(--jarvis-navy);
   box-shadow: var(--shadow-md);
   cursor: pointer;
@@ -24,7 +24,7 @@
 .scroll-to-top:hover {
   border-color: var(--jarvis-primary);
   background-color: var(--jarvis-primary);
-  color: #ffffff;
+  color: var(--jarvis-white);
 }
 
 .scroll-to-top:focus-visible {

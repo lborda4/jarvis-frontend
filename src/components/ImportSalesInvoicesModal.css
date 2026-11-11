@@ -1,7 +1,7 @@
 .sales-import { width: min(100%, 960px); }
-.sales-import > p { line-height: 1.6; }
+.sales-import > p { line-height: var(--line-height-relaxed); }
 .sales-import__file-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin: 1.25rem 0 .5rem; }
-.sales-import__file-actions label { display: flex; flex-direction: column; gap: .4rem; font-weight: 600; min-width: 0; }
+.sales-import__file-actions label { display: flex; flex-direction: column; gap: .4rem; font-weight: var(--font-weight-label); min-width: 0; }
 .sales-import__file-actions input { max-width: 100%; font: inherit; }
 .sales-import__help { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
 .sales-import__filename { overflow-wrap: anywhere; }

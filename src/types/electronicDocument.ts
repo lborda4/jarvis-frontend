@@ -329,6 +329,7 @@ export interface PurchaseInvoiceDownloadWithholding {
 
 /** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
 export interface PurchaseInvoiceDownload {
+  isDraft?: boolean
   recipientCopyEmails?: string[]
   issuerTaxProfile?: {
     icaRate?: number

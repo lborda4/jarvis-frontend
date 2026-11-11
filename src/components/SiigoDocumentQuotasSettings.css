@@ -35,12 +35,12 @@
 
 .siigo-document-quotas__remaining {
   color: var(--jarvis-primary);
-  font-size: 1.5rem;
+  font-size: var(--text-h1);
 }
 
 .siigo-document-quotas__remaining small {
   font-size: var(--text-sm);
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
 }
 
 .siigo-document-quotas__item p {

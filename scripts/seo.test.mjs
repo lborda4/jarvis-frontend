@@ -4,9 +4,10 @@ import { test } from 'node:test'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 const pages = [
-  { path: '/', file: 'index.html', heading: 'Automatización contable y', product: null },
+  { path: '/', file: 'index.html', heading: 'Elige tu solución', product: null },
   { path: '/siigo', file: 'siigo/index.html', heading: 'Automatización contable con Siigo', product: 'JARVIS para Siigo' },
   { path: '/facturacion-electronica', file: 'facturacion-electronica/index.html', heading: 'Facturación electrónica en Colombia', product: 'Facturación JARVIS' },
+  { path: '/nomina-electronica', file: 'nomina-electronica/index.html', heading: 'La nómina de tu equipo,', product: 'Nómina electrónica JARVIS' },
 ]
 
 for (const page of pages) {
@@ -37,7 +38,7 @@ for (const page of pages) {
       assert.equal(applications[0].url, url)
       assert.ok(graph.some(item => item['@type'] === 'BreadcrumbList'))
       const prices = applications[0].offers.map(offer => offer.price)
-      assert.deepEqual(prices, page.path === '/siigo' ? [35000, 75000, 120000, 250000] : [130000, 60000])
+      assert.deepEqual(prices, page.path === '/siigo' ? [35000, 75000, 120000, 250000] : page.path === '/nomina-electronica' ? [12900] : [130000, 60000])
     }
     assert.ok(!/<link[^>]+href="[^"]*\/App-[^"]+\.js"/.test(html), 'Private application modules must not be preloaded')
   })
@@ -51,7 +52,7 @@ test('private application fallback is excluded from indexing and contains no pro
   assert.ok(!html.includes('landing-hero'))
 })
 
-test('sitemap includes only the three canonical public pages, with matching rewrites', async () => {
+test('sitemap includes only canonical public pages, with matching rewrites', async () => {
   const sitemap = await read('dist/sitemap.xml')
   const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(([, url]) => url)
   assert.deepEqual(urls, pages.map(page => `https://www.jarviscol.com${page.path}`))

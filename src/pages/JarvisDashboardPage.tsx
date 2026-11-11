@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { apiClient } from '../services/apiClient'
 import ErrorMessage from '../components/ErrorMessage'
+import DashboardCreateMenu from '../components/DashboardCreateMenu'
 import { CalendarIcon, InvoiceIcon, PackageIcon, ChevronRightIcon } from '../components/icons/SidebarIcons'
 import './JarvisDashboardPage.css'
 
@@ -54,7 +55,7 @@ export default function JarvisDashboardPage() {
   const totalRetentions = (taxes: DashboardTaxes) => taxes.reteRenta + taxes.reteIca + taxes.reteIva
 
   return <main className="jarvis-dashboard" aria-busy={loading}>
-    <div className="jarvis-dashboard__top"><label className="jarvis-dashboard__month"><CalendarIcon /><input aria-label="Mes del tablero" type="month" value={month} onChange={event => { if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) setMonth(event.target.value) }} /></label></div>
+    <div className="jarvis-dashboard__top"><DashboardCreateMenu key={user?.company?.id} /><label className="jarvis-dashboard__month"><CalendarIcon /><input aria-label="Mes del tablero" type="month" value={month} onChange={event => { if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) setMonth(event.target.value) }} /></label></div>
     <header className="jarvis-dashboard__welcome"><h1>¡Bienvenido a JARVIS! <span aria-hidden="true">👋</span></h1><h2>{user?.company?.name ?? 'Tu empresa'}</h2><p>Gestiona tus documentos electrónicos y automatiza tus procesos contables desde un solo lugar.</p></header>
     {error && <div className="jarvis-dashboard__error"><ErrorMessage message={error} /><button onClick={() => setAttempt(value => value + 1)}>Reintentar consulta</button></div>}
     {loading && <p role="status" className="jarvis-dashboard__loading">Cargando información del tablero…</p>}

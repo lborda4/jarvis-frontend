@@ -106,7 +106,7 @@ function AdminPage() {
   const [switchingIntegrationCompanyId, setSwitchingIntegrationCompanyId] = useState<string | null>(null)
   const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking' | 'plans'>('jarvis')
   const [commercial, setCommercial] = useState('')
-  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
+  const [billingMonths, setBillingMonths] = useState('1')
   const { logout, refreshUser } = useAuth()
   const [jarvisModules, setJarvisModules] = useState<JarvisModule[]>([...JARVIS_MODULES])
   const [editingModules, setEditingModules] = useState<{ companyId: string; modules: JarvisModule[] } | null>(null)
@@ -303,9 +303,11 @@ function AdminPage() {
           (value) => typeof value === 'string' && value.trim().length > 0,
         )
 
+      const months = Number(billingMonths)
+      if (!Number.isInteger(months) || months < 1 || months > 1200) throw new Error('Indica una cantidad entera de meses entre 1 y 1200.')
       const response = await createAdminCompany({
         commercial: commercial.trim(),
-        billingCycle,
+        billingMonths: months,
         nit: nit.trim(),
         registrationEmail: registrationEmail.trim(),
         name: name.trim(),
@@ -357,7 +359,7 @@ function AdminPage() {
       setNit('')
       setRegistrationEmail('')
       setCommercial('')
-      setBillingCycle('MONTHLY')
+      setBillingMonths('1')
       setName('')
       setDescription('')
       setPersonType('')
@@ -775,10 +777,8 @@ function AdminPage() {
               <input id="admin-company-commercial" value={commercial} onChange={event => setCommercial(event.target.value)} maxLength={120} placeholder="Nombre del comercial" disabled={isSubmitting} />
             </div>
             <div className="admin-form__field">
-              <label htmlFor="admin-company-billing-cycle">Periodicidad del plan</label>
-              <select id="admin-company-billing-cycle" value={billingCycle} onChange={event => setBillingCycle(event.target.value as 'MONTHLY' | 'ANNUAL')} disabled={isSubmitting}>
-                <option value="MONTHLY">Mensual</option><option value="ANNUAL">Anual</option>
-              </select>
+              <label htmlFor="admin-company-billing-months">Periodicidad del plan (meses)</label>
+              <input id="admin-company-billing-months" type="number" min="1" max="1200" step="1" required value={billingMonths} onChange={event => setBillingMonths(event.target.value)} disabled={isSubmitting} />
               <small>El vencimiento se calcula desde la fecha de creación de la empresa.</small>
             </div>
 

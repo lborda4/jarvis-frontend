@@ -5,7 +5,7 @@
   gap: 0.45rem;
   border-radius: var(--r-sm);
   font-family: inherit;
-  font-weight: 600;
+  font-weight: var(--font-weight-button);
   white-space: nowrap;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
@@ -29,7 +29,7 @@
 .btn--primary {
   border: none;
   background-color: var(--jarvis-primary);
-  color: #ffffff;
+  color: var(--jarvis-white);
   box-shadow: var(--shadow-sm);
 }
 
@@ -39,7 +39,7 @@
 
 .btn--secondary {
   border: 1px solid var(--jarvis-border-strong);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   color: var(--jarvis-text);
 }
 
@@ -49,7 +49,7 @@
 
 .btn--ghost {
   border: none;
-  background-color: transparent;
+  background-color: var(--jarvis-transparent);
   color: var(--jarvis-text-muted);
 }
 
@@ -61,7 +61,7 @@
 .btn--danger {
   border: none;
   background-color: var(--jarvis-danger);
-  color: #ffffff;
+  color: var(--jarvis-white);
   box-shadow: var(--shadow-sm);
 }
 
@@ -72,7 +72,7 @@
 .btn--warning {
   border: none;
   background-color: var(--jarvis-warning);
-  color: #ffffff;
+  color: var(--jarvis-white);
   box-shadow: var(--shadow-sm);
 }
 
@@ -84,7 +84,7 @@
    donde un botón sólido en cada fila sería demasiado ruido visual. */
 .btn--outline {
   border: 1px solid var(--jarvis-primary);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   color: var(--jarvis-primary);
 }
 
@@ -94,7 +94,7 @@
 
 .btn--outline-danger {
   border: 1px solid var(--jarvis-danger);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   color: var(--jarvis-danger);
 }
 
@@ -104,7 +104,7 @@
 
 .btn--outline-warning {
   border: 1px solid var(--jarvis-warning);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   color: var(--jarvis-warning-hover);
 }
 

@@ -1,5 +1,6 @@
 import { lazy, Suspense, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
+import { useCreateFromQuery } from '../hooks/useCreateFromQuery'
 import CatalogRowActions from '../components/CatalogRowActions'
 import ConfirmDialog from '../components/ConfirmDialog'
 import CreateProductModal from '../components/CreateProductModal'
@@ -63,7 +64,7 @@ function ProductListPage() {
   const [isLoading, setIsLoading] = useState(!cachedList)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreateOpen, setIsCreateOpen] = useCreateFromQuery()
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ProductResponse | null>(null)

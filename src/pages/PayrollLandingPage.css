@@ -1,0 +1,51 @@
+.payroll-landing__main { max-width: 1136px; margin: auto; padding: 0 1.5rem 3rem; }
+.payroll-landing__breadcrumb { display: flex; flex-wrap: wrap; gap: .65rem; padding-top: 1.75rem; color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.payroll-landing__breadcrumb a { text-underline-offset: 3px; }
+.payroll-landing__hero { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 5rem; align-items: center; padding: 3rem 0 4rem; }
+.payroll-landing__intro h1 { margin: .85rem 0 1.25rem; font-size: var(--text-display-sm); font-weight: var(--font-weight-heading); line-height: var(--line-height-compact); }
+.payroll-landing__intro h1 span { color: var(--jarvis-primary); }
+.payroll-landing__intro > p { max-width: 470px; margin: 0 0 1.75rem; color: var(--jarvis-text-muted); font-size: var(--text-xl); line-height: var(--line-height-relaxed); }
+.payroll-landing__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1.25rem; }
+.payroll-landing .payroll-landing__text-link { display: inline-flex; align-items: center; gap: .75rem; color: var(--jarvis-primary-hover); font-size: var(--text-md); text-decoration: underline; text-underline-offset: 4px; }
+.payroll-landing__plan { padding: 1.75rem; border: 1px solid var(--jarvis-primary-border); border-radius: var(--r-lg); background: var(--jarvis-gray-50); }
+.payroll-landing__plan h2 { margin: .5rem 0 1.25rem; font-size: var(--text-2xl); }
+.payroll-landing__price { margin: 0; font-size: var(--text-price); line-height: var(--line-height-heading); font-weight: var(--font-weight-heading); }
+.payroll-landing__price > span { color: var(--jarvis-text-muted); font-size: var(--text-md); font-weight: var(--font-weight-normal); white-space: nowrap; }
+.payroll-landing__capacity { margin: .4rem 0 1.25rem; color: var(--jarvis-primary-hover); font-size: var(--text-md); }
+.payroll-landing__plan ul { display: grid; gap: .6rem; margin: 0 0 1.5rem; padding: 1.25rem 0 0 1.15rem; border-top: 1px solid var(--jarvis-gray-200); font-size: var(--text-md); }
+.payroll-landing__plan li::marker { color: var(--jarvis-primary); }
+.payroll-landing__plan .solution-button { width: 100%; }
+.payroll-landing__help { margin: .75rem 0 0; color: var(--jarvis-text-muted); font-size: var(--text-sm); line-height: var(--line-height-body); }
+.payroll-landing__workflow, .payroll-landing__questions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 5rem; padding: 3rem 0; border-top: 1px solid var(--jarvis-gray-200); }
+.payroll-landing__workflow h2, .payroll-landing__questions h2 { margin: .6rem 0 .85rem; font-size: var(--text-2xl); }
+.payroll-landing__workflow p, .payroll-landing__questions p { color: var(--jarvis-text-muted); font-size: var(--text-md); line-height: var(--line-height-relaxed); }
+.payroll-landing__workflow ol { display: grid; gap: 1.5rem; list-style: none; margin: 0; padding: 0; }
+.payroll-landing__workflow li { display: flex; align-items: flex-start; gap: 1rem; }
+.payroll-landing__step { padding-top: .1rem; color: var(--jarvis-primary); font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+.payroll-landing__workflow h3 { margin: 0 0 .4rem; font-size: var(--text-xl); }
+.payroll-landing__workflow li p { margin: 0; }
+.payroll-landing__support { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; gap: 3rem; margin: 0 0 3rem; padding: 2rem; border-radius: var(--r-lg); color: var(--jarvis-white); background: var(--jarvis-navy); }
+.payroll-landing__support .solution-eyebrow { color: var(--jarvis-accent); }
+.payroll-landing__support h2 { margin: .6rem 0 .85rem; font-size: var(--text-2xl); }
+.payroll-landing__support p { margin: 0; font-size: var(--text-md); line-height: var(--line-height-relaxed); }
+.payroll-landing__support-contact { display: grid; justify-items: start; gap: 1rem; }
+.payroll-landing__support-contact .solution-button { gap: .75rem; }
+.payroll-landing__support-contact > span { color: var(--jarvis-gray-300); font-size: var(--text-sm); }
+.payroll-landing__questions details { padding: 1rem 0; border-bottom: 1px solid var(--jarvis-gray-200); }
+.payroll-landing__questions details:first-child { padding-top: 0; }
+.payroll-landing__questions summary { cursor: pointer; font-size: var(--text-md); font-weight: var(--font-weight-label); }
+.payroll-landing__questions details p { margin-bottom: 0; }
+.payroll-landing__back { display: inline-block; margin-top: 1rem; color: var(--jarvis-text-muted); font-size: var(--text-md); text-underline-offset: 4px; }
+@media (max-width: 850px) {
+  .payroll-landing__hero { gap: 2rem; }
+  .payroll-landing__workflow, .payroll-landing__questions { gap: 2rem; }
+}
+@media (max-width: 650px) {
+  .payroll-landing__main { padding-inline: 1.25rem; }
+  .payroll-landing__hero { grid-template-columns: minmax(0, 1fr); padding: 2rem 0 2.5rem; }
+  .payroll-landing__intro h1 { font-size: var(--text-4xl); }
+  .payroll-landing__intro > p { font-size: var(--text-lg); }
+  .payroll-landing__plan { padding: 1.25rem; }
+  .payroll-landing__support { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; margin-bottom: 2rem; padding: 1.5rem; }
+  .payroll-landing__workflow, .payroll-landing__questions { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 2rem 0; }
+}

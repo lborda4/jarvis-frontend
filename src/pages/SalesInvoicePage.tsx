@@ -363,7 +363,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             ? Promise.resolve(null)
             : fetchJarvisCredentialsStatus().catch(() => null),
           fetchJarvisTaxes().catch(() => ({ items: [] as never[] })),
-          fetchJarvisPaymentMethods().catch(() => ({ items: [] as never[] })),
+          isNote ? Promise.resolve({ items: [] as JarvisPaymentMethod[] }) : fetchJarvisPaymentMethods().catch(() => ({ items: [] as never[] })),
           sourceInvoiceId || duplicateId
             ? (adjustmentNote || supportDocument ? fetchJarvisSupportDocumentDetail((sourceInvoiceId || duplicateId)!) : fetchJarvisInvoiceDetail((sourceInvoiceId || duplicateId)!))
             : Promise.resolve(null),
@@ -650,16 +650,18 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const nextErrors: Record<string, string> = {}
     if (!selectedCustomer) nextErrors.customer = `Debe seleccionar un ${partyLabel.toLowerCase()}.`
     if (!issueDate.trim()) nextErrors.issueDate = 'La fecha es obligatoria.'
-    if (payments.some(payment => !paymentMethods.some(method => method.id === payment.methodId))) nextErrors.payment = 'Selecciona una forma de pago para cada importe. Puedes crearlas en el catálogo de formas de pago.'
-    if (payments.some(payment => parseAmount(payment.amount) < 0) || Math.round(payments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0) * 100) !== Math.round(documentTotal * 100)) nextErrors.payment = 'Los importes de las formas de pago deben sumar el total del documento.'
+    if (!isNote) {
+      if (payments.some(payment => !paymentMethods.some(method => method.id === payment.methodId))) nextErrors.payment = 'Selecciona una forma de pago para cada importe. Puedes crearlas en el catálogo de formas de pago.'
+      if (payments.some(payment => parseAmount(payment.amount) < 0) || Math.round(payments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0) * 100) !== Math.round(documentTotal * 100)) nextErrors.payment = 'Los importes de las formas de pago deben sumar el total del documento.'
+    }
     const hasValidLine = lines.some((line) => line.description.trim() && parseAmount(line.quantity) > 0 && parseAmount(line.unitValue) > 0)
     if (!hasValidLine) nextErrors.lines = 'Agrega al menos un ítem con descripción, cantidad y valor.'
     lines.forEach((line, index) => {
       if (!line.description.trim()) nextErrors[`line-${index}-description`] = 'No puede estar vacío'
       if (parseAmount(line.quantity) <= 0) nextErrors[`line-${index}-quantity`] = 'Cantidad inválida'
     })
-    if (isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
-    if (isCreditPayment && dueDate < issueDate) nextErrors.dueDate = 'El vencimiento no puede ser anterior a la fecha del documento.'
+    if (!isNote && isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
+    if (!isNote && isCreditPayment && dueDate < issueDate) nextErrors.dueDate = 'El vencimiento no puede ser anterior a la fecha del documento.'
     if (isMixedPayment) {
       const positive = payments.filter(payment => parseAmount(payment.amount) > 0)
       const hasCredit = positive.some(payment => paymentMethods.some(method => method.id === payment.methodId && isCreditPaymentMethod(method)))
@@ -688,7 +690,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     const uniqueRetentions = Array.from(new Map(retentions.map((item) => [item.id, item])).values())
     const firstPayment = primaryPaymentForNegotiation(payments, paymentMethods, isMixedPayment)
-    const methodId = resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
+    const methodId = isNote ? undefined : resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
     const formId = isMixedPayment ? Number(paymentForms.find(form => form.name.toLowerCase().includes('cr'))?.id ?? 2) : Number(paymentFormId)
     const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
     return {
@@ -730,7 +732,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           : {}),
       })),
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
-      ...(Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
+      ...(methodId != null && Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
   }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument])
 
@@ -1073,8 +1075,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
         {/* Formas de pago + Totales */}
         <section className="ds-individual__section">
-          <div className="ds-individual__payment-totals-grid">
-            <div className="ds-individual__payment-col">
+          <div className="ds-individual__payment-totals-grid" style={isNote ? { gridTemplateColumns: '1fr' } : undefined}>
+            {!isNote && <div className="ds-individual__payment-col">
               <h2>Formas de pago</h2>
               <label className="ds-individual__field">
                 <span>Forma de negociación</span>
@@ -1138,7 +1140,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                   </div>
                 </label>
               )}
-            </div>
+            </div>}
             <div className="ds-individual__totals-col">
               <div className="ds-individual__totals">
                 <div className="ds-individual__totals-row"><span>Total bruto:</span><strong>{formatMoney(documentGross)}</strong></div>

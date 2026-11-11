@@ -13,20 +13,20 @@
 .ds-start__greeting {
   margin: 0 0 0.5rem;
   color: var(--jarvis-text-muted);
-  font-size: 1rem;
+  font-size: var(--text-lg);
 }
 
 .ds-start__title {
   margin: 0 0 0.5rem;
   color: var(--jarvis-navy);
-  font-size: 1.9rem;
-  font-weight: 700;
+  font-size: var(--text-4xl);
+  font-weight: var(--font-weight-heading);
 }
 
 .ds-start__subtitle {
   margin: 0;
   color: var(--jarvis-text-muted);
-  font-size: 0.98rem;
+  font-size: var(--text-lg);
 }
 
 .ds-start__options {
@@ -42,7 +42,7 @@
   text-align: center;
   gap: 0.6rem;
   padding: 2rem 1.5rem;
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-xs);
@@ -84,15 +84,15 @@
 .ds-start__card-title {
   margin: 0;
   color: var(--jarvis-navy);
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
 }
 
 .ds-start__card-text {
   margin: 0 0 0.9rem;
   color: var(--jarvis-text-muted);
   font-size: var(--text-md);
-  line-height: 1.45;
+  line-height: var(--line-height-body);
 }
 
 /* Colors/padding now come from <Button variant="primary" /> — this rule only caps its width. */

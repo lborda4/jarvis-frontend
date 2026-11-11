@@ -1,13 +1,13 @@
 .date-range-picker {
-  --drp-bg: var(--jarvis-gray-900, #0f1720);
-  --drp-text: #f3f4f6;
-  --drp-muted: #9ca3af;
-  --drp-accent: var(--jarvis-primary, #0d9488);
+  --drp-bg: var(--jarvis-gray-900);
+  --drp-text: var(--jarvis-gray-100);
+  --drp-muted: var(--jarvis-gray-500);
+  --drp-accent: var(--jarvis-primary);
 
   display: flex;
   flex-direction: column;
   min-width: 560px;
-  border-radius: var(--r-md, 12px);
+  border-radius: var(--r-md);
   background-color: var(--drp-bg);
   color: var(--drp-text);
   overflow: hidden;
@@ -29,14 +29,14 @@
   height: 1.75rem;
   margin-top: 0.15rem;
   border: none;
-  border-radius: 999px;
-  background: transparent;
+  border-radius: var(--r-pill);
+  background: var(--jarvis-transparent);
   color: var(--drp-muted);
   cursor: pointer;
 }
 
 .date-range-picker__nav:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(var(--jarvis-white-rgb), 0.08);
   color: var(--drp-text);
 }
 
@@ -52,8 +52,8 @@
 
 .date-range-picker__month-label {
   margin-bottom: 0.9rem;
-  font-size: var(--text-md, 1rem);
-  font-weight: 600;
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-label);
   text-align: center;
 }
 
@@ -66,7 +66,7 @@
 .date-range-picker__weekdays {
   margin-bottom: 0.4rem;
   color: var(--drp-muted);
-  font-size: var(--text-sm, 0.85rem);
+  font-size: var(--text-sm);
   text-align: center;
 }
 
@@ -80,15 +80,15 @@
   justify-content: center;
   height: 2.1rem;
   border: none;
-  border-radius: 999px;
-  background: transparent;
+  border-radius: var(--r-pill);
+  background: var(--jarvis-transparent);
   color: var(--drp-text);
-  font-size: var(--text-base, 0.95rem);
+  font-size: var(--text-base);
   cursor: pointer;
 }
 
 .date-range-picker__day:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(var(--jarvis-white-rgb), 0.12);
 }
 
 .date-range-picker__day--empty {
@@ -97,31 +97,31 @@
 
 .date-range-picker__day--in-range {
   border-radius: 0;
-  background-color: rgba(13, 148, 136, 0.28);
+  background-color: rgba(var(--jarvis-primary-rgb), 0.28);
 }
 
 .date-range-picker__day--selected {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background-color: var(--drp-accent);
-  color: #ffffff;
-  font-weight: 600;
+  color: var(--jarvis-white);
+  font-weight: var(--font-weight-semibold);
 }
 
 .date-range-picker__footer {
   display: flex;
   justify-content: flex-end;
   padding: 0.85rem 1.25rem 1.1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(var(--jarvis-white-rgb), 0.08);
 }
 
 .date-range-picker__apply {
   padding: 0.55rem 1.4rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background-color: var(--drp-accent);
-  color: #ffffff;
-  font-size: var(--text-base, 0.95rem);
-  font-weight: 600;
+  color: var(--jarvis-white);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 

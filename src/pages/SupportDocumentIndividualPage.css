@@ -4,7 +4,7 @@
   border-top: 1px solid var(--jarvis-border);
   margin-top: 0.3rem;
   padding-top: 0.3rem;
-  background: #ffffff;
+  background: var(--jarvis-white);
 }
 
 .ds-individual__supplier-option.ds-individual__create-option {
@@ -13,7 +13,7 @@
   align-items: center;
   gap: 0.5rem;
   color: var(--jarvis-primary);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   background: var(--jarvis-primary-soft);
 }
 
@@ -39,7 +39,7 @@
 .ds-individual__breadcrumb a {
   color: var(--jarvis-primary);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ds-individual__breadcrumb a:hover {
@@ -59,7 +59,7 @@
   margin: 0;
   color: var(--jarvis-navy);
   font-size: var(--text-h1);
-  font-weight: 700;
+  font-weight: var(--font-weight-heading);
 }
 
 .ds-individual__config-btn {
@@ -68,11 +68,11 @@
   gap: 0.4rem;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--jarvis-border-strong);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--r-md);
+  background: var(--jarvis-white);
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-button);
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
@@ -94,12 +94,6 @@
 .ds-individual--sales {
   max-width: none;
   padding: 0.85rem 1.25rem 1.5rem;
-  --text-xs: 0.6875rem;
-  --text-sm: 0.75rem;
-  --text-base: 0.8125rem;
-  --text-md: 0.8125rem;
-  --text-lg: 0.875rem;
-  --text-h1: 1.28rem;
 }
 
 .ds-individual--sales .ds-individual__breadcrumb {
@@ -114,24 +108,24 @@
 .ds-individual--sales .ds-individual__config-btn {
   padding: 0.35rem 0.7rem;
   font-size: var(--text-sm);
-  border-radius: 7px;
+  border-radius: var(--r-control);
 }
 
 /* Las secciones forman una sola tarjeta continua, separadas por una línea sutil. */
 .ds-individual--sales .ds-individual__form {
   gap: 0;
-  border: 1px solid rgba(215, 222, 231, 0.95);
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(var(--jarvis-gray-300-rgb), 0.95);
+  border-radius: var(--r-lg);
+  background: var(--jarvis-white);
+  box-shadow: var(--shadow-xs);
 }
 
 .ds-individual--sales .ds-individual__section {
   padding: 1.15rem 1.1rem 1.3rem;
   border: none;
-  border-bottom: 1px solid #e4eaf0;
+  border-bottom: 1px solid var(--jarvis-gray-200);
   border-radius: 0;
-  background: transparent;
+  background: var(--jarvis-transparent);
   box-shadow: none;
 }
 
@@ -147,7 +141,7 @@
 .ds-individual--sales .ds-individual__payment-col h2 {
   margin-bottom: 0.7rem;
   padding-bottom: 0.4rem;
-  font-size: 0.92rem;
+  font-size: var(--text-md);
 }
 
 .ds-individual--sales .ds-individual__section-head {
@@ -183,8 +177,8 @@
 .ds-individual--sales .ds-individual__info-grid .ds-individual__field > span:first-child {
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
-  line-height: 1.25;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }
 
 .ds-individual--sales .ds-individual__field--customer {
@@ -209,7 +203,7 @@
 .ds-individual--sales .ds-individual__field--checkbox span {
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ds-individual--sales .ds-individual__field--checkbox input[type='checkbox'] {
@@ -233,7 +227,7 @@
 .ds-individual--sales .ds-individual__consecutive-label {
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-label);
   white-space: nowrap;
 }
 
@@ -252,7 +246,7 @@
 .ds-individual--sales .ds-individual__readonly {
   padding: 0.42rem 0.65rem;
   font-size: var(--text-sm);
-  border-radius: 7px;
+  border-radius: var(--r-control);
 }
 
 .ds-individual--sales .ds-individual__field textarea {
@@ -263,12 +257,12 @@
 .ds-individual--sales .ds-individual__table select {
   height: 30px;
   padding: 0.25rem 0.4rem;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 .ds-individual--sales .ds-individual__table th {
   padding: 0.4rem 0.3rem;
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
 }
 
 /* Los desplegables de búsqueda (cliente y producto) usan el mismo tamaño de
@@ -288,7 +282,7 @@
 }
 
 .ds-individual--sales .ds-individual__product-badge {
-  font-size: 0.62rem;
+  font-size: var(--text-xs);
 }
 
 .ds-individual--sales .ds-individual__table td {
@@ -317,8 +311,8 @@
 .ds-individual--sales .ds-individual__payment-col .ds-individual__field > span:first-child {
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
-  line-height: 1.25;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }
 
 .ds-individual--sales .ds-individual__payment-col .ds-individual__error {
@@ -391,9 +385,9 @@
 .ds-individual--sales .ds-individual__totals-row--net {
   margin-top: 0.35rem;
   padding: 0.6rem 0.85rem;
-  background: #e6fbf7;
+  background: var(--jarvis-primary-soft);
   border-bottom: none;
-  border-radius: 8px;
+  border-radius: var(--r-md);
 }
 
 .ds-individual--sales .ds-individual__actions {
@@ -428,9 +422,9 @@
 /* ─── Secciones (tarjetas) ─── */
 .ds-individual__section {
   padding: 1.35rem 1.45rem 1.5rem;
-  border: 1px solid rgba(215, 222, 231, 0.95);
-  border-radius: 14px;
-  background: #ffffff;
+  border: 1px solid rgba(var(--jarvis-gray-300-rgb), 0.95);
+  border-radius: var(--r-lg);
+  background: var(--jarvis-white);
 }
 
 .ds-individual__section h2 {
@@ -438,8 +432,8 @@
   padding-bottom: 0.55rem;
   border-bottom: 2px solid var(--jarvis-primary);
   color: var(--jarvis-navy);
-  font-size: 1.02rem;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-heading);
 }
 
 .ds-individual__section-head {
@@ -511,7 +505,7 @@
 .ds-individual__field > label > span:first-child {
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-label);
 }
 
 .ds-individual__required {
@@ -537,7 +531,7 @@
 .ds-individual__field--checkbox span {
   color: var(--jarvis-text);
   font-size: var(--text-md);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 /* ─── Inputs / selects / textarea ─── */
@@ -552,8 +546,8 @@
   min-width: 0;
   padding: 0.68rem 0.8rem;
   border: 1px solid var(--jarvis-border-strong);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--r-md);
+  background: var(--jarvis-white);
   color: var(--jarvis-text);
   font-size: var(--text-md);
   font-family: inherit;
@@ -571,7 +565,7 @@
 .ds-individual__field--amount input:focus {
   outline: none;
   border-color: var(--jarvis-primary);
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+  box-shadow: var(--shadow-focus);
 }
 
 .ds-individual__field textarea {
@@ -584,7 +578,7 @@
   margin: 0;
   padding: 0.68rem 0.8rem;
   border: 1px solid var(--jarvis-gray-200);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   background: var(--jarvis-gray-50);
   color: var(--jarvis-text-muted);
   font-size: var(--text-md);
@@ -605,8 +599,8 @@
 
 .ds-individual__prefix-label {
   color: var(--jarvis-text-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-label);
 }
 
 /* ─── Buscador de proveedor ─── */
@@ -642,9 +636,9 @@
   overflow: auto;
   list-style: none;
   border: 1px solid var(--jarvis-border);
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 10px 24px rgba(15, 31, 51, 0.12);
+  border-radius: var(--r-md);
+  background: var(--jarvis-white);
+  box-shadow: var(--shadow-md);
 }
 
 .ds-individual__supplier-list--pinned-action {
@@ -670,8 +664,8 @@
   width: 100%;
   padding: 0.65rem 0.75rem;
   border: none;
-  border-radius: 6px;
-  background: transparent;
+  border-radius: var(--r-control);
+  background: var(--jarvis-transparent);
   text-align: left;
   cursor: pointer;
 }
@@ -684,12 +678,12 @@
 .ds-individual__supplier-option strong {
   color: var(--jarvis-navy);
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ds-individual__supplier-option span {
   color: var(--jarvis-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .ds-individual__supplier-empty {
@@ -721,22 +715,22 @@
   display: inline-flex;
   align-items: center;
   padding: 0.12rem 0.45rem;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
 .ds-individual__product-badge--product {
-  background: #e0f2fe;
-  color: #0284c7;
+  background: var(--jarvis-info-soft);
+  color: var(--jarvis-chart-support);
 }
 
 .ds-individual__product-badge--service {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--jarvis-warning-soft);
+  color: var(--jarvis-warning);
 }
 
 .ds-individual__product-option-meta {
@@ -744,18 +738,18 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--jarvis-text-muted);
 }
 
 .ds-individual__product-sku {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--jarvis-navy);
 }
 
 .ds-individual__product-price {
-  font-weight: 500;
-  color: #0d9488;
+  font-weight: var(--font-weight-medium);
+  color: var(--jarvis-primary);
 }
 
 .ds-individual__product-tax {
@@ -793,7 +787,7 @@
   padding: 0.55rem 0.75rem;
   background: var(--jarvis-surface);
   border: 1px solid var(--jarvis-border);
-  border-radius: 6px;
+  border-radius: var(--r-control);
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
 }
@@ -803,7 +797,7 @@
   display: block;
   margin: 0.15rem 0 0;
   color: var(--jarvis-danger);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-style: normal;
 }
 
@@ -817,17 +811,17 @@
 .ds-individual__field--payment-method.is-invalid select,
 .ds-individual__field--payment-method.is-invalid input {
   border-color: var(--jarvis-danger);
-  box-shadow: 0 0 0 3px var(--jarvis-danger-ring);
+  box-shadow: var(--shadow-focus-danger);
 }
 
 /* ─── Botón agregar fila ─── */
 .ds-individual__add-line {
   border: 1px solid var(--jarvis-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--r-md);
+  background: var(--jarvis-white);
   color: var(--jarvis-primary);
   font-size: var(--text-base);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   padding: 0.45rem 0.8rem;
   cursor: pointer;
   white-space: nowrap;
@@ -843,8 +837,8 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--jarvis-gray-200);
-  border-radius: 10px;
-  background: #fff;
+  border-radius: var(--r-md);
+  background: var(--jarvis-white);
 }
 
 .ds-individual__table {
@@ -859,10 +853,10 @@
   height: 34px;
   padding: 0.35rem 0.45rem;
   border: 1px solid var(--jarvis-border-strong);
-  border-radius: 6px;
-  background: #fff;
+  border-radius: var(--r-control);
+  background: var(--jarvis-white);
   color: var(--jarvis-text);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-family: inherit;
   box-sizing: border-box;
 }
@@ -871,7 +865,7 @@
 .ds-individual__table select:focus-visible {
   outline: none;
   border-color: var(--jarvis-primary);
-  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+  box-shadow: var(--shadow-focus);
 }
 
 .ds-individual__table th {
@@ -879,8 +873,8 @@
   border-bottom: 1px solid var(--jarvis-border);
   background: var(--jarvis-gray-50);
   color: var(--jarvis-text-muted);
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
   text-align: left;
   white-space: nowrap;
 }
@@ -898,7 +892,7 @@
   padding-top: 0.65rem !important;
   text-align: center;
   color: var(--jarvis-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .ds-individual__th-product,
@@ -978,8 +972,8 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   color: var(--jarvis-text);
-  font-weight: 600;
-  font-size: 0.82rem;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-sm);
   text-align: right;
 }
 
@@ -992,7 +986,7 @@
   margin-top: 0.15rem;
   border: none;
   border-radius: var(--r-sm);
-  background: transparent;
+  background: var(--jarvis-transparent);
   color: var(--jarvis-danger);
   cursor: pointer;
 }
@@ -1036,8 +1030,8 @@
   padding-bottom: 0.55rem;
   border-bottom: 2px solid var(--jarvis-primary);
   color: var(--jarvis-navy);
-  font-size: 1.02rem;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-heading);
 }
 
 /* ─── Fila de forma de pago ─── */
@@ -1054,7 +1048,7 @@
   background: none;
   color: var(--jarvis-primary);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   font-family: inherit;
   cursor: pointer;
   text-decoration: none;
@@ -1069,8 +1063,8 @@
   display: flex;
   align-items: stretch;
   border: 1px solid var(--jarvis-border-strong);
-  border-radius: 8px;
-  background-color: #fff;
+  border-radius: var(--r-md);
+  background-color: var(--jarvis-white);
   overflow: hidden;
 }
 
@@ -1082,7 +1076,7 @@
   padding: 0.68rem 0.8rem;
   color: var(--jarvis-text);
   font-size: var(--text-md);
-  background: transparent;
+  background: var(--jarvis-transparent);
   box-shadow: none !important;
 }
 
@@ -1114,7 +1108,7 @@
   padding: 1rem 1.1rem;
   border: 1px solid var(--jarvis-gray-200);
   border-radius: var(--r-md);
-  background: #ffffff;
+  background: var(--jarvis-white);
 }
 
 .ds-individual__totals-row {
@@ -1139,7 +1133,7 @@
 .ds-individual__totals-row strong {
   color: var(--jarvis-text);
   font-size: var(--text-base);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -1160,10 +1154,10 @@
 .ds-individual__reteica-select {
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--jarvis-border-strong);
-  border-radius: 6px;
-  background: #fff;
+  border-radius: var(--r-control);
+  background: var(--jarvis-white);
   color: var(--jarvis-text);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   min-width: 0;
   max-width: 140px;
 }
@@ -1177,7 +1171,7 @@
 .ds-individual__totals-row--net strong {
   color: var(--jarvis-primary);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 /* ─── Comentarios y anexos ─── */
@@ -1192,7 +1186,7 @@
   display: block;
   text-align: right;
   color: var(--jarvis-text-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   margin-top: 0.2rem;
 }
 
@@ -1206,7 +1200,7 @@
   min-height: 150px;
   padding: 1.5rem 1rem;
   border: 2px dashed var(--jarvis-border-strong);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   background: var(--jarvis-gray-50);
   color: var(--jarvis-text-muted);
   cursor: pointer;
@@ -1232,13 +1226,13 @@
 .ds-individual__dropzone-text {
   margin: 0;
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ds-individual__dropzone-hint {
   margin: 0;
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
 }
 
 .ds-individual__file-info {
@@ -1250,7 +1244,7 @@
 
 .ds-individual__file-name {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--jarvis-primary);
   word-break: break-all;
   max-width: 200px;
@@ -1258,7 +1252,7 @@
 }
 
 .ds-individual__file-size {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--jarvis-text-muted);
 }
 
@@ -1266,10 +1260,10 @@
   margin-top: 0.25rem;
   padding: 0.2rem 0.5rem;
   border: 1px solid var(--jarvis-border-strong);
-  border-radius: 4px;
-  background: #fff;
+  border-radius: var(--r-sm);
+  background: var(--jarvis-white);
   color: var(--jarvis-danger);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -1293,9 +1287,9 @@
   gap: 0.45rem;
   min-width: 140px;
   padding: 0.78rem 1.2rem;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-button);
   font-family: inherit;
   cursor: pointer;
 }
@@ -1307,7 +1301,7 @@
 
 .ds-individual__btn--ghost {
   border: 1px solid var(--jarvis-border-strong);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text-muted);
 }
 
@@ -1318,7 +1312,7 @@
 
 .ds-individual__btn--outline {
   border: 1px solid var(--jarvis-primary);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-primary);
 }
 
@@ -1329,8 +1323,8 @@
 .ds-individual__btn--primary {
   border: 1px solid var(--jarvis-primary);
   background: var(--jarvis-primary);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(13, 148, 136, 0.25);
+  color: var(--jarvis-white);
+  box-shadow: var(--shadow-md);
 }
 
 .ds-individual__btn--primary:hover:not(:disabled) {
@@ -1404,4 +1398,4 @@
     flex: 1 1 100%;
   }
 }
-.credit-note-source-warning { padding: 1rem; border: 1px solid #ead49b; border-radius: 10px; background: #fffaed; color: #725219; }
+.credit-note-source-warning { padding: 1rem; border: 1px solid var(--jarvis-warning-border); border-radius: var(--r-md); background: var(--jarvis-danger-soft); color: var(--jarvis-warning-hover); }

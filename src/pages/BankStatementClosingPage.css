@@ -15,7 +15,7 @@
   align-items: flex-start;
   gap: 0;
   padding: 1.25rem 1.5rem;
-  background: #fff;
+  background: var(--jarvis-white);
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-lg);
 }
@@ -49,11 +49,11 @@
   width: 2.1rem;
   height: 2.1rem;
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   border: 2px solid var(--jarvis-gray-200);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text-muted);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   font-size: var(--text-sm);
 }
 
@@ -65,14 +65,14 @@
 .bank-closing-stepper__badge--complete {
   border-color: var(--jarvis-success);
   background: var(--jarvis-success);
-  color: #fff;
+  color: var(--jarvis-white);
 }
 
 .bank-closing-stepper__badge--active {
   border-color: var(--jarvis-primary);
   background: var(--jarvis-primary);
-  color: #fff;
-  box-shadow: 0 0 0 4px var(--jarvis-primary-soft);
+  color: var(--jarvis-white);
+  box-shadow: var(--shadow-focus);
 }
 
 .bank-closing-stepper__copy {
@@ -84,7 +84,7 @@
 .bank-closing-stepper__copy strong {
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   white-space: nowrap;
 }
 
@@ -108,7 +108,7 @@
   flex-direction: column;
   gap: 1rem;
   padding: 1.25rem;
-  background: #fff;
+  background: var(--jarvis-white);
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-lg);
 }
@@ -116,7 +116,7 @@
 .bank-closing-card__title {
   margin: 0;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--font-weight-heading);
   color: var(--jarvis-text);
 }
 
@@ -149,7 +149,7 @@
 }
 
 .bank-closing-dropzone__title {
-  font-weight: 700;
+  font-weight: var(--font-weight-heading);
   color: var(--jarvis-text);
   font-size: var(--text-md);
 }
@@ -164,9 +164,9 @@
   padding: 0.5rem 1.1rem;
   border: 1px solid var(--jarvis-border-strong);
   border-radius: var(--r-sm);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text);
-  font-weight: 600;
+  font-weight: var(--font-weight-button);
   font-size: var(--text-sm);
 }
 
@@ -202,7 +202,7 @@
 
 .bank-closing-file-chip__name {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--jarvis-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -223,7 +223,7 @@
   flex-shrink: 0;
   border: none;
   border-radius: var(--r-sm);
-  background: transparent;
+  background: var(--jarvis-transparent);
   color: var(--jarvis-text-muted);
   cursor: pointer;
 }
@@ -260,7 +260,7 @@
   gap: 0.5rem;
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .bank-closing-summary__icon {
@@ -274,7 +274,7 @@
   margin: 0;
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-align: right;
 }
 
@@ -311,7 +311,7 @@
   background: var(--jarvis-success-soft);
   border: 1px solid var(--jarvis-success-border);
   color: var(--jarvis-success);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .bank-closing-final-balance strong {
@@ -338,9 +338,9 @@
   justify-content: center;
   width: 3rem;
   height: 3rem;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   background: var(--jarvis-success);
-  color: #fff;
+  color: var(--jarvis-white);
   margin-bottom: 0.4rem;
 }
 
@@ -387,7 +387,7 @@
   margin-left: auto;
   color: var(--jarvis-success);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .bank-closing-tip {
@@ -412,7 +412,7 @@
   margin: 0;
   color: var(--jarvis-warning);
   font-size: var(--text-sm);
-  line-height: 1.45;
+  line-height: var(--line-height-body);
 }
 
 /* Confirm bar */
@@ -435,9 +435,9 @@
   justify-content: center;
   width: 3.25rem;
   height: 3.25rem;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   background: var(--jarvis-success);
-  color: #fff;
+  color: var(--jarvis-white);
   margin-bottom: 0.5rem;
 }
 
@@ -473,7 +473,7 @@
 .bank-closing-confirm__message {
   margin-top: 0.75rem;
   color: var(--jarvis-success);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 @media (max-width: 960px) {

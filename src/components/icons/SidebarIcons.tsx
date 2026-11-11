@@ -400,10 +400,10 @@ export function ExcelIcon({ className }: IconProps) {
       fill="none"
       aria-hidden="true"
     >
-      <rect width="20" height="20" rx="3" fill="#217346" />
+      <rect width="20" height="20" rx="3" fill="var(--jarvis-excel-brand)" />
       <path
         d="M6.2 5.5h3.1l1.7 3.35L12.7 5.5h3.1l-3.05 5.05L16 15.5h-3.15l-1.85-3.5-1.85 3.5H6l3.1-5.05L6.2 5.5Z"
-        fill="#ffffff"
+        fill="var(--jarvis-white)"
       />
     </svg>
   )

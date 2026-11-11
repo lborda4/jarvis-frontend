@@ -14,6 +14,7 @@ function renderLanding(path: string) {
         <Route path="/" element={<LandingPage />} />
         <Route path="/siigo" element={<LandingPage product="siigo" />} />
         <Route path="/facturacion-electronica" element={<LandingPage product="billing" />} />
+        <Route path="/nomina-electronica" element={<LandingPage product="payroll" />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -23,10 +24,42 @@ it('ofrece accesos a cada producto y a sus precios desde la portada', () => {
   const html = renderLanding('/')
   expect(html).toContain('href="/siigo"')
   expect(html).toContain('href="/facturacion-electronica"')
-  expect(html).toContain('href="/siigo#precios"')
+  expect(html).toContain('aria-label="Conocer más sobre causación automática"')
   expect(html).toContain('href="/facturacion-electronica#precios"')
-  expect(html).toContain('Ya tengo Siigo')
-  expect(html).toContain('Quiero facturar electrónicamente')
+  expect(html).toContain('Elige tu solución')
+  expect(html).toContain('Nómina')
+  expect(html).toContain('Causación')
+  expect(html).toContain('$60.000')
+  expect(html).toContain('$12.900')
+  expect(html).toContain('href="/nomina-electronica"')
+  expect(html).not.toContain('id="detalle-nomina"')
+  expect(html).toContain('Conocer más')
+  expect(html).not.toContain('Comprar ahora')
+  expect(html).not.toContain('Pago anual')
+  expect(html).not.toContain('$10.833')
+  expect(html).not.toContain('$11.658')
+  expect(html).toContain('href="/login"')
+})
+
+it('abre una página independiente de nómina con su plan mensual y sin las tarjetas de inicio', () => {
+  const html = renderLanding('/nomina-electronica')
+  expect(html).toContain('La nómina de tu equipo,')
+  expect(html).toContain('$12.900')
+  expect(html).toContain('Hasta 2 empleados')
+  expect(html).toContain('Certificado digital incluido')
+  expect(html).toContain('id="como-funciona"')
+  expect(html).toContain('id="precios"')
+  expect(html).toContain('id="acompanamiento"')
+  expect(html).toContain('id="preguntas-frecuentes"')
+  const navigation = html.match(/<nav class="solution-nav"[^>]*>([\s\S]*?)<\/nav>/)?.[1] ?? ''
+  expect(navigation).toContain('href="#precios"')
+  expect(navigation).not.toContain('href="/#')
+  for (const [, anchor] of html.matchAll(/href="#([^"]+)"/g)) {
+    expect(html).toContain(`id="${anchor}"`)
+  }
+  expect(html).toContain(encodeURIComponent('por $12.900 COP al mes'))
+  expect(html).not.toContain('Elige tu solución')
+  expect(html).not.toContain('class="solution-cards"')
 })
 
 it('mantiene los planes de Siigo separados de los paquetes de facturación', () => {

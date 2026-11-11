@@ -8,17 +8,17 @@
   justify-content: center;
   width: 3.25rem;
   height: 3.25rem;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   background-color: var(--jarvis-primary);
-  color: #ffffff;
-  box-shadow: 0 10px 24px rgba(13, 148, 136, 0.35);
+  color: var(--jarvis-white);
+  box-shadow: var(--shadow-md);
   text-decoration: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .support-fab:hover {
-  background-color: var(--jarvis-primary-strong, #0b8a80);
-  box-shadow: 0 12px 28px rgba(13, 148, 136, 0.42);
+  background-color: var(--jarvis-primary-hover);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
 }
 

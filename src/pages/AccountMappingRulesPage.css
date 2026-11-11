@@ -26,7 +26,7 @@
 .account-mapping-rule-card {
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-md);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   padding: 0.9rem 1.1rem;
 }
 
@@ -57,11 +57,11 @@
 
 .account-mapping-rule-card__badge {
   padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background-color: var(--jarvis-info-soft, rgba(59, 130, 246, 0.12));
-  color: var(--jarvis-info, #2563eb);
+  border-radius: var(--r-pill);
+  background-color: var(--jarvis-info-soft);
+  color: var(--jarvis-info);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .account-mapping-rule-card__toggle {
@@ -71,7 +71,7 @@
   background: none;
   color: var(--jarvis-primary);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 
@@ -91,7 +91,7 @@
   padding: 0.4rem 0.6rem;
   color: var(--jarvis-text-muted);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   border-bottom: 1px solid var(--jarvis-border);
@@ -99,7 +99,7 @@
 
 .account-mapping-rule-card__table td {
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--jarvis-gray-100, #f1f5f9);
+  border-bottom: 1px solid var(--jarvis-gray-100);
   vertical-align: middle;
 }
 

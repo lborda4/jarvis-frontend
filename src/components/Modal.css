@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background-color: rgb(15 23 42 / 45%);
+  background-color: rgba(var(--jarvis-navy-deep-rgb), 0.45);
 }
 
 .modal-dialog {
@@ -16,7 +16,7 @@
   overflow-y: auto;
   padding: 1.5rem;
   border-radius: var(--r-md);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   box-shadow: var(--shadow-lg);
 }
 
@@ -44,7 +44,7 @@
   padding: 0;
   border: none;
   border-radius: var(--r-sm);
-  background-color: transparent;
+  background-color: var(--jarvis-transparent);
   color: var(--jarvis-text-muted);
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -110,7 +110,7 @@
   padding: 0 0.25rem;
   color: var(--jarvis-text);
   font-size: var(--text-base);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .modal-dialog__radio {
@@ -130,7 +130,7 @@
 .modal-dialog__success-message {
   margin: 0;
   color: var(--jarvis-success);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .modal-dialog__error-message {
@@ -165,13 +165,13 @@
 .supplier-details__row dt {
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .supplier-details__row dd {
   margin: 0;
   color: var(--jarvis-text);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 @media (max-width: 640px) {

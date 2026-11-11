@@ -1,14 +1,15 @@
 export type Product = 'siigo' | 'billing'
+export type MarketingProduct = Product | 'payroll'
 
-export const PUBLIC_PATHS = ['/', '/siigo', '/facturacion-electronica'] as const
+export const PUBLIC_PATHS = ['/', '/siigo', '/facturacion-electronica', '/nomina-electronica'] as const
 export type PublicPath = typeof PUBLIC_PATHS[number]
 
 export function isPublicPath(path: string): path is PublicPath {
   return PUBLIC_PATHS.some(publicPath => publicPath === path)
 }
 
-export function productForPath(path: PublicPath): Product | undefined {
-  return path === '/siigo' ? 'siigo' : path === '/facturacion-electronica' ? 'billing' : undefined
+export function productForPath(path: PublicPath): MarketingProduct | undefined {
+  return path === '/siigo' ? 'siigo' : path === '/facturacion-electronica' ? 'billing' : path === '/nomina-electronica' ? 'payroll' : undefined
 }
 
 export const SIIGO_PLANS = [

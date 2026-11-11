@@ -1,21 +1,21 @@
 .invoice-pdf.modal-dialog { width: min(1100px, 94vw); max-width: 1100px; padding: 1.5rem; }
-.invoice-pdf--page { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--jarvis-border); border-radius: 12px; background: white; }
+.invoice-pdf--page { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-lg); background: var(--jarvis-white); }
 .invoice-pdf__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-right: 2rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.invoice-pdf__header :is(h1, h2) { margin: 0; font-size: 1.15rem; min-width: 0; overflow-wrap: anywhere; }
+.invoice-pdf__header :is(h1, h2) { margin: 0; font-size: var(--text-xl); min-width: 0; overflow-wrap: anywhere; }
 .invoice-pdf__actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
-.invoice-pdf__action { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .45rem .8rem; border: 1px solid var(--jarvis-primary); border-radius: 8px; background: white; color: var(--jarvis-primary); font: inherit; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; }
-.invoice-pdf__action:hover { background: var(--jarvis-primary-soft, #eaf8f6); }
+.invoice-pdf__action { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .45rem .8rem; border: 1px solid var(--jarvis-primary); border-radius: var(--r-md); background: var(--jarvis-white); color: var(--jarvis-primary); font: inherit; font-weight: var(--font-weight-semibold); text-decoration: none; white-space: nowrap; cursor: pointer; }
+.invoice-pdf__action:hover { background: var(--jarvis-primary-soft); }
 .invoice-pdf__action:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 3px; }
-.invoice-pdf__download { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .65rem 1rem; border: 1px solid var(--jarvis-primary); border-radius: 8px; color: white; background: var(--jarvis-primary); font: inherit; font-weight: 600; text-decoration: none; }
+.invoice-pdf__download { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .65rem 1rem; border: 1px solid var(--jarvis-primary); border-radius: var(--r-md); color: var(--jarvis-white); background: var(--jarvis-primary); font: inherit; font-weight: var(--font-weight-semibold); text-decoration: none; }
 .invoice-pdf__download:hover { filter: brightness(.95); }
 .invoice-pdf__download:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 3px; }
 .invoice-pdf__download:disabled { opacity: .5; cursor: not-allowed; }
-.invoice-pdf__empty { min-height: min(55vh, 440px); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 1.5rem; border: 1px dashed var(--jarvis-border); border-radius: 12px; background: var(--jarvis-bg, #f5f8fa); color: var(--jarvis-text-muted); }
+.invoice-pdf__empty { min-height: min(55vh, 440px); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 1.5rem; border: 1px dashed var(--jarvis-border); border-radius: var(--r-lg); background: var(--jarvis-bg); color: var(--jarvis-text-muted); }
 .invoice-pdf__empty h3 { color: var(--jarvis-text); margin-bottom: .25rem; }
 .invoice-pdf__code { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; margin-bottom: .65rem; flex-shrink: 0; }
-.invoice-pdf__code label { display: flex; align-items: center; gap: .65rem; flex: 1; min-width: 0; font-size: .85rem; font-weight: 600; }
-.invoice-pdf__code input { width: 100%; min-width: 0; padding: .5rem; border: 1px solid var(--jarvis-border); border-radius: 6px; font-family: monospace; font-size: .85rem; color: var(--jarvis-text); background: var(--jarvis-bg, #f5f8fa); }
-.invoice-pdf__copy-status { flex-basis: 100%; font-size: .8rem; color: var(--jarvis-text-muted); }
+.invoice-pdf__code label { display: flex; align-items: center; gap: .65rem; flex: 1; min-width: 0; font-size: var(--text-base); font-weight: var(--font-weight-label); }
+.invoice-pdf__code input { width: 100%; min-width: 0; padding: .5rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-control); font-family: var(--font-family-mono); font-size: var(--text-base); color: var(--jarvis-text); background: var(--jarvis-bg); }
+.invoice-pdf__copy-status { flex-basis: 100%; font-size: var(--text-sm); color: var(--jarvis-text-muted); }
 .invoice-pdf__copy-status:empty { display: none; }
 
 .integration-page.sales-invoice-preview.sales-invoice-preview {
@@ -28,7 +28,7 @@
   box-sizing: border-box;
   padding: .85rem 1rem;
 }
-.sales-invoice-preview > a { align-self: flex-start; flex-shrink: 0; color: var(--jarvis-primary); text-decoration: none; font-weight: 500; }
+.sales-invoice-preview > a { align-self: flex-start; flex-shrink: 0; color: var(--jarvis-primary); text-decoration: none; font-weight: var(--font-weight-medium); }
 .sales-invoice-preview > a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sales-invoice-preview .invoice-pdf--page {
   display: flex;
@@ -43,5 +43,5 @@
 @media (max-width: 720px) {
   .integration-page.sales-invoice-preview.sales-invoice-preview { padding: .5rem; }
   .sales-invoice-preview .invoice-pdf--page { padding: .5rem; }
-  .sales-invoice-preview .invoice-pdf__header :is(h1, h2) { font-size: 1rem; }
+  .sales-invoice-preview .invoice-pdf__header :is(h1, h2) { font-size: var(--text-lg); }
 }

@@ -11,8 +11,8 @@
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  color: #69788b;
-  font-size: 0.82rem;
+  color: var(--jarvis-gray-600);
+  font-size: var(--text-sm);
 }
 .payroll__documents .payroll-register__year select {
   width: 105px;
@@ -25,27 +25,27 @@
   margin-bottom: 20px;
 }
 .payroll-register__overview > div {
-  border: 1px solid #dce6ec;
-  background: white;
-  border-radius: 10px;
+  border: 1px solid var(--jarvis-gray-200);
+  background: var(--jarvis-white);
+  border-radius: var(--r-md);
   padding: 16px 18px;
   min-width: 0;
 }
 .payroll-register__overview span {
   display: block;
   margin-bottom: 7px;
-  color: #69788b;
-  font-size: 0.78rem;
+  color: var(--jarvis-gray-600);
+  font-size: var(--text-xs);
 }
 .payroll-register__overview strong {
-  font-size: clamp(0.95rem, 1.3vw, 1.3rem);
+  font-size: var(--text-lead);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 .payroll-register__overview > .payroll-register__overview-net {
-  background: #eaf8f6;
-  border-color: #bde6e0;
-  color: #007b78;
+  background: var(--jarvis-primary-soft);
+  border-color: var(--jarvis-gray-400);
+  color: var(--jarvis-primary-hover);
 }
 .payroll-register__filter-card {
   margin: 0 0 18px;
@@ -63,14 +63,14 @@
   gap: 12px;
 }
 .payroll-period {
-  border: 1px solid #dce6ec;
-  border-radius: 10px;
-  background: white;
+  border: 1px solid var(--jarvis-gray-200);
+  border-radius: var(--r-md);
+  background: var(--jarvis-white);
   min-width: 0;
 }
 .payroll-period--open {
-  border-color: #a5dcd7;
-  box-shadow: 0 3px 12px #16394006;
+  border-color: var(--jarvis-primary-border);
+  box-shadow: var(--shadow-sm);
 }
 .payroll-period__header {
   display: flex;
@@ -84,8 +84,8 @@
   align-items: center;
   gap: 20px;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
+  border-radius: var(--r-md);
+  background: var(--jarvis-transparent);
   color: inherit;
   padding: 18px;
   min-width: 0;
@@ -93,15 +93,15 @@
   text-align: left;
 }
 .payroll-period__toggle:hover {
-  background: #f7fbfb;
+  background: var(--jarvis-gray-50);
 }
 .payroll-period__toggle:focus-visible {
-  outline: 2px solid #009b99;
+  outline: 2px solid var(--jarvis-primary);
   outline-offset: -3px;
 }
 .payroll-period__chevron {
   display: inline-flex;
-  color: #008d8b;
+  color: var(--jarvis-primary);
 }
 .payroll-period__chevron svg {
   width: 18px;
@@ -113,13 +113,13 @@
   min-width: 0;
 }
 .payroll-period__name strong {
-  font-size: 0.95rem;
+  font-size: var(--text-md);
   overflow-wrap: anywhere;
 }
 .payroll-period__name > span,
 .payroll-period__employees {
-  color: #69788b;
-  font-size: 0.76rem;
+  color: var(--jarvis-gray-600);
+  font-size: var(--text-xs);
 }
 .payroll-period__net {
   display: grid;
@@ -128,15 +128,15 @@
   white-space: nowrap;
 }
 .payroll-period__net small {
-  color: #69788b;
-  font-size: 0.7rem;
+  color: var(--jarvis-gray-600);
+  font-size: var(--text-xs);
 }
 .payroll-period__net strong {
   font-variant-numeric: tabular-nums;
-  font-size: 0.9rem;
+  font-size: var(--text-base);
 }
 .payroll-period__body {
-  border-top: 1px solid #d9eeeb;
+  border-top: 1px solid var(--jarvis-gray-200);
 }
 .payroll-period__toolbar {
   display: flex;
@@ -145,21 +145,21 @@
   gap: 16px;
   flex-wrap: wrap;
   padding: 16px 20px;
-  background: #f8fbfc;
+  background: var(--jarvis-gray-50);
 }
 .payroll-period__toolbar h2 {
   margin: 0 0 5px;
-  font-size: 0.86rem;
+  font-size: var(--text-base);
 }
 .payroll-period__toolbar p {
   margin: 0;
-  color: #69788b;
-  font-size: 0.76rem;
+  color: var(--jarvis-gray-600);
+  font-size: var(--text-xs);
 }
 .payroll-period__toolbar .payroll__button {
   padding: 7px 11px;
   min-height: 34px;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
 }
 .payroll-period__totals {
   display: flex;
@@ -167,17 +167,17 @@
   gap: 24px;
   flex-wrap: wrap;
   padding: 14px 20px;
-  background: #f5fbfa;
-  border-radius: 0 0 10px 10px;
-  font-size: 0.78rem;
+  background: var(--jarvis-gray-50);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  font-size: var(--text-xs);
 }
 .payroll-period__totals span {
   display: flex;
   gap: 8px;
-  color: #69788b;
+  color: var(--jarvis-gray-600);
 }
 .payroll-period__totals strong {
-  color: #007f7b;
+  color: var(--jarvis-primary-hover);
   font-variant-numeric: tabular-nums;
 }
 .payroll__documents .payroll-documents-table table {
@@ -199,7 +199,7 @@
 }
 .payroll__documents .payroll-documents-table :is(th, td) {
   padding: 12px 10px;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   vertical-align: middle;
 }
 .payroll-documents-table th:nth-child(n + 3):nth-child(-n + 5),
@@ -218,7 +218,7 @@
 }
 .payroll-documents-table__person button {
   text-align: left;
-  font-weight: 600;
+  font-weight: var(--font-weight-button);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
@@ -226,7 +226,7 @@
   text-decoration: underline;
 }
 .payroll-documents-table__person small {
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
 .payroll__documents .payroll-documents-table input[type='checkbox'] {
@@ -234,14 +234,14 @@
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: #009b99;
+  accent-color: var(--jarvis-primary);
 }
 .payroll-documents-table .payroll__badge {
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   padding: 4px 7px;
 }
 .payroll-documents-table__selected {
-  background: #edf9f7;
+  background: var(--jarvis-success-soft);
 }
 .payroll-register__pagination {
   justify-content: flex-end;
@@ -253,18 +253,18 @@
   justify-content: space-between;
   gap: 14px;
   padding: 14px 18px;
-  border: 1px solid #a9ded7;
-  background: #edf9f6;
-  border-radius: 10px;
+  border: 1px solid var(--jarvis-primary-border);
+  background: var(--jarvis-success-soft);
+  border-radius: var(--r-md);
   margin-top: 16px;
   position: sticky;
   bottom: 12px;
   z-index: 3;
-  box-shadow: 0 4px 20px #193d3510;
+  box-shadow: var(--shadow-md);
 }
 .payroll-register__selection > strong {
-  color: #007e79;
-  font-size: 0.82rem;
+  color: var(--jarvis-primary-hover);
+  font-size: var(--text-sm);
 }
 .payroll-register__summary {
   margin-top: 0;
@@ -305,7 +305,7 @@
   }
   .payroll-period__toggle > .payroll__badge {
     grid-column: 3;
-    font-size: 0.65rem;
+    font-size: var(--text-xs);
   }
   .payroll-period__header {
     align-items: flex-start;
@@ -341,7 +341,7 @@
     gap: 12px;
     padding: 14px;
     position: relative;
-    border-bottom: 1px solid #e2e9ee;
+    border-bottom: 1px solid var(--jarvis-gray-200);
   }
   .payroll__documents .payroll-documents-table td {
     padding: 0;
@@ -353,8 +353,8 @@
   .payroll-documents-table td::before {
     content: attr(data-label);
     display: block;
-    color: #69788b;
-    font-size: 0.66rem;
+    color: var(--jarvis-gray-600);
+    font-size: var(--text-xs);
     margin-bottom: 4px;
   }
   .payroll-documents-table tr:has(.payroll-documents-table__person) td:first-child {

@@ -16,20 +16,72 @@ describe('sales invoice HTML template adaptation', () => {
   function textContent(node: ReactNode): string {
     if (typeof node === 'string' || typeof node === 'number') return String(node)
     if (Array.isArray(node)) return node.map(textContent).join('')
-    if (isValidElement<{ children?: ReactNode }>(node)) return textContent(node.props.children)
+    if (isValidElement<{ children?: ReactNode }>(node)) {
+      if (typeof node.type === 'function') return textContent((node.type as (props: { children?: ReactNode }) => ReactNode)(node.props))
+      return textContent(node.props.children)
+    }
     return ''
   }
 
-  it.each(['emission', 'current'] as const)('muestra régimen IVA y CIIU con origen %s sin ocultar el tributo del XML', source => {
+  it('omite datos opcionales vacíos en enviados y conserva la identificación y los datos presentes', () => {
+    const missing = { ...party, address: ' ', cityName: null, phone: '-', email: '—' }
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, issuer: missing, buyer: { ...missing, email: 'cliente@example.com' }, observations: '   ' }, qr: '' }))
+    for (const label of ['Dirección:', 'Ciudad:', 'Tel:', 'Observaciones']) expect(text).not.toContain(label)
+    expect(text).toContain('Correo: cliente@example.com')
+    expect(text).not.toContain('Correo: —')
+    expect(text).toContain(party.name!)
+    expect(text).toContain(party.documentNumber!)
+    expect(text).toContain('Resolución No.')
+    expect(text).toContain('CUFE:')
+  })
+
+  it('mantiene los títulos y guiones de datos opcionales vacíos en borradores', () => {
+    const missing = { ...party, address: null, cityName: '', phone: '   ', email: null }
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, isDraft: true, issuer: missing, buyer: missing, observations: null }, qr: '' }))
+    for (const label of ['Dirección', 'Ciudad', 'Tel', 'Correo']) expect(text).toContain(`${label}: —`)
+    expect(text).toContain('Observaciones—')
+  })
+
+  it('conserva los datos opcionales y observaciones cuando tienen contenido', () => {
+    const filled = { ...party, address: 'Calle 10', cityName: 'Bogotá', phone: '3001234567', email: 'cliente@example.com' }
+    const text = textContent(SalesInvoicePdfDocument({ data: { ...data, issuer: filled, buyer: filled, observations: 'Entregar en recepción' }, qr: '' }))
+    for (const field of ['Dirección: Calle 10', 'Ciudad: Bogotá', 'Tel: 3001234567', 'Correo: cliente@example.com', 'ObservacionesEntregar en recepción']) expect(text).toContain(field)
+  })
+
+  it('muestra borradores incompletos sin afirmar validación DIAN ni mostrar un CUFE', async () => {
+    const { invoiceDraftPdfData } = await import('../../utils/invoiceDraftPdf')
+    const draft = invoiceDraftPdfData({ id: 'draft', kind: 'ELECTRONIC_INVOICE', state: {}, settings: {}, company: { id: 'company', name: 'Mi empresa', nit: '900123456-1' } })
+    const text = textContent(SalesInvoicePdfDocument({ data: draft, qr: '' }))
+    expect(text).toContain('BORRADOR · SIN ENVIAR A DIAN')
+    expect(text).toContain('Mi empresa')
+    expect(text).not.toContain('Documento electrónico validado por la DIAN')
+    expect(text).not.toContain('CUFE:')
+    const buffer = await renderToBuffer(<SalesInvoicePdfDocument data={draft} qr="" />)
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(buffer.toString('latin1')).not.toContain('/Subtype /Image')
+  }, 30000)
+
+  it.each(['emission', 'current'] as const)('muestra los datos tributarios de Jarvis con origen %s aunque el XML difiera', source => {
     const text = textContent(SalesInvoicePdfDocument({ data: {
-      ...data, issuer: { ...party, fiscalRegime: 'R-99-PN', taxResponsibility: '01 - IVA' },
-      issuerTaxProfile: { vatRegime: 'non_vat_responsible', economicActivity: '4923', source },
+      ...data, issuer: { ...party, fiscalRegime: 'O-13', taxResponsibility: '01 - IVA', economicActivity: '6201' },
+      issuerTaxProfile: { vatRegime: 'non_vat_responsible', economicActivity: '4923', taxResponsibility: 'R-99-PN', source },
     }, qr: '' }))
     const suffix = source === 'current' ? ' (configuración actual)' : ''
     expect(text).toContain(`Régimen IVA${suffix}: No responsable de IVA`)
     expect(text).toContain(`Actividad económica${suffix}: 4923`)
-    expect(text).toContain('Tributo (XML): 01 - IVA')
-    expect(text).toContain('Responsabilidad fiscal (XML): R-99-PN')
+    expect(text).toContain(`Responsabilidad fiscal${suffix}: R-99-PN`)
+    expect(text).not.toContain('Tributo (XML):')
+    expect(text).not.toContain('O-13')
+    expect(text).not.toContain('6201')
+  })
+
+  it('no sustituye la configuración ausente con datos tributarios del XML', () => {
+    const text = textContent(SalesInvoicePdfDocument({ data: {
+      ...data, issuer: { ...party, fiscalRegime: 'O-13', economicActivity: '6201' },
+      issuerTaxProfile: { source: 'current' },
+    }, qr: '' }))
+    expect(text).not.toContain('O-13')
+    expect(text).not.toContain('6201')
   })
 
   it('muestra el nombre del producto y conserva su descripción en otra columna', () => {
@@ -51,14 +103,14 @@ describe('sales invoice HTML template adaptation', () => {
     expect(text.indexOf('Actividad económica:')).toBeGreaterThan(text.indexOf('Vigencia:'))
     expect(text.indexOf('CUFE:')).toBeGreaterThan(text.indexOf('Actividad económica:'))
   })
-  it('respeta la actividad del XML si su código difiere y no inventa una tarifa histórica ausente', () => {
+  it('prioriza la actividad guardada en Jarvis aunque el XML tenga otro código', () => {
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data,
       issuer: { ...party, economicActivity: '4923' },
       issuerTaxProfile: { source: 'emission', economicActivity: '1410 - Otra actividad' },
     }, qr: '' }))
-    expect(text).toContain('Actividad económica: 4923')
+    expect(text).toContain('Actividad económica: 1410 - Otra actividad')
     expect(text).not.toContain('Tarifa ICA:')
-    expect(text).not.toContain('Otra actividad')
+    expect(text).not.toContain('Actividad económica: 4923')
   })
 
   it.each([undefined, null, '', '   ', 'ABC'])('usa la descripción si el nombre es %s sin mostrar el código', name => {

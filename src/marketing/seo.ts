@@ -1,14 +1,20 @@
-import { SIIGO_PLANS, type Product } from './catalog'
+import { SIIGO_PLANS, type MarketingProduct } from './catalog'
 import { BILLING_SOLUTIONS } from './content'
 
 export const SITE_URL = 'https://www.jarviscol.com'
 
 const PAGES = {
+  payroll: {
+    path: '/nomina-electronica',
+    title: 'Nómina electrónica para tu equipo | JARVIS',
+    description: 'Envía tu nómina electrónica con Jarvis por $12.900 COP al mes para hasta 2 empleados. Incluye certificado digital, reportes y acompañamiento personalizado.',
+    name: 'Nómina electrónica JARVIS',
+  },
   home: {
     path: '/',
-    title: 'JARVIS | Automatización contable y facturación electrónica',
-    description: 'Automatiza tu contabilidad con Siigo e IA o factura electrónicamente en Colombia, directo con la DIAN. Compara las soluciones y planes de JARVIS.',
-    name: 'Automatización contable y facturación electrónica en Colombia',
+    title: 'JARVIS | Facturación, nómina electrónica y automatización contable',
+    description: 'Elige tu solución JARVIS: facturación electrónica, nómina y causación automática con acompañamiento personalizado. Conoce nuestros planes en Colombia.',
+    name: 'Soluciones JARVIS: facturación, nómina y automatización contable',
   },
   siigo: {
     path: '/siigo',
@@ -24,12 +30,12 @@ const PAGES = {
   },
 }
 
-export function getMarketingSeo(product?: Product) {
+export function getMarketingSeo(product?: MarketingProduct) {
   const page = PAGES[product ?? 'home']
   return { ...page, url: `${SITE_URL}${page.path}` }
 }
 
-export function getStructuredData(product?: Product) {
+export function getStructuredData(product?: MarketingProduct) {
   const page = getMarketingSeo(product)
   const organizationId = `${SITE_URL}/#organization`
   const websiteId = `${SITE_URL}/#website`
@@ -52,7 +58,7 @@ export function getStructuredData(product?: Product) {
     },
   ]
   if (product) {
-    const offers = product === 'billing' ? [
+    const offers = product === 'payroll' ? [{ '@type': 'Offer', name: 'Nómina electrónica mensual para hasta 2 empleados', price: 12900, priceCurrency: 'COP', url: `${page.url}#precios` }] : product === 'billing' ? [
       { '@type': 'Offer', name: 'Plan anual: 50 documentos electrónicos', price: 130000, priceCurrency: 'COP', url: `${page.url}#precios` },
       { '@type': 'Offer', name: 'Facturación electrónica ilimitada mensual', price: 60000, priceCurrency: 'COP', url: `${page.url}#precios` },
     ] : SIIGO_PLANS.filter(plan => plan.period).map(plan => ({
@@ -79,7 +85,7 @@ function escapeHtml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
 
-export function renderMarketingHead(product?: Product) {
+export function renderMarketingHead(product?: MarketingProduct) {
   const page = getMarketingSeo(product)
   const title = escapeHtml(page.title)
   const description = escapeHtml(page.description)
@@ -122,7 +128,7 @@ function applyHead(html: string) {
   }
 }
 
-export function applyMarketingSeo(product?: Product) {
+export function applyMarketingSeo(product?: MarketingProduct) {
   return applyHead(renderMarketingHead(product))
 }
 

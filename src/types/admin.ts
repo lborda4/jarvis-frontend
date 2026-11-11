@@ -48,6 +48,11 @@ export interface AdminPlan {
 }
 
 export interface AdminIntegrationItem {
+  documentQuota?: {
+    documentLimit: number | null
+    documentsUsed: number
+    remaining: number | null
+  }
   id: string
   provider: IntegrationProvider
   active: boolean
@@ -63,7 +68,10 @@ export interface AdminCompanyListItem {
   email?: string | null
   commercial?: string | null
   billingCycle?: 'MONTHLY' | 'ANNUAL' | null
+  billingMonths?: number | null
   subscriptionDueDate?: string | null
+  trackingPeriodStart?: string | null
+  trackingLastPaidAt?: string | null
   id: string
   nit: string
   name: string
@@ -107,6 +115,7 @@ export interface CreateAdminCompanyRequest {
   jarvisModules?: import('./companyModules').JarvisModule[]
   commercial?: string
   billingCycle?: 'MONTHLY' | 'ANNUAL'
+  billingMonths?: number
   nit: string
   name: string
   description?: string

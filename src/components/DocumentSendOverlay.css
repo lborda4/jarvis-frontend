@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background-color: rgb(8 23 38 / 52%);
+  background-color: rgba(var(--jarvis-navy-deep-rgb), 0.52);
   backdrop-filter: blur(8px);
   opacity: 1;
   transition: opacity 180ms var(--ease-out);
@@ -20,7 +20,7 @@
   width: min(100%, 22rem);
   padding: 2.25rem 2rem 1.75rem;
   border-radius: var(--r-lg);
-  background-color: #ffffff;
+  background-color: var(--jarvis-white);
   box-shadow: var(--shadow-lg);
   text-align: center;
   opacity: 1;
@@ -63,14 +63,14 @@
 .document-send-overlay__halo {
   position: absolute;
   inset: 6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--jarvis-primary-soft) 0%, transparent 70%);
+  border-radius: var(--r-round);
+  background: radial-gradient(circle, var(--jarvis-primary-soft) 0%, var(--jarvis-transparent) 70%);
 }
 
 .document-send-overlay__ring {
   position: absolute;
-  border-radius: 50%;
-  border: 2px solid transparent;
+  border-radius: var(--r-round);
+  border: 2px solid var(--jarvis-transparent);
 }
 
 .document-send-overlay__ring--outer {
@@ -95,7 +95,7 @@
 
 .document-send-overlay__title {
   font-size: var(--text-xl);
-  font-weight: 700;
+  font-weight: var(--font-weight-heading);
   letter-spacing: -0.01em;
   color: var(--jarvis-navy);
 }
@@ -104,7 +104,7 @@
   margin: 0.35rem 0 0;
   color: var(--jarvis-text-muted);
   font-size: var(--text-md);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .document-send-overlay__hint {

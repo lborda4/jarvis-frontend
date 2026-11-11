@@ -1,20 +1,20 @@
 .jarvis-quota-notice {
   margin: 1.25rem clamp(1rem, 3vw, 2rem);
   padding: 1.25rem 1.5rem;
-  border: 1px solid #f0c46a;
-  border-left: 4px solid #c78013;
-  border-radius: 12px;
-  background: #fff8e8;
-  color: #653e0c;
+  border: 1px solid var(--jarvis-warning-border);
+  border-left: 4px solid var(--jarvis-warning);
+  border-radius: var(--r-lg);
+  background: var(--jarvis-danger-soft);
+  color: var(--jarvis-warning-hover);
 }
 
 .jarvis-quota-notice h2 {
   margin: 0 0 0.75rem;
-  font-size: 1.125rem;
-  line-height: 1.4;
+  font-size: var(--text-xl);
+  line-height: var(--line-height-body);
 }
 
 .jarvis-quota-notice p {
   margin: 0.5rem 0 0;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }

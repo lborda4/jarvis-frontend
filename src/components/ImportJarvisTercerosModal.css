@@ -1,7 +1,7 @@
 .terceros-import { width: min(100%, 960px); }
-.terceros-import > p { line-height: 1.6; }
+.terceros-import > p { line-height: var(--line-height-relaxed); }
 .terceros-import__file-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin: 1.25rem 0 .5rem; }
-.terceros-import__file-actions label { display: flex; flex-direction: column; gap: .4rem; font-weight: 600; min-width: 0; }
+.terceros-import__file-actions label { display: flex; flex-direction: column; gap: .4rem; font-weight: var(--font-weight-label); min-width: 0; }
 .terceros-import__file-actions input { max-width: 100%; font: inherit; }
 .terceros-import__help { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
 .terceros-import__filename { overflow-wrap: anywhere; }

@@ -57,7 +57,7 @@
   border: none;
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .create-product-auto-sku legend {
@@ -66,7 +66,7 @@
   margin-right: 0.15rem;
   color: var(--jarvis-text-muted);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .create-product-auto-sku label {
@@ -117,7 +117,7 @@
   color: var(--jarvis-primary);
   font-size: var(--text-sm);
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   white-space: nowrap;
 }
 
@@ -131,14 +131,14 @@
 .create-product-numbering__actions span {
   color: var(--jarvis-primary);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .create-product-field > span:first-child,
 .create-product-field > legend {
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .create-product-req {
@@ -153,7 +153,7 @@
   padding: 0.68rem 0.8rem;
   border: 1px solid var(--jarvis-border-strong);
   border-radius: var(--r-md);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text);
   font-size: var(--text-md);
   font-family: inherit;
@@ -169,7 +169,7 @@
 .create-product-field textarea:focus {
   outline: none;
   border-color: var(--jarvis-primary);
-  box-shadow: 0 0 0 3px var(--jarvis-primary-soft);
+  box-shadow: var(--shadow-focus);
 }
 
 .create-product-field input:disabled,
@@ -185,7 +185,7 @@
   overflow: hidden;
   border: 1px solid var(--jarvis-border-strong);
   border-radius: var(--r-md);
-  background: #fff;
+  background: var(--jarvis-white);
 }
 
 .create-product-money span {
@@ -195,7 +195,7 @@
   background: var(--jarvis-gray-50);
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .create-product-money input {
@@ -219,7 +219,7 @@
   color: var(--jarvis-danger);
   font-size: var(--text-xs);
   font-style: normal;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .product-segmented {
@@ -234,7 +234,7 @@
   gap: 0.5rem;
   color: var(--jarvis-text);
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 
@@ -248,10 +248,10 @@
 .product-radio {
   width: 1.1rem;
   height: 1.1rem;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 2px solid var(--jarvis-border-strong);
-  background: #fff;
-  box-shadow: inset 0 0 0 3px #fff;
+  background: var(--jarvis-white);
+  box-shadow: var(--shadow-inset-white);
 }
 
 .product-segmented__option--selected .product-radio {
@@ -285,7 +285,7 @@
   padding: 0.68rem 0.8rem;
   border: 1px solid var(--jarvis-border-strong);
   border-radius: var(--r-md);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text);
   font-size: var(--text-md);
   font-family: inherit;
@@ -305,10 +305,10 @@
   flex-shrink: 0;
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-sm);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text-muted);
   font-size: var(--text-lg);
-  line-height: 1;
+  line-height: var(--line-height-icon);
   cursor: pointer;
 }
 
@@ -327,7 +327,7 @@
   background: none;
   color: var(--jarvis-primary);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
 
@@ -359,11 +359,11 @@
 
 .create-product-taxes-count {
   padding: 0.15rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--jarvis-primary-soft);
   color: var(--jarvis-primary);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .create-product-taxes-body {
@@ -377,7 +377,7 @@
   margin-bottom: 0.9rem;
   color: var(--jarvis-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 
@@ -416,12 +416,12 @@
 
 .create-product-taxes-item__code {
   color: var(--jarvis-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-family-mono);
 }
 
 .create-product-taxes-item__name {
   color: var(--jarvis-text);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .create-product-taxes-item__type,
@@ -460,7 +460,7 @@
   padding: 3.5rem 1.5rem;
   border: 1px dashed var(--jarvis-border);
   border-radius: var(--r-lg);
-  background: #fff;
+  background: var(--jarvis-white);
   color: var(--jarvis-text-muted);
 }
 

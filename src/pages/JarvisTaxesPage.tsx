@@ -3,6 +3,7 @@ import { shouldShowTablePagination } from '../utils/tablePagination'
 import CatalogRowActions from '../components/CatalogRowActions'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import Button from '../components/Button'
+import { useCreateFromQuery } from '../hooks/useCreateFromQuery'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ErrorMessage from '../components/ErrorMessage'
 import JarvisTaxModal from '../components/JarvisTaxModal'
@@ -44,7 +45,7 @@ function JarvisTaxesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [page, setPage] = useState(1)
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useCreateFromQuery()
   const [editingTax, setEditingTax] = useState<JarvisTax | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)

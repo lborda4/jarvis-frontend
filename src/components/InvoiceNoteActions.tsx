@@ -32,9 +32,11 @@ export default function InvoiceNoteActions({ invoiceId, number, supportDocument 
     <button ref={trigger} type="button" className="sales-history__more" aria-label={`Más acciones de ${supportDocument ? 'documento' : 'factura'} ${number}`} aria-expanded={Boolean(position)} aria-controls={position ? `invoice-actions-${invoiceId}` : undefined} onClick={() => {
       if (position) { setPosition(null); return }
       const rect = trigger.current!.getBoundingClientRect()
-      setPosition({ left: Math.max(8, Math.min(window.innerWidth - 196, rect.right - 188)), top: rect.bottom + 120 > window.innerHeight ? Math.max(8, rect.top - 116) : rect.bottom + 6 })
+      const menuHeight = supportDocument ? 116 : 164
+      setPosition({ left: Math.max(8, Math.min(window.innerWidth - 196, rect.right - 188)), top: rect.bottom + menuHeight + 8 > window.innerHeight ? Math.max(8, rect.top - menuHeight - 6) : rect.bottom + 6 })
     }}><span aria-hidden="true">⋮</span></button>
     {position && createPortal(<div ref={panel} id={`invoice-actions-${invoiceId}`} className="invoice-note-actions" style={{ position: 'fixed', ...position }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) setPosition(null) }}>
+      <Link to={`${supportDocument ? '/documento-soporte/nuevo' : '/factura-venta/nueva'}?duplicar=${encodeURIComponent(invoiceId)}`} onClick={() => setPosition(null)}>Duplicar</Link>
       {supportDocument
         ? <Link to={`/nota-ajuste/nueva?documento=${encodeURIComponent(invoiceId)}`}>Nota de ajuste</Link>
         : <>

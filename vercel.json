@@ -1,11 +1,13 @@
 {
   "trailingSlash": false,
   "redirects": [
+    { "source": "/nomina-electronica/index.html", "destination": "/nomina-electronica", "permanent": true },
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/siigo/index.html", "destination": "/siigo", "permanent": true },
     { "source": "/facturacion-electronica/index.html", "destination": "/facturacion-electronica", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/nomina-electronica", "destination": "/nomina-electronica/index.html" },
     { "source": "/", "destination": "/index.html" },
     { "source": "/siigo", "destination": "/siigo/index.html" },
     { "source": "/facturacion-electronica", "destination": "/facturacion-electronica/index.html" },

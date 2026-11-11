@@ -29,13 +29,13 @@ interface ExcelImportLayoutProps {
 
 function SpreadsheetIllustration() {
   return <svg className="excel-import__illustration" viewBox="0 0 180 145" fill="none" aria-hidden="true">
-    <path d="M32 33c31-40 103-27 126 9 36 56-7 99-73 94C18 131-7 86 32 33Z" fill="#e0f4f1" />
-    <rect x="44" y="30" width="105" height="94" rx="9" fill="white" stroke="#14877d" strokeWidth="2.5" transform="rotate(3 44 30)" />
-    <path d="m58 46 76 4-1 12-76-4Z" fill="#15958a" />
-    <path d="m57 69 75 4m-76 10 75 4m-76 10 75 4m-61-41-3 53m26-52-3 53m26-52-3 53" stroke="#b0dcd5" strokeWidth="1.5" />
-    <rect x="20" y="72" width="45" height="45" rx="7" fill="#0d876a" />
-    <path d="m35 84 15 21m0-21-15 21" stroke="white" strokeWidth="4" strokeLinecap="round" />
-    <path d="m148 15 2-9m9 17 8-5" stroke="#14877d" strokeWidth="3" strokeLinecap="round" />
+    <path d="M32 33c31-40 103-27 126 9 36 56-7 99-73 94C18 131-7 86 32 33Z" fill="var(--jarvis-primary-soft)" />
+    <rect x="44" y="30" width="105" height="94" rx="9" fill="var(--jarvis-white)" stroke="var(--jarvis-primary-hover)" strokeWidth="2.5" transform="rotate(3 44 30)" />
+    <path d="m58 46 76 4-1 12-76-4Z" fill="var(--jarvis-primary)" />
+    <path d="m57 69 75 4m-76 10 75 4m-76 10 75 4m-61-41-3 53m26-52-3 53m26-52-3 53" stroke="var(--jarvis-primary-border)" strokeWidth="1.5" />
+    <rect x="20" y="72" width="45" height="45" rx="7" fill="var(--jarvis-primary-hover)" />
+    <path d="m35 84 15 21m0-21-15 21" stroke="var(--jarvis-white)" strokeWidth="4" strokeLinecap="round" />
+    <path d="m148 15 2-9m9 17 8-5" stroke="var(--jarvis-primary-hover)" strokeWidth="3" strokeLinecap="round" />
   </svg>
 }
 
@@ -99,7 +99,7 @@ export default function ExcelImportLayout(props: ExcelImportLayoutProps) {
         <div className="excel-import__step-content">
           <h3>3. Verifica e importa</h3>
           <div className="excel-import__review-hint">
-            <svg width="70" height="58" viewBox="0 0 70 58" fill="none" aria-hidden="true"><rect width="70" height="58" rx="12" fill="#e0f4f1"/><g stroke="#14877d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="14" y="12" width="13" height="13" rx="2"/><path d="m17 18 3 3 4-5M37 18h19"/><rect x="14" y="34" width="13" height="13" rx="2"/><path d="m17 40 3 3 4-5M37 40h19"/></g></svg>
+            <svg width="70" height="58" viewBox="0 0 70 58" fill="none" aria-hidden="true"><rect width="70" height="58" rx="12" fill="var(--jarvis-primary-soft)"/><g stroke="var(--jarvis-primary-hover)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="14" y="12" width="13" height="13" rx="2"/><path d="m17 18 3 3 4-5M37 18h19"/><rect x="14" y="34" width="13" height="13" rx="2"/><path d="m17 40 3 3 4-5M37 40h19"/></g></svg>
             <p>{props.reviewDescription}</p>
           </div>
         </div>

@@ -11,7 +11,6 @@ import {
   fetchJarvisMunicipalities,
   fetchJarvisTypeLiabilities,
   fetchJarvisTypeRegimes,
-  fetchJarvisTerceroPaymentMethods,
   lookupJarvisTerceroByNit,
 } from '../services/jarvisService'
 import { createSiigoSupplier } from '../services/siigoService'
@@ -28,7 +27,6 @@ import {
   type JarvisTercero,
   type JarvisTypeLiability,
   type JarvisTypeRegime,
-  type JarvisTerceroPaymentMethod,
 } from '../types/jarvis'
 import type { SiigoSupplierPersonType } from '../types/siigo'
 import { inferSiigoSupplierIdentity } from '../utils/inferSiigoSupplierIdentity'
@@ -158,10 +156,6 @@ function CreateJarvisTerceroModal({
     [],
   )
   const [typeRegimes, setTypeRegimes] = useState<JarvisTypeRegime[]>([])
-  const [paymentMethods, setPaymentMethods] = useState<JarvisTerceroPaymentMethod[]>([])
-  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true)
-  const [paymentMethodsError, setPaymentMethodsError] = useState('')
-  const [paymentMethodsAttempt, setPaymentMethodsAttempt] = useState(0)
   const [municipalities, setMunicipalities] = useState<JarvisMunicipality[]>([])
   const municipalitiesRef = useRef(municipalities)
   useEffect(() => { municipalitiesRef.current = municipalities }, [municipalities])
@@ -333,28 +327,6 @@ function CreateJarvisTerceroModal({
     }
   }, [isOpen, provider])
 
-  useEffect(() => {
-    if (!isOpen || provider !== 'JARVIS') return
-    let cancelled = false
-    void (async () => {
-      setPaymentMethodsLoading(true)
-      setPaymentMethodsError('')
-      try {
-        const response = await fetchJarvisTerceroPaymentMethods({ force: paymentMethodsAttempt > 0 })
-        if (cancelled) return
-        if (response.items.length !== 2) throw new Error('No se pudieron obtener los métodos de pago. Reintenta la consulta.')
-        setPaymentMethods(response.items)
-        setForm(current => ({ ...current, payment_method_id: current.payment_method_id ?? response.items[0].id }))
-      } catch (error) {
-        if (!cancelled) {
-          setPaymentMethods([])
-          setPaymentMethodsError(getApiErrorMessage(error, 'No se pudieron cargar los métodos de pago.'))
-        }
-      } finally { if (!cancelled) setPaymentMethodsLoading(false) }
-    })()
-    return () => { cancelled = true }
-  }, [isOpen, provider, paymentMethodsAttempt])
-
   const handleClose = () => {
     if (isSaving || isLookingUpNit) return
     onClose()
@@ -365,6 +337,7 @@ function CreateJarvisTerceroModal({
       municipalities.find((item) => item.id === form.municipality_id) ?? null,
     [municipalities, form.municipality_id],
   )
+  const isMunicipalityRequired = provider === 'JARVIS' && !editingTercero
 
   const handleAddCopyEmail = () => {
     if (isSaving || isLookingUpNit || !copyEmailDraft.trim()) return
@@ -381,13 +354,14 @@ function CreateJarvisTerceroModal({
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (isSaving || isLookingUpNit) return
+    if (isMunicipalityRequired && !selectedMunicipality) {
+      setErrorMessage('Selecciona una ciudad de la lista para crear el tercero.')
+      return
+    }
     setIsSaving(true)
     setErrorMessage(null)
 
     try {
-      if (provider === 'JARVIS' && (paymentMethodsLoading || !paymentMethods.some(method => method.id === form.payment_method_id))) {
-        throw new Error('Selecciona un método de pago disponible antes de guardar el tercero.')
-      }
       const payload: CreateJarvisTerceroRequest = {
         document_type: form.document_type,
         document_number: form.document_number.trim(),
@@ -404,7 +378,6 @@ function CreateJarvisTerceroModal({
           ? { municipality_id: form.municipality_id }
           : {}),
         type_regime_id: form.type_regime_id ?? DEFAULT_TYPE_REGIME_ID,
-        ...(provider === 'JARVIS' ? { payment_method_id: form.payment_method_id } : {}),
         ...(form.email?.trim() ? { email: form.email.trim() } : {}),
         ...(provider === 'JARVIS' ? { copy_emails: addCopyEmail(copyEmails, copyEmailDraft, form.email) } : {}),
         ...(form.phone?.trim() ? { phone: form.phone.trim() } : {}),
@@ -748,9 +721,12 @@ function CreateJarvisTerceroModal({
             </div>
 
             <div className="terceros-page__field">
-              <label htmlFor="tercero-municipality">Ciudad</label>
+              <label htmlFor="tercero-municipality">
+                Ciudad{isMunicipalityRequired ? ' *' : ''}
+              </label>
               <Autocomplete
                 id="tercero-municipality"
+                required={isMunicipalityRequired}
                 value={selectedMunicipality}
                 onChange={(municipality) =>
                   setForm((current) => ({
@@ -760,7 +736,7 @@ function CreateJarvisTerceroModal({
                 }
                 options={municipalities}
                 disabled={isSaving || isLookingUpNit}
-                placeholder="Buscar ciudad (opcional)"
+                placeholder={isMunicipalityRequired ? 'Buscar ciudad' : 'Buscar ciudad (opcional)'}
                 emptyMessage="No se encontraron ciudades."
                 clearLabel="Quitar ciudad"
                 getOptionKey={(municipality) => municipality.id}
@@ -800,22 +776,6 @@ function CreateJarvisTerceroModal({
                 disabled={isSaving || isLookingUpNit}
               />
             </div>
-
-            {provider === 'JARVIS' && <div className="terceros-page__field">
-              <label htmlFor="tercero-payment-method">Método de pago</label>
-              <select
-                id="tercero-payment-method"
-                required
-                value={form.payment_method_id ?? ''}
-                onChange={event => setForm(current => ({ ...current, payment_method_id: Number(event.target.value) || undefined }))}
-                disabled={isSaving || isLookingUpNit || paymentMethodsLoading || Boolean(paymentMethodsError)}
-              >
-                <option value="">{paymentMethodsLoading ? 'Cargando métodos de pago…' : 'Seleccionar método de pago'}</option>
-                {form.payment_method_id && !paymentMethods.some(method => method.id === form.payment_method_id) && <option value={form.payment_method_id} disabled>Selecciona un método disponible</option>}
-                {paymentMethods.map(method => <option key={method.id} value={method.id}>{method.name}</option>)}
-              </select>
-              {paymentMethodsError && <small role="alert">{paymentMethodsError} <button type="button" className="terceros-page__link" onClick={() => setPaymentMethodsAttempt(attempt => attempt + 1)}>Reintentar métodos de pago</button></small>}
-            </div>}
 
             <div className="terceros-page__field terceros-page__field--full">
               <label htmlFor="tercero-address">Dirección</label>
@@ -877,7 +837,7 @@ function CreateJarvisTerceroModal({
             >
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" disabled={isSaving || isLookingUpNit || (provider === 'JARVIS' && (paymentMethodsLoading || Boolean(paymentMethodsError)))}>
+            <Button type="submit" variant="primary" disabled={isSaving || isLookingUpNit}>
               {isSaving ? 'Guardando...' : editingTercero ? 'Guardar cambios' : 'Crear'}
             </Button>
           </div>

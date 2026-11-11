@@ -15,6 +15,7 @@ import {
 } from '../utils/resolveLoginError'
 import '../pages/InvoiceUpload.css'
 import './AuthPages.css'
+import './LoginPage.css'
 
 const DEFAULT_APP_PATH = '/inicio'
 const ADMIN_APP_PATH = '/admin'
@@ -162,41 +163,39 @@ function LoginPage() {
 
   return (
     <main
-      className="auth-page auth-page--login"
+      className="auth-page auth-page--login auth-page--signin"
       key={`login-${formKey}-${wakeAttempt}`}
     >
       <div className="auth-login-backdrop" aria-hidden="true">
-        <span className="auth-login-backdrop__vignette" />
-        <span className="auth-login-backdrop__grid" />
-        <span className="auth-login-backdrop__scanlines" />
-        <span className="auth-login-backdrop__ring auth-login-backdrop__ring--outer" />
-        <span className="auth-login-backdrop__ring auth-login-backdrop__ring--inner" />
-        <span className="auth-login-backdrop__triangle" />
-        <span className="auth-login-backdrop__orb auth-login-backdrop__orb--one" />
-        <span className="auth-login-backdrop__orb auth-login-backdrop__orb--two" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--tl" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--tr" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--bl" />
-        <span className="auth-login-backdrop__corner auth-login-backdrop__corner--br" />
+        <svg className="signin-wave signin-wave--top" viewBox="0 0 400 300" fill="none">
+          <path d="M0 0H400C310 125 245 60 165 140S75 275 0 300Z" fill="var(--jarvis-wave-soft)" fillOpacity=".55" />
+          <path d="M0 0H285C235 115 95 80 0 185Z" fill="var(--jarvis-wave-strong)" fillOpacity=".55" />
+        </svg>
+        <svg className="signin-wave signin-wave--bottom" viewBox="0 0 400 300" fill="none">
+          <path d="M0 0H400C310 125 245 60 165 140S75 275 0 300Z" fill="var(--jarvis-wave-soft)" fillOpacity=".55" />
+          <path d="M0 0H285C235 115 95 80 0 185Z" fill="var(--jarvis-wave-strong)" fillOpacity=".55" />
+        </svg>
       </div>
-
       <div className="auth-login-shell">
         <header className="auth-login-top">
           <Link to="/" className="auth-login-top__logo-link" aria-label="Ir al inicio">
-            <img
-              src="/jarvis-login-brand.png?v=2"
-              alt="Jarvis — Automatiza. Conecta. Simplifica."
-              className="auth-login-top__logo"
-            />
+            <svg className="auth-login-top__logo" viewBox="0 0 900 215" role="img" aria-label="Jarvis — Automatiza. Conecta. Simplifica.">
+              <svg x="0" y="0" width="205" height="205" viewBox="175 90 295 290">
+                <image href="/logo.png" width="640" height="640" />
+              </svg>
+              <svg x="235" y="32" width="665" height="150" viewBox="40 395 560 115">
+                <image href="/logo.png" width="640" height="640" />
+              </svg>
+            </svg>
           </Link>
         </header>
 
-        <section className="auth-login-card" aria-labelledby="login-title">
-          <div className="auth-login-card__intro">
-            <h1 id="login-title">Iniciar sesión</h1>
-            <p>Usa tu correo corporativo para entrar al panel.</p>
-          </div>
+        <div className="signin-intro">
+          <h1 id="login-title">Inicia sesión en <span>JARVIS</span></h1>
+          <p>Tu facturación, nómina e integraciones, en un solo lugar.</p>
+        </div>
 
+        <section className="auth-login-card" aria-labelledby="login-title">
           {(wakeError || formKey > 0) && (
             <ErrorMessage
               message={
@@ -216,6 +215,11 @@ function LoginPage() {
               }`}
             >
               <label htmlFor="login-email">Correo</label>
+              <div className="signin-input">
+                <svg className="signin-input__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="m3 6 9 7 9-7" />
+                </svg>
               <input
                 id="login-email"
                 name="email"
@@ -228,6 +232,7 @@ function LoginPage() {
                 disabled={isSubmitting}
                 aria-invalid={errorKind === 'account_not_found'}
               />
+              </div>
             </div>
 
             <div
@@ -238,7 +243,11 @@ function LoginPage() {
               }`}
             >
               <label htmlFor="login-password">Contraseña</label>
-              <div className="auth-login-form__password">
+              <div className="auth-login-form__password signin-input">
+              <svg className="signin-input__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="4" y="10" width="16" height="11" rx="2" />
+                <path d="M7 10V7a5 5 0 0 1 10 0v3m-5 5v2" />
+              </svg>
               <input
                 id="login-password"
                 name="password"
@@ -284,11 +293,10 @@ function LoginPage() {
               {submitLabel}
             </Button>
           </form>
-        </section>
-
-        <p className="auth-login-shell__legal">
+          <p className="auth-login-shell__legal">
           <PrivacyPolicyLink />
-        </p>
+          </p>
+        </section>
       </div>
     </main>
   )

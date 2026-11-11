@@ -1,0 +1,236 @@
+/* TEMA JARVIS: fuente única de estilos de la interfaz.
+ * Colores: editar los canales --jarvis-...-rgb; los colores y transparencias los reutilizan.
+ * Tipografía: cambiar --font-family-base para toda la web, sin familias por componente.
+ * Jerarquía: --text-h1 (página), --text-2xl (sección), --text-xl (subtítulo),
+ * --text-md (contenido), --text-sm (etiqueta/ayuda), --text-xs (detalle secundario).
+ * Reservar --text-display y --text-price para marketing.
+ * Ejemplo: .nuevo-componente { color: var(--jarvis-text); font-size: var(--text-md);
+ *   border-radius: var(--r-md); background: var(--jarvis-card-bg); }
+ * No definir paletas, familias o escalas alternativas en el CSS de cada página.
+ */
+:root {
+  /* Acento de marca — para superficies oscuras (sidebar, login, landing) */
+  --jarvis-accent: rgb(var(--jarvis-accent-rgb));
+  --jarvis-accent-rgb: 26, 211, 204;
+  --jarvis-accent-hover: rgb(var(--jarvis-accent-hover-rgb));
+  --jarvis-accent-light: rgb(var(--jarvis-accent-light-rgb));
+  --jarvis-accent-soft: rgba(var(--jarvis-accent-rgb), 0.12);
+
+  /* Navy — superficie de marca oscura compartida por sidebar, login y landing */
+  --jarvis-navy: rgb(var(--jarvis-navy-rgb));
+  --jarvis-navy-soft: rgb(var(--jarvis-navy-soft-rgb));
+  --jarvis-navy-deep: rgb(var(--jarvis-navy-deep-rgb));
+
+  /* Acción principal — para superficies claras (botones, enlaces, foco) */
+  --jarvis-primary: rgb(var(--jarvis-primary-rgb));
+  --jarvis-primary-rgb: 13, 148, 136;
+  --jarvis-primary-hover: rgb(var(--jarvis-primary-hover-rgb));
+  --jarvis-primary-soft: rgb(var(--jarvis-primary-soft-rgb));
+  --jarvis-primary-ring: rgba(var(--jarvis-primary-rgb), 0.2);
+
+  /* Neutrales — una sola escala azul-grisácea (reemplaza grises sueltos por página) */
+  --jarvis-gray-50: rgb(var(--jarvis-gray-50-rgb));
+  --jarvis-gray-100: rgb(var(--jarvis-gray-100-rgb));
+  --jarvis-gray-200: rgb(var(--jarvis-gray-200-rgb));
+  --jarvis-gray-300: rgb(var(--jarvis-gray-300-rgb));
+  --jarvis-gray-400: rgb(var(--jarvis-gray-400-rgb));
+  --jarvis-gray-500: rgb(var(--jarvis-gray-500-rgb));
+  --jarvis-gray-600: rgb(var(--jarvis-gray-600-rgb));
+  --jarvis-gray-700: rgb(var(--jarvis-gray-700-rgb));
+  --jarvis-gray-800: rgb(var(--jarvis-gray-800-rgb));
+  --jarvis-gray-900: rgb(var(--jarvis-gray-900-rgb));
+
+  --jarvis-surface: var(--jarvis-gray-100);
+
+  /* Texto y bordes */
+  --jarvis-text: var(--jarvis-gray-800);
+  --jarvis-text-muted: var(--jarvis-gray-600);
+  --jarvis-border: var(--jarvis-gray-300);
+  --jarvis-border-strong: var(--jarvis-gray-400);
+
+  /* Radios: esquinas sobrias */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  /* Sombras discretas */
+  --shadow-xs: 0 1px 1px rgba(var(--jarvis-navy-rgb), 0.04);
+  --shadow-sm: 0 1px 2px rgba(var(--jarvis-navy-rgb), 0.06);
+  --shadow-md: 0 2px 6px rgba(var(--jarvis-navy-rgb), 0.08);
+  --shadow-lg: 0 8px 20px rgba(var(--jarvis-navy-rgb), 0.12);
+
+  /* Escala tipográfica */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1rem;
+  --text-xl: 1.125rem;
+  --text-2xl: 1.25rem;
+  --text-h1: 1.55rem;
+
+  /* Escala de espaciado */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Estado: peligro */
+  --jarvis-danger: rgb(var(--jarvis-danger-rgb));
+  --jarvis-danger-hover: rgb(var(--jarvis-danger-hover-rgb));
+  --jarvis-danger-soft: rgb(var(--jarvis-danger-soft-rgb));
+  --jarvis-danger-border: rgb(var(--jarvis-danger-border-rgb));
+  --jarvis-danger-ring: rgba(var(--jarvis-danger-rgb), 0.18);
+
+  /* Estado: éxito */
+  --jarvis-success: rgb(var(--jarvis-success-rgb));
+  --jarvis-success-soft: rgb(var(--jarvis-success-soft-rgb));
+  --jarvis-success-border: rgb(var(--jarvis-success-border-rgb));
+
+  /* Estado: advertencia */
+  --jarvis-warning: rgb(var(--jarvis-warning-rgb));
+  --jarvis-warning-hover: rgb(var(--jarvis-warning-hover-rgb));
+  --jarvis-warning-soft: rgb(var(--jarvis-warning-soft-rgb));
+  --jarvis-warning-border: rgb(var(--jarvis-warning-border-rgb));
+
+  /* Estado: información */
+  --jarvis-info: rgb(var(--jarvis-info-rgb));
+  --jarvis-info-soft: rgb(var(--jarvis-info-soft-rgb));
+  --jarvis-info-border: rgb(var(--jarvis-info-border-rgb));
+
+
+  /* Shared surfaces, chart series and decorative brand colors. */
+  --jarvis-excel-brand-rgb: 33, 115, 70;
+  --jarvis-excel-brand: rgb(var(--jarvis-excel-brand-rgb));
+  --jarvis-white: rgb(var(--jarvis-white-rgb));
+  --jarvis-black: rgb(var(--jarvis-black-rgb));
+  --jarvis-transparent: transparent;
+  --jarvis-primary-border: rgb(var(--jarvis-primary-border-rgb));
+  --jarvis-chart-credit: rgb(var(--jarvis-chart-credit-rgb));
+  --jarvis-chart-credit-soft: rgb(var(--jarvis-chart-credit-soft-rgb));
+  --jarvis-chart-credit-border: rgb(var(--jarvis-chart-credit-border-rgb));
+  --jarvis-chart-support: rgb(var(--jarvis-chart-support-rgb));
+  --jarvis-chart-support-soft: rgb(var(--jarvis-chart-support-soft-rgb));
+  --jarvis-violet: rgb(var(--jarvis-violet-rgb));
+  --jarvis-violet-soft: rgb(var(--jarvis-violet-soft-rgb));
+  --jarvis-violet-border: rgb(var(--jarvis-violet-border-rgb));
+  --jarvis-wave-soft: rgb(var(--jarvis-wave-soft-rgb));
+  --jarvis-wave-strong: rgb(var(--jarvis-wave-strong-rgb));
+  --jarvis-bg: var(--jarvis-surface);
+  --jarvis-heading: var(--jarvis-navy);
+  --jarvis-input-bg: var(--jarvis-gray-50);
+  --jarvis-card-bg: var(--jarvis-white);
+  --jarvis-overlay: rgba(var(--jarvis-navy-rgb), .45);
+
+  /* RGB channels for translucent uses of the same palette. */
+  --jarvis-accent-hover-rgb: 20, 185, 179;
+  --jarvis-accent-light-rgb: 56, 225, 218;
+  --jarvis-navy-rgb: 11, 31, 51;
+  --jarvis-navy-soft-rgb: 20, 48, 73;
+  --jarvis-navy-deep-rgb: 8, 23, 38;
+  --jarvis-primary-hover-rgb: 15, 118, 110;
+  --jarvis-primary-soft-rgb: 230, 247, 245;
+  --jarvis-gray-50-rgb: 247, 249, 251;
+  --jarvis-gray-100-rgb: 238, 242, 246;
+  --jarvis-gray-200-rgb: 225, 231, 238;
+  --jarvis-gray-300-rgb: 215, 222, 231;
+  --jarvis-gray-400-rgb: 195, 204, 216;
+  --jarvis-gray-500-rgb: 143, 155, 171;
+  --jarvis-gray-600-rgb: 91, 104, 117;
+  --jarvis-gray-700-rgb: 61, 74, 89;
+  --jarvis-gray-800-rgb: 31, 41, 55;
+  --jarvis-gray-900-rgb: 15, 23, 32;
+  --jarvis-danger-rgb: 185, 28, 28;
+  --jarvis-danger-hover-rgb: 153, 27, 27;
+  --jarvis-danger-soft-rgb: 254, 242, 242;
+  --jarvis-danger-border-rgb: 254, 202, 202;
+  --jarvis-success-rgb: 4, 120, 87;
+  --jarvis-success-soft-rgb: 236, 253, 245;
+  --jarvis-success-border-rgb: 167, 243, 208;
+  --jarvis-warning-rgb: 180, 83, 9;
+  --jarvis-warning-hover-rgb: 146, 64, 14;
+  --jarvis-warning-soft-rgb: 254, 243, 199;
+  --jarvis-warning-border-rgb: 253, 230, 138;
+  --jarvis-info-rgb: 29, 78, 216;
+  --jarvis-info-soft-rgb: 219, 234, 254;
+  --jarvis-info-border-rgb: 191, 219, 254;
+  --jarvis-white-rgb: 255, 255, 255;
+  --jarvis-black-rgb: 0, 0, 0;
+  --jarvis-primary-border-rgb: 149, 223, 211;
+  --jarvis-chart-credit-rgb: 227, 76, 112;
+  --jarvis-chart-credit-soft-rgb: 252, 232, 238;
+  --jarvis-chart-credit-border-rgb: 247, 196, 211;
+  --jarvis-chart-support-rgb: 43, 154, 208;
+  --jarvis-chart-support-soft-rgb: 237, 247, 255;
+  --jarvis-violet-rgb: 124, 58, 237;
+  --jarvis-violet-soft-rgb: 243, 237, 255;
+  --jarvis-violet-border-rgb: 221, 208, 250;
+  --jarvis-wave-soft-rgb: 212, 250, 246;
+  --jarvis-wave-strong-rgb: 114, 229, 216;
+
+  /* One family for the entire web interface. Monospace is reserved for codes. */
+  --font-family-base: Calibri, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 650;
+  --font-weight-heading: var(--font-weight-medium);
+  --font-weight-label: var(--font-weight-medium);
+  --font-weight-button: var(--font-weight-medium);
+  --line-height-icon: 1;
+  --line-height-compact: 1.15;
+  --line-height-heading: 1.25;
+  --line-height-body: 1.5;
+  --line-height-relaxed: 1.65;
+  --letter-spacing-heading: -.02em;
+  --text-emphasis: 1.375rem;
+  --text-3xl: 1.75rem;
+  --text-4xl: 2rem;
+  --text-5xl: 2.5rem;
+  --text-6xl: 3.25rem;
+  --text-7xl: 4.5rem;
+  --text-display: clamp(2.35rem, 4.6vw, 4.5rem);
+  --text-display-sm: clamp(2rem, 4vw, 3.1rem);
+  --text-page-title: var(--text-h1);
+  --text-section-title: clamp(1.25rem, 2.5vw, 1.75rem);
+  --text-statistic: clamp(1.25rem, 1.8vw, 1.75rem);
+  --text-price: clamp(2.5rem, 3.4vw, 3.5rem);
+  --text-lead: clamp(1rem, 1.6vw, 1.5rem);
+  --text-relative-large: 1.6em;
+  --text-relative-half: .52em;
+
+  /* Reusable component geometry and interaction states. */
+  --r-control: 6px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
+  --r-3xl: 28px;
+  --r-4xl: 32px;
+  --r-pill: 999px;
+  --r-round: 50%;
+  --control-height: 44px;
+  --control-height-sm: 36px;
+  --control-border-width: 1px;
+  --shadow-focus: 0 0 0 3px var(--jarvis-primary-ring);
+  --shadow-focus-danger: 0 0 0 3px var(--jarvis-danger-ring);
+  --shadow-focus-success: 0 0 0 3px rgba(var(--jarvis-success-rgb), .18);
+  --shadow-inset: inset 0 0 0 1px var(--jarvis-border);
+  --shadow-inset-primary: inset 0 0 0 1px var(--jarvis-primary);
+  --shadow-inset-white: inset 0 0 0 3px var(--jarvis-white);
+  --transition-control: 150ms ease;
+
+  font-family: var(--font-family-base);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-body);
+  color: var(--jarvis-text);
+  background-color: var(--jarvis-white);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

@@ -6,20 +6,20 @@
   padding: 2.5rem 1.5rem 3rem;
   color: var(--jarvis-text);
   font-size: var(--text-md);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
 }
 
 .integration-page :is(input, select, textarea, button) { font-family: inherit; }
 .integration-page :is(.page-header h1, .ds-individual__title) {
   font-size: var(--text-h1);
-  font-weight: 700;
+  font-weight: var(--font-weight-heading);
   letter-spacing: normal;
   color: var(--jarvis-navy);
 }
 .integration-page .page-header__description { font-size: var(--text-md); }
 .integration-page .page-header { align-items: flex-start; margin-bottom: 2rem; }
 .integration-page .integration-card {
-  background: #fff;
+  background: var(--jarvis-white);
   border: 1px solid var(--jarvis-border);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
@@ -38,7 +38,7 @@
   margin: 0;
   color: var(--jarvis-text);
   font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: var(--font-weight-heading);
 }
 .integration-page .integration-card-header p {
   margin: 0;
@@ -59,7 +59,7 @@
 .integration-page .integration-filters label {
   color: var(--jarvis-text-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-label);
 }
 .integration-page .integration-filters :is(input, select) {
   box-sizing: border-box;
@@ -68,11 +68,11 @@
   height: 2.75rem;
   padding: .65rem .75rem;
   color: var(--jarvis-text);
-  background: #fff;
+  background: var(--jarvis-white);
   border: 1px solid var(--jarvis-border-strong);
   border-radius: var(--r-sm);
   font-size: var(--text-md);
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
 }
 .integration-page .integration-filters :is(input, select):focus-visible {
   outline: 2px solid var(--jarvis-primary);
@@ -85,19 +85,19 @@
   vertical-align: middle;
   border-top: 0;
   border-bottom: 1px solid var(--jarvis-border);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
 }
 .integration-page .integration-table th {
   background: var(--jarvis-gray-50);
   color: var(--jarvis-text-muted);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 .integration-page .integration-table td { color: var(--jarvis-text); font-size: var(--text-md); }
-.integration-page .integration-table td strong { font-weight: 600; }
+.integration-page .integration-table td strong { font-weight: var(--font-weight-semibold); }
 .integration-page .integration-table tbody tr:last-child td { border-bottom: 0; }
 .integration-page .integration-table tbody tr:hover { background: var(--jarvis-gray-50); }
 .integration-page .integration-table :is(.product-list__num, .sales-history__amount) {
@@ -112,8 +112,8 @@
 .integration-page :is(.sales-history__status, .jarvis-taxes-page__status) {
   padding: .25rem .65rem;
   font-size: var(--text-xs);
-  font-weight: 600;
-  border-radius: 999px;
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--r-pill);
 }
 .integration-page :is(.sales-history__status, .jarvis-taxes-page__status--active) {
   background: var(--jarvis-success-soft);
@@ -149,11 +149,11 @@
   padding: .7rem 1.15rem;
   border-radius: var(--r-sm);
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-button);
 }
 .integration-page :is(.sales-history__new, .import-siigo-button) {
   background: var(--jarvis-primary);
-  color: #fff;
+  color: var(--jarvis-white);
   box-shadow: var(--shadow-sm);
 }
 .integration-page :is(.sales-history__new, .import-siigo-button):hover:not(:disabled) {
@@ -169,12 +169,12 @@
 /* Form screens use the same type scale without changing their editable grids. */
 .integration-page :is(.ds-individual__section-title, .settings-card__title, .settings-accordion__copy h2) {
   font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: var(--font-weight-heading);
   color: var(--jarvis-text);
 }
 .integration-page :is(.ds-individual__table th, .purchase-item-editor th, .support-table > table > thead th) {
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: .04em;
   color: var(--jarvis-text-muted);
   background: var(--jarvis-gray-50);

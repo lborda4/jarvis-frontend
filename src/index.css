@@ -1,107 +1,5 @@
-:root {
-  /* Acento de marca — para superficies oscuras (sidebar, login, landing) */
-  --jarvis-accent: rgb(26, 211, 204);
-  --jarvis-accent-rgb: 26, 211, 204;
-  --jarvis-accent-hover: rgb(20, 185, 179);
-  --jarvis-accent-light: rgb(56, 225, 218);
-  --jarvis-accent-soft: rgba(26, 211, 204, 0.12);
+@import './styles/theme.css';
 
-  /* Navy — superficie de marca oscura compartida por sidebar, login y landing */
-  --jarvis-navy: #0b1f33;
-  --jarvis-navy-soft: #143049;
-  --jarvis-navy-deep: #081726;
-
-  /* Acción principal — para superficies claras (botones, enlaces, foco) */
-  --jarvis-primary: #0d9488;
-  --jarvis-primary-rgb: 13, 148, 136;
-  --jarvis-primary-hover: #0f766e;
-  --jarvis-primary-soft: #e6f7f5;
-  --jarvis-primary-ring: rgba(15, 118, 110, 0.2);
-
-  /* Neutrales — una sola escala azul-grisácea (reemplaza grises sueltos por página) */
-  --jarvis-gray-50: #f7f9fb;
-  --jarvis-gray-100: #eef2f6;
-  --jarvis-gray-200: #e1e7ee;
-  --jarvis-gray-300: #d7dee7;
-  --jarvis-gray-400: #c3ccd8;
-  --jarvis-gray-500: #8f9bab;
-  --jarvis-gray-600: #5b6875;
-  --jarvis-gray-700: #3d4a59;
-  --jarvis-gray-800: #1f2937;
-  --jarvis-gray-900: #0f1720;
-
-  --jarvis-surface: var(--jarvis-gray-100);
-
-  /* Texto y bordes */
-  --jarvis-text: var(--jarvis-gray-800);
-  --jarvis-text-muted: var(--jarvis-gray-600);
-  --jarvis-border: var(--jarvis-gray-300);
-  --jarvis-border-strong: var(--jarvis-gray-400);
-
-  /* Radios: esquinas sobrias */
-  --r-xs: 2px;
-  --r-sm: 4px;
-  --r-md: 8px;
-  --r-lg: 12px;
-
-  /* Sombras discretas */
-  --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 8px 20px rgba(15, 23, 42, 0.12);
-
-  /* Escala tipográfica */
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.875rem;
-  --text-md: 0.9375rem;
-  --text-lg: 1rem;
-  --text-xl: 1.125rem;
-  --text-2xl: 1.25rem;
-  --text-h1: 1.55rem;
-
-  /* Escala de espaciado */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-
-  /* Estado: peligro */
-  --jarvis-danger: #b91c1c;
-  --jarvis-danger-hover: #991b1b;
-  --jarvis-danger-soft: #fef2f2;
-  --jarvis-danger-border: #fecaca;
-  --jarvis-danger-ring: rgba(185, 28, 28, 0.18);
-
-  /* Estado: éxito */
-  --jarvis-success: #047857;
-  --jarvis-success-soft: #ecfdf5;
-  --jarvis-success-border: #a7f3d0;
-
-  /* Estado: advertencia */
-  --jarvis-warning: #b45309;
-  --jarvis-warning-hover: #92400e;
-  --jarvis-warning-soft: #fef3c7;
-  --jarvis-warning-border: #fde68a;
-
-  /* Estado: información */
-  --jarvis-info: #1d4ed8;
-  --jarvis-info-soft: #dbeafe;
-  --jarvis-info-border: #bfdbfe;
-
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--jarvis-text);
-  background-color: #ffffff;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
 
 * {
   box-sizing: border-box;
@@ -120,9 +18,15 @@ h1,
 h2,
 h3,
 h4 {
-  letter-spacing: -0.01em;
-  font-weight: 600;
+  letter-spacing: var(--letter-spacing-heading);
+  font-weight: var(--font-weight-heading);
+  line-height: var(--line-height-heading);
 }
+
+h1 { font-size: var(--text-h1); }
+h2 { font-size: var(--text-2xl); }
+h3 { font-size: var(--text-xl); }
+h4 { font-size: var(--text-lg); }
 
 button,
 input,

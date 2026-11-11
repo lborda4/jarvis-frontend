@@ -42,6 +42,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/siigo" element={<LandingPage product="siigo" />} />
             <Route path="/facturacion-electronica" element={<LandingPage product="billing" />} />
+            <Route path="/nomina-electronica" element={<LandingPage product="payroll" />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/olvide-mi-contrasena" element={<ForgotPasswordPage />} />
             <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
