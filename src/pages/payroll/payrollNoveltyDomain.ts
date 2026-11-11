@@ -53,6 +53,10 @@ export function payrollNoveltyLine(
     nonWorkingDays?: string
     startTime?: string
     endTime?: string
+    type?: number
+    paymentNS?: string
+    interestPayment?: string
+    overtimeType?: 'normal' | 'night' | 'holiday'
     overtimeSurchargeId?: number
   },
 ): PayrollLine {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { payrollService, type Concept, type PayrollDetail, type PayrollState } from '../../services/payrollService'
-import { overtimeMaster as findOvertimeMaster, isPayrollOvertime } from '../../utils/payrollOvertime'
+import { isPayrollOvertime } from '../../utils/payrollOvertime'
 import { validatePayroll, type PayrollLine } from '../../utils/payrollDomain'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
 import { currency, employeeName } from './payrollDefaults'
@@ -39,12 +39,16 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
   const [salaryDays, setSalaryDays] = useState(initial?.concept === 'salary' ? initial.quantity : detail.state.workedDays)
   const [amount, setAmount] = useState(initial?.amount ?? '')
   const [percentage, setPercentage] = useState(initial?.percentage ?? '')
+  const [paymentNS, setPaymentNS] = useState(initial?.paymentNS ?? '')
+  const [interestPayment, setInterestPayment] = useState(initial?.interestPayment ?? '')
+  const [disabilityType, setDisabilityType] = useState<number | ''>(initial?.type ?? '')
   const [startDate, setStartDate] = useState(initial?.startDate ?? detail.state.startDate)
   const [endDate, setEndDate] = useState(initial?.endDate ?? detail.state.endDate)
   const [nonWorkingDays, setNonWorkingDays] = useState(initial?.nonWorkingDays ?? '0')
   const [startTime, setStartTime] = useState(initial?.startTime ?? '')
   const [endTime, setEndTime] = useState(initial?.endTime ?? '')
-  const [overtimeMaster, setOvertimeMaster] = useState<{ id: number; name: string; concept: string } | null>(null)
+  const [overtimeOptions, setOvertimeOptions] = useState<{ id: number; name: string; code?: string | null }[]>([])
+  const [selectedOvertimeSurchargeId, setSelectedOvertimeSurchargeId] = useState<number | ''>(initial?.overtimeSurchargeId ?? '')
   const [overtimeError, setOvertimeError] = useState('')
   const [overtimeAttempt, setOvertimeAttempt] = useState(0)
   const allowanceChoices = concepts.filter(item => item.active && item.kind === 'accrued' && isPayrollSalaryAllowance(item))
@@ -70,19 +74,22 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
   const dated = kind === 'accrued' ? ['Vacaciones', 'Incapacidades', 'Licencias remuneradas'].includes(category) : deductionCategory === 'Licencias no remuneradas'
   const overtimeCode = concept ? concept.code.startsWith('internal_') ? concept.category : concept.code : ''
   const overtime = isPayrollOvertime({ concept: overtimeCode })
-  const activeOvertimeMaster = overtimeMaster?.concept === overtimeCode ? overtimeMaster : null
+  const activeOvertimeMaster = overtimeOptions.find(row => row.id === selectedOvertimeSurchargeId) ?? null
   useEffect(() => {
     if (!overtime) return
     let active = true
     void payrollService.overtimeSurcharges().then(rows => {
-      const master = findOvertimeMaster(rows, overtimeCode)
-      if (!master) throw new Error('Recargo no disponible')
-      if (active) { setOvertimeMaster({ ...master, concept: overtimeCode }); setOvertimeError('') }
+      if (!active) return
+      setOvertimeOptions(rows)
+      setOvertimeError('')
+      if (!selectedOvertimeSurchargeId && rows.length) {
+        setSelectedOvertimeSurchargeId(rows[0].id)
+      }
     }).catch(() => {
-      if (active) setOvertimeError('No pudimos cargar el recargo. Inténtalo de nuevo o comunícate con soporte.')
+      if (active) setOvertimeError('No pudimos cargar los recargos. Inténtalo de nuevo o comunícate con soporte.')
     })
     return () => { active = false }
-  }, [overtime, overtimeCode, overtimeAttempt])
+  }, [overtime, overtimeAttempt])
   const vacation = kind === 'accrued' && category === 'Vacaciones'
   let vacationDays = ''
   if (vacation) {
@@ -96,10 +103,14 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
     draftIds.current = []
     setEditing(undefined)
     setCode('')
+    setSelectedOvertimeSurchargeId('')
     setQuantity('')
     setSalaryDays(detail.state.workedDays)
     setAmount('')
     setPercentage('')
+    setPaymentNS('')
+    setInterestPayment('')
+    setDisabilityType('')
     setSocialAmounts({ eps: '', pension: '', solidarity: '' })
     setFspPercentage('')
     setAllowanceQuantity('')
@@ -145,10 +156,13 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
           quantity: entry.quantity,
           amount: entry.amount,
           percentage: entry.percentage ?? (entry.primary ? percentage || entry.concept.percentage || '0' : '0'),
+          paymentNS: code === 'service_bonus' ? paymentNS : undefined,
+          interestPayment: code === 'severance' ? interestPayment : undefined,
+          type: code === 'disability' ? Number(disabilityType) || undefined : undefined,
           manual: true,
           ...(dated ? { startDate, endDate } : {}),
           ...(vacation ? { nonWorkingDays } : {}),
-          ...(overtime ? { startTime, endTime, overtimeSurchargeId: activeOvertimeMaster?.id } : {}),
+          ...(overtime ? { startTime, endTime, overtimeSurchargeId: Number(selectedOvertimeSurchargeId) || undefined } : {}),
         })
         next = { ...next, lines: next.lines.some(item => item.id === line.id)
           ? next.lines.map(item => item.id === line.id ? line : item)
@@ -176,10 +190,14 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
       if (line.concept === 'solidarity') setFspPercentage(line.percentage ?? '')
     }
     setCode(line.concept)
+    setSelectedOvertimeSurchargeId(line.overtimeSurchargeId ?? '')
     setQuantity(line.quantity)
     if (line.concept === 'salary') setSalaryDays(line.quantity)
     setAmount(line.amount)
     setPercentage(line.percentage ?? '')
+    setPaymentNS(line.paymentNS ?? '')
+    setInterestPayment(line.interestPayment ?? '')
+    setDisabilityType(line.type ?? '')
     setStartDate(line.startDate ?? detail.state.startDate)
     setEndDate(line.endDate ?? detail.state.endDate)
     setNonWorkingDays(line.nonWorkingDays ?? '0')
@@ -242,9 +260,23 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
         {!dated && <Field label={category === 'Horas extras' && kind === 'accrued' ? 'Horas' : 'Días'}>
           <input aria-label="Cantidad de la novedad" type="number" min="0.01" max={fixedSalary ? '31' : undefined} step="0.01" placeholder="Ingresa la cantidad" value={selectedQuantity} disabled={locked} onChange={event => fixedSalary ? setSalaryDays(event.target.value) : setQuantity(event.target.value)} />
         </Field>}
-        <Field label="Valor">
-          <PayrollMoneyInput aria-label="Valor de la novedad" placeholder="Ingresa el valor" value={amount} disabled={locked} onValueChange={setAmount} />
+        <Field label={code === 'severance' ? 'Valor de las cesantías' : 'Valor'}>
+          <PayrollMoneyInput aria-label="Valor de la novedad" placeholder={code === 'severance' ? 'Ingresa el valor de las cesantías' : 'Ingresa el valor'} value={amount} disabled={locked} onValueChange={setAmount} />
         </Field>
+        {code === 'service_bonus' && <Field label="Valor no salarial">
+          <PayrollMoneyInput aria-label="Valor no salarial" placeholder="Ingresa el valor no salarial" value={paymentNS} disabled={locked} onValueChange={setPaymentNS} />
+        </Field>}
+        {code === 'severance' && <>
+          <Field label="Porcentaje de intereses">
+            <input aria-label="Porcentaje de intereses" type="number" min="0" max="100" step="0.01" placeholder="Ingresa el porcentaje" value={percentage} disabled={locked} onChange={event => setPercentage(event.target.value)} />
+          </Field>
+          <Field label="Valor de los intereses de cesantías">
+            <PayrollMoneyInput aria-label="Valor de los intereses de cesantías" placeholder="Ingresa los intereses" value={interestPayment} disabled={locked} onValueChange={setInterestPayment} />
+          </Field>
+        </>}
+        {code === 'disability' && <Field label="Tipo de incapacidad">
+          <input aria-label="Tipo de incapacidad" type="number" min="1" step="1" placeholder="Ingresa el tipo" value={disabilityType} disabled={locked} onChange={event => setDisabilityType(event.target.value === '' ? '' : Number(event.target.value))} />
+        </Field>}
         {salaryRows && allowanceChoices.length > 0 && <>
           <label className="payroll__allowance-field"><span className="payroll__sr-only">Tipo de auxilio</span>
             <select aria-label="Tipo de auxilio" value={allowanceCode} disabled={locked} onChange={event => setAllowanceCode(event.target.value)}>
@@ -262,6 +294,12 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
       </div>}
       {vacation && <p role="status" className="payroll__muted">{vacationDays ? `Días de vacaciones: ${vacationDays}` : 'Revisa las fechas y los días no hábiles para calcular los días de vacaciones.'}</p>}
       {overtime && <div className="payroll__grid payroll__novelty-extra">
+        <Field label="Tipo de recargo de horas extra">
+          <select aria-label="Tipo de recargo de horas extra" value={selectedOvertimeSurchargeId} disabled={locked || overtimeOptions.length === 0} onChange={event => setSelectedOvertimeSurchargeId(event.target.value === '' ? '' : Number(event.target.value))}>
+            <option value="">Selecciona un recargo</option>
+            {overtimeOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+          </select>
+        </Field>
         <Field label="Fecha y hora de inicio"><input aria-label="Fecha y hora de inicio" type="datetime-local" required step="1" min={`${dateBounds.min}T00:00:00`} max={`${dateBounds.max}T23:59:59`} value={startTime} disabled={locked} onChange={event => setStartTime(event.target.value.length === 16 ? `${event.target.value}:00` : event.target.value)} /></Field>
         <Field label="Fecha y hora de fin"><input aria-label="Fecha y hora de fin" type="datetime-local" required step="1" min={startTime || `${dateBounds.min}T00:00:00`} max={`${dateBounds.max}T23:59:59`} value={endTime} disabled={locked} onChange={event => setEndTime(event.target.value.length === 16 ? `${event.target.value}:00` : event.target.value)} /></Field>
         <Field label="Recargo"><input aria-label="Recargo" readOnly value={overtimeError ? 'Recargo no disponible' : activeOvertimeMaster?.name ?? 'Cargando recargo…'} /></Field>
@@ -271,7 +309,7 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
       {error && <p className="payroll__notice payroll__notice--error" role="alert">{error}</p>}
       <div className="payroll__toolbar payroll__novelty-actions">
         {editing && <button type="button" className="payroll__button" disabled={locked} onClick={resetForm}>Cancelar edición</button>}
-        <button className="payroll__button payroll__button--primary" disabled={locked || overtime && (!activeOvertimeMaster || Boolean(overtimeError)) || socialRows && !Object.values(socialAmounts).some(value => Number(value) > 0)}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : '+ Agregar'}</button>
+        <button className="payroll__button payroll__button--primary" disabled={locked || overtime && (!selectedOvertimeSurchargeId || Boolean(overtimeError)) || socialRows && !Object.values(socialAmounts).some(value => Number(value) > 0)}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : '+ Agregar'}</button>
       </div>
     </form>
     <section className="payroll__novelty-added" aria-label="Lista de novedades">

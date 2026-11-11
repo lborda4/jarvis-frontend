@@ -33,16 +33,35 @@ export interface PayrollLine {
   amount: string
   quantity: string
   percentage?: string
+  paymentNS?: string
+  interestPayment?: string
   startDate?: string
   endDate?: string
+  type?: number
   nonWorkingDays?: string
   startTime?: string
   endTime?: string
+  overtimeType?: 'normal' | 'night' | 'holiday'
   overtimeSurchargeId?: number
   formula?: string
   manual?: boolean
   mapping?: string
 }
+export type PayrollDeductionEntry = {
+  payment: string
+  percentage: string
+}
+
+export type PayrollDeductions = Record<string, PayrollDeductionEntry | string | number | undefined> & {
+  eps?: PayrollDeductionEntry
+  pension?: PayrollDeductionEntry
+  eps_type_law_deductions_id?: number
+  eps_deduction?: number
+  pension_type_law_deductions_id?: number
+  pension_deduction?: number
+  deductions_total?: number
+}
+
 export interface PayrollInput {
   period: string
   startDate: string
@@ -79,6 +98,38 @@ export const VERIFIED_CONCEPTS = [
   'pension',
   'overtime_day',
   'overtime_night',
+  'vacation_paid',
+  'paid_vacation',
+  'service_bonus',
+  'premium',
+  'severance',
+  'retirement_bonus',
+  'refund',
+  'disability',
+  'parental_leave',
+  'maternity_leave',
+  'compensation',
+  'paid_leave',
+  'unpaid_leave',
+  'non_paid_leave',
+  'salary_bonus',
+  'non_salary_bonus',
+  'salary_viatics',
+  'non_salary_viatics',
+  'salary_assistance',
+  'non_salary_assistance',
+  'legal_strike',
+  'other_concepts',
+  'ordinary_compensation',
+  'extraordinary_compensation',
+  'epctv_bonuses',
+  'commissions',
+  'advances',
+  'endowment',
+  'sustenance_support',
+  'telecommuting',
+  'withdrawal_bonus',
+  'third_party_payments',
 ]
 export function totals(lines: PayrollLine[]) {
   let accrued = 0n,
@@ -182,6 +233,12 @@ export function validatePayroll(
           cents(line.quantity) === 0n
         )
           errors.push('Completa los días de salario y auxilio de transporte.')
+        if (
+          transmission &&
+          ['disability'].includes(line.mapping ?? line.concept) &&
+          (line.type === undefined || line.type <= 0)
+        )
+          errors.push('Completa el tipo de incapacidad.')
       } catch {
         errors.push('Revisa cantidades y porcentajes.')
       }
@@ -234,34 +291,233 @@ export function buildPayrollPayload(
   if (errors.length) throw new Error(errors.join(' '))
   const accrued: Record<string, Record<string, string | number>[]> =
       {},
-    deductions: Record<string, { payment: string; percentage: string }> = {}
+    deductions: PayrollDeductions = {},
+    accruedTotal = state.lines
+      .filter((line: PayrollLine) => line.kind === 'accrued')
+      .reduce((sum, line) => sum + cents(line.amount), 0n),
+    deductionsTotal = state.lines
+      .filter((line: PayrollLine) => line.kind === 'deduction')
+      .reduce((sum, line) => sum + cents(line.amount), 0n)
   for (const line of state.lines as PayrollLine[]) {
     const key = line.mapping ?? line.concept
     const overtime = overtimeDefinition(key)
     if (overtime)
       (accrued[overtime.bodyKey] ??= []).push({ start_time: line.startTime!, end_time: line.endTime!, quantity: Number(line.quantity), percentage: line.overtimeSurchargeId!, payment: money(cents(line.amount)) })
-    else if (line.kind === 'accrued')
+    else if (line.kind === 'accrued') {
+      if (['vacation_paid', 'paid_vacation'].includes(key)) {
+        (accrued.paid_vacation ??= []).push({
+          quantity: Number(line.quantity),
+          payment: money(cents(line.amount)),
+        })
+        continue
+      }
+      if (['service_bonus', 'premium'].includes(key)) {
+        const payload = {
+          quantity: Number(line.quantity),
+          payment: money(cents(line.amount)),
+        } as { quantity: number; payment: string; paymentNS?: string }
+        if (line.paymentNS) payload.paymentNS = money(cents(line.paymentNS))
+        ;(accrued.service_bonus ??= []).push(payload)
+        continue
+      }
+      if (['severance'].includes(key)) {
+        (accrued.severance ??= []).push({
+          payment: money(cents(line.amount)),
+          percentage: Number(line.percentage ?? '0'),
+          interest_payment: money(cents(line.interestPayment ?? '0')),
+        })
+        continue
+      }
+      if (['disability'].includes(key)) {
+        (accrued.work_disabilities ??= []).push({
+          start_date: line.startDate ?? '',
+          end_date: line.endDate ?? '',
+          quantity: Number(line.quantity),
+          type: Number(line.type ?? 0),
+          payment: money(cents(line.amount)),
+        })
+        continue
+      }
+      if (['parental_leave', 'maternity_leave'].includes(key)) {
+        (accrued.maternity_leave ??= []).push({
+          start_date: line.startDate ?? '',
+          end_date: line.endDate ?? '',
+          quantity: Number(line.quantity),
+          payment: money(cents(line.amount)),
+        })
+        continue
+      }
+      if (['paid_leave'].includes(key)) {
+        (accrued.paid_leave ??= []).push({
+          start_date: line.startDate ?? '',
+          end_date: line.endDate ?? '',
+          quantity: Number(line.quantity),
+          payment: money(cents(line.amount)),
+        })
+        continue
+      }
+      if (['unpaid_leave', 'non_paid_leave'].includes(key)) {
+        (accrued.non_paid_leave ??= []).push({
+          start_date: line.startDate ?? '',
+          end_date: line.endDate ?? '',
+          quantity: Number(line.quantity),
+        })
+        continue
+      }
+      if (['salary_viatics'].includes(key)) {
+        ;(accrued.salary_viatics ??= []).push({
+          salary_viatics: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['non_salary_viatics'].includes(key)) {
+        ;(accrued.non_salary_viatics ??= []).push({
+          non_salary_viatics: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['salary_bonus', 'non_salary_bonus'].includes(key)) {
+        const bonusKey = key === 'salary_bonus' ? 'salary_bonus' : 'non_salary_bonus'
+        ;(accrued.bonuses ??= []).push({
+          [bonusKey]: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        } as Record<string, number>)
+        continue
+      }
+      if (['salary_assistance', 'non_salary_assistance'].includes(key)) {
+        const aidKey = key === 'salary_assistance' ? 'salary_assistance' : 'non_salary_assistance'
+        ;(accrued.aid ??= []).push({
+          [aidKey]: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        } as Record<string, number>)
+        continue
+      }
+      if (['legal_strike'].includes(key)) {
+        (accrued.legal_strike ??= []).push({
+          start_date: line.startDate ?? '',
+          end_date: line.endDate ?? '',
+          quantity: Number(line.quantity),
+        })
+        continue
+      }
+      if (['other_concepts'].includes(key)) {
+        const description = (line.formula ?? line.concept ?? '').trim() || 'Concepto adicional'
+        ;(accrued.other_concepts ??= []).push({
+          salary_concept: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+          non_salary_concept: 0,
+          description_concept: description,
+        })
+        continue
+      }
+      if (['ordinary_compensation', 'extraordinary_compensation'].includes(key)) {
+        const compensationKey = key === 'ordinary_compensation' ? 'ordinary_compensation' : 'extraordinary_compensation'
+        ;(accrued.compensations ??= []).push({
+          [compensationKey]: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        } as Record<string, number>)
+        continue
+      }
+      if (['epctv_bonuses'].includes(key)) {
+        ;(accrued.epctv_bonuses ??= []).push({
+          paymentS: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+          paymentNS: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+          salary_food_payment: 0,
+          non_salary_food_payment: 0,
+        })
+        continue
+      }
+      if (['commissions'].includes(key)) {
+        ;(accrued.commissions ??= []).push({
+          commission: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['advances'].includes(key)) {
+        ;(accrued.advances ??= []).push({
+          advance: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['endowment'].includes(key)) {
+        ;(accrued.endowment ??= []).push({
+          endowment: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['sustenance_support'].includes(key)) {
+        ;(accrued.sustenance_support ??= []).push({
+          sustenance_support: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['telecommuting'].includes(key)) {
+        ;(accrued.telecommuting ??= []).push({
+          telecommuting: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['retirement_bonus', 'withdrawal_bonus'].includes(key)) {
+        ;(accrued.withdrawal_bonus ??= []).push({
+          withdrawal_bonus: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['compensation'].includes(key)) {
+        ;(accrued.compensation ??= []).push({
+          compensation: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['refund'].includes(key)) {
+        ;(accrued.refund ??= []).push({
+          refund: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
+      if (['third_party_payments'].includes(key)) {
+        ;(accrued.third_party_payments ??= []).push({
+          third_party_payment: Number(money(cents(line.amount)).replace(/[^\d.]/g, '')),
+        })
+        continue
+      }
       (accrued[key] ??= []).push({
         payment: money(cents(line.amount)),
         worked_days: money(cents(line.quantity)),
       })
-    else {
+    } else {
       const previous = deductions[key]
+      const previousEntry = typeof previous === 'object' && previous !== null ? previous : undefined
       if (
-        previous &&
-        previous.percentage !== money(cents(line.percentage ?? '0'))
+        previousEntry &&
+        previousEntry.percentage !== money(cents(line.percentage ?? '0'))
       )
         throw new Error(
           'Agrupa las deducciones del mismo concepto con el mismo porcentaje.',
         )
       deductions[key] = {
         payment: money(
-          cents(line.amount) + (previous ? cents(previous.payment) : 0n),
+          cents(line.amount) + (previousEntry ? cents(previousEntry.payment) : 0n),
         ),
         percentage: money(cents(line.percentage ?? '0')),
       }
     }
   }
+  const normalizedDeductions: PayrollDeductions = {
+    ...deductions,
+    ...(deductions.eps
+      ? {
+          eps_type_law_deductions_id: 1,
+          eps_deduction: Number(money(cents(deductions.eps.payment))),
+        }
+      : {}),
+    ...(deductions.pension
+      ? {
+          pension_type_law_deductions_id: 2,
+          pension_deduction: Number(money(cents(deductions.pension.payment))),
+        }
+      : {}),
+    ...(deductions.eps || deductions.pension
+      ? { deductions_total: Number(money(deductionsTotal)) }
+      : {}),
+  }
+
   return {
     type_document_id: predecessor ? 10 : 9,
     ...(predecessor
@@ -297,7 +553,8 @@ export function buildPayrollPayload(
           }
         : {}),
     },
+    accrued_total: Number(money(accruedTotal)),
     accrued,
-    deductions,
+    deductions: normalizedDeductions,
   }
 }

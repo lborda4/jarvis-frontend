@@ -9,8 +9,24 @@ export interface DayOvertimeLine {
 }
 
 export function overtimeDefinition(code: string) {
-  if (code === 'overtime_day') return { masterName: 'hora extra diurna', label: 'horas extra diurnas', bodyKey: 'HEDs' }
-  if (code === 'overtime_night') return { masterName: 'hora extra nocturna', label: 'horas extra nocturnas', bodyKey: 'HENs' }
+  if (code === 'overtime_day') return {
+    masterName: 'hora extra diurna',
+    label: 'horas extra diurnas',
+    bodyKey: 'HEDs',
+    aliases: ['hora extra diurna', 'hora extra diurna dominical', 'hora extra diurna festiva', 'hora extra dominical', 'hora extra festiva'],
+  }
+  if (code === 'overtime_day_holiday') return {
+    masterName: 'hora extra diurna dominical',
+    label: 'horas extra diurnas dominicales y festivas',
+    bodyKey: 'HEDs',
+    aliases: ['hora extra diurna dominical', 'hora extra diurna festiva', 'hora extra dominical', 'hora extra festiva'],
+  }
+  if (code === 'overtime_night') return {
+    masterName: 'hora extra nocturna',
+    label: 'horas extra nocturnas',
+    bodyKey: 'HENs',
+    aliases: ['hora extra nocturna'],
+  }
   return undefined
 }
 export const isPayrollOvertime = (line: Pick<DayOvertimeLine, 'concept' | 'mapping'>) =>
@@ -42,8 +58,13 @@ export function overtimeErrors(line: DayOvertimeLine, period: string): string[] 
 export function overtimeMaster(rows: { id: number; name: string; code?: string | null }[], code = 'overtime_day') {
   const definition = overtimeDefinition(code)
   if (!definition) return undefined
-  return rows.find(row => Number.isSafeInteger(row.id) && row.id > 0 &&
-    row.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === definition.masterName)
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+  const aliases = new Set([definition.masterName, ...(definition.aliases ?? [])].map(normalize))
+  return rows.find(row => {
+    if (!Number.isSafeInteger(row.id) || row.id <= 0) return false
+    const name = normalize(row.name)
+    return [...aliases].some(alias => name === alias || name.includes(alias))
+  })
 }
 export const dayOvertimeErrors = overtimeErrors
 export const dayOvertimeMaster = overtimeMaster
