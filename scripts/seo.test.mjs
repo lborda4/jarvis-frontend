@@ -45,7 +45,9 @@ for (const page of pages) {
           assert.equal(offer.priceSpecification.price, offer.price)
           assert.ok(html.includes(`#${offer.url.split('#')[1]}"`) || html.includes(`id="${offer.url.split('#')[1]}"`))
         }
-        assert.ok(!html.includes('$12.900') && !html.includes('$130.000') && !html.includes('$60.000'))
+        assert.ok(!html.includes('$12.900') && !html.includes('$130.000'))
+        assert.ok(html.includes('$60.000') && html.includes('$720.000'))
+        assert.ok(html.includes('Pago anual de') && html.includes('Equivalente mensual'))
       }
     }
     assert.ok(!/<link[^>]+href="[^"]*\/App-[^"]+\.js"/.test(html), 'Private application modules must not be preloaded')

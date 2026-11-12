@@ -37,7 +37,7 @@ const state = {
     },
     {
       id: 'eps',
-      concept: 'eps',
+      concept: 'eps', typeLawDeductionsId: 31,
       kind: 'deduction' as const,
       amount: '80000.01',
       quantity: '1',
@@ -140,10 +140,7 @@ describe('nómina: precisión y validación', () => {
       payment: '2000000.10',
       worked_days: '30.00',
     })
-    expect(payload.deductions.eps).toEqual({
-      payment: '80000.01',
-      percentage: '4.00',
-    })
+    expect(payload.deductions.eps_deduction).toBe(80000.01)
     expect(payload).not.toHaveProperty('employeeId')
   })
   it('serializa el bloque de deducciones sociales del proveedor', () => {
@@ -153,7 +150,7 @@ describe('nómina: precisión y validación', () => {
         { ...state.lines[0], amount: '1500000', quantity: '30' },
         {
           id: 'eps',
-          concept: 'eps',
+          concept: 'eps', typeLawDeductionsId: 31,
           kind: 'deduction' as const,
           amount: '60000',
           quantity: '1',
@@ -162,7 +159,7 @@ describe('nómina: precisión y validación', () => {
         },
         {
           id: 'pension',
-          concept: 'pension',
+          concept: 'pension', typeLawDeductionsId: 51,
           kind: 'deduction' as const,
           amount: '60000',
           quantity: '1',
@@ -172,11 +169,11 @@ describe('nómina: precisión y validación', () => {
       ],
     }, worker, 1, 'SETP')
 
-    expect(payload.deductions.eps).toEqual({ payment: '60000.00', percentage: '4.00' })
-    expect(payload.deductions.pension).toEqual({ payment: '60000.00', percentage: '4.00' })
-    expect(payload.deductions.eps_type_law_deductions_id).toBe(1)
+    expect(payload.deductions).not.toHaveProperty('eps')
+    expect(payload.deductions).not.toHaveProperty('pension')
+    expect(payload.deductions.eps_type_law_deductions_id).toBe(31)
     expect(payload.deductions.eps_deduction).toBe(60000)
-    expect(payload.deductions.pension_type_law_deductions_id).toBe(2)
+    expect(payload.deductions.pension_type_law_deductions_id).toBe(51)
     expect(payload.deductions.pension_deduction).toBe(60000)
     expect(payload.deductions.deductions_total).toBe(120000)
   })
@@ -256,7 +253,7 @@ describe('nómina: precisión y validación', () => {
           quantity: '5',
           startDate: '2024-01-05',
           endDate: '2024-01-10',
-          type: 1,
+          type: 17,
           mapping: 'disability',
         },
       ],
@@ -267,7 +264,7 @@ describe('nómina: precisión y validación', () => {
         start_date: '2024-01-05',
         end_date: '2024-01-10',
         quantity: 5,
-        type: 1,
+        type: 17,
         payment: '250000.00',
       },
     ])
@@ -653,7 +650,7 @@ describe('nómina: precisión y validación', () => {
         { ...state.lines[0], amount: '1640606', quantity: '30' },
         {
           id: 'deduction',
-          concept: 'eps',
+          concept: 'eps', typeLawDeductionsId: 31,
           kind: 'deduction' as const,
           amount: '50000',
           quantity: '1',

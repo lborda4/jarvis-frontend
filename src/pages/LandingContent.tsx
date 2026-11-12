@@ -10,6 +10,8 @@ import './LandingPage.css'
 import { ComplianceCombos } from '../components/PortfolioPricing'
 import SolutionLanding from './SolutionLanding'
 import PayrollLandingPage from './PayrollLandingPage'
+import PricingPeriodToggle from '../components/PricingPeriodToggle'
+import { periodicPrice, type PricingPeriod } from '../marketing/pricingPeriod'
 
 const DEMO_HREF = WHATSAPP_DEMO_HREF
 
@@ -282,13 +284,15 @@ function ProductChoices({ pricing = false }: { pricing?: boolean }) {
 }
 
 function SiigoPricing() {
+  const [period, setPeriod] = useState<PricingPeriod>('month')
   return (
-    <div className="landing-pricing">
+    <><PricingPeriodToggle period={period} onChange={setPeriod} /><div className="landing-pricing">
       {PLANS.map((plan) => (
         <article key={plan.name} className={`landing-plan landing-plan--${plan.tone}`}>
           <header>
             <h3>{plan.name}</h3>
-            <p className="landing-plan__price">{plan.price}{plan.period ? <span>{plan.period}</span> : null}</p>
+            <p className="landing-plan__price">{plan.amount === null ? plan.price : periodicPrice(plan.amount, period, 'month').price}{plan.period ? <span>{periodicPrice(plan.amount!, period, 'month').suffix}</span> : null}</p>
+            {plan.amount !== null && <p>{periodicPrice(plan.amount, period, 'month').terms}</p>}
             <p className="landing-plan__limit">{plan.limit}</p>
           </header>
           <ul>{PLAN_FEATURES.map((feature) => <li key={feature}>{feature}</li>)}</ul>
@@ -298,18 +302,21 @@ function SiigoPricing() {
           </a>
         </article>
       ))}
-    </div>
+    </div></>
   )
 }
 
 function BillingPricing() {
+  const [period, setPeriod] = useState<PricingPeriod>('month')
   return (
     <>
+      <PricingPeriodToggle period={period} onChange={setPeriod} />
       <div className="landing-billing-plans">
         {BILLING_PLANS.map(plan => <article className="landing-billing-plan" key={plan.name}>
-          <span className="landing-product__audience">Valor anual</span>
+          <span className="landing-product__audience">{periodicPrice(plan.amount, period).label}</span>
           <h3>{plan.name}</h3><p>{plan.description}</p>
-          <p className="landing-billing-plan__price">{plan.price} <span>/ año</span></p>
+          <p className="landing-billing-plan__price">{periodicPrice(plan.amount, period).price} <span>{periodicPrice(plan.amount, period).suffix}</span></p>
+          <p>{periodicPrice(plan.amount, period).terms}</p>
           <ul className="landing-product__features">
             <li><Icon name="check" /><strong>{plan.capacity}</strong></li>
             <li><Icon name="check" />Facturación electrónica y RADIAN incluidos</li>
@@ -318,7 +325,7 @@ function BillingPricing() {
           <a href={buildWhatsappHref(`Hola, me interesa la ${plan.name} de JARVIS por ${plan.price} COP al año: ${plan.capacity}`)} className="landing-btn landing-btn--primary" target="_blank" rel="noopener noreferrer">{plan.action}<Icon name="arrow" /></a>
         </article>)}
       </div>
-      <ComplianceCombos />
+      <ComplianceCombos period={period} />
       <div className="landing-topups" aria-labelledby="recargas-title">
         <div className="landing-topups__heading">
           <div>
@@ -583,7 +590,7 @@ function LandingContent({ product }: { product?: Product }) {
                 : 'Un plan para lo que necesitas'}
             </h2>
             <p className="landing-section__lead">
-              {product === 'siigo' ? 'Estos planes corresponden al cargue masivo de documentos soporte en Siigo. Precios en COP al mes.'
+              {product === 'siigo' ? 'Estos planes corresponden al cargue masivo de documentos soporte en Siigo y se pagan mensualmente. Compara el costo por mes o por año en COP.'
                 : product === 'billing' ? 'Planes anuales de facturación y combos con nómina. Precios en pesos colombianos (COP).'
                 : 'Consulta por separado los planes de automatización con Siigo y los de facturación directa con la DIAN.'}
             </p>

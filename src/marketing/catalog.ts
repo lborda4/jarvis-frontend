@@ -13,11 +13,11 @@ export function productForPath(path: PublicPath): MarketingProduct | undefined {
 }
 
 export const SIIGO_PLANS = [
-  { name: 'Inicial', price: '$35.000', period: '/mes', limit: 'Hasta 100 documentos', tone: 'teal' },
-  { name: 'Profesional', price: '$75.000', period: '/mes', limit: 'Hasta 500 documentos', tone: 'blue' },
-  { name: 'Avanzado', price: '$120.000', period: '/mes', limit: 'Hasta 1.000 documentos', tone: 'green' },
-  { name: 'Empresarial', price: '$250.000', period: '/mes', limit: 'Hasta 5.000 documentos', tone: 'purple' },
-  { name: 'Corporativo', price: 'Cotizar', period: '', limit: 'Más de 5.000 documentos', tone: 'dark' },
+  { name: 'Inicial', price: '$35.000', amount: 35000, period: '/mes', limit: 'Hasta 100 documentos', tone: 'teal' },
+  { name: 'Profesional', price: '$75.000', amount: 75000, period: '/mes', limit: 'Hasta 500 documentos', tone: 'blue' },
+  { name: 'Avanzado', price: '$120.000', amount: 120000, period: '/mes', limit: 'Hasta 1.000 documentos', tone: 'green' },
+  { name: 'Empresarial', price: '$250.000', amount: 250000, period: '/mes', limit: 'Hasta 5.000 documentos', tone: 'purple' },
+  { name: 'Corporativo', price: 'Cotizar', amount: null, period: '', limit: 'Más de 5.000 documentos', tone: 'dark' },
 ]
 
 export const BILLING_TOP_UPS = [

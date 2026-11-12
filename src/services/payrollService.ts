@@ -80,6 +80,8 @@ export interface PayrollSettings {
   enabled: boolean
 }
 export interface PayrollState {
+  epsTypeLawDeductionsId?: number
+  pensionTypeLawDeductionsId?: number
   payrollName?: string
   payrollGroupId?: string
   periodicity?: PayrollPeriodicity
@@ -178,6 +180,10 @@ export const payrollService = {
     (await apiClient.get<PayrollWorkerCatalogs>(`${root}/catalogs`)).data,
   overtimeSurcharges: async () =>
     (await apiClient.get<{ id: number; name: string; code?: string | null }[]>(`${root}/overtime-surcharges`)).data,
+  disabilityTypes: async () =>
+    (await apiClient.get<{ id: number; name: string; code?: string | null }[]>(`${root}/disability-types`)).data,
+  lawDeductions: async () =>
+    (await apiClient.get<{ id: number; name: string; code?: string | null }[]>(`${root}/law-deductions`)).data,
   bootstrap: async () =>
     (await apiClient.get<PayrollBootstrap>(`${root}/bootstrap`)).data,
   employees: async (employee: Employee) =>

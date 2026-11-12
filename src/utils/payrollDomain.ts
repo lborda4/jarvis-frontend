@@ -43,16 +43,145 @@ export interface PayrollLine {
   endTime?: string
   overtimeType?: 'normal' | 'night' | 'holiday'
   overtimeSurchargeId?: number
+  typeLawDeductionsId?: number
+  description?: string
+  publicSanction?: string
+  privateSanction?: string
   formula?: string
   manual?: boolean
   mapping?: string
 }
+export const payrollLawDeductionFields = {
+  eps: ['eps_type_law_deductions_id', 'eps_deduction'],
+  pension: ['pension_type_law_deductions_id', 'pension_deduction'],
+  solidarity: ['fondossp_type_law_deductions_id', 'fondosp_deduction_SP'],
+  subsistence: ['fondossp_sub_type_law_deductions_id', 'fondosp_deduction_sub'],
+} as const
+
+export function buildPayrollLawDeductions(lines: PayrollLine[], legacy: { epsTypeLawDeductionsId?: number; pensionTypeLawDeductionsId?: number } = {}) {
+  const result: Record<string, number> = {}
+  for (const [concept, [idField, valueField]] of Object.entries(payrollLawDeductionFields)) {
+    const selected = lines.filter(line => (line.mapping ?? line.concept) === concept && line.kind === 'deduction')
+    if (!selected.length) continue
+    let id: number | undefined
+    let amount = 0n
+    for (const line of selected) {
+      const chosen = line.typeLawDeductionsId ?? (concept === 'eps' ? legacy.epsTypeLawDeductionsId : concept === 'pension' ? legacy.pensionTypeLawDeductionsId : undefined)
+      if (!Number.isSafeInteger(chosen) || chosen! <= 0) throw new Error('Selecciona el tipo de deducción de ley.')
+      if (id !== undefined && id !== chosen) throw new Error('No mezcles tipos de deducción de ley para el mismo concepto.')
+      id = chosen
+      amount += cents(line.amount)
+    }
+    result[idField] = id!
+    result[valueField] = Number(money(amount))
+  }
+  return result
+}
+
+export function payrollStructuredDeductionKind(key: string) {
+  if (key === 'loan' || key === 'orders') return 'orders'
+  if (key === 'labor_union' || key === 'sanctions') return key
+  return undefined
+}
+
+export function payrollStructuredDeductionErrors(line: PayrollLine): string[] {
+  const kind = payrollStructuredDeductionKind(line.mapping ?? line.concept)
+  if (!kind) return []
+  const errors: string[] = []
+  try {
+    if (line.kind !== 'deduction') errors.push('La naturaleza de la deducción es incorrecta.')
+    if (kind === 'labor_union' && (cents(line.percentage ?? '') > 10000n)) errors.push('El porcentaje sindical debe estar entre 0 y 100.')
+    if (kind === 'orders' && !line.description?.trim()) errors.push('Ingresa la descripción de la libranza.')
+    if (kind === 'sanctions') {
+      const total = cents(line.publicSanction || '0') + cents(line.privateSanction || '0')
+      if (total <= 0n) errors.push('Ingresa el valor de la sanción pública o privada.')
+      if (total !== cents(line.amount)) errors.push('El total de sanciones debe coincidir con sus valores público y privado.')
+    }
+  } catch {
+    errors.push(kind === 'labor_union' ? 'Ingresa un porcentaje sindical entre 0 y 100 con máximo dos decimales.' : 'Revisa los valores de la deducción.')
+  }
+  return errors
+}
+
+export function buildPayrollStructuredDeductions(lines: PayrollLine[]) {
+  const result: Record<string, Array<Record<string, string | number>>> = {}
+  for (const line of lines) {
+    const kind = payrollStructuredDeductionKind(line.mapping ?? line.concept)
+    if (!kind) continue
+    const errors = payrollStructuredDeductionErrors(line)
+    if (errors.length) throw new Error(errors.join(' '))
+    const payment = Number(money(cents(line.amount)))
+    const row: Record<string, string | number> = kind === 'labor_union'
+      ? { percentage: Number(line.percentage), deduction: payment }
+      : kind === 'orders' ? { description: line.description!.trim(), deduction: payment }
+      : {
+          ...(line.publicSanction ? { public_sanction: Number(money(cents(line.publicSanction))) } : {}),
+          ...(line.privateSanction ? { private_sanction: Number(money(cents(line.privateSanction))) } : {}),
+        }
+    ;(result[kind] ??= []).push(row)
+  }
+  return result
+}
+
+export function payrollArrayDeductionKind(key: string) {
+  if (key === 'third_party_payments' || key === 'third_party_payment_deduction') return 'third_party_payments'
+  if (key === 'advance' || key === 'advances') return 'advances'
+  if (key === 'other_deduction' || key === 'other_deductions') return 'other_deductions'
+  return undefined
+}
+
+export function payrollScalarDeductionField(key: string) {
+  const fields: Record<string, string> = {
+    voluntary: 'voluntary_pension', voluntary_pension: 'voluntary_pension',
+    withholding: 'withholding_at_source', withholding_at_source: 'withholding_at_source',
+    garnishment: 'tax_liens', tax_liens: 'tax_liens', refund_deduction: 'refund', refund: 'refund',
+    afc: 'afc', cooperative: 'cooperative', supplementary_plan: 'supplementary_plan', education: 'education', debt: 'debt',
+  }
+  return Object.prototype.hasOwnProperty.call(fields, key) ? fields[key] : undefined
+}
+
+export function payrollValueDeductionErrors(line: PayrollLine): string[] {
+  if (line.kind !== 'deduction') return []
+  const key = line.mapping ?? line.concept
+  if (!payrollArrayDeductionKind(key) && !payrollScalarDeductionField(key)) return []
+  try {
+    cents(line.amount)
+    if (payrollArrayDeductionKind(key) === 'other_deductions' && line.description !== undefined && typeof line.description !== 'string')
+      return ['Revisa la descripción de la deducción.']
+    return []
+  } catch { return ['Ingresa un valor de deducción válido con máximo dos decimales.'] }
+}
+
+export function buildPayrollValueDeductions(lines: PayrollLine[]) {
+  const result: Record<string, number | Array<Record<string, string | number>>> = {}
+  const scalarAmounts: Record<string, bigint> = {}
+  for (const line of lines) {
+    if (line.kind !== 'deduction') continue
+    const key = line.mapping ?? line.concept
+    const array = payrollArrayDeductionKind(key)
+    const scalar = payrollScalarDeductionField(key)
+    if (!array && !scalar) continue
+    const errors = payrollValueDeductionErrors(line)
+    if (errors.length) throw new Error(errors.join(' '))
+    const amount = cents(line.amount)
+    if (array) {
+      const field = array === 'third_party_payments' ? 'third_party_payment' : array === 'advances' ? 'advance' : 'other_deduction'
+      const row: Record<string, string | number> = { [field]: Number(money(amount)) }
+      if (array === 'other_deductions' && line.description?.trim()) row.description_deduction = line.description.trim()
+      const bucket = (result[array] ??= []) as Array<Record<string, string | number>>
+      bucket.push(row)
+    } else scalarAmounts[scalar!] = (scalarAmounts[scalar!] ?? 0n) + amount
+  }
+  for (const [field, amount] of Object.entries(scalarAmounts)) result[field] = Number(money(amount))
+  return result
+}
+
 export type PayrollDeductionEntry = {
   payment: string
   percentage: string
 }
 
-export type PayrollDeductions = Record<string, PayrollDeductionEntry | string | number | undefined> & {
+export type PayrollDeductions = Record<string, PayrollDeductionEntry | string | number | Array<Record<string, string | number>> | undefined> & {
   eps?: PayrollDeductionEntry
   pension?: PayrollDeductionEntry
   eps_type_law_deductions_id?: number
@@ -63,6 +192,8 @@ export type PayrollDeductions = Record<string, PayrollDeductionEntry | string | 
 }
 
 export interface PayrollInput {
+  epsTypeLawDeductionsId?: number
+  pensionTypeLawDeductionsId?: number
   period: string
   startDate: string
   endDate: string
@@ -96,6 +227,15 @@ export const VERIFIED_CONCEPTS = [
   'transportation_allowance',
   'eps',
   'pension',
+  'solidarity',
+  'subsistence',
+  'labor_union',
+  'sanctions',
+  'loan',
+  'orders',
+  'third_party_payment_deduction', 'advance', 'other_deduction', 'other_deductions',
+  'voluntary', 'voluntary_pension', 'withholding', 'withholding_at_source',
+  'garnishment', 'tax_liens', 'afc', 'cooperative', 'supplementary_plan', 'education', 'refund_deduction', 'debt',
   'overtime_day',
   'overtime_night',
   'vacation_paid',
@@ -203,7 +343,8 @@ export function validatePayroll(
       errors.push('Hay conceptos pendientes de integración con NextPyme.')
     if (
       state.lines.some((l: PayrollLine) =>
-        ['eps', 'pension'].includes(l.mapping ?? l.concept)
+        ['third_party_payments', 'advances', 'refund'].includes(l.mapping ?? l.concept) ? false :
+        ((l.mapping ?? l.concept) in payrollLawDeductionFields || Boolean(payrollStructuredDeductionKind(l.mapping ?? l.concept)) || Boolean(payrollArrayDeductionKind(l.mapping ?? l.concept)) || Boolean(payrollScalarDeductionField(l.mapping ?? l.concept)))
           ? l.kind !== 'deduction'
           : VERIFIED_CONCEPTS.includes(l.mapping ?? l.concept) &&
             l.kind !== 'accrued',
@@ -212,18 +353,19 @@ export function validatePayroll(
       errors.push('La naturaleza de un concepto es incorrecta.')
     for (const line of state.lines as PayrollLine[]) {
       errors.push(...overtimeErrors(line, state.period))
+      errors.push(...payrollStructuredDeductionErrors(line))
+      errors.push(...payrollValueDeductionErrors(line))
       try {
         if (cents(line.quantity) < 0n) errors.push('Cantidad inválida.')
         if (line.percentage !== undefined && cents(line.percentage) > 10000n)
           errors.push('Porcentaje fuera de rango.')
         if (
           transmission &&
-          ['eps', 'pension'].includes(line.mapping ?? line.concept) &&
-          cents(line.amount) > 0n &&
-          cents(line.percentage ?? '0') === 0n
+          (line.mapping ?? line.concept) in payrollLawDeductionFields &&
+          !Number.isSafeInteger(line.typeLawDeductionsId ?? ((line.mapping ?? line.concept) === 'eps' ? state.epsTypeLawDeductionsId : (line.mapping ?? line.concept) === 'pension' ? state.pensionTypeLawDeductionsId : undefined))
         )
           errors.push(
-            'Completa el porcentaje de salud y pensión antes de transmitir.',
+            'Selecciona el tipo de deducción de ley.',
           )
         if (
           transmission &&
@@ -236,7 +378,7 @@ export function validatePayroll(
         if (
           transmission &&
           ['disability'].includes(line.mapping ?? line.concept) &&
-          (line.type === undefined || line.type <= 0)
+          (!Number.isSafeInteger(line.type) || line.type! <= 0)
         )
           errors.push('Completa el tipo de incapacidad.')
       } catch {
@@ -482,8 +624,9 @@ export function buildPayrollPayload(
         worked_days: money(cents(line.quantity)),
       })
     } else {
+      if (key in payrollLawDeductionFields || payrollStructuredDeductionKind(key) || payrollArrayDeductionKind(key) || payrollScalarDeductionField(key)) continue
       const previous = deductions[key]
-      const previousEntry = typeof previous === 'object' && previous !== null ? previous : undefined
+      const previousEntry = typeof previous === 'object' && previous !== null && !Array.isArray(previous) ? previous : undefined
       if (
         previousEntry &&
         previousEntry.percentage !== money(cents(line.percentage ?? '0'))
@@ -500,22 +643,11 @@ export function buildPayrollPayload(
     }
   }
   const normalizedDeductions: PayrollDeductions = {
-    ...deductions,
-    ...(deductions.eps
-      ? {
-          eps_type_law_deductions_id: 1,
-          eps_deduction: Number(money(cents(deductions.eps.payment))),
-        }
-      : {}),
-    ...(deductions.pension
-      ? {
-          pension_type_law_deductions_id: 2,
-          pension_deduction: Number(money(cents(deductions.pension.payment))),
-        }
-      : {}),
-    ...(deductions.eps || deductions.pension
-      ? { deductions_total: Number(money(deductionsTotal)) }
-      : {}),
+    ...Object.fromEntries(Object.entries(deductions).filter(([key]) => !(key in payrollLawDeductionFields))),
+    ...buildPayrollLawDeductions(state.lines, state),
+    ...buildPayrollStructuredDeductions(state.lines),
+    ...buildPayrollValueDeductions(state.lines),
+    deductions_total: Number(money(deductionsTotal)),
   }
 
   return {

@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { MarketingHeader, MarketingFooter } from '../components/MarketingShell'
 import { WHATSAPP_DEMO_HREF } from '../constants/contact'
 import { MARKETING_FAQS } from '../marketing/content'
 import { BILLING_PLANS, PAYROLL_PLAN } from '../marketing/catalog'
 import { ComplianceCombos } from '../components/PortfolioPricing'
 import './SolutionLanding.css'
+import PricingPeriodToggle from '../components/PricingPeriodToggle'
+import { periodicPrice, type PricingPeriod } from '../marketing/pricingPeriod'
 
 type IconName = 'invoice' | 'people' | 'gear' | 'shield' | 'support' | 'bolt' | 'growth'
 function SolutionIcon({ name }: { name: IconName }) {
@@ -27,20 +30,25 @@ const benefits: { icon: IconName; title: string; description: string }[] = [
 ]
 
 export default function SolutionLanding() {
+  const [period, setPeriod] = useState<PricingPeriod>('month')
+  const billingPrice = periodicPrice(BILLING_PLANS[0].amount, period)
+  const payrollPrice = periodicPrice(PAYROLL_PLAN.amount, period)
+  const automationPrice = periodicPrice(35000, period, 'month')
   return <div className="solution-landing">
     <MarketingHeader home />
 
     <main id="contenido">
       <section className="solution-plans" aria-labelledby="solution-title">
         <div className="solution-intro"><span className="solution-eyebrow">Facturación · Nómina · Contabilidad</span><h1 id="solution-title">Elige tu solución <span>JARVIS</span></h1><p>Factura ante la DIAN, envía tu nómina electrónica o agiliza la causación en Siigo. Elige lo que necesita tu negocio; te acompañamos a ponerlo en marcha.</p></div>
+        <PricingPeriodToggle period={period} onChange={setPeriod} />
         <div className="solution-cards" id="precios">
           <article className="solution-card solution-card--featured" aria-labelledby="billing-title">
             <header className="solution-card__heading"><SolutionIcon name="invoice" /><h2 id="billing-title">Facturación<br />Electrónica</h2></header>
             <p className="solution-card__description">Para emitir tus facturas y documentos electrónicos ante la DIAN.</p>
             <div className="solution-card__body">
-              <p className="solution-card__integration">Valor anual</p>
-              <p className="solution-price">{BILLING_PLANS[0].price}<span>/año</span></p>
-              <p className="solution-card__terms">Valores en pesos colombianos (COP)</p>
+              <p className="solution-card__integration">{billingPrice.label}</p>
+              <p className="solution-price">{billingPrice.price}<span>{billingPrice.suffix}</span></p>
+              <p className="solution-card__terms">{billingPrice.terms}</p>
               <ul className="solution-features">
                 <li><strong className="solution-highlight">50 documentos en tu primera inscripción</strong></li>
                 <li>Emisión y envío de facturas</li><li><strong>Certificado digital incluido</strong></li><li>Acompañamiento personalizado</li>
@@ -53,9 +61,9 @@ export default function SolutionLanding() {
             <header className="solution-card__heading"><SolutionIcon name="people" /><h2 id="payroll-title">Nómina<br />Electrónica</h2></header>
             <p className="solution-card__description">Para generar y enviar la nómina electrónica de tus empleados a la DIAN.</p>
             <div className="solution-card__body">
-              <p className="solution-card__integration">Valor anual</p>
-              <p className="solution-price">{PAYROLL_PLAN.price}<span>/año</span></p>
-              <p className="solution-card__terms">Valores en pesos colombianos (COP)</p>
+              <p className="solution-card__integration">{payrollPrice.label}</p>
+              <p className="solution-price">{payrollPrice.price}<span>{payrollPrice.suffix}</span></p>
+              <p className="solution-card__terms">{payrollPrice.terms}</p>
               <ul className="solution-features"><li><strong>Hasta 2 empleados</strong></li><li>Generación y envío a la DIAN</li><li><strong>Certificado digital incluido</strong></li><li>Recargas de empleados disponibles</li><li>Acompañamiento personalizado</li></ul>
               <Link className="solution-button solution-card__cta" to="/nomina-electronica" aria-label="Conocer más sobre nómina electrónica">Conocer más</Link>
             </div>
@@ -65,15 +73,15 @@ export default function SolutionLanding() {
             <p className="solution-card__description">Para llevar la información de la DIAN a tu operación contable en Siigo.</p>
             <div className="solution-card__body">
               <p className="solution-card__integration">Integración con Siigo</p>
-              <p className="solution-price">$35.000<span>/mes</span></p>
-              <p className="solution-card__terms">Plan inicial · Pago mensual en COP</p>
+              <p className="solution-price">{automationPrice.price}<span>{automationPrice.suffix}</span></p>
+              <p className="solution-card__terms">Plan inicial · {automationPrice.terms}</p>
               <ul className="solution-features"><li><strong>Carga de información directa desde la DIAN</strong></li><li>Generación de PDF de la DIAN</li><li>RADIAN masivo (carga por Excel y CUFE)</li><li>Acompañamiento en la causación</li></ul>
               <Link className="solution-button solution-button--outline solution-card__cta" to="/siigo" aria-label="Conocer más sobre causación automática">Conocer más</Link>
             </div>
           </article>
         </div>
         <p className="solution-price-note">Facturación, nómina y combos con valor anual. Valores en pesos colombianos (COP). Facturación regular: 25 documentos incluidos; los 50 de obsequio aplican solo en la primera inscripción.</p>
-        <ComplianceCombos />
+        <ComplianceCombos period={period} />
       </section>
 
       <section className="solution-benefits" id="acompanamiento" aria-label="Beneficios de JARVIS">{benefits.map(benefit => <div key={benefit.title}><SolutionIcon name={benefit.icon} /><p><strong>{benefit.title}</strong><span>{benefit.description}</span></p></div>)}</section>

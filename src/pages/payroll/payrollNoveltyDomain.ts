@@ -58,12 +58,17 @@ export function payrollNoveltyLine(
     interestPayment?: string
     overtimeType?: 'normal' | 'night' | 'holiday'
     overtimeSurchargeId?: number
+    typeLawDeductionsId?: number
+    description?: string
+    publicSanction?: string
+    privateSanction?: string
   },
 ): PayrollLine {
   const bounds = payrollNoveltyDateBounds(state.period)
   if ([input.startDate, input.endDate].some(date => date && (date < bounds.min || date > bounds.max)))
     throw new Error('Las fechas de la novedad deben estar dentro del mes de la nómina.')
-  if (cents(input.amount) <= 0n || cents(input.quantity) <= 0n)
+  const zeroLegalDeduction = concept.kind === 'deduction' && ['eps', 'pension', 'solidarity', 'subsistence'].includes(concept.code) && Number.isSafeInteger(input.typeLawDeductionsId) && input.typeLawDeductionsId! > 0
+  if ((!zeroLegalDeduction && cents(input.amount) <= 0n) || cents(input.quantity) <= 0n)
     throw new Error('La cantidad y el valor deben ser mayores que cero.')
   const line: PayrollLine = {
     ...input,

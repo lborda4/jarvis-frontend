@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   payrollService,
   type Employee,
@@ -9,6 +9,13 @@ import {
   totals,
   validatePayroll,
   VERIFIED_CONCEPTS,
+  payrollLawDeductionFields,
+  payrollStructuredDeductionKind,
+  payrollStructuredDeductionErrors,
+  payrollArrayDeductionKind,
+  payrollScalarDeductionField,
+  cents,
+  money,
   type PayrollLine,
 } from '../../utils/payrollDomain'
 import { blankPayroll, currency, employeeName } from './payrollDefaults'
@@ -57,6 +64,35 @@ export default function PayrollEditor({
     data.parameters.find((p) => p.validFrom <= state.startDate)?.data
   const concepts = parameters?.concepts ?? []
   const selectedConcept = concepts.find((c) => c.code === concept)
+  const structuredDeduction = adding === 'deduction' ? payrollStructuredDeductionKind(selectedConcept?.code.startsWith('internal_') ? selectedConcept.category : selectedConcept?.code ?? '') : undefined
+  const deductionKey = selectedConcept?.code.startsWith('internal_') ? selectedConcept.category : selectedConcept?.code ?? ''
+  const valueDeduction = adding === 'deduction' && Boolean(payrollArrayDeductionKind(deductionKey) || payrollScalarDeductionField(deductionKey))
+  const otherDeduction = valueDeduction && payrollArrayDeductionKind(deductionKey) === 'other_deductions'
+  const [deductionPercentage, setDeductionPercentage] = useState('')
+  const [description, setDescription] = useState('')
+  const [publicSanction, setPublicSanction] = useState('')
+  const [privateSanction, setPrivateSanction] = useState('')
+  const legalDeduction = adding === 'deduction' && (selectedConcept?.code.startsWith('internal_') ? selectedConcept.category : selectedConcept?.code ?? '') in payrollLawDeductionFields
+  const [lawType, setLawType] = useState<number | ''>('')
+  const [lawOptions, setLawOptions] = useState<{ id: number; name: string }[]>([])
+  const [lawLoading, setLawLoading] = useState(false)
+  const [lawError, setLawError] = useState('')
+  const [lawAttempt, setLawAttempt] = useState(0)
+  useEffect(() => {
+    setLawType('')
+    if (!legalDeduction) return
+    let active = true
+    setLawLoading(true)
+    setLawOptions([])
+    setLawError('')
+    void payrollService.lawDeductions().then(rows => {
+      if (!active) return
+      if (!rows.length) throw new Error('Catálogo vacío')
+      setLawOptions(rows)
+    }).catch(() => { if (active) setLawError('No pudimos cargar los tipos de deducción de ley.') })
+      .finally(() => { if (active) setLawLoading(false) })
+    return () => { active = false }
+  }, [legalDeduction, concept, lawAttempt])
   let total = { accrued: '0', deductions: '0', net: '0' }
   try {
     total = totals(state.lines)
@@ -88,6 +124,15 @@ export default function PayrollEditor({
   }
   const add = () => {
     if (!selectedConcept) return
+    if (legalDeduction && (lawLoading || lawError || !lawOptions.some(row => row.id === lawType))) {
+      setErrors(['Selecciona un tipo de deducción de ley del catálogo.'])
+      return
+    }
+    let selectedAmount = amount
+    if (structuredDeduction === 'sanctions') {
+      try { selectedAmount = money(cents(publicSanction || '0') + cents(privateSanction || '0')) }
+      catch { setErrors(['Revisa los valores de las sanciones.']); return }
+    }
     const line: PayrollLine = {
       id: crypto.randomUUID(),
       concept,
@@ -95,9 +140,12 @@ export default function PayrollEditor({
         ? selectedConcept.category
         : selectedConcept.code,
       kind: selectedConcept.kind,
-      quantity: selectedConcept.code === 'salary' ? state.workedDays : quantity,
-      amount,
-      percentage: selectedConcept.percentage || '0',
+      quantity: selectedConcept.code === 'salary' ? state.workedDays : legalDeduction || structuredDeduction || valueDeduction ? '1' : quantity,
+      ...(legalDeduction ? { typeLawDeductionsId: Number(lawType) } : {}),
+      amount: selectedAmount,
+      percentage: structuredDeduction === 'labor_union' ? deductionPercentage : selectedConcept.percentage || '0',
+      ...(structuredDeduction === 'orders' || otherDeduction ? { description: description.trim() } : {}),
+      ...(structuredDeduction === 'sanctions' ? { publicSanction, privateSanction } : {}),
       manual: true,
       ...(['Incapacidades', 'Licencias', 'Vacaciones'].includes(
         selectedConcept.category,
@@ -107,6 +155,8 @@ export default function PayrollEditor({
     }
     try {
       totals([line])
+      const validation = payrollStructuredDeductionErrors(line)
+      if (validation.length) { setErrors(validation); return }
     } catch {
       setErrors(['Revisa el valor de la novedad.'])
       return
@@ -488,7 +538,13 @@ export default function PayrollEditor({
                   ))}
               </select>
             </Field>
-            <Field label="Cantidad / Días / Horas">
+            {legalDeduction ? <Field label="Tipo de deducción de ley">
+              <select aria-label="Tipo de deducción de ley" value={lawType} disabled={lawLoading || Boolean(lawError)} onChange={event => setLawType(event.target.value === '' ? '' : Number(event.target.value))}>
+                <option value="">{lawLoading ? 'Cargando tipos…' : 'Selecciona el tipo de deducción'}</option>
+                {lawOptions.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
+              </select>
+              {lawError && <span role="alert">{lawError} <button type="button" className="payroll__link" onClick={() => setLawAttempt(value => value + 1)}>Reintentar</button></span>}
+            </Field> : !structuredDeduction && !valueDeduction && <Field label="Cantidad / Días / Horas">
               <input
                 type="number"
                 min="0"
@@ -501,13 +557,16 @@ export default function PayrollEditor({
                 readOnly={selectedConcept?.code === 'salary'}
                 onChange={(e) => setQuantity(e.target.value)}
               />
-            </Field>
+            </Field>}
             {selectedConcept?.factor && (
               <Field label="Factor total">
                 <input readOnly value={selectedConcept.factor} />
               </Field>
             )}
-            <Field label="Valor liquidado">
+            {structuredDeduction === 'sanctions' ? <>
+              <Field label="Sanción pública"><PayrollMoneyInput aria-label="Valor de la sanción pública" value={publicSanction} onValueChange={setPublicSanction} /></Field>
+              <Field label="Sanción privada"><PayrollMoneyInput aria-label="Valor de la sanción privada" value={privateSanction} onValueChange={setPrivateSanction} /></Field>
+            </> : <Field label="Valor liquidado">
               <PayrollMoneyInput
                 min="0"
                 step="0.01"
@@ -516,7 +575,10 @@ export default function PayrollEditor({
                   setAmount(value)
                 }}
               />
-            </Field>
+            </Field>}
+            {structuredDeduction === 'labor_union' && <Field label="Porcentaje de aporte sindical (%)"><input aria-label="Porcentaje de aporte sindical" type="number" min="0" max="100" step="0.01" value={deductionPercentage} onChange={event => setDeductionPercentage(event.target.value)} /></Field>}
+            {structuredDeduction === 'orders' && <Field label="Descripción de la libranza"><input aria-label="Descripción de la libranza" value={description} onChange={event => setDescription(event.target.value)} /></Field>}
+            {otherDeduction && <Field label="Descripción (opcional)"><input aria-label="Descripción de la deducción" value={description} onChange={event => setDescription(event.target.value)} /></Field>}
             {selectedConcept &&
               ['Incapacidades', 'Licencias', 'Vacaciones'].includes(
                 selectedConcept.category,

@@ -3,9 +3,9 @@ import { defaultConcepts } from './payrollDefaults'
 import { payrollDeductionCategories, payrollDeductionCategory } from './payrollDeductionCategories'
 
 it('separa salud, pensión y solidaridad sin perder las otras deducciones existentes', () => {
-  for (const code of ['eps', 'pension', 'solidarity'])
+  for (const code of ['eps', 'pension', 'solidarity', 'subsistence'])
     expect(payrollDeductionCategory(defaultConcepts.find(item => item.code === code))).toBe('Seguridad social')
-  for (const code of ['subsistence', 'withholding', 'loan', 'other_deduction'])
+  for (const code of ['withholding', 'loan', 'other_deduction'])
     expect(payrollDeductionCategory(defaultConcepts.find(item => item.code === code))).toBe('Otras deducciones')
 })
 

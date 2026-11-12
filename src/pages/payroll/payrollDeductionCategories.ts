@@ -9,6 +9,7 @@ export const payrollSocialDeductions = [
   { code: 'eps', label: 'Fondo de salud' },
   { code: 'pension', label: 'Fondo de pensión' },
   { code: 'solidarity', label: 'Fondo de solidaridad pensional' },
+  { code: 'subsistence', label: 'Fondo de subsistencia' },
 ] as const
 export type PayrollSocialDeduction = typeof payrollSocialDeductions[number]['code']
 

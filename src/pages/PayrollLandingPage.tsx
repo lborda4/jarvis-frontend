@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { MarketingFooter, MarketingHeader } from '../components/MarketingShell'
 import { buildWhatsappHref } from '../constants/contact'
@@ -6,6 +6,8 @@ import { applyMarketingSeo } from '../marketing/seo'
 import { PAYROLL_PLAN } from '../marketing/catalog'
 import { ComplianceCombos, PayrollTopUps } from '../components/PortfolioPricing'
 import './PayrollLandingPage.css'
+import PricingPeriodToggle from '../components/PricingPeriodToggle'
+import { periodicPrice, type PricingPeriod } from '../marketing/pricingPeriod'
 
 const planHref = buildWhatsappHref(`Hola, me interesa el plan anual de nómina electrónica JARVIS para hasta 2 empleados por ${PAYROLL_PLAN.price} COP al año`)
 const advisorHref = buildWhatsappHref('Hola, quiero orientación sobre la nómina electrónica de JARVIS para mi empresa')
@@ -28,6 +30,8 @@ const faqs = [
 ]
 
 export default function PayrollLandingPage() {
+  const [period, setPeriod] = useState<PricingPeriod>('month')
+  const price = periodicPrice(PAYROLL_PLAN.amount, period)
   const { hash } = useLocation()
 
   useEffect(() => {
@@ -55,9 +59,11 @@ export default function PayrollLandingPage() {
           </div>
         </div>
         <aside className="payroll-landing__plan" id="precios" aria-labelledby="payroll-plan-title">
-          <span className="solution-eyebrow">Pago anual</span>
+          <PricingPeriodToggle period={period} onChange={setPeriod} />
+          <span className="solution-eyebrow">{price.label}</span>
           <h2 id="payroll-plan-title">Nómina electrónica básica</h2>
-          <p className="payroll-landing__price">{PAYROLL_PLAN.price} <span>COP / año</span></p>
+          <p className="payroll-landing__price">{price.price} <span>COP {price.suffix}</span></p>
+          <p className="payroll-landing__help">{price.terms}</p>
           <p className="payroll-landing__capacity">Hasta 2 empleados</p>
           <ul><li>Generación y envío a la DIAN</li><li>Certificado digital incluido</li><li>Recargas de empleados disponibles</li><li>Acompañamiento personalizado</li></ul>
           <a className="solution-button" href={planHref} target="_blank" rel="noopener noreferrer">Quiero este plan</a>
@@ -66,7 +72,7 @@ export default function PayrollLandingPage() {
       </section>
 
       <PayrollTopUps />
-      <ComplianceCombos />
+      <ComplianceCombos period={period} />
 
       <section className="payroll-landing__workflow" id="como-funciona" aria-labelledby="payroll-workflow-title">
         <div><span className="solution-eyebrow">Del registro al envío</span><h2 id="payroll-workflow-title">Un proceso que puedes seguir.</h2><p>Trabaja la información de cada periodo desde un mismo lugar, con una revisión antes del envío.</p></div>

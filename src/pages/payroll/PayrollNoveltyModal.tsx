@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { payrollService, type Concept, type PayrollDetail, type PayrollState } from '../../services/payrollService'
 import { isPayrollOvertime } from '../../utils/payrollOvertime'
-import { validatePayroll, type PayrollLine } from '../../utils/payrollDomain'
+import { cents, money, payrollArrayDeductionKind, payrollScalarDeductionField, payrollStructuredDeductionKind, validatePayroll, type PayrollLine } from '../../utils/payrollDomain'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
 import { currency, employeeName } from './payrollDefaults'
 import { Field, Modal } from './PayrollPage'
@@ -32,16 +32,33 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
     eps: initial?.concept === 'eps' ? initial.amount : '',
     pension: initial?.concept === 'pension' ? initial.amount : '',
     solidarity: initial?.concept === 'solidarity' ? initial.amount : '',
+    subsistence: initial?.concept === 'subsistence' ? initial.amount : '',
   })
-  const [fspPercentage, setFspPercentage] = useState(initial?.concept === 'solidarity' ? initial.percentage ?? '' : '')
+  const [socialTypes, setSocialTypes] = useState<Record<PayrollSocialDeduction, number | ''>>({
+    eps: initial?.concept === 'eps' ? initial.typeLawDeductionsId ?? detail.state.epsTypeLawDeductionsId ?? '' : '',
+    pension: initial?.concept === 'pension' ? initial.typeLawDeductionsId ?? detail.state.pensionTypeLawDeductionsId ?? '' : '',
+    solidarity: initial?.concept === 'solidarity' ? initial.typeLawDeductionsId ?? '' : '',
+    subsistence: initial?.concept === 'subsistence' ? initial.typeLawDeductionsId ?? '' : '',
+  })
+  const [lawOptions, setLawOptions] = useState<{ id: number; name: string; code?: string | null }[]>([])
+  const [lawLoading, setLawLoading] = useState(false)
+  const [lawError, setLawError] = useState('')
+  const [lawAttempt, setLawAttempt] = useState(0)
   const [code, setCode] = useState(initial?.concept ?? '')
   const [quantity, setQuantity] = useState(initial?.quantity ?? '')
   const [salaryDays, setSalaryDays] = useState(initial?.concept === 'salary' ? initial.quantity : detail.state.workedDays)
   const [amount, setAmount] = useState(initial?.amount ?? '')
   const [percentage, setPercentage] = useState(initial?.percentage ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [publicSanction, setPublicSanction] = useState(initial?.publicSanction ?? '')
+  const [privateSanction, setPrivateSanction] = useState(initial?.privateSanction ?? '')
   const [paymentNS, setPaymentNS] = useState(initial?.paymentNS ?? '')
   const [interestPayment, setInterestPayment] = useState(initial?.interestPayment ?? '')
   const [disabilityType, setDisabilityType] = useState<number | ''>(initial?.type ?? '')
+  const [disabilityOptions, setDisabilityOptions] = useState<{ id: number; name: string; code?: string | null }[]>([])
+  const [disabilityLoading, setDisabilityLoading] = useState(false)
+  const [disabilityError, setDisabilityError] = useState('')
+  const [disabilityAttempt, setDisabilityAttempt] = useState(0)
   const [startDate, setStartDate] = useState(initial?.startDate ?? detail.state.startDate)
   const [endDate, setEndDate] = useState(initial?.endDate ?? detail.state.endDate)
   const [nonWorkingDays, setNonWorkingDays] = useState(initial?.nonWorkingDays ?? '0')
@@ -63,11 +80,31 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
   const locked = busy || saving
   const salaryRows = kind === 'accrued' && category === 'Salario' && !editing
   const fixedSalary = kind === 'accrued' && category === 'Salario' && (!editing || editing.concept === 'salary')
-  const selectedCode = fixedSalary ? 'salary' : code
+  const disability = kind === 'accrued' && category === 'Incapacidades'
+  const selectedCode = fixedSalary ? 'salary' : disability ? 'disability' : code
   const concept = fixedSalary
     ? concepts.find(item => item.code === 'salary' && item.active) ?? (editing?.concept === 'salary' ? findConcept('salary') : undefined)
-    : findConcept(code)
+    : disability ? concepts.find(item => item.code === 'disability' && item.active && item.kind === 'accrued') ?? (editing?.concept === 'disability' ? findConcept('disability') : undefined) : findConcept(code)
   const socialRows = kind === 'deduction' && deductionCategory === 'Seguridad social'
+  const structuredDeduction = kind === 'deduction' && concept ? payrollStructuredDeductionKind(concept.code.startsWith('internal_') ? concept.category : concept.code) : undefined
+  const deductionKey = concept?.code.startsWith('internal_') ? concept.category : concept?.code ?? ''
+  const valueDeduction = kind === 'deduction' && Boolean(payrollArrayDeductionKind(deductionKey) || payrollScalarDeductionField(deductionKey))
+  const otherDeduction = valueDeduction && payrollArrayDeductionKind(deductionKey) === 'other_deductions'
+  useEffect(() => {
+    if (!socialRows) return
+    let active = true
+    setLawLoading(true)
+    setLawError('')
+    setLawOptions([])
+    void payrollService.lawDeductions().then(rows => {
+      if (!active) return
+      if (!rows.length) throw new Error('Catálogo vacío')
+      setLawOptions(rows)
+    }).catch(() => {
+      if (active) setLawError('No pudimos cargar los tipos de deducción de ley. Intenta nuevamente.')
+    }).finally(() => { if (active) setLawLoading(false) })
+    return () => { active = false }
+  }, [socialRows, lawAttempt])
   const choices = concepts.filter(item => item.active && item.kind === kind &&
     (kind === 'deduction' ? payrollDeductionCategory(item) === deductionCategory : payrollIncomeCategory(item) === category) &&
     (!salaryRows || !isPayrollSalaryAllowance(item)))
@@ -75,6 +112,21 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
   const overtimeCode = concept ? concept.code.startsWith('internal_') ? concept.category : concept.code : ''
   const overtime = isPayrollOvertime({ concept: overtimeCode })
   const activeOvertimeMaster = overtimeOptions.find(row => row.id === selectedOvertimeSurchargeId) ?? null
+  useEffect(() => {
+    if (!disability) return
+    let active = true
+    setDisabilityLoading(true)
+    setDisabilityError('')
+    setDisabilityOptions([])
+    void payrollService.disabilityTypes().then(rows => {
+      if (!active) return
+      if (!rows.length) throw new Error('Catálogo vacío')
+      setDisabilityOptions(rows)
+    }).catch(() => {
+      if (active) setDisabilityError('No pudimos cargar los tipos de incapacidad. Intenta nuevamente.')
+    }).finally(() => { if (active) setDisabilityLoading(false) })
+    return () => { active = false }
+  }, [disability, disabilityAttempt])
   useEffect(() => {
     if (!overtime) return
     let active = true
@@ -108,11 +160,14 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
     setSalaryDays(detail.state.workedDays)
     setAmount('')
     setPercentage('')
+    setDescription('')
+    setPublicSanction('')
+    setPrivateSanction('')
     setPaymentNS('')
     setInterestPayment('')
     setDisabilityType('')
-    setSocialAmounts({ eps: '', pension: '', solidarity: '' })
-    setFspPercentage('')
+    setSocialAmounts({ eps: '', pension: '', solidarity: '', subsistence: '' })
+    setSocialTypes({ eps: '', pension: '', solidarity: '', subsistence: '' })
     setAllowanceQuantity('')
     setAllowanceAmount('')
     setStartDate(detail.state.startDate)
@@ -129,20 +184,27 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
     setSaving(true)
     setError('')
     try {
+      if (disability && (disabilityLoading || disabilityError || !disabilityOptions.some(row => row.id === disabilityType)))
+        throw new Error('Selecciona un tipo de incapacidad de la tabla maestra.')
       let next = detail.state
-      const entries: { concept: Concept; quantity: string; amount: string; primary: boolean; percentage?: string }[] = []
+      if (structuredDeduction === 'labor_union' && percentage === '') throw new Error('Ingresa el porcentaje del aporte sindical.')
+      const selectedAmount = structuredDeduction === 'sanctions' ? money(cents(publicSanction || '0') + cents(privateSanction || '0')) : amount
+      const entries: { concept: Concept; quantity: string; amount: string; primary: boolean; percentage?: string; typeLawDeductionsId?: number }[] = []
       if (socialRows) {
+        if (lawLoading || lawError) throw new Error('Espera a que cargue el catálogo de deducciones de ley.')
         for (const social of payrollSocialDeductions) {
           const socialAmount = socialAmounts[social.code]
-          if (!socialAmount) continue
+          const socialType = socialTypes[social.code]
+          if (socialAmount === '' && socialType === '') continue
+          if (socialAmount === '') throw new Error(`Ingresa el valor de ${social.label.toLowerCase()}.`)
+          if (!lawOptions.some(row => row.id === socialType)) throw new Error(`Selecciona el tipo de deducción para ${social.label.toLowerCase()}.`)
           const configured = concepts.find(item => item.code === social.code && item.active && item.kind === 'deduction') ??
             (editing?.concept === social.code ? findConcept(social.code) : undefined)
           if (!configured) throw new Error(`Selecciona un concepto activo para ${social.label.toLowerCase()}.`)
-          if (social.code === 'solidarity' && !fspPercentage) throw new Error('Ingresa el porcentaje FSP del fondo de solidaridad pensional.')
           entries.push({ concept: configured, quantity: editing?.concept === social.code ? editing.quantity : '1', amount: socialAmount,
-            primary: editing?.concept === social.code, percentage: social.code === 'solidarity' ? fspPercentage : editing?.concept === social.code ? editing.percentage : undefined })
+            primary: editing?.concept === social.code, typeLawDeductionsId: Number(socialType) })
         }
-      } else if (concept && (!fixedSalary || amount)) entries.push({ concept, quantity: dated ? payrollNoveltyDateQuantity(startDate, endDate, vacation ? nonWorkingDays : '0') : selectedQuantity, amount, primary: true })
+      } else if (concept && (!fixedSalary || amount)) entries.push({ concept, quantity: structuredDeduction || valueDeduction ? '1' : dated ? payrollNoveltyDateQuantity(startDate, endDate, vacation ? nonWorkingDays : '0') : selectedQuantity, amount: selectedAmount, primary: true })
       else if (quantity || amount) throw new Error('Selecciona el tipo de ingreso o deducción.')
       if (salaryRows && (allowanceQuantity || allowanceAmount)) {
         const allowance = findConcept(allowanceCode)
@@ -155,10 +217,13 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
           id: entry.primary && editing ? editing.id : (draftIds.current[index] ??= crypto.randomUUID()),
           quantity: entry.quantity,
           amount: entry.amount,
-          percentage: entry.percentage ?? (entry.primary ? percentage || entry.concept.percentage || '0' : '0'),
+          percentage: structuredDeduction === 'labor_union' ? percentage : entry.percentage ?? (entry.primary ? percentage || entry.concept.percentage || '0' : '0'),
+          ...(structuredDeduction === 'orders' || otherDeduction ? { description: description.trim() } : {}),
+          ...(structuredDeduction === 'sanctions' ? { publicSanction, privateSanction } : {}),
           paymentNS: code === 'service_bonus' ? paymentNS : undefined,
           interestPayment: code === 'severance' ? interestPayment : undefined,
-          type: code === 'disability' ? Number(disabilityType) || undefined : undefined,
+          type: disability ? Number(disabilityType) : undefined,
+          typeLawDeductionsId: entry.typeLawDeductionsId,
           manual: true,
           ...(dated ? { startDate, endDate } : {}),
           ...(vacation ? { nonWorkingDays } : {}),
@@ -187,7 +252,7 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
     setDeductionCategory(payrollDeductionCategory(findConcept(line.concept)))
     if (line.kind === 'deduction' && payrollSocialDeductions.some(item => item.code === line.concept)) {
       setSocialAmounts(current => ({ ...current, [line.concept]: line.amount }))
-      if (line.concept === 'solidarity') setFspPercentage(line.percentage ?? '')
+      setSocialTypes(current => ({ ...current, [line.concept]: line.typeLawDeductionsId ?? (line.concept === 'eps' ? detail.state.epsTypeLawDeductionsId : line.concept === 'pension' ? detail.state.pensionTypeLawDeductionsId : undefined) ?? '' }))
     }
     setCode(line.concept)
     setSelectedOvertimeSurchargeId(line.overtimeSurchargeId ?? '')
@@ -195,6 +260,9 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
     if (line.concept === 'salary') setSalaryDays(line.quantity)
     setAmount(line.amount)
     setPercentage(line.percentage ?? '')
+    setDescription(line.description ?? '')
+    setPublicSanction(line.publicSanction ?? '')
+    setPrivateSanction(line.privateSanction ?? '')
     setPaymentNS(line.paymentNS ?? '')
     setInterestPayment(line.interestPayment ?? '')
     setDisabilityType(line.type ?? '')
@@ -243,26 +311,44 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
       {socialRows ? <div className="payroll__social-fields">
         {payrollSocialDeductions.map(social => {
           const available = concepts.some(item => item.code === social.code && item.kind === 'deduction' && item.active) || editing?.concept === social.code
-          return <Field key={social.code} label={social.label}>
-            <span className="payroll__social-value-label">Valor</span>
-            <PayrollMoneyInput aria-label={social.label} placeholder="Ingresa el valor" value={socialAmounts[social.code]} disabled={locked || !available} onValueChange={value => setSocialAmounts(current => ({ ...current, [social.code]: value }))} />
-          </Field>
+          return <fieldset key={social.code} className="payroll__social-card" disabled={locked || !available || lawLoading || Boolean(lawError)}>
+            <legend>{social.label}{['solidarity', 'subsistence'].includes(social.code) ? ' (opcional)' : ''}</legend>
+            <Field label="Tipo de deducción de ley">
+              <select aria-label={`Tipo de deducción de ${social.label.toLowerCase()}`} value={socialTypes[social.code]} required={socialAmounts[social.code] !== ''} onChange={event => setSocialTypes(current => ({ ...current, [social.code]: event.target.value === '' ? '' : Number(event.target.value) }))}>
+                <option value="">{lawLoading ? 'Cargando tipos…' : 'Selecciona el tipo de deducción'}</option>
+                {lawOptions.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Valor de la deducción">
+              <PayrollMoneyInput aria-label={social.label} placeholder="Ingresa el valor" required={socialTypes[social.code] !== ''} value={socialAmounts[social.code]} onValueChange={value => setSocialAmounts(current => ({ ...current, [social.code]: value }))} />
+            </Field>
+          </fieldset>
         })}
-        <Field label="Porcentaje FSP (%)"><input aria-label="Porcentaje FSP (%)" type="number" min="0" max="100" step="0.01" placeholder="Ingresa el porcentaje" value={fspPercentage} disabled={locked || !concepts.some(item => item.code === 'solidarity' && item.active && item.kind === 'deduction') && editing?.concept !== 'solidarity'} onChange={event => setFspPercentage(event.target.value)} /></Field>
-      </div> : <div className={`payroll__income-fields${dated ? ' payroll__income-fields--dated' : ''}`}>
-        <Field label={kind === 'accrued' ? 'Tipo de ingreso' : 'Tipo de deducción'}>
-          {fixedSalary ? <input aria-label="Tipo de ingreso" value="Salario básico" readOnly /> : <select aria-label={kind === 'accrued' ? 'Tipo de ingreso' : 'Tipo de deducción'} value={selectedCode} disabled={locked} onChange={event => { setCode(event.target.value); setAmount(''); setPercentage('') }}>
+      </div> : <div className={`payroll__income-fields${dated || valueDeduction && !otherDeduction ? ' payroll__income-fields--dated' : ''}`}>
+        {disability ? <Field label="Tipo de incapacidad">
+          <select aria-label="Tipo de incapacidad" required value={disabilityType} disabled={locked || disabilityLoading || Boolean(disabilityError)} onChange={event => setDisabilityType(event.target.value === '' ? '' : Number(event.target.value))}>
+            <option value="">{disabilityLoading ? 'Cargando tipos de incapacidad…' : 'Selecciona el tipo de incapacidad'}</option>
+            {disabilityOptions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </Field> : <Field label={kind === 'accrued' ? 'Tipo de ingreso' : 'Tipo de deducción'}>
+          {fixedSalary ? <input aria-label="Tipo de ingreso" value="Salario básico" readOnly /> : <select aria-label={kind === 'accrued' ? 'Tipo de ingreso' : 'Tipo de deducción'} value={selectedCode} disabled={locked} onChange={event => { setCode(event.target.value); setAmount(''); setPercentage(''); setDescription(''); setPublicSanction(''); setPrivateSanction('') }}>
             <option value="">Selecciona el concepto</option>
             {choices.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
             {concept && !choices.some(item => item.code === code) && <option value={code}>{concept.name}</option>}
           </select>}
-        </Field>
-        {!dated && <Field label={category === 'Horas extras' && kind === 'accrued' ? 'Horas' : 'Días'}>
+        </Field>}
+        {!dated && !structuredDeduction && !valueDeduction && <Field label={category === 'Horas extras' && kind === 'accrued' ? 'Horas' : 'Días'}>
           <input aria-label="Cantidad de la novedad" type="number" min="0.01" max={fixedSalary ? '31' : undefined} step="0.01" placeholder="Ingresa la cantidad" value={selectedQuantity} disabled={locked} onChange={event => fixedSalary ? setSalaryDays(event.target.value) : setQuantity(event.target.value)} />
         </Field>}
-        <Field label={code === 'severance' ? 'Valor de las cesantías' : 'Valor'}>
+        {structuredDeduction === 'sanctions' ? <>
+          <Field label="Sanción pública"><PayrollMoneyInput aria-label="Valor de la sanción pública" placeholder="Ingresa el valor" value={publicSanction} disabled={locked} onValueChange={setPublicSanction} /></Field>
+          <Field label="Sanción privada"><PayrollMoneyInput aria-label="Valor de la sanción privada" placeholder="Ingresa el valor" value={privateSanction} disabled={locked} onValueChange={setPrivateSanction} /></Field>
+        </> : <Field label={code === 'severance' ? 'Valor de las cesantías' : 'Valor'}>
           <PayrollMoneyInput aria-label="Valor de la novedad" placeholder={code === 'severance' ? 'Ingresa el valor de las cesantías' : 'Ingresa el valor'} value={amount} disabled={locked} onValueChange={setAmount} />
-        </Field>
+        </Field>}
+        {structuredDeduction === 'labor_union' && <Field label="Porcentaje de aporte sindical (%)"><input aria-label="Porcentaje de aporte sindical" type="number" min="0" max="100" step="0.01" required value={percentage} disabled={locked} onChange={event => setPercentage(event.target.value)} /></Field>}
+        {structuredDeduction === 'orders' && <Field label="Descripción de la libranza"><input aria-label="Descripción de la libranza" type="text" required placeholder="Describe la libranza" value={description} disabled={locked} onChange={event => setDescription(event.target.value)} /></Field>}
+        {otherDeduction && <Field label="Descripción (opcional)"><input aria-label="Descripción de la deducción" type="text" placeholder="Describe la deducción" value={description} disabled={locked} onChange={event => setDescription(event.target.value)} /></Field>}
         {code === 'service_bonus' && <Field label="Valor no salarial">
           <PayrollMoneyInput aria-label="Valor no salarial" placeholder="Ingresa el valor no salarial" value={paymentNS} disabled={locked} onValueChange={setPaymentNS} />
         </Field>}
@@ -274,9 +360,6 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
             <PayrollMoneyInput aria-label="Valor de los intereses de cesantías" placeholder="Ingresa los intereses" value={interestPayment} disabled={locked} onValueChange={setInterestPayment} />
           </Field>
         </>}
-        {code === 'disability' && <Field label="Tipo de incapacidad">
-          <input aria-label="Tipo de incapacidad" type="number" min="1" step="1" placeholder="Ingresa el tipo" value={disabilityType} disabled={locked} onChange={event => setDisabilityType(event.target.value === '' ? '' : Number(event.target.value))} />
-        </Field>}
         {salaryRows && allowanceChoices.length > 0 && <>
           <label className="payroll__allowance-field"><span className="payroll__sr-only">Tipo de auxilio</span>
             <select aria-label="Tipo de auxilio" value={allowanceCode} disabled={locked} onChange={event => setAllowanceCode(event.target.value)}>
@@ -287,8 +370,10 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
           <label><span className="payroll__mobile-field-label">Valor del auxilio</span><PayrollMoneyInput aria-label="Valor del auxilio" placeholder="Ingresa el valor" value={allowanceAmount} disabled={locked} onValueChange={setAllowanceAmount} /></label>
         </>}
       </div>}
-      {(dated || kind === 'deduction' && !socialRows) && <div className={`payroll__grid${vacation ? '' : ' payroll__grid--two'} payroll__novelty-extra`}>
-        {kind === 'deduction' && !socialRows && <Field label="Porcentaje"><input type="number" min="0" max="100" step="0.01" value={percentage || concept?.percentage || ''} disabled={locked} onChange={event => setPercentage(event.target.value)} /></Field>}
+      {socialRows && lawError && <p className="payroll__notice payroll__notice--error" role="alert">{lawError} <button type="button" className="payroll__link" disabled={locked} onClick={() => setLawAttempt(value => value + 1)}>Reintentar</button></p>}
+      {disability && disabilityError && <p className="payroll__notice payroll__notice--error" role="alert">{disabilityError} <button type="button" className="payroll__link" disabled={locked} onClick={() => setDisabilityAttempt(value => value + 1)}>Reintentar</button></p>}
+      {(dated || kind === 'deduction' && !socialRows && !structuredDeduction && !valueDeduction) && <div className={`payroll__grid${vacation ? '' : ' payroll__grid--two'} payroll__novelty-extra`}>
+        {kind === 'deduction' && !socialRows && !structuredDeduction && !valueDeduction && <Field label="Porcentaje"><input type="number" min="0" max="100" step="0.01" value={percentage || concept?.percentage || ''} disabled={locked} onChange={event => setPercentage(event.target.value)} /></Field>}
         {dated && <><Field label="Fecha inicio"><input type="date" required min={dateBounds.min} max={dateBounds.max} value={startDate} disabled={locked} onChange={event => setStartDate(event.target.value)} /></Field><Field label="Fecha fin"><input type="date" required min={startDate >= dateBounds.min && startDate <= dateBounds.max ? startDate : dateBounds.min} max={dateBounds.max} value={endDate} disabled={locked} onChange={event => setEndDate(event.target.value)} /></Field></>}
         {vacation && <Field label="Días no hábiles"><input aria-label="Días no hábiles" type="number" required min="0" step="1" value={nonWorkingDays} disabled={locked} onChange={event => setNonWorkingDays(event.target.value)} /></Field>}
       </div>}
@@ -309,7 +394,7 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
       {error && <p className="payroll__notice payroll__notice--error" role="alert">{error}</p>}
       <div className="payroll__toolbar payroll__novelty-actions">
         {editing && <button type="button" className="payroll__button" disabled={locked} onClick={resetForm}>Cancelar edición</button>}
-        <button className="payroll__button payroll__button--primary" disabled={locked || overtime && (!selectedOvertimeSurchargeId || Boolean(overtimeError)) || socialRows && !Object.values(socialAmounts).some(value => Number(value) > 0)}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : '+ Agregar'}</button>
+        <button className="payroll__button payroll__button--primary" disabled={locked || disability && (disabilityLoading || Boolean(disabilityError) || !disabilityOptions.some(row => row.id === disabilityType)) || overtime && (!selectedOvertimeSurchargeId || Boolean(overtimeError)) || socialRows && (lawLoading || Boolean(lawError) || !Object.values(socialAmounts).some(value => value !== ''))}>{saving ? 'Guardando…' : editing ? 'Guardar cambios' : '+ Agregar'}</button>
       </div>
     </form>
     <section className="payroll__novelty-added" aria-label="Lista de novedades">

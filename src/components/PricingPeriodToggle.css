@@ -1,0 +1,5 @@
+.pricing-period { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .75rem; margin: 1.25rem 0; color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.pricing-period__options { display: inline-flex; gap: .25rem; padding: .25rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-md); background: var(--jarvis-gray-50); }
+.pricing-period__options button { min-height: var(--control-height-sm); padding: .5rem 1.25rem; border: 0; border-radius: var(--r-sm); background: var(--jarvis-transparent); color: var(--jarvis-navy); font-family: var(--font-family-base); font-size: var(--text-sm); font-weight: var(--font-weight-button); cursor: pointer; }
+.pricing-period__options button[aria-pressed='true'] { background: var(--jarvis-primary); color: var(--jarvis-white); }
+.pricing-period__options button:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
