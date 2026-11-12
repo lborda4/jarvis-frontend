@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
@@ -7,10 +7,14 @@ import { ChevronDownIcon } from './icons/SidebarIcons'
 import { PlusIcon } from './icons/ImportIcons'
 import './DashboardCreateMenu.css'
 
-export default function DashboardCreateMenu() {
+export default function DashboardCreateMenu({ variant = 'inline' }: { variant?: 'inline' | 'floating' }) {
   const { user } = useAuth()
   const setup = useIntegrationSetup()
   const detailsRef = useRef<HTMLDetailsElement>(null)
+  const panelId = useId()
+  const floating = variant === 'floating'
+  const className = `dashboard-create${floating ? ' dashboard-create--floating' : ''}`
+  const triggerContent = <><PlusIcon />{!floating && <>Crear<ChevronDownIcon /></>}</>
   const modules = companyJarvisModules(user?.company?.jarvisModules)
   const billing = setup.isJarvisCompany && modules.includes('BILLING')
   const ready = !setup.isCheckingSetup && setup.integrationMode !== 'unknown'
@@ -51,12 +55,12 @@ export default function DashboardCreateMenu() {
   }, [])
 
   if (!documents.length && !catalogs.length) {
-    return <button className="dashboard-create__trigger" type="button" disabled title="No hay opciones de creación habilitadas"><PlusIcon />Crear<ChevronDownIcon /></button>
+    return <div className={className}><button className="dashboard-create__trigger" type="button" disabled aria-label="Crear documento o catálogo" title="No hay opciones de creación habilitadas">{triggerContent}</button></div>
   }
 
-  return <details className="dashboard-create" ref={detailsRef}>
-    <summary className="dashboard-create__trigger"><PlusIcon />Crear<ChevronDownIcon /></summary>
-    <nav className="dashboard-create__panel" aria-label="Crear documentos y catálogos" onClick={event => {
+  return <details className={className} ref={detailsRef}>
+    <summary className="dashboard-create__trigger" aria-label="Crear documento o catálogo" aria-controls={panelId} title="Crear documento o catálogo">{triggerContent}</summary>
+    <nav id={panelId} className="dashboard-create__panel" aria-label="Crear documentos y catálogos" onClick={event => {
       if ((event.target as Element).closest('a') && detailsRef.current) detailsRef.current.open = false
     }}>
       {[{ title: 'Documentos electrónicos', items: documents }, { title: 'Catálogos', items: catalogs }].filter(group => group.items.length).map(group => <section className="dashboard-create__group" key={group.title}>

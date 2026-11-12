@@ -29,7 +29,7 @@ describe('Notas crédito Jarvis', () => {
     api.post.mockResolvedValue({ data: { success: true, invoice: { id: 'NC1' } } })
     await fetchJarvisCreditNotes({})
     await createJarvisCreditNote(request)
-    expect(api.post).toHaveBeenCalledWith('/integrations/jarvis/credit-notes', request)
+    expect(api.post).toHaveBeenCalledWith('/integrations/jarvis/credit-notes', request, { timeout: 120_000 })
     await fetchJarvisCreditNotes({})
     expect(api.get).toHaveBeenCalledTimes(2)
   })

@@ -24,7 +24,7 @@ export default function InvoiceNoteAction({ invoiceId, kind, className, children
       if (reason) setNotice(reason)
       else navigate(`/nota-${kind === 'debit' ? 'debito' : 'credito'}/nueva?factura=${encodeURIComponent(invoiceId)}`)
     } catch {
-      setNotice('No se pudo verificar la aceptación en RADIAN de esta factura. Intenta nuevamente antes de crear la nota.')
+      setNotice('No se pudo verificar en NextPyme la aceptación RADIAN de esta factura. Intenta nuevamente antes de crear la nota.')
     } finally {
       checkingRef.current = false
       setChecking(false)

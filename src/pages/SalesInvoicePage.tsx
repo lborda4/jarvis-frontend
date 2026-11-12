@@ -23,6 +23,10 @@ import { creditNotePrefill, resolveInvoicePaymentPrefill } from '../utils/credit
 import CreateJarvisTerceroModal from '../components/CreateJarvisTerceroModal'
 import CreateProductModal from '../components/CreateProductModal'
 import DatePicker from '../components/DatePicker'
+import InvoiceReferenceSearch from '../components/InvoiceReferenceSearch'
+import Button from '../components/Button'
+import { invoiceNoteBlockReasonByCufe } from '../services/invoiceNoteEligibility'
+import { getColombiaToday } from '../utils/colombiaDate'
 import DocumentNotice from '../components/DocumentNotice'
 import DocumentSendOverlay from '../components/DocumentSendOverlay'
 import JarvisProductSearch from '../components/JarvisProductSearch'
@@ -41,6 +45,7 @@ import {
   fetchJarvisTerceros,
   fetchJarvisTaxes,
   type JarvisCatalogItem,
+  type JarvisSalesInvoice,
 } from '../services/jarvisService'
 import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
@@ -159,6 +164,7 @@ type SubmitMode = 'save' | 'send'
 
 function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNote = false, adjustmentNote = false }: { supportDocument?: boolean; creditNote?: boolean; debitNote?: boolean; adjustmentNote?: boolean }) {
   const isNote = creditNote || debitNote || adjustmentNote
+  const automaticIssueDate = !supportDocument && !adjustmentNote
   const { isSiigoCompany } = useIntegrationSetup()
   const documentTitle = debitNote ? 'Nota débito' : adjustmentNote ? 'Nota de ajuste' : isNote ? 'Nota crédito' : supportDocument ? 'Documento soporte' : 'Factura de venta'
   const newTitle = debitNote ? 'Nueva nota débito' : adjustmentNote ? 'Nueva nota de ajuste' : isNote ? 'Nueva nota crédito' : supportDocument ? 'Nuevo documento soporte' : 'Nueva factura de venta'
@@ -210,7 +216,21 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     return () => { active = false }
   }, [isNote, debitNote, rejectionsAttempt])
   const [seze, setSeze] = useState('')
-  const [issueDate, setIssueDate] = useState(todayLocalDate)
+  const [editableIssueDate, setIssueDate] = useState(todayLocalDate)
+  const [currentDate, setCurrentDate] = useState(getColombiaToday)
+  const issueDate = automaticIssueDate ? currentDate : editableIssueDate
+  useEffect(() => {
+    if (!automaticIssueDate) return
+    const refresh = () => setCurrentDate(getColombiaToday())
+    const timer = window.setInterval(refresh, 30_000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [automaticIssueDate])
   const [dueDate, setDueDate] = useState(todayLocalDate)
   const [currency, setCurrency] = useState('COP')
   const [notes, setNotes] = useState('')
@@ -492,6 +512,39 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     return () => { cancelled = true }
   }, [supportDocument, isNote, debitNote, sourceInvoiceId, creditNote, adjustmentNote, isSiigoCompany, affectedDocumentLabel, affectedCodeLabel, partyLabel, draftId, documentKind, duplicateId])
 
+  const selectReferenceInvoice = async (invoice: JarvisSalesInvoice) => {
+    if (sourceLoading || isSubmitting) return
+    setSourceLoading(true)
+    setErrorMessage(null)
+    try {
+      const source = await fetchJarvisInvoiceDetail(invoice.id)
+      const reason = await invoiceNoteBlockReasonByCufe(source.cufe?.trim() ?? '')
+      if (reason) { setErrorMessage(reason); return }
+      const prefill = creditNotePrefill(source, taxes)
+      setBillingNumber(prefill.billingNumber); setBillingUuid(prefill.billingUuid); setBillingDate(prefill.billingDate)
+      setCurrency(prefill.request?.currency || source.currency)
+      setTaxes(prefill.taxes); setReteIcaId(prefill.reteIcaId); setReteIvaId(prefill.reteIvaId); setDiscountIsPercent(false)
+      setLines(prefill.lines.length ? prefill.lines : [createEmptyLine()])
+      setDraftSourceInvoiceId(source.id)
+      setSourceWarning('')
+      if (prefill.request) {
+        const request = prefill.request
+        if (debitNote) setGeneralDiscount(String(request.discountAmount ?? 0))
+        setSelectedCustomer({ id: `invoice:${source.id}`, document_type: request.customerDocumentType, document_number: request.customerIdentification, name: request.customerName || source.customerName })
+        setCustomerQuery(`${request.customerIdentification} — ${request.customerName || source.customerName}`)
+        setNotes(request.observations ?? ''); setHeadNote(request.headNote ?? ''); setFootNote(request.footNote ?? '')
+      } else {
+        setSelectedCustomer(null)
+        setCustomerQuery(`${source.customerIdentification} — ${source.customerName}`)
+        setNotes(''); setHeadNote(''); setFootNote('')
+        setSourceWarning('Esta factura antigua no tiene el detalle guardado. Se copiaron su número, CUFE y fecha; selecciona el cliente y completa los productos antes de enviar la nota.')
+      }
+      setFieldErrors(current => { const next = { ...current }; delete next.reference; delete next.customer; return next })
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, 'No se pudo cargar la factura o verificar su aceptación RADIAN en NextPyme.'))
+    } finally { setSourceLoading(false) }
+  }
+
   const resetForm = useCallback(() => {
     setDraftSourceInvoiceId(null)
     setGeneralDiscount('0')
@@ -647,9 +700,10 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
   }, [handleFileSelect])
 
   const validate = useCallback((): boolean => {
+    const documentDate = automaticIssueDate ? getColombiaToday() : issueDate
     const nextErrors: Record<string, string> = {}
     if (!selectedCustomer) nextErrors.customer = `Debe seleccionar un ${partyLabel.toLowerCase()}.`
-    if (!issueDate.trim()) nextErrors.issueDate = 'La fecha es obligatoria.'
+    if (!documentDate.trim()) nextErrors.issueDate = 'La fecha es obligatoria.'
     if (!isNote) {
       if (payments.some(payment => !paymentMethods.some(method => method.id === payment.methodId))) nextErrors.payment = 'Selecciona una forma de pago para cada importe. Puedes crearlas en el catálogo de formas de pago.'
       if (payments.some(payment => parseAmount(payment.amount) < 0) || Math.round(payments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0) * 100) !== Math.round(documentTotal * 100)) nextErrors.payment = 'Los importes de las formas de pago deben sumar el total del documento.'
@@ -661,7 +715,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       if (parseAmount(line.quantity) <= 0) nextErrors[`line-${index}-quantity`] = 'Cantidad inválida'
     })
     if (!isNote && isCreditPayment && !dueDate.trim()) nextErrors.dueDate = 'La fecha de vencimiento es obligatoria a crédito.'
-    if (!isNote && isCreditPayment && dueDate < issueDate) nextErrors.dueDate = 'El vencimiento no puede ser anterior a la fecha del documento.'
+    if (!isNote && isCreditPayment && dueDate < documentDate) nextErrors.dueDate = 'El vencimiento no puede ser anterior a la fecha del documento.'
     if (isMixedPayment) {
       const positive = payments.filter(payment => parseAmount(payment.amount) > 0)
       const hasCredit = positive.some(payment => paymentMethods.some(method => method.id === payment.methodId && isCreditPaymentMethod(method)))
@@ -670,14 +724,15 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     if (debitNote && (parseAmount(generalDiscount) < 0 || parseAmount(generalDiscount) > documentSubtotal + documentTax - reteIcaTax - reteIvaTax - itemRetentionsTotal)) nextErrors.generalDiscount = 'El descuento general no puede superar el valor de la nota.'
     if (isNote) {
-      if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > issueDate) nextErrors.reference = `Indica el número, ${affectedCodeLabel} y fecha del ${affectedDocumentLabel} afectado.`
+      if (!billingNumber.trim() || !/^[a-f0-9]{96}$/i.test(billingUuid.trim()) || !billingDate || billingDate > documentDate) nextErrors.reference = `Indica el número, ${affectedCodeLabel} y fecha del ${affectedDocumentLabel} afectado.`
       if (!rejectionTypes.some(reason => reason.code === reasonCode) || !reasonDescription.trim()) nextErrors.reason = 'Selecciona un motivo del catálogo y completa su descripción.'
     }
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
-  }, [dueDate, isCreditPayment, isMixedPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
+  }, [automaticIssueDate, dueDate, isCreditPayment, isMixedPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
 
   const buildRequest = useCallback((attachmentDraftId?: string) => {
+    const documentDate = automaticIssueDate ? getColombiaToday() : issueDate.trim()
     if (!selectedCustomer) throw new Error(`Debe seleccionar un ${partyLabel.toLowerCase()}.`)
     const taxesById = new Map(taxes.map((tax) => [tax.id, tax]))
     const retentions: Array<{ id: number; type: string; percentage?: number }> = []
@@ -692,7 +747,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const firstPayment = primaryPaymentForNegotiation(payments, paymentMethods, isMixedPayment)
     const methodId = isNote ? undefined : resolveJarvisPaymentMethodId(paymentMethods, firstPayment?.methodId ?? '')
     const formId = isMixedPayment ? Number(paymentForms.find(form => form.name.toLowerCase().includes('cr'))?.id ?? 2) : Number(paymentFormId)
-    const paymentDueDate = isCreditPayment ? dueDate.trim() || issueDate.trim() : issueDate.trim()
+    const paymentDueDate = isCreditPayment ? dueDate.trim() || documentDate : documentDate
     return {
       ...(attachmentDraftId ? { attachmentDraftId } : {}),
       ...(isNote ? {
@@ -700,7 +755,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         discrepancyResponseCode: Number(reasonCode), discrepancyResponseDescription: reasonDescription.trim(),
         seze: seze.trim(), sendmail: false, sendmailtome: true,
       } : {}),
-      issueDate: issueDate.trim(),
+      issueDate: documentDate,
       ...(!isNote && !supportDocument ? { sellerIds: selectedSellers.map(seller => seller.id) } : {}),
       ...(!isNote && !supportDocument ? { paymentBreakdown: buildPaymentBreakdown(payments, paymentMethods) } : {}),
       customerDocumentType: selectedCustomer.document_type,
@@ -734,7 +789,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(methodId != null && Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument])
+  }, [automaticIssueDate, currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument])
 
   const draftState = (): InvoiceDraftState => ({
     sourceInvoiceId: isNote ? sourceInvoiceId || draftSourceInvoiceId : null,
@@ -786,6 +841,10 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setIsSubmitting(true)
     setSubmitMode(mode)
     try {
+      if (isNote && !adjustmentNote) {
+        const reason = await invoiceNoteBlockReasonByCufe(billingUuid.trim())
+        if (reason) { setErrorMessage(reason); return }
+      }
       const attachment = await persistAttachment()
       const response = await (debitNote ? createJarvisDebitNote : adjustmentNote ? createJarvisSupportCreditNote : isNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest(attachment ? draftIdRef.current : undefined))
       const consecutive = response.invoice?.consecutive || response.invoice?.number
@@ -848,7 +907,15 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           <h2>{adjustmentNote ? 'Documento soporte afectado' : 'Factura afectada'} y motivo de la {documentTitle.toLowerCase()}</h2>
           <div className="ds-individual__info-grid">
             <div className="ds-individual__col">
-              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Número de {affectedDocumentLabel} *</span><input value={billingNumber} readOnly={isBillingReferenceLocked} onChange={e => setBillingNumber(e.target.value)} placeholder={`Prefijo y número del ${affectedDocumentLabel}`} /></label>
+              <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Número de {affectedDocumentLabel} *</span>{adjustmentNote
+                ? <input value={billingNumber} readOnly={isBillingReferenceLocked} onChange={e => setBillingNumber(e.target.value)} placeholder={`Prefijo y número del ${affectedDocumentLabel}`} />
+                : <InvoiceReferenceSearch value={billingNumber} readOnly={isBillingReferenceLocked} invalid={Boolean(fieldErrors.reference)} onChange={setBillingNumber} onSelect={invoice => void selectReferenceInvoice(invoice)} />}</label>
+              {!adjustmentNote && !sourceInvoiceId && draftSourceInvoiceId && <Button variant="ghost" size="sm" onClick={() => {
+                setDraftSourceInvoiceId(null); setBillingNumber(''); setBillingUuid(''); setBillingDate('')
+                setSelectedCustomer(null); setCustomerQuery(''); setLines([createEmptyLine()])
+                setReteIcaId(''); setReteIvaId(''); setGeneralDiscount('0'); setSourceWarning('')
+                setNotes(''); setHeadNote(''); setFootNote('')
+              }}>Cambiar factura</Button>}
               <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>{affectedCodeLabel} del {affectedDocumentLabel} *</span><input value={billingUuid} readOnly={isBillingReferenceLocked} onChange={e => setBillingUuid(e.target.value)} maxLength={96} placeholder={`${affectedCodeLabel} del ${affectedDocumentLabel} afectado`} /></label>
               <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Fecha del {affectedDocumentLabel} *</span><DatePicker value={billingDate} disabled={isBillingReferenceLocked} onChange={setBillingDate} invalid={Boolean(fieldErrors.reference)} /></label>
               {fieldErrors.reference && <p className="ds-individual__error" role="alert">{fieldErrors.reference}</p>}
@@ -873,7 +940,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             <div className="ds-individual__col">
               <label className={`ds-individual__field ds-individual__field--date${fieldErrors.issueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de elaboración <span className="ds-individual__required">*</span></span>
-                <DatePicker value={issueDate} onChange={(val) => { setIssueDate(val); if (!isCreditPayment) setDueDate(val) }} invalid={Boolean(fieldErrors.issueDate)} />
+                <DatePicker value={issueDate} disabled={automaticIssueDate} onChange={(val) => { setIssueDate(val); if (!isCreditPayment) setDueDate(val) }} invalid={Boolean(fieldErrors.issueDate)} />
                 {fieldErrors.issueDate && <em className="ds-individual__error">{fieldErrors.issueDate}</em>}
               </label>
 
@@ -1121,7 +1188,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
 
               <label className={`ds-individual__field ds-individual__field--due${fieldErrors.dueDate ? ' is-invalid' : ''}`}>
                 <span>Fecha de vencimiento</span>
-                <DatePicker value={dueDate} onChange={setDueDate} disabled={!isCreditPayment} minDate={issueDate} invalid={Boolean(fieldErrors.dueDate)} />
+                <DatePicker value={isCreditPayment ? dueDate : issueDate} onChange={setDueDate} disabled={!isCreditPayment} minDate={issueDate} invalid={Boolean(fieldErrors.dueDate)} />
                 {!isCreditPayment && (
                   <p className="ds-individual__hint ds-individual__hint--info">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" strokeLinecap="round" /></svg>

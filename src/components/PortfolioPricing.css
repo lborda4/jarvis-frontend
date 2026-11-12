@@ -1,0 +1,24 @@
+.portfolio-pricing { margin: 3rem 0; color: var(--jarvis-navy-deep); }
+.portfolio-pricing__intro { max-width: 720px; margin-bottom: 1.5rem; }
+.portfolio-pricing__intro h2 { margin: .5rem 0; font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.portfolio-pricing__intro p, .portfolio-pricing__card > p { color: var(--jarvis-text-muted); font-size: var(--text-md); line-height: var(--line-height-body); }
+.portfolio-pricing__intro .portfolio-pricing__eyebrow { color: var(--jarvis-primary); font-size: var(--text-sm); font-weight: var(--font-weight-label); }
+.portfolio-pricing__combos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.portfolio-pricing__card { display: flex; flex-direction: column; padding: 1.5rem; border: 1px solid var(--jarvis-primary-border); border-radius: var(--r-lg); background: var(--jarvis-white); }
+.portfolio-pricing__card h3 { margin: 0; font-size: var(--text-xl); font-weight: var(--font-weight-heading); }
+.portfolio-pricing__card .portfolio-pricing__price { margin: .5rem 0; color: var(--jarvis-navy); font-size: var(--text-price); font-weight: var(--font-weight-heading); }
+.portfolio-pricing__price span { font-size: var(--text-md); font-weight: var(--font-weight-normal); }
+.portfolio-pricing__card ul { display: grid; gap: .65rem; padding-left: 1.25rem; margin-bottom: 1.5rem; font-size: var(--text-md); line-height: var(--line-height-body); }
+.portfolio-pricing a.portfolio-pricing__action { display: block; margin-top: auto; padding: .8rem 1rem; border-radius: var(--r-md); background: var(--jarvis-primary); color: var(--jarvis-white); text-align: center; text-decoration: none; font-size: var(--text-md); font-weight: var(--font-weight-button); }
+.portfolio-pricing a.portfolio-pricing__action:hover { background: var(--jarvis-primary-hover); }
+.portfolio-pricing__topups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.portfolio-pricing a.portfolio-pricing__topup { display: grid; gap: .6rem; padding: 1.25rem; border: 1px solid var(--jarvis-gray-200); border-radius: var(--r-lg); background: var(--jarvis-white); color: var(--jarvis-navy); text-decoration: none; font-size: var(--text-md); }
+.portfolio-pricing a.portfolio-pricing__topup:hover { border-color: var(--jarvis-primary); }
+.portfolio-pricing__topup b { font-size: var(--text-xl); font-weight: var(--font-weight-heading); }
+.portfolio-pricing__topup > span { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.portfolio-pricing :is(a):focus-visible { outline: 3px solid var(--jarvis-primary); outline-offset: 4px; }
+@media (max-width: 650px) {
+  .portfolio-pricing__combos { grid-template-columns: minmax(0, 1fr); }
+  .portfolio-pricing__topups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portfolio-pricing__card { padding: 1.25rem; }
+}

@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CloseIcon, MenuIcon } from '../components/icons/SidebarIcons'
 import { applyMarketingSeo } from '../marketing/seo'
-import { BILLING_TOP_UPS, SIIGO_PLANS as PLANS, type Product, type MarketingProduct } from '../marketing/catalog'
+import { BILLING_PLANS, BILLING_TOP_UPS, SIIGO_PLANS as PLANS, type Product, type MarketingProduct } from '../marketing/catalog'
 import { BILLING_SOLUTIONS, MARKETING_FAQS, MARKETING_STEPS } from '../marketing/content'
-import { buildWhatsappHref, WHATSAPP_DEMO_HREF } from '../constants/contact'
+import { buildWhatsappHref, WHATSAPP_DEMO_HREF, CONTACT_PHONE, CONTACT_PHONE_LABEL, SALES_EMAIL, INSTAGRAM_HANDLE, INSTAGRAM_HREF } from '../constants/contact'
 import PrivacyPolicyLink from '../components/PrivacyPolicyLink'
 import './LandingPage.css'
+import { ComplianceCombos } from '../components/PortfolioPricing'
 import SolutionLanding from './SolutionLanding'
 import PayrollLandingPage from './PayrollLandingPage'
 
@@ -14,9 +15,9 @@ const DEMO_HREF = WHATSAPP_DEMO_HREF
 
 const NAV_LINKS = [
   { href: '/', label: 'Inicio' },
-  { href: '/siigo', label: 'Para Siigo' },
   { href: '/facturacion-electronica', label: 'Facturación electrónica' },
   { href: '/nomina-electronica', label: 'Nómina electrónica' },
+  { href: '/siigo', label: 'Causación con IA' },
   { href: '#contacto', label: 'Contacto' },
 ] as const
 
@@ -37,11 +38,11 @@ const PRODUCTS = {
     name: 'Facturación JARVIS',
     eyebrow: 'Emisión directa con la DIAN',
     audience: 'Quiero facturar electrónicamente',
-    description: 'Factura de venta, documento soporte, notas débito, notas crédito y eventos RADIAN: gestiona tus documentos electrónicos desde JARVIS, directamente con la DIAN y sin necesidad de tener Siigo.',
+    description: 'Factura de venta, documento soporte, notas débito, notas crédito y eventos RADIAN: gestiona tus documentos electrónicos desde JARVIS con la DIAN.',
     action: 'Quiero facturar con JARVIS',
     demo: buildWhatsappHref('Hola, quiero información sobre la facturación electrónica de JARVIS directa con la DIAN'),
     icon: 'invoice' as const,
-    features: ['Factura de venta y documento soporte', 'Notas débito, notas crédito y RADIAN', 'Plan anual o facturación ilimitada mensual'],
+    features: ['Factura de venta y documento soporte', 'Notas débito, notas crédito y RADIAN', 'Planes anuales y combos con nómina'],
   },
 } satisfies Record<Product, object>
 
@@ -256,11 +257,11 @@ function ProductChoices({ pricing = false }: { pricing?: boolean }) {
           {pricing ? (
             <>
               <p className="landing-product__price">
-                <span>Desde</span> {key === 'siigo' ? '$35.000' : '$60.000'}<small>/mes</small>
+                <span>Desde</span> {key === 'siigo' ? '$35.000' : BILLING_PLANS[0].price}<small>{key === 'siigo' ? '/mes' : '/año'}</small>
               </p>
               <p>{key === 'siigo'
                 ? 'Planes de cargue masivo a Siigo según tu volumen de documentos.'
-                : 'Facturas ilimitadas al mes. También puedes elegir el plan anual de $130.000 con 50 documentos, sin mensualidad.'}</p>
+                : '50 documentos de obsequio en la primera inscripción y 25 en la inscripción regular. También hay combos de facturación y nómina.'}</p>
             </>
           ) : (
             <>
@@ -305,41 +306,23 @@ function BillingPricing() {
   return (
     <>
       <div className="landing-billing-plans">
-        <article className="landing-billing-plan">
-          <span className="landing-product__audience">Plan anual</span>
-          <h3>Factura a tu ritmo</h3>
-          <p>Elige el plan anual y compra más documentos cuando los necesites.</p>
-          <p className="landing-billing-plan__price">$130.000 <span>/ año</span></p>
+        {BILLING_PLANS.map(plan => <article className="landing-billing-plan" key={plan.name}>
+          <span className="landing-product__audience">Valor anual</span>
+          <h3>{plan.name}</h3><p>{plan.description}</p>
+          <p className="landing-billing-plan__price">{plan.price} <span>/ año</span></p>
           <ul className="landing-product__features">
-            <li><Icon name="check" /><strong>Incluye 50 documentos electrónicos</strong></li>
-            <li><Icon name="check" />Sin pago mensual</li>
-            <li><Icon name="check" />Recargas según tu necesidad</li>
+            <li><Icon name="check" /><strong>{plan.capacity}</strong></li>
+            <li><Icon name="check" />Facturación electrónica y RADIAN incluidos</li>
+            <li><Icon name="check" />Recargas de documentos disponibles</li>
           </ul>
-          <a href={buildWhatsappHref('Hola, me interesa el plan anual de facturación electrónica JARVIS de $130.000 con 50 documentos')}
-            className="landing-btn landing-btn--ghost" target="_blank" rel="noopener noreferrer">
-            Quiero mi plan anual <Icon name="arrow" />
-          </a>
-        </article>
-        <article className="landing-billing-plan landing-billing-plan--unlimited">
-          <span className="landing-product__audience">Facturas ilimitadas</span>
-          <h3>Factura sin contar</h3>
-          <p>Una mensualidad fija para emitir todas las facturas que tu negocio necesite.</p>
-          <p className="landing-billing-plan__price">$60.000 <span>/ mes</span></p>
-          <ul className="landing-product__features">
-            <li><Icon name="check" /><strong>Facturación electrónica ilimitada</strong></li>
-            <li><Icon name="check" />Pago mensual de $60.000</li>
-            <li><Icon name="check" />Emisión directa con la DIAN</li>
-          </ul>
-          <a href={buildWhatsappHref('Hola, me interesa el plan de facturación electrónica ilimitada de JARVIS por $60.000 mensuales')}
-            className="landing-btn landing-btn--primary" target="_blank" rel="noopener noreferrer">
-            Quiero facturación ilimitada <Icon name="arrow" />
-          </a>
-        </article>
+          <a href={buildWhatsappHref(`Hola, me interesa la ${plan.name} de JARVIS por ${plan.price} COP al año: ${plan.capacity}`)} className="landing-btn landing-btn--primary" target="_blank" rel="noopener noreferrer">{plan.action}<Icon name="arrow" /></a>
+        </article>)}
       </div>
+      <ComplianceCombos />
       <div className="landing-topups" aria-labelledby="recargas-title">
         <div className="landing-topups__heading">
           <div>
-            <p className="landing-eyebrow">Para tu plan anual</p>
+            <p className="landing-eyebrow">Para tu plan por documentos</p>
             <h3 id="recargas-title">¿Necesitas más documentos?</h3>
             <p>Elige tu recarga y sigue facturando a tu ritmo.</p>
           </div>
@@ -503,7 +486,7 @@ function LandingContent({ product }: { product?: Product }) {
                   Ver planes y precios
                 </a>
               </div>
-              {product === 'billing' && <p className="landing-hero__note">Plan anual con 50 documentos por $130.000/año o facturas ilimitadas por $60.000/mes.</p>}
+              {product === 'billing' && <p className="landing-hero__note">Facturación desde {BILLING_PLANS[0].price}/año, con 50 documentos de obsequio en tu primera inscripción. Conoce también nuestros combos con nómina.</p>}
               {product === 'siigo' && <p className="landing-hero__note">Para empresas y equipos contables que ya trabajan con Siigo.</p>}
             </div>
             <HeroVisual product={product} />
@@ -519,7 +502,7 @@ function LandingContent({ product }: { product?: Product }) {
             </h2>
             <p className="landing-section__lead">
               {product === 'siigo' ? 'Conserva tu sistema contable y suma herramientas para reducir el trabajo manual.'
-                : product === 'billing' ? 'Emite facturas de venta, documentos soporte y notas débito y crédito. Gestiona también tus eventos RADIAN desde JARVIS, sin depender de Siigo.'
+                : product === 'billing' ? 'Emite facturas de venta, documentos soporte y notas débito y crédito. Gestiona también tus eventos RADIAN desde JARVIS.'
                 : 'Elige tu punto de partida. Cada solución tiene sus propias funciones y planes.'}
             </p>
             {!product ? <ProductChoices /> : <div className={`landing-solutions${product === 'billing' ? ' landing-solutions--billing' : ''}`}>
@@ -601,7 +584,7 @@ function LandingContent({ product }: { product?: Product }) {
             </h2>
             <p className="landing-section__lead">
               {product === 'siigo' ? 'Estos planes corresponden al cargue masivo de documentos soporte en Siigo. Precios en COP al mes.'
-                : product === 'billing' ? 'Elige entre un plan anual con 50 documentos o facturación ilimitada con pago mensual. Precios en COP.'
+                : product === 'billing' ? 'Planes anuales de facturación y combos con nómina. Precios en pesos colombianos (COP).'
                 : 'Consulta por separado los planes de automatización con Siigo y los de facturación directa con la DIAN.'}
             </p>
             {product === 'siigo' ? <SiigoPricing /> : product === 'billing' ? <BillingPricing /> : <ProductChoices pricing />}
@@ -615,8 +598,8 @@ function LandingContent({ product }: { product?: Product }) {
             <div className="landing-faq__items">{faqs.map(faq => <details key={faq.question}>
               <summary>{faq.question}</summary><p>{faq.answer}</p>
             </details>)}</div>
-            {product && <p className="landing-related">{product === 'siigo' ? '¿Quieres emitir facturas sin usar Siigo? ' : '¿Ya usas Siigo y quieres automatizar tu operación? '}
-              <Link to={product === 'siigo' ? '/facturacion-electronica' : '/siigo'}>{product === 'siigo' ? 'Conoce la facturación electrónica directa con la DIAN' : 'Conoce la automatización contable con Siigo e IA'}</Link>
+            {product === 'siigo' && <p className="landing-related">¿Quieres conocer la facturación electrónica de JARVIS?{' '}
+              <Link to="/facturacion-electronica">Conoce la facturación electrónica directa con la DIAN</Link>
             </p>}
           </div>
         </section>
@@ -646,16 +629,17 @@ function LandingContent({ product }: { product?: Product }) {
             <BrandMark />
             <div>
               <strong>JARVIS</strong>
-              <p>Automatización con Siigo · Facturación directa con la DIAN</p>
+              <p>{product === 'billing' ? 'Facturación electrónica directa con la DIAN' : 'Automatización con Siigo · Facturación directa con la DIAN'}</p>
             </div>
           </div>
           <div className="landing-footer__contact">
             <p>
-              <a href="tel:+573195355387">319 535 5387</a>
+              <a href={`tel:${CONTACT_PHONE}`}>{CONTACT_PHONE_LABEL}</a>
             </p>
             <p>
-              <a href="mailto:jarviscol2025@gmail.com">jarviscol2025@gmail.com</a>
+              <a href={`mailto:${SALES_EMAIL}`}>{SALES_EMAIL}</a>
             </p>
+            <p><a href={INSTAGRAM_HREF} target="_blank" rel="noopener noreferrer">@{INSTAGRAM_HANDLE}</a></p>
             <p>
               <a href={demoHref} target="_blank" rel="noopener noreferrer">
                 WhatsApp
@@ -670,7 +654,7 @@ function LandingContent({ product }: { product?: Product }) {
         <div className="landing-footer__legal">
           <p>© {new Date().getFullYear()} JARVIS. Todos los derechos reservados.</p>
           <p>
-            <a href="mailto:jarviscol2025@gmail.com?subject=T%C3%A9rminos%20y%20condiciones">
+            <a href={`mailto:${SALES_EMAIL}?subject=T%C3%A9rminos%20y%20condiciones`}>
               Términos y condiciones
             </a>
             <span aria-hidden="true"> · </span>

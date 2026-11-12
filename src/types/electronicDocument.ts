@@ -329,6 +329,8 @@ export interface PurchaseInvoiceDownloadWithholding {
 
 /** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
 export interface PurchaseInvoiceDownload {
+  invoiceAppearance?: import('../utils/invoiceAppearance').InvoiceAppearance
+  isPreviewSample?: boolean
   isDraft?: boolean
   recipientCopyEmails?: string[]
   issuerTaxProfile?: {

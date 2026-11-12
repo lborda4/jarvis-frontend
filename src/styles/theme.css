@@ -9,6 +9,14 @@
  * No definir paletas, familias o escalas alternativas en el CSS de cada página.
  */
 :root {
+  /* Colores de muestra del documento impreso; no alteran la paleta de la interfaz. */
+  --invoice-color-teal: #00A8A8;
+  --invoice-color-navy: #16335B;
+  --invoice-color-blue: #355C7D;
+  --invoice-color-petrol: #28505A;
+  --invoice-color-gray: #475569;
+  --invoice-color-charcoal: #303842;
+  --invoice-color-taupe: #75695C;
   /* Acento de marca — para superficies oscuras (sidebar, login, landing) */
   --jarvis-accent: rgb(var(--jarvis-accent-rgb));
   --jarvis-accent-rgb: 26, 211, 204;

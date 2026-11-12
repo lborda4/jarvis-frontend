@@ -6,9 +6,9 @@ import PdfPreviewError from './PdfPreviewError'
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
-export default function JarvisPdfViewer({ url }: { url: string }) {
+export default function JarvisPdfViewer({ url, initialZoom = 1.4 }: { url: string; initialZoom?: number | 'page' | 'width' }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
-  const [zoom, setZoom] = useState<number | 'page' | 'width'>(1.4)
+  const [zoom, setZoom] = useState<number | 'page' | 'width'>(initialZoom)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [error, setError] = useState('')
   const [rendered, setRendered] = useState('')

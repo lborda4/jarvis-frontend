@@ -224,10 +224,10 @@ export interface JarvisSalesInvoiceList {
   pageSize: number
 }
 
-export interface JarvisHistoryFilters { search?: string; from?: string; to?: string; page?: number }
+export interface JarvisHistoryFilters { search?: string; number?: string; from?: string; to?: string; page?: number }
 
 export function jarvisHistoryQueryKey(supportDocument: boolean | 'credit' | 'debit' | 'adjustment', filters: JarvisHistoryFilters = {}): string {
-  return companyQueryKey(['jarvis', 'history', supportDocument === 'debit' ? 'debit' : supportDocument === 'credit' ? 'credit' : supportDocument === 'adjustment' ? 'adjustment' : supportDocument ? 'support' : 'sales', JSON.stringify([filters.search?.trim() || '', filters.from || '', filters.to || '', filters.page ?? 1])])
+  return companyQueryKey(['jarvis', 'history', supportDocument === 'debit' ? 'debit' : supportDocument === 'credit' ? 'credit' : supportDocument === 'adjustment' ? 'adjustment' : supportDocument ? 'support' : 'sales', JSON.stringify([filters.search?.trim() || '', filters.from || '', filters.to || '', filters.page ?? 1, filters.number?.trim() || ''])])
 }
 
 function fetchJarvisHistory(supportDocument: boolean | 'credit' | 'debit' | 'adjustment', filters: JarvisHistoryFilters, options?: { force?: boolean }): Promise<JarvisSalesInvoiceList> {
@@ -627,7 +627,7 @@ export function fetchJarvisSupportInvoices(filters: JarvisHistoryFilters, option
 }
 
 export async function createJarvisCreditNote(request: CreateJarvisInvoiceRequest): Promise<CreateJarvisInvoiceResponse> {
-  const { data } = await apiClient.post<CreateJarvisInvoiceResponse>('/integrations/jarvis/credit-notes', request)
+  const { data } = await apiClient.post<CreateJarvisInvoiceResponse>('/integrations/jarvis/credit-notes', request, { timeout: 120_000 })
   invalidateQueryCache(companyQueryKey(['jarvis', 'history']))
   invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
   return data
@@ -637,7 +637,7 @@ export function fetchJarvisCreditNotes(filters: JarvisHistoryFilters, options?: 
 }
 
 export async function createJarvisDebitNote(request: CreateJarvisInvoiceRequest): Promise<CreateJarvisInvoiceResponse> {
-  const { data } = await apiClient.post<CreateJarvisInvoiceResponse>('/integrations/jarvis/debit-notes', request)
+  const { data } = await apiClient.post<CreateJarvisInvoiceResponse>('/integrations/jarvis/debit-notes', request, { timeout: 120_000 })
   invalidateQueryCache(companyQueryKey(['jarvis', 'history']))
   invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
   return data

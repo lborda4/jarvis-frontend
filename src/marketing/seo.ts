@@ -1,5 +1,6 @@
-import { SIIGO_PLANS, type MarketingProduct } from './catalog'
+import { BILLING_PLANS, COMPLIANCE_COMBOS, PAYROLL_PLAN, SIIGO_PLANS, type MarketingProduct } from './catalog'
 import { BILLING_SOLUTIONS } from './content'
+import { CONTACT_PHONE, SALES_EMAIL, INSTAGRAM_HREF } from '../constants/contact'
 
 export const SITE_URL = 'https://www.jarviscol.com'
 
@@ -7,7 +8,7 @@ const PAGES = {
   payroll: {
     path: '/nomina-electronica',
     title: 'Nómina electrónica para tu equipo | JARVIS',
-    description: 'Envía tu nómina electrónica con Jarvis por $12.900 COP al mes para hasta 2 empleados. Incluye certificado digital, reportes y acompañamiento personalizado.',
+    description: `Genera y envía tu nómina electrónica a la DIAN con JARVIS por ${PAYROLL_PLAN.price} COP al año para hasta 2 empleados. Conoce las recargas y los combos con facturación.`,
     name: 'Nómina electrónica JARVIS',
   },
   home: {
@@ -25,7 +26,7 @@ const PAGES = {
   billing: {
     path: '/facturacion-electronica',
     title: 'Facturación electrónica en Colombia, directa DIAN | JARVIS',
-    description: 'Factura de venta, documento soporte, notas débito, notas crédito y RADIAN con JARVIS, directo con la DIAN y sin Siigo. Conoce los planes de facturación.',
+    description: 'Factura de venta, documento soporte, notas débito, notas crédito y RADIAN con JARVIS, directo con la DIAN. Conoce los planes de facturación.',
     name: 'Facturación JARVIS',
   },
 }
@@ -44,7 +45,7 @@ export function getStructuredData(product?: MarketingProduct) {
     {
       '@type': 'Organization', '@id': organizationId, name: 'JARVIS',
       url: `${SITE_URL}/`, logo: `${SITE_URL}/logo5.png`,
-      email: 'jarviscol2025@gmail.com', telephone: '+57-319-535-5387',
+      email: SALES_EMAIL, telephone: CONTACT_PHONE, sameAs: [INSTAGRAM_HREF],
     },
     {
       '@type': 'WebSite', '@id': websiteId, name: 'JARVIS', url: `${SITE_URL}/`,
@@ -58,10 +59,16 @@ export function getStructuredData(product?: MarketingProduct) {
     },
   ]
   if (product) {
-    const offers = product === 'payroll' ? [{ '@type': 'Offer', name: 'Nómina electrónica mensual para hasta 2 empleados', price: 12900, priceCurrency: 'COP', url: `${page.url}#precios` }] : product === 'billing' ? [
-      { '@type': 'Offer', name: 'Plan anual: 50 documentos electrónicos', price: 130000, priceCurrency: 'COP', url: `${page.url}#precios` },
-      { '@type': 'Offer', name: 'Facturación electrónica ilimitada mensual', price: 60000, priceCurrency: 'COP', url: `${page.url}#precios` },
-    ] : SIIGO_PLANS.filter(plan => plan.period).map(plan => ({
+    const annualOffer = (plan: { name: string; amount: number; capacity: string }, anchor: string) => ({
+      '@type': 'Offer', name: plan.name, description: `${plan.capacity}. Pago anual en COP.`,
+      price: plan.amount, priceCurrency: 'COP', url: `${page.url}#${anchor}`,
+      priceSpecification: { '@type': 'UnitPriceSpecification', price: plan.amount, priceCurrency: 'COP', unitText: 'año', billingDuration: 'P1Y' },
+    })
+    const offers = product === 'payroll'
+      ? [annualOffer(PAYROLL_PLAN, 'precios'), ...COMPLIANCE_COMBOS.map(plan => annualOffer(plan, 'combos'))]
+      : product === 'billing'
+        ? [...BILLING_PLANS.map(plan => annualOffer(plan, 'precios')), ...COMPLIANCE_COMBOS.map(plan => annualOffer(plan, 'combos'))]
+        : SIIGO_PLANS.filter(plan => plan.period).map(plan => ({
       '@type': 'Offer', name: `Cargue masivo a Siigo: plan ${plan.name} mensual`,
       description: `${plan.limit}. Pago mensual en COP.`,
       price: Number(plan.price.replace(/\D/g, '')), priceCurrency: 'COP', url: `${page.url}#precios`,

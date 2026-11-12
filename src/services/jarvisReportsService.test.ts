@@ -31,3 +31,11 @@ it('exporta los filtros vigentes sin limitar los resultados a la página visible
   expect(config.params).not.toHaveProperty('pageSize')
   expect(config.responseType).toBe('blob')
 })
+
+it('conserva el impuesto seleccionado tanto al consultar como al exportar el reporte fiscal', async () => {
+  const taxFilters = { ...filters, report: 'taxes' as const, product: '', tax: 'reteIca' }
+  vi.mocked(apiClient.get).mockResolvedValue({ data: new Blob(['xlsx']) })
+  await fetchJarvisReport(taxFilters)
+  await exportJarvisReport(taxFilters)
+  for (const [, config] of vi.mocked(apiClient.get).mock.calls) expect(config?.params).toMatchObject({ report: 'taxes', tax: 'reteIca', product: '' })
+})

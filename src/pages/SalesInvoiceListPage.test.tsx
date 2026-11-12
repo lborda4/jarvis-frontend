@@ -8,6 +8,25 @@ vi.mock('../components/InvoiceNoteActions', () => ({ default: () => null }))
 vi.mock('../components/DateRangeFilter', () => ({ default: () => null }))
 beforeEach(() => { mocks.cached = { items: [], total: 0, page: 1, pageSize: 20 } })
 
+it.each([{}, { creditNote: true }, { debitNote: true }, { supportDocument: true }, { adjustmentNote: true }])('muestra la hora de envío en Colombia para %j', (props) => {
+  mocks.cached = { items: [{ id: 'sent', prefix: 'FE', number: '1', status: 'SENT',
+    issueDate: '2026-11-11', sentAt: '2026-11-12T02:34:56Z', total: '100' }], total: 1, page: 1, pageSize: 20 }
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage {...props} /></MemoryRouter>)
+  expect(html).toContain('21:34:56 (COL)')
+  expect(html).toContain('dateTime="2026-11-12T02:34:56Z"')
+})
+
+it.each([
+  ['SAVED', '2026-11-12T02:34:56Z'],
+  ['SENT', undefined], ['SENT', ''], ['SENT', 'invalid'],
+  ['SENT', '2026-11-11'], ['SENT', '2026-11-11T21:34:56'],
+])('omite horas de envío desconocidas o de borradores: %s %s', (status, sentAt) => {
+  mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status,
+    issueDate: '2026-11-11', sentAt, total: '100' }], total: 1, page: 1, pageSize: 20 }
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
+  expect(html).not.toContain('(COL)')
+})
+
 it('muestra guardados y enviados en una sola tabla sin avisos de borradores', () => {
   const common = { providerId: '', prefix: '', issueDate: '2026-10-16', customerName: 'Cliente', customerIdentification: '900123', currency: 'COP', total: '100', cufe: null, sentAt: '2026-10-16' }
   mocks.cached = { items: [

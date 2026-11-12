@@ -1,0 +1,30 @@
+.invoice-appearance { margin-bottom: 1.25rem; }
+.invoice-appearance__layout { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.4fr); gap: 2rem; align-items: start; }
+.invoice-appearance__form { min-width: 0; }
+.invoice-appearance__form fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.invoice-appearance__form legend { padding: 0; color: var(--jarvis-navy); font-size: var(--text-xl); font-weight: var(--font-weight-heading); }
+.invoice-appearance__help { margin: .5rem 0 1rem; color: var(--jarvis-text-muted); font-size: var(--text-sm); line-height: var(--line-height-body); }
+.invoice-appearance__help--error { color: var(--jarvis-danger); }
+.invoice-appearance__palette { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0 1.5rem; }
+.invoice-appearance__swatch { width: var(--control-height); height: var(--control-height); padding: 0; border: 2px solid var(--jarvis-white); border-radius: var(--r-round); box-shadow: var(--shadow-inset); cursor: pointer; }
+.invoice-appearance__swatch[aria-pressed="true"] { outline: 2px solid var(--jarvis-navy); outline-offset: 3px; }
+.invoice-appearance__field { display: block; margin: 1rem 0 .5rem; font-size: var(--text-sm); font-weight: var(--font-weight-label); }
+.invoice-appearance__color-input { display: flex; gap: .75rem; align-items: center; }
+.invoice-appearance__color-input input[type="color"] { width: var(--control-height); height: var(--control-height); padding: 3px; cursor: pointer; flex-shrink: 0; }
+.invoice-appearance__color-input input[type="text"] { min-width: 0; width: 100%; font-family: var(--font-family-mono); }
+.invoice-appearance input:not([type="checkbox"]), .invoice-appearance textarea { box-sizing: border-box; min-height: var(--control-height); padding: .6rem .75rem; border: 1px solid var(--jarvis-border-strong); border-radius: var(--r-md); background: var(--jarvis-white); color: var(--jarvis-text); font-size: var(--text-md); }
+.invoice-appearance textarea { width: 100%; resize: vertical; font-family: var(--font-family-base); }
+.invoice-appearance__checkbox { display: flex; align-items: center; gap: .6rem; margin-top: 1.5rem; font-size: var(--text-md); }
+.invoice-appearance__checkbox input { accent-color: var(--jarvis-primary); }
+.invoice-appearance__actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: 1.25rem; }
+.invoice-appearance__success { padding: .75rem; border-radius: var(--r-md); color: var(--jarvis-success); background: var(--jarvis-success-soft); font-size: var(--text-sm); }
+.invoice-appearance__preview { min-width: 0; }
+.invoice-appearance__preview-heading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .75rem; }
+.invoice-appearance__preview-heading h3 { margin: 0; font-size: var(--text-xl); }
+.invoice-appearance__preview-heading span { padding: .25rem .6rem; border-radius: var(--r-pill); background: var(--jarvis-info-soft); color: var(--jarvis-info); font-size: var(--text-xs); }
+.invoice-appearance__preview .jarvis-pdf { height: 640px; max-height: 80dvh; }
+.invoice-appearance__preview-loading { display: grid; place-items: center; min-height: 420px; padding: 1.5rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-lg); background: var(--jarvis-gray-50); color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.invoice-appearance__download { display: inline-block; margin-top: 1rem; color: var(--jarvis-primary); font-size: var(--text-sm); text-underline-offset: 3px; }
+@media (max-width: 960px) {
+  .invoice-appearance__layout { grid-template-columns: minmax(0, 1fr); }
+}

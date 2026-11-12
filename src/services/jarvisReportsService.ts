@@ -1,6 +1,13 @@
 import { apiClient } from './apiClient'
 
 export type JarvisReportType = 'sales' | 'customers' | 'products' | 'sellers' | 'taxes'
+export const JARVIS_REPORT_TAX_OPTIONS = [
+  { value: 'iva', label: 'IVA' },
+  { value: 'otherTaxes', label: 'Otros impuestos' },
+  { value: 'retefuente', label: 'Retefuente' },
+  { value: 'reteIca', label: 'ReteICA' },
+  { value: 'reteIva', label: 'ReteIVA' },
+] as const
 export interface JarvisReportFilters {
   report: JarvisReportType
   view: 'summary' | 'detail'
@@ -10,6 +17,7 @@ export interface JarvisReportFilters {
   search?: string
   seller: string
   product: string
+  tax?: string
   kind: string
   currency: string
   page: number

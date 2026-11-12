@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import PrivacyPolicyLink from './PrivacyPolicyLink'
+import { CONTACT_PHONE, CONTACT_PHONE_LABEL, SALES_EMAIL, INSTAGRAM_HANDLE, INSTAGRAM_HREF } from '../constants/contact'
 import '../pages/SolutionLanding.css'
 
 type MarketingNavLink = { href: string; label: string }
@@ -44,6 +45,6 @@ export function MarketingHeader({ home = false, links, planHref }: {
 export function MarketingFooter() {
   return <footer className="solution-footer">
     <p>© {new Date().getFullYear()} JARVIS. Automatiza. Conecta. Simplifica.</p>
-    <div><a href="tel:+573195355387">319 535 5387</a><a href="mailto:jarviscol2025@gmail.com">Contacto</a><PrivacyPolicyLink mode="jarvis">Política de privacidad</PrivacyPolicyLink></div>
+    <div><a href={`tel:${CONTACT_PHONE}`}>{CONTACT_PHONE_LABEL}</a><a href={`mailto:${SALES_EMAIL}`}>{SALES_EMAIL}</a><a href={INSTAGRAM_HREF} target="_blank" rel="noopener noreferrer">@{INSTAGRAM_HANDLE}</a><PrivacyPolicyLink mode="jarvis">Política de privacidad</PrivacyPolicyLink></div>
   </footer>
 }

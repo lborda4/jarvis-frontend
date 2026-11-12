@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import CompanyLogoSettings from '../components/CompanyLogoSettings'
+import InvoiceAppearanceSettings from '../components/InvoiceAppearanceSettings'
 import InviteAccountant from '../components/InviteAccountant'
 import JarvisDocumentQuotaCard from '../components/JarvisDocumentQuotaCard'
 import AuthCompanyDisplay from '../components/AuthCompanyDisplay'
@@ -304,6 +305,7 @@ function JarvisIntegrationSettings() {
       {/* Sin barra de pasos, igual que en SIIGO: el acordeón ya numera cada
           paso y muestra su estado (Completo / Bloqueado). */}
       {hasCompany && <CompanyLogoSettings />}
+      {hasCompany && showResolutionsStep && <InvoiceAppearanceSettings />}
       <div className="settings-accordion">
         <section
           id="jarvis-step-panel-company"

@@ -46,6 +46,7 @@ function LogoEditor() {
       } else {
         await apiClient.delete(endpoint); setLogo(null)
       }
+      window.dispatchEvent(new Event('jarvis:company-logo-updated'))
       setSuccess(file ? 'Logo guardado.' : 'Logo eliminado.')
     } catch (err) { setError(getApiErrorMessage(err, 'No se pudo guardar el logo. Verifica que la imagen sea válida.')) }
     finally { setBusy(false) }

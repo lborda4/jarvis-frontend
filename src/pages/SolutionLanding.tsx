@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { MarketingHeader, MarketingFooter } from '../components/MarketingShell'
 import { WHATSAPP_DEMO_HREF } from '../constants/contact'
 import { MARKETING_FAQS } from '../marketing/content'
+import { BILLING_PLANS, PAYROLL_PLAN } from '../marketing/catalog'
+import { ComplianceCombos } from '../components/PortfolioPricing'
 import './SolutionLanding.css'
 
 type IconName = 'invoice' | 'people' | 'gear' | 'shield' | 'support' | 'bolt' | 'growth'
@@ -36,11 +38,11 @@ export default function SolutionLanding() {
             <header className="solution-card__heading"><SolutionIcon name="invoice" /><h2 id="billing-title">Facturación<br />Electrónica</h2></header>
             <p className="solution-card__description">Para emitir tus facturas y documentos electrónicos ante la DIAN.</p>
             <div className="solution-card__body">
-              <p className="solution-card__integration">Pago mensual</p>
-              <p className="solution-price">$60.000<span>/mes</span></p>
+              <p className="solution-card__integration">Valor anual</p>
+              <p className="solution-price">{BILLING_PLANS[0].price}<span>/año</span></p>
               <p className="solution-card__terms">Valores en pesos colombianos (COP)</p>
               <ul className="solution-features">
-                <li><strong className="solution-highlight">Facturación ilimitada al mes</strong></li>
+                <li><strong className="solution-highlight">50 documentos en tu primera inscripción</strong></li>
                 <li>Emisión y envío de facturas</li><li><strong>Certificado digital incluido</strong></li><li>Acompañamiento personalizado</li>
                 <li><strong>Documento soporte, RADIAN y notas de ajuste</strong></li>
               </ul>
@@ -49,12 +51,12 @@ export default function SolutionLanding() {
           </article>
           <article className="solution-card" id="nomina" aria-labelledby="payroll-title">
             <header className="solution-card__heading"><SolutionIcon name="people" /><h2 id="payroll-title">Nómina<br />Electrónica</h2></header>
-            <p className="solution-card__description">Para enviar la nómina electrónica de tus empleados y consultar sus reportes.</p>
+            <p className="solution-card__description">Para generar y enviar la nómina electrónica de tus empleados a la DIAN.</p>
             <div className="solution-card__body">
-              <p className="solution-card__integration">Pago mensual</p>
-              <p className="solution-price">$12.900<span>/mes</span></p>
+              <p className="solution-card__integration">Valor anual</p>
+              <p className="solution-price">{PAYROLL_PLAN.price}<span>/año</span></p>
               <p className="solution-card__terms">Valores en pesos colombianos (COP)</p>
-              <ul className="solution-features"><li><strong>Hasta 2 empleados</strong></li><li>Nómina electrónica y reportes</li><li><strong>Certificado digital incluido</strong></li><li>Cumplimiento normativo</li><li>Acompañamiento personalizado</li></ul>
+              <ul className="solution-features"><li><strong>Hasta 2 empleados</strong></li><li>Generación y envío a la DIAN</li><li><strong>Certificado digital incluido</strong></li><li>Recargas de empleados disponibles</li><li>Acompañamiento personalizado</li></ul>
               <Link className="solution-button solution-card__cta" to="/nomina-electronica" aria-label="Conocer más sobre nómina electrónica">Conocer más</Link>
             </div>
           </article>
@@ -70,7 +72,8 @@ export default function SolutionLanding() {
             </div>
           </article>
         </div>
-        <p className="solution-price-note">Planes mensuales. Valores en pesos colombianos (COP).</p>
+        <p className="solution-price-note">Facturación, nómina y combos con valor anual. Valores en pesos colombianos (COP). Facturación regular: 25 documentos incluidos; los 50 de obsequio aplican solo en la primera inscripción.</p>
+        <ComplianceCombos />
       </section>
 
       <section className="solution-benefits" id="acompanamiento" aria-label="Beneficios de JARVIS">{benefits.map(benefit => <div key={benefit.title}><SolutionIcon name={benefit.icon} /><p><strong>{benefit.title}</strong><span>{benefit.description}</span></p></div>)}</section>

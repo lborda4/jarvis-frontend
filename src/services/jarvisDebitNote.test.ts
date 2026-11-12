@@ -29,7 +29,7 @@ describe('Notas débito Jarvis', () => {
     api.post.mockResolvedValue({ data: { success: true, invoice: { id: 'ND1' } } })
     await fetchJarvisDebitNotes({})
     await createJarvisDebitNote(request)
-    expect(api.post).toHaveBeenCalledWith('/integrations/jarvis/debit-notes', request)
+    expect(api.post).toHaveBeenCalledWith('/integrations/jarvis/debit-notes', request, { timeout: 120_000 })
     await fetchJarvisDebitNotes({})
     expect(api.get).toHaveBeenCalledTimes(2)
   })

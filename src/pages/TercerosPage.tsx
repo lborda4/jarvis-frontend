@@ -9,6 +9,7 @@ import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
+import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteJarvisTercero, fetchJarvisTerceros } from '../services/jarvisService'
 import {
@@ -187,9 +188,9 @@ function TercerosPage() {
         description="Consulta y crea los terceros de tu empresa Jarvis."
         actions={
           <>
-            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            {BULK_IMPORT_ENABLED && <Button variant="outline" onClick={() => setIsImportOpen(true)}>
               <ImportIcon />Importar terceros
-            </Button>
+            </Button>}
             <Button variant="primary" onClick={openCreate}>
               <PlusIcon />Crear tercero
             </Button>

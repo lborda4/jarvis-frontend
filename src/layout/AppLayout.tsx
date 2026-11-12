@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { companyJarvisModules, jarvisModuleForPath } from '../types/companyModules'
 import Sidebar from './Sidebar'
 import ScrollToTopButton from '../components/ScrollToTopButton'
-import SupportFab from '../components/SupportFab'
+import DashboardCreateMenu from '../components/DashboardCreateMenu'
 import PurchaseInvoiceImportBadge from '../components/supportDocument/PurchaseInvoiceImportBadge'
 import JarvisDocumentQuotaNotice from '../components/JarvisDocumentQuotaNotice'
 import JarvisBackNavigation from '../components/JarvisBackNavigation'
@@ -44,7 +44,7 @@ function AppLayout() {
       </div>
 
       <ScrollToTopButton scrollContainerRef={contentRef} />
-      {isJarvisCompany && <SupportFab />}
+      {isJarvisCompany && <DashboardCreateMenu key={`${user?.company?.id}:${location.key}`} variant="floating" />}
 
       <PurchaseInvoiceImportBadge />
     </div>

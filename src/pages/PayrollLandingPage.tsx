@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom'
 import { MarketingFooter, MarketingHeader } from '../components/MarketingShell'
 import { buildWhatsappHref } from '../constants/contact'
 import { applyMarketingSeo } from '../marketing/seo'
+import { PAYROLL_PLAN } from '../marketing/catalog'
+import { ComplianceCombos, PayrollTopUps } from '../components/PortfolioPricing'
 import './PayrollLandingPage.css'
 
-const planHref = buildWhatsappHref('Hola, me interesa el plan mensual de nómina electrónica JARVIS para hasta 2 empleados por $12.900 COP al mes')
+const planHref = buildWhatsappHref(`Hola, me interesa el plan anual de nómina electrónica JARVIS para hasta 2 empleados por ${PAYROLL_PLAN.price} COP al año`)
 const advisorHref = buildWhatsappHref('Hola, quiero orientación sobre la nómina electrónica de JARVIS para mi empresa')
 const navigation = [
   { href: '#precios', label: 'El plan' },
@@ -16,13 +18,13 @@ const navigation = [
 const steps = [
   { title: 'Configura tu empresa y tus empleados', text: 'Registra la información de tu empresa y de las personas a quienes les enviarás la nómina.' },
   { title: 'Prepara y revisa el periodo', text: 'Ingresa la información de la nómina y revisa los datos antes de enviarla.' },
-  { title: 'Envía y consulta tus documentos', text: 'Realiza el envío de la nómina electrónica y consulta sus documentos y reportes desde Jarvis.' },
+  { title: 'Envía y consulta tus documentos', text: 'Realiza el envío de la nómina electrónica y consulta sus documentos desde Jarvis.' },
 ]
 const faqs = [
-  { question: '¿Cuánto cuesta el plan?', answer: 'El plan cuesta $12.900 COP al mes para hasta 2 empleados. El pago es mensual.' },
+  { question: '¿Cuánto cuesta el plan?', answer: `El plan cuesta ${PAYROLL_PLAN.price} COP al año para hasta 2 empleados. Incluye la generación y el envío de nómina electrónica a la DIAN y permite ampliar tu equipo con recargas.` },
   { question: '¿Incluye certificado digital?', answer: 'Sí. El plan incluye certificado digital y acompañamiento personalizado para la nómina electrónica.' },
   { question: '¿Puedo contratar solo nómina electrónica?', answer: 'Sí. Puedes elegir la solución de nómina sin contratar los planes de facturación o causación automática.' },
-  { question: '¿Qué hago si tengo más de 2 empleados?', answer: 'Cuéntanos cuántas personas tiene tu equipo para revisar tu caso con un asesor. El precio publicado corresponde al plan para hasta 2 empleados.' },
+  { question: '¿Qué hago si tengo más de 2 empleados?', answer: 'Puedes agregar empleados con recargas de 1, 2, 3, 5, 10 o 20 empleados adicionales. También puedes elegir el combo de cumplimiento ilimitado con facturación y nómina ilimitadas.' },
 ]
 
 export default function PayrollLandingPage() {
@@ -46,22 +48,25 @@ export default function PayrollLandingPage() {
         <div className="payroll-landing__intro">
           <span className="solution-eyebrow">Nómina electrónica Jarvis</span>
           <h1 id="payroll-title">La nómina de tu equipo,<br /><span>en orden cada mes.</span></h1>
-          <p>Prepara y envía tu nómina electrónica, consulta tus reportes y cuenta con acompañamiento para poner todo en marcha.</p>
+          <p>Genera y envía tu nómina electrónica a la DIAN y cuenta con acompañamiento para poner todo en marcha.</p>
           <div className="payroll-landing__actions">
-            <a className="solution-button" href="#precios">Conocer el plan mensual</a>
+            <a className="solution-button" href="#precios">Conocer el plan anual</a>
             <a className="payroll-landing__text-link" href="#como-funciona">Así funciona <span aria-hidden="true">↓</span></a>
           </div>
         </div>
         <aside className="payroll-landing__plan" id="precios" aria-labelledby="payroll-plan-title">
-          <span className="solution-eyebrow">Pago mensual</span>
-          <h2 id="payroll-plan-title">Un plan para tu equipo</h2>
-          <p className="payroll-landing__price">$12.900 <span>COP / mes</span></p>
+          <span className="solution-eyebrow">Pago anual</span>
+          <h2 id="payroll-plan-title">Nómina electrónica básica</h2>
+          <p className="payroll-landing__price">{PAYROLL_PLAN.price} <span>COP / año</span></p>
           <p className="payroll-landing__capacity">Hasta 2 empleados</p>
-          <ul><li>Nómina electrónica y reportes</li><li>Certificado digital incluido</li><li>Acompañamiento personalizado</li></ul>
+          <ul><li>Generación y envío a la DIAN</li><li>Certificado digital incluido</li><li>Recargas de empleados disponibles</li><li>Acompañamiento personalizado</li></ul>
           <a className="solution-button" href={planHref} target="_blank" rel="noopener noreferrer">Quiero este plan</a>
           <p className="payroll-landing__help">Hablemos de tu empresa y te orientamos para empezar.</p>
         </aside>
       </section>
+
+      <PayrollTopUps />
+      <ComplianceCombos />
 
       <section className="payroll-landing__workflow" id="como-funciona" aria-labelledby="payroll-workflow-title">
         <div><span className="solution-eyebrow">Del registro al envío</span><h2 id="payroll-workflow-title">Un proceso que puedes seguir.</h2><p>Trabaja la información de cada periodo desde un mismo lugar, con una revisión antes del envío.</p></div>

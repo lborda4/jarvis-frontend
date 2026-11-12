@@ -13,6 +13,32 @@ const data: PurchaseInvoiceDownload = {
   subtotal: 180, taxExclusiveAmount: 180, taxInclusiveAmount: 214.2, iva: 34.2, discount: 0, total: 214.2, withholdings: [], dianQrText: 'https://example.com/invoice/test', dianQrUrl: '',
 }
 describe('sales invoice HTML template adaptation', () => {
+  it('aplica el diseño a un PDF de prueba sin logo, CUFE ni afirmaciones de validación', async () => {
+    const { invoiceAppearanceSample } = await import('../../utils/invoiceAppearanceSample')
+    const logo = await QRCode.toDataURL('logo-de-prueba')
+    const sample = invoiceAppearanceSample({ id: 'company', name: 'Mi empresa', nit: '123' }, {}, {
+      accentColor: '#FFEE00', footerText: 'Gracias por tu compra.', showLogo: false,
+    }, logo)
+    const document = SalesInvoicePdfDocument({ data: sample, qr: '' })
+    const text = textContent(document)
+    expect(text).toContain('FACTURA DE EJEMPLO · SIN VALIDEZ')
+    expect(text).toContain('Gracias por tu compra.')
+    expect(text).not.toContain('CUFE:')
+    expect(text).not.toContain('Documento electrónico validado por la DIAN')
+    expect(JSON.stringify(document)).toContain('"backgroundColor":"#FFEE00"')
+    const buffer = await renderToBuffer(document)
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(buffer.toString('latin1')).not.toContain('/Subtype /Image')
+  }, 30000)
+
+  it('conserva el diseño de las notas aunque lleguen preferencias de factura', () => {
+    const document = SalesInvoicePdfDocument({ data: { ...data, documentKind: 'CREDIT_NOTE', invoiceAppearance: {
+      accentColor: '#FFEE00', footerText: 'Mensaje solo para facturas', showLogo: false,
+    } }, qr: '' })
+    expect(textContent(document)).not.toContain('Mensaje solo para facturas')
+    expect(JSON.stringify(document)).not.toContain('"backgroundColor":"#FFEE00"')
+  })
+
   function textContent(node: ReactNode): string {
     if (typeof node === 'string' || typeof node === 'number') return String(node)
     if (Array.isArray(node)) return node.map(textContent).join('')
@@ -31,15 +57,51 @@ describe('sales invoice HTML template adaptation', () => {
     expect(text).not.toContain('Correo: —')
     expect(text).toContain(party.name!)
     expect(text).toContain(party.documentNumber!)
-    expect(text).toContain('Resolución No.')
+    expect(text).not.toContain('Resolución No.')
     expect(text).toContain('CUFE:')
   })
 
-  it('mantiene los títulos y guiones de datos opcionales vacíos en borradores', () => {
+  it('también omite los datos opcionales vacíos en la visualización de borradores', () => {
     const missing = { ...party, address: null, cityName: '', phone: '   ', email: null }
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, isDraft: true, issuer: missing, buyer: missing, observations: null }, qr: '' }))
-    for (const label of ['Dirección', 'Ciudad', 'Tel', 'Correo']) expect(text).toContain(`${label}: —`)
-    expect(text).toContain('Observaciones—')
+    for (const label of ['Dirección:', 'Ciudad:', 'Tel:', 'Correo:', 'Observaciones']) expect(text).not.toContain(label)
+    expect(text).not.toContain('—')
+  })
+
+  it.each(['CREDIT_NOTE', 'DEBIT_NOTE', 'SUPPORT_CREDIT_NOTE'])('omite toda la resolución no aplicable en %s y conserva los datos fiscales presentes', documentKind => {
+    const text = textContent(SalesInvoicePdfDocument({ data: {
+      ...data, documentKind, authorization: { number: '—', from: '-', to: ' ', startDate: null, endDate: null }, prefix: '—',
+      issuerTaxProfile: { source: 'current', taxResponsibility: 'R-99-PN', vatRegime: 'non_vat_responsible', economicActivity: '6201' },
+    }, qr: '' }))
+    for (const label of ['Resolución No.', 'Prefijo:', 'Desde:', 'Hasta:', 'Vigencia:', 'resolución de facturación', '(configuración actual)']) expect(text).not.toContain(label)
+    expect(text).toContain('Información tributaria')
+    expect(text).toContain('Responsabilidad fiscal: R-99-PN')
+    expect(text).toContain('Régimen IVA: No responsable de IVA')
+    expect(text).toContain('Actividad económica: 6201')
+    expect(text).not.toContain('—')
+  })
+
+  it('omite campos fiscales, fechas y pagos ausentes sin dejar etiquetas o guiones vacíos', () => {
+    const text = textContent(SalesInvoicePdfDocument({ data: {
+      ...data, issuerTaxProfile: { source: 'current', taxResponsibility: '—', economicActivity: '-' },
+      isCreditPayment: null, issueDate: null, issueTime: '—', dueDate: null, paymentMethodName: '—', observations: '-',
+    }, qr: '' }))
+    for (const label of ['Información tributaria', 'Actividad económica:', 'Fecha de elaboración:', 'Fecha y hora de generación:', 'Fecha de vencimiento:', 'Forma de negociación:', 'Forma de pago:', 'Plazo:', 'Observaciones']) expect(text).not.toContain(label)
+    expect(text).not.toContain('—')
+  })
+
+  it('conserva una resolución de factura completa y omite los extremos faltantes de una parcial', () => {
+    const complete = textContent(SalesInvoicePdfDocument({ data: { ...data, documentKind: 'ELECTRONIC_INVOICE', authorization: {
+      number: '18764113677438', from: '1', to: '10000', startDate: '2026-08-05', endDate: '2028-08-05',
+    } }, qr: '' }))
+    for (const field of ['Resolución No. 18764113677438', 'Prefijo: SETP', 'Desde: 1  Hasta: 10000', 'Vigencia: 2026-08-05 a 2028-08-05']) expect(complete).toContain(field)
+    const partial = textContent(SalesInvoicePdfDocument({ data: { ...data, prefix: ' ', authorization: {
+      number: null, from: '1', to: null, startDate: null, endDate: '2028-08-05',
+    } }, qr: '' }))
+    expect(partial).toContain('Desde: 1')
+    expect(partial).toContain('Vigencia: Hasta 2028-08-05')
+    for (const field of ['Resolución No.', 'Prefijo:', 'Hasta:']) expect(partial).not.toContain(field)
+    expect(partial).not.toContain('—')
   })
 
   it('conserva los datos opcionales y observaciones cuando tienen contenido', () => {
@@ -66,10 +128,10 @@ describe('sales invoice HTML template adaptation', () => {
       ...data, issuer: { ...party, fiscalRegime: 'O-13', taxResponsibility: '01 - IVA', economicActivity: '6201' },
       issuerTaxProfile: { vatRegime: 'non_vat_responsible', economicActivity: '4923', taxResponsibility: 'R-99-PN', source },
     }, qr: '' }))
-    const suffix = source === 'current' ? ' (configuración actual)' : ''
-    expect(text).toContain(`Régimen IVA${suffix}: No responsable de IVA`)
-    expect(text).toContain(`Actividad económica${suffix}: 4923`)
-    expect(text).toContain(`Responsabilidad fiscal${suffix}: R-99-PN`)
+    expect(text).toContain('Régimen IVA: No responsable de IVA')
+    expect(text).toContain('Actividad económica: 4923')
+    expect(text).toContain('Responsabilidad fiscal: R-99-PN')
+    expect(text).not.toContain('(configuración actual)')
     expect(text).not.toContain('Tributo (XML):')
     expect(text).not.toContain('O-13')
     expect(text).not.toContain('6201')
@@ -203,6 +265,20 @@ describe('sales invoice HTML template adaptation', () => {
     const buffer = await renderToBuffer(<SalesInvoicePdfDocument data={{ ...data, logoDataUrl }} qr={logoDataUrl} />)
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
     expect(buffer.toString('latin1')).toContain('/Subtype /Image')
+  }, 30000)
+
+  it('mantiene una factura completa con logo, perfil fiscal y mensaje al pie en una hoja', async () => {
+    const qr = await QRCode.toDataURL(data.dianQrText)
+    const fullInvoice: PurchaseInvoiceDownload = {
+      ...data, documentKind: 'ELECTRONIC_INVOICE', logoDataUrl: qr,
+      issuer: { ...party, name: 'JARVIS COLOMBIA S.A.S.', tradeName: 'JARVIS COLOMBIA S.A.S.', address: 'CALLE 48C SUR #25-44', email: 'contabilidad@empresa.example.com' },
+      buyer: { ...party, name: 'COMERCIALIZADORA NACIONAL DE PRODUCTOS Y SERVICIOS S.A.S.', address: 'Carrera 15 # 40-20 Oficina 302', email: 'facturacion@cliente.example.com' },
+      issuerTaxProfile: { source: 'current', taxResponsibility: 'R-99-PN', vatRegime: 'non_vat_responsible', economicActivity: '1410 - Confección de prendas de vestir, excepto prendas de piel', icaRate: 4.14 },
+      authorization: { number: '18764113677438', from: '1', to: '10000', startDate: '2026-08-05', endDate: '2028-08-05' },
+      invoiceAppearance: { accentColor: '#16335B', showLogo: true, footerText: 'Gracias por confiar en nosotros. Conserva esta factura como soporte de tu compra.' },
+    }
+    const buffer = await renderToBuffer(<SalesInvoicePdfDocument data={fullInvoice} qr={qr} />)
+    expect(buffer.toString('latin1').match(/\/Type \/Page\b/g)).toHaveLength(1)
   }, 30000)
 
   it.each([1, 70])('renders a real PDF for %i lines', async count => {

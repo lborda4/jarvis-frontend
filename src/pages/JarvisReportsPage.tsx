@@ -10,7 +10,7 @@ import { CalendarIcon, InvoiceIcon } from '../components/icons/SidebarIcons'
 import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
-import { exportJarvisReport, fetchJarvisReport, fetchJarvisReportSuggestions, type JarvisReportFilters, type JarvisReportResult, type JarvisReportSuggestions } from '../services/jarvisReportsService'
+import { exportJarvisReport, fetchJarvisReport, fetchJarvisReportSuggestions, JARVIS_REPORT_TAX_OPTIONS, type JarvisReportFilters, type JarvisReportResult, type JarvisReportSuggestions } from '../services/jarvisReportsService'
 import './JarvisReportsPage.css'
 
 const reportOptions = [
@@ -18,7 +18,7 @@ const reportOptions = [
 ] as const
 function initialFilters(): JarvisReportFilters {
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-  return { report: 'sales', view: 'detail', from: `${today.slice(0, 7)}-01`, to: today, search: '', customer: '', seller: '', product: '', kind: '', currency: '', page: 1, pageSize: 10 }
+  return { report: 'sales', view: 'detail', from: `${today.slice(0, 7)}-01`, to: today, search: '', customer: '', seller: '', product: '', tax: '', kind: '', currency: '', page: 1, pageSize: 10 }
 }
 
 export default function JarvisReportsPage() {
@@ -117,8 +117,11 @@ export default function JarvisReportsPage() {
       setFilters(next); setDraft(current => ({ ...current, from: next.from, to: next.to }))
     }} /></div><Button disabled={!data || exporting || loading} onClick={() => void download()}><InvoiceIcon />{exporting ? 'Generando Excel…' : 'Exportar a Excel'}</Button></div></header>
     <form className={`integration-card jarvis-reports__filters${draft.report === 'customers' ? ' jarvis-reports__filters--customers' : ''}`} onSubmit={consult}>
+      {draft.report === 'taxes' && <label>Impuesto<select value={draft.tax ?? ''} onChange={event => setDraft({ ...draft, tax: event.target.value })}>
+        <option value="">Todos</option>{JARVIS_REPORT_TAX_OPTIONS.map(tax => <option key={tax.value} value={tax.value}>{tax.label}</option>)}
+      </select></label>}
       {([
-        ...(draft.report === 'customers' ? [] : draft.report === 'sales'
+        ...(['customers', 'taxes'].includes(draft.report) ? [] : draft.report === 'sales'
           ? [{ field: 'search' as const, options: 'search' as const, label: 'Buscar por cliente, número o identificación', placeholder: 'Buscar…' }]
           : [{ field: 'product' as const, options: 'products' as const, label: 'Buscar por producto', placeholder: 'Buscar por código o nombre…' }]),
         { field: 'customer' as const, options: 'customers' as const, label: draft.report === 'taxes' ? 'Cliente / proveedor' : 'Cliente', placeholder: 'Identificación o nombre' },

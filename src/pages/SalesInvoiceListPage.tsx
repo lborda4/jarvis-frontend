@@ -12,6 +12,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import SuccessMessage from '../components/SuccessMessage'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
+import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
 import { jarvisHistoryQueryKey, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSalesInvoices, fetchJarvisSupportCreditNotes, fetchJarvisSupportInvoices, type JarvisSalesInvoiceList } from '../services/jarvisService'
 import './SalesInvoiceListPage.css'
@@ -30,6 +31,20 @@ function ViewIcon() {
 function displayDate(date: string) {
   if (!date) return '—'
   return new Date(`${date}T12:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function displaySentTime(sentAt: string) {
+  if (!sentAt || !/T\d{2}:\d{2}.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(sentAt)) return null
+  const date = new Date(sentAt)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).format(date)
+}
+
+function SentTime({ sentAt }: { sentAt: string }) {
+  const time = displaySentTime(sentAt)
+  return time ? <span className="sales-history__muted" title="Hora de envío en Colombia"><time dateTime={sentAt}>{time} (COL)</time></span> : null
 }
 
 const adjustmentLabels = {
@@ -111,7 +126,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
       title={debitNote ? 'Notas débito' : adjustmentNote ? 'Notas de ajuste' : creditNote ? 'Notas crédito' : supportDocument ? 'Documentos soporte' : 'Facturas de venta'}
       description={`Consulta tus ${plural} y crea ${supportDocument ? 'uno nuevo' : 'una nueva'} cuando lo necesites.`}
       actions={<>
-        {!isNoteList && <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />{supportDocument ? 'Importar documentos soporte' : 'Importar facturas de venta'}</Button>}
+        {BULK_IMPORT_ENABLED && !isNoteList && <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />{supportDocument ? 'Importar documentos soporte' : 'Importar facturas de venta'}</Button>}
         <Link className="sales-history__new" to={newPath}>{!isNoteList && <PlusIcon />}{newLabel}</Link>
       </>}
     />
@@ -157,7 +172,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                 <td data-label={isNoteList ? 'Nota' : supportDocument ? 'Documento soporte' : 'Factura'}>{invoice.status === 'SAVED' ? <span className="sales-history__muted">—</span> : <strong className="sales-history__number">{`${invoice.prefix}${invoice.number.startsWith(invoice.prefix) ? invoice.number.slice(invoice.prefix.length) : invoice.number}`}</strong>}
                   {invoice.cufe && <><button type="button" className="sales-history__detail" aria-expanded={expandedId === invoice.id} onClick={() => setExpandedId(expandedId === invoice.id ? null : invoice.id)}>{expandedId === invoice.id ? `Ocultar ${codeLabel}` : `Ver ${codeLabel}`}</button>{expandedId === invoice.id && <p className="sales-history__cufe">{invoice.cufe}</p>}</>}
                 </td>
-                <td data-label="Fecha de emisión">{displayDate(invoice.issueDate)}</td>
+                <td data-label="Fecha de emisión">{displayDate(invoice.issueDate)}{invoice.status === 'SENT' && <SentTime sentAt={invoice.sentAt} />}</td>
                 <td data-label={partyLabel}><strong>{invoice.customerName || '—'}</strong><span className="sales-history__muted">{invoice.customerIdentification}</span></td>
                 <td data-label="Total" className="sales-history__amount"><strong>{invoice.total ? Number(invoice.total).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</strong><span className="sales-history__muted">{invoice.currency}</span></td>
                 <td data-label="Estado" className="sales-history__state-cell"><span className={`sales-history__status${invoice.status === 'SAVED' ? ' sales-history__status--draft' : ''}`}>{invoice.status === 'SAVED' ? 'Borrador' : `${supportDocument ? 'Enviado' : 'Enviada'} a DIAN`}</span></td>

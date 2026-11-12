@@ -38,7 +38,15 @@ for (const page of pages) {
       assert.equal(applications[0].url, url)
       assert.ok(graph.some(item => item['@type'] === 'BreadcrumbList'))
       const prices = applications[0].offers.map(offer => offer.price)
-      assert.deepEqual(prices, page.path === '/siigo' ? [35000, 75000, 120000, 250000] : page.path === '/nomina-electronica' ? [12900] : [130000, 60000])
+      assert.deepEqual(prices, page.path === '/siigo' ? [35000, 75000, 120000, 250000] : page.path === '/nomina-electronica' ? [149900, 220000, 720000] : [139900, 139900, 220000, 720000])
+      if (page.path !== '/siigo') {
+        for (const offer of applications[0].offers) {
+          assert.equal(offer.priceSpecification.billingDuration, 'P1Y')
+          assert.equal(offer.priceSpecification.price, offer.price)
+          assert.ok(html.includes(`#${offer.url.split('#')[1]}"`) || html.includes(`id="${offer.url.split('#')[1]}"`))
+        }
+        assert.ok(!html.includes('$12.900') && !html.includes('$130.000') && !html.includes('$60.000'))
+      }
     }
     assert.ok(!/<link[^>]+href="[^"]*\/App-[^"]+\.js"/.test(html), 'Private application modules must not be preloaded')
   })

@@ -1,11 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { fetchInvoiceDraftPreview } from './invoiceDraftPreviewService'
 
-const mocks = vi.hoisted(() => ({ draft: vi.fn(), settings: vi.fn(), taxes: vi.fn(), methods: vi.fn(), customer: vi.fn(), get: vi.fn() }))
+const mocks = vi.hoisted(() => ({ draft: vi.fn(), settings: vi.fn(), taxes: vi.fn(), methods: vi.fn(), customer: vi.fn(), get: vi.fn(), appearance: vi.fn() }))
 vi.mock('./invoiceDraftService', () => ({ fetchInvoiceDraft: mocks.draft }))
 vi.mock('./jarvisService', () => ({ fetchJarvisCredentialsStatus: mocks.settings, fetchJarvisTaxes: mocks.taxes, fetchJarvisTerceros: mocks.customer }))
 vi.mock('./jarvisPaymentMethodService', () => ({ fetchJarvisPaymentMethods: mocks.methods }))
 vi.mock('./apiClient', () => ({ apiClient: { get: mocks.get } }))
+vi.mock('./invoiceAppearanceService', () => ({ fetchInvoiceAppearance: mocks.appearance }))
 const company = { id: 'owner', name: 'Empresa', nit: '123-1' }
 beforeEach(() => {
   vi.resetAllMocks()
@@ -14,6 +15,7 @@ beforeEach(() => {
   mocks.taxes.mockResolvedValue({ items: [] })
   mocks.methods.mockResolvedValue({ items: [] })
   mocks.get.mockResolvedValue({ data: { logoDataUrl: null } })
+  mocks.appearance.mockResolvedValue({ accentColor: '#123456', footerText: 'Gracias por tu compra.', showLogo: false })
 })
 
 it('prepara un guardado incompleto con servicios locales sin pedir datos de una factura emitida', async () => {
@@ -22,6 +24,7 @@ it('prepara un guardado incompleto con servicios locales sin pedir datos de una 
   expect(result).toMatchObject({ isDraft: true, cufe: '', items: [], issuerTaxProfile: { vatRegime: 'non_vat_responsible' } })
   expect(mocks.get).toHaveBeenCalledExactlyOnceWith('/integrations/JARVIS/logo')
   expect(mocks.customer).not.toHaveBeenCalled()
+  expect(result.invoiceAppearance).toEqual({ accentColor: '#123456', footerText: 'Gracias por tu compra.', showLogo: false })
 })
 
 it('rechaza un documento de otro módulo antes de consultar los demás datos', async () => {

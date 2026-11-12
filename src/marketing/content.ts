@@ -1,4 +1,4 @@
-import type { Product } from './catalog'
+import { BILLING_PLANS, COMPLIANCE_COMBOS, type Product } from './catalog'
 
 export const BILLING_SOLUTIONS = [
   { title: 'Factura de venta', description: 'Crea tus facturas electrónicas de venta en JARVIS y envíalas directamente a la DIAN.', icon: 'invoice' as const },
@@ -11,7 +11,6 @@ export const BILLING_SOLUTIONS = [
 export const MARKETING_FAQS: Record<Product | 'home', { question: string; answer: string }[]> = {
   home: [
     { question: '¿Qué solución JARVIS necesita mi negocio?', answer: 'Puedes elegir facturación electrónica para emitir tus documentos directamente con la DIAN, nómina electrónica para gestionar la nómina de tus empleados o causación automática para agilizar tu operación contable con Siigo. Cada solución tiene sus propios planes y acompañamiento personalizado.' },
-    { question: '¿Necesito Siigo para facturar electrónicamente con JARVIS?', answer: 'No. La facturación electrónica directa con la DIAN funciona desde JARVIS sin necesitar una cuenta de Siigo. La cuenta de Siigo se necesita cuando eliges la solución de automatización conectada con ese sistema.' },
     { question: '¿Puedo recibir ayuda para elegir e implementar mi solución?', answer: 'Sí. Escríbenos por WhatsApp para revisar las necesidades de facturación, nómina o causación de tu empresa. Te orientamos sobre los planes y te acompañamos durante la implementación.' },
   ],
   siigo: [
@@ -22,11 +21,10 @@ export const MARKETING_FAQS: Record<Product | 'home', { question: string; answer
     { question: '¿Estos planes incluyen facturación electrónica directa desde JARVIS?', answer: 'Los planes de esta página corresponden al cargue masivo de documentos soporte en Siigo. La emisión directa desde JARVIS con la DIAN es otra solución y tiene sus propios planes.' },
   ],
   billing: [
-    { question: '¿Qué documentos y servicios ofrece Facturación JARVIS?', answer: 'Puedes emitir facturas de venta, documentos soporte, notas débito y notas crédito, y gestionar eventos RADIAN desde JARVIS, directamente con la DIAN y sin necesitar una cuenta de Siigo.' },
-    { question: '¿Puedo facturar directamente con la DIAN sin tener Siigo?', answer: 'Sí. Facturación JARVIS permite crear y emitir facturas electrónicas directamente con la DIAN desde JARVIS, sin necesitar una cuenta de Siigo.' },
-    { question: '¿Cuánto cuesta empezar a facturar electrónicamente con JARVIS?', answer: 'Puedes elegir el plan anual de $130.000 COP, que incluye 50 documentos electrónicos y no tiene mensualidad, o el plan de facturación electrónica ilimitada por $60.000 COP al mes.' },
-    { question: '¿Cómo funciona el plan anual?', answer: 'El plan anual cuesta $130.000 COP al año e incluye 50 documentos electrónicos. Cuando necesitas más documentos, puedes comprar recargas de 10, 25, 50, 100, 250 o 500 documentos, según tu operación.' },
-    { question: '¿Cuánto cuesta la facturación electrónica ilimitada?', answer: 'El plan de facturación electrónica ilimitada cuesta $60.000 COP mensuales. Es una alternativa al plan anual para negocios que prefieren pagar una cantidad fija cada mes por emitir sus facturas.' },
+    { question: '¿Qué documentos y servicios ofrece Facturación JARVIS?', answer: 'Puedes emitir facturas de venta, documentos soporte, notas débito y notas crédito, y gestionar eventos RADIAN desde JARVIS, directamente con la DIAN.' },
+    { question: '¿Cuánto cuesta empezar a facturar electrónicamente con JARVIS?', answer: `La inscripción inicial cuesta ${BILLING_PLANS[0].price} COP al año e incluye 50 documentos de obsequio únicamente en la primera inscripción. La inscripción regular tiene el mismo precio anual e incluye 25 documentos. Ambas incluyen RADIAN y permiten recargas.` },
+    { question: '¿Cómo funcionan las recargas de documentos?', answer: 'Cuando necesitas más documentos, puedes comprar recargas de 10, 25, 50, 100, 250 o 500 documentos. Cada recarga se compra por separado y puede usarse con el plan por documentos o el combo inicial.' },
+    { question: '¿Cuánto cuesta la facturación y nómina ilimitadas?', answer: `El combo cumplimiento ilimitado cuesta ${COMPLIANCE_COMBOS[1].price} COP al año e incluye facturación, nómina electrónica y RADIAN. No requiere recargas. También puedes elegir el combo inicial por ${COMPLIANCE_COMBOS[0].price} COP al año, con 50 documentos en la primera inscripción y nómina para 2 empleados.` },
     { question: '¿Qué información puedo organizar para emitir mis documentos?', answer: 'Además de facturas de venta, documentos soporte, notas débito, notas crédito y eventos RADIAN, en JARVIS puedes gestionar clientes y terceros y configurar productos e impuestos desde la misma plataforma.' },
   ],
 }
@@ -38,7 +36,7 @@ export const MARKETING_STEPS: Record<Product, { title: string; description: stri
     { title: 'Envía a Siigo', description: 'Envía los documentos revisados y consulta su estado desde JARVIS.' },
   ],
   billing: [
-    { title: 'Elige tu modalidad', description: 'Elige el plan anual con 50 documentos o facturación ilimitada con pago mensual.' },
+    { title: 'Elige tu modalidad', description: 'Elige un plan anual por documentos o un combo de facturación y nómina según lo que necesita tu empresa.' },
     { title: 'Organiza tus datos', description: 'Configura la información de tus clientes, productos e impuestos para preparar tus facturas.' },
     { title: 'Crea y emite', description: 'Revisa tu factura electrónica y envíala desde JARVIS directamente con la DIAN.' },
   ],

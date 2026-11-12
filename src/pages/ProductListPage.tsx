@@ -10,6 +10,7 @@ import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { PackageIcon } from '../components/icons/SidebarIcons'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
+import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteProduct, fetchProducts, type ProductResponse } from '../services/productService'
 import {
@@ -163,7 +164,7 @@ function ProductListPage() {
         description="Consulta el catálogo de productos y servicios registrados en Jarvis."
         actions={
           <>
-            <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />Importar productos</Button>
+            {BULK_IMPORT_ENABLED && <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />Importar productos</Button>}
             <Button
               variant="primary"
               onClick={() => setIsCreateOpen(true)}
