@@ -53,6 +53,20 @@ const adjustmentLabels = {
   CREDIT_AND_DEBIT: 'Con nota crédito y débito',
 } as const
 
+function AdjustmentStatus({ invoice }: { invoice: JarvisSalesInvoiceList['items'][number] }) {
+  if (invoice.status === 'SAVED' || !invoice.adjustmentStatus || invoice.adjustmentStatus === 'NONE') {
+    return <span className="sales-history__muted">—</span>
+  }
+  const notes = invoice.relatedCreditNotes ?? []
+  return <>
+    {(notes.length === 0 || invoice.adjustmentStatus !== 'CREDIT_NOTE') && <span className="sales-history__status sales-history__status--adjusted">{adjustmentLabels[invoice.adjustmentStatus]}</span>}
+    {notes.map(note => {
+      const number = note.number.startsWith(note.prefix) ? note.number : `${note.prefix}${note.number}`
+      return <Link key={note.id} className="sales-history__status sales-history__status--adjusted" to={`/nota-credito/${encodeURIComponent(note.id)}/visualizar`} aria-label={`Ver nota crédito ${number}`}>Con nota crédito · {number}</Link>
+    })}
+  </>
+}
+
 export default function SalesInvoiceListPage({ supportDocument = false, creditNote = false, debitNote = false, adjustmentNote = false }: { supportDocument?: boolean; creditNote?: boolean; debitNote?: boolean; adjustmentNote?: boolean }) {
   const newPath = debitNote ? '/nota-debito/nueva' : adjustmentNote ? '/nota-ajuste/nueva' : creditNote ? '/nota-credito/nueva' : supportDocument ? '/documento-soporte/nuevo' : '/factura-venta/nueva'
   const plural = debitNote ? 'notas débito' : adjustmentNote ? 'notas de ajuste' : creditNote ? 'notas crédito' : supportDocument ? 'documentos soporte' : 'facturas'
@@ -176,7 +190,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                 <td data-label={partyLabel}><strong>{invoice.customerName || '—'}</strong><span className="sales-history__muted">{invoice.customerIdentification}</span></td>
                 <td data-label="Total" className="sales-history__amount"><strong>{invoice.total ? Number(invoice.total).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</strong><span className="sales-history__muted">{invoice.currency}</span></td>
                 <td data-label="Estado" className="sales-history__state-cell"><span className={`sales-history__status${invoice.status === 'SAVED' ? ' sales-history__status--draft' : ''}`}>{invoice.status === 'SAVED' ? 'Borrador' : `${supportDocument ? 'Enviado' : 'Enviada'} a DIAN`}</span></td>
-                {isSalesInvoice && <td data-label="Estado de ajuste" className="sales-history__state-cell">{invoice.status === 'SAVED' || !invoice.adjustmentStatus || invoice.adjustmentStatus === 'NONE' ? <span className="sales-history__muted">—</span> : <span className="sales-history__status sales-history__status--adjusted">{adjustmentLabels[invoice.adjustmentStatus]}</span>}</td>}
+                {isSalesInvoice && <td data-label="Estado de ajuste" className="sales-history__state-cell"><AdjustmentStatus invoice={invoice} /></td>}
                 <td data-label="Acciones" className="sales-history__actions-cell"><div className="sales-history__actions">
                   {invoice.status === 'SAVED' ? <>
                     <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar?borrador=1`} title="Visualizar" aria-label={`Visualizar ${documentLabel} sin enviar`}><ViewIcon /></Link>

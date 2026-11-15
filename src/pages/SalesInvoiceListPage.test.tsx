@@ -8,6 +8,20 @@ vi.mock('../components/InvoiceNoteActions', () => ({ default: () => null }))
 vi.mock('../components/DateRangeFilter', () => ({ default: () => null }))
 beforeEach(() => { mocks.cached = { items: [], total: 0, page: 1, pageSize: 20 } })
 
+it.each(['CREDIT_NOTE', 'CREDIT_AND_DEBIT'])('abre cada nota crédito vinculada para el estado %s', adjustmentStatus => {
+  mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status: 'SENT', adjustmentStatus,
+    issueDate: '2026-11-11', total: '100', relatedCreditNotes: [
+      { id: 'note/1', prefix: 'NC', number: '1' }, { id: 'note2', prefix: 'NC', number: 'NC2' },
+    ] }], total: 1, page: 1, pageSize: 20 }
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
+  expect(html).toContain('href="/nota-credito/note%2F1/visualizar"')
+  expect(html).toContain('href="/nota-credito/note2/visualizar"')
+  expect(html).toContain('aria-label="Ver nota crédito NC1"')
+  expect(html).toContain('aria-label="Ver nota crédito NC2"')
+  expect(html).not.toContain('NCNC2')
+  if (adjustmentStatus === 'CREDIT_AND_DEBIT') expect(html).toContain('Con nota crédito y débito')
+})
+
 it.each([{}, { creditNote: true }, { debitNote: true }, { supportDocument: true }, { adjustmentNote: true }])('muestra la hora de envío en Colombia para %j', (props) => {
   mocks.cached = { items: [{ id: 'sent', prefix: 'FE', number: '1', status: 'SENT',
     issueDate: '2026-11-11', sentAt: '2026-11-12T02:34:56Z', total: '100' }], total: 1, page: 1, pageSize: 20 }

@@ -218,6 +218,7 @@ export interface JarvisSalesInvoice {
   sentAt: string
   status: 'SENT' | 'SAVED'
   adjustmentStatus?: 'NONE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'CREDIT_AND_DEBIT'
+  relatedCreditNotes?: Array<{ id: string; prefix: string; number: string }>
 }
 
 export interface JarvisSalesInvoiceList {
