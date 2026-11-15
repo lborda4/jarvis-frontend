@@ -40,4 +40,5 @@ it('no acepta opciones que no están en las listas cargadas', () => {
   expect(canSavePayrollEmployee(employee, catalogs, [], positions)).toBe(false)
   expect(canSavePayrollEmployee(employee, catalogs, cities, [])).toBe(false)
   expect(valid({ documentTypeId: 999 })).toBe(false)
+  expect(canSavePayrollEmployee(employee, { ...catalogs, contractTypes: [{ key: 'INDEFINITE', id: 0, name: 'Sin homologar' }] }, cities, positions)).toBe(false)
 })

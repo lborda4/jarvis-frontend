@@ -14,9 +14,9 @@ vi.mock('../context/IntegrationSetupContext', () => ({ useIntegrationSetup: () =
   setupPath: '/configuracion/integracion-jarvis',
 }) }))
 
-function render(modules?: JarvisModule[]) {
+function render(modules?: JarvisModule[], pathname = '/') {
   state.modules = modules
-  return renderToStaticMarkup(<MemoryRouter><Sidebar isOpen onClose={() => {}} onOpen={() => {}} /></MemoryRouter>)
+  return renderToStaticMarkup(<MemoryRouter initialEntries={[pathname]}><Sidebar isOpen onClose={() => {}} onOpen={() => {}} /></MemoryRouter>)
 }
 it('oculta nómina cuando solo se elige facturación', () => {
   const html = render(['BILLING'])
@@ -34,4 +34,11 @@ it('conserva ambos módulos para empresas existentes', () => {
   const html = render()
   expect(html).toContain('Documentos electrónicos')
   expect(html).toContain('Nómina electrónica')
+})
+
+it('muestra solo nóminas y empleados en el menú desplegado de nómina', () => {
+  const html = render(['PAYROLL'], '/nomina')
+  expect(html).toContain('href="/nomina"')
+  expect(html).toContain('href="/nomina/empleados"')
+  expect(html).not.toContain('href="/nomina/configuracion"')
 })

@@ -7,27 +7,27 @@ export const SITE_URL = 'https://www.jarviscol.com'
 const PAGES = {
   payroll: {
     path: '/nomina-electronica',
-    title: 'Nómina electrónica para tu equipo | JARVIS',
-    description: `Genera y envía tu nómina electrónica a la DIAN con JARVIS por ${PAYROLL_PLAN.price} COP al año para hasta 2 empleados. Conoce las recargas y los combos con facturación.`,
-    name: 'Nómina electrónica JARVIS',
+    title: 'Nómina electrónica para tu equipo | Jenius',
+    description: `Genera y envía tu nómina electrónica a la DIAN con Jenius por ${PAYROLL_PLAN.price} COP al año para hasta 2 empleados. Conoce las recargas y los combos con facturación.`,
+    name: 'Nómina electrónica Jenius',
   },
   home: {
     path: '/',
-    title: 'JARVIS | Facturación, nómina electrónica y automatización contable',
-    description: 'Elige tu solución JARVIS: facturación electrónica, nómina y causación automática con acompañamiento personalizado. Conoce nuestros planes en Colombia.',
-    name: 'Soluciones JARVIS: facturación, nómina y automatización contable',
+    title: 'Jenius | Facturación, nómina electrónica y automatización contable',
+    description: 'Elige tu solución Jenius: facturación electrónica, nómina y causación automática con acompañamiento personalizado. Conoce nuestros planes en Colombia.',
+    name: 'Soluciones Jenius: facturación, nómina y automatización contable',
   },
   siigo: {
     path: '/siigo',
-    title: 'Automatización contable con Siigo e IA | JARVIS',
-    description: 'Automatiza documentos soporte y facturas de compra en Siigo con JARVIS e IA. Planes de cargue masivo de documentos soporte desde $35.000 COP/mes.',
-    name: 'JARVIS para Siigo',
+    title: 'Automatización contable con Siigo e IA | Jenius',
+    description: 'Automatiza documentos soporte y facturas de compra en Siigo con Jenius e IA. Planes de cargue masivo de documentos soporte desde $35.000 COP/mes.',
+    name: 'Jenius para Siigo',
   },
   billing: {
     path: '/facturacion-electronica',
-    title: 'Facturación electrónica en Colombia, directa DIAN | JARVIS',
-    description: 'Factura de venta, documento soporte, notas débito, notas crédito y RADIAN con JARVIS, directo con la DIAN. Conoce los planes de facturación.',
-    name: 'Facturación JARVIS',
+    title: 'Facturación electrónica en Colombia, directa DIAN | Jenius',
+    description: 'Factura de venta, documento soporte, notas débito, notas crédito y RADIAN con Jenius, directo con la DIAN. Conoce los planes de facturación.',
+    name: 'Facturación Jenius',
   },
 }
 
@@ -43,12 +43,12 @@ export function getStructuredData(product?: MarketingProduct) {
   const applicationId = `${page.url}#software`
   const graph: Record<string, unknown>[] = [
     {
-      '@type': 'Organization', '@id': organizationId, name: 'JARVIS',
-      url: `${SITE_URL}/`, logo: `${SITE_URL}/logo5.png`,
+      '@type': 'Organization', '@id': organizationId, name: 'Jenius',
+      url: `${SITE_URL}/`, logo: `${SITE_URL}/jenius-logo.svg`,
       email: SALES_EMAIL, telephone: CONTACT_PHONE, sameAs: [INSTAGRAM_HREF],
     },
     {
-      '@type': 'WebSite', '@id': websiteId, name: 'JARVIS', url: `${SITE_URL}/`,
+      '@type': 'WebSite', '@id': websiteId, name: 'Jenius', url: `${SITE_URL}/`,
       inLanguage: 'es-CO', publisher: { '@id': organizationId },
     },
     {
@@ -104,21 +104,21 @@ export function renderMarketingHead(product?: MarketingProduct) {
 <link rel="alternate" hreflang="es-CO" href="${url}" />
 <meta property="og:type" content="website" />
 <meta property="og:locale" content="es_CO" />
-<meta property="og:site_name" content="JARVIS" />
+<meta property="og:site_name" content="Jenius" />
 <meta property="og:url" content="${url}" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${description}" />
-<meta property="og:image" content="${SITE_URL}/jarvis-login-brand.png" />
-<meta property="og:image:alt" content="JARVIS: automatiza, conecta y simplifica" />
+<meta property="og:image" content="${SITE_URL}/jenius-social.png" />
+<meta property="og:image:alt" content="Jenius: automatiza, conecta y simplifica" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${title}" />
 <meta name="twitter:description" content="${description}" />
-<meta name="twitter:image" content="${SITE_URL}/jarvis-login-brand.png" />
+<meta name="twitter:image" content="${SITE_URL}/jenius-social.png" />
 <script id="jarvis-structured-data" type="application/ld+json">${JSON.stringify(getStructuredData(product)).replaceAll('<', '\\u003c')}</script>`
 }
 
 export function renderApplicationHead() {
-  return '<title>Acceso a JARVIS</title><meta name="robots" content="noindex, follow" />'
+  return '<title>Acceso a Jenius</title><meta name="robots" content="noindex, follow" />'
 }
 
 function applyHead(html: string) {

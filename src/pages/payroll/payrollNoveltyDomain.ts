@@ -15,6 +15,8 @@ import {
 } from '../../utils/payrollDomain'
 import { payrollEmploymentDays } from '../../utils/payrollEmployment'
 import { prorate } from '../../utils/payrollDomain'
+import { payrollQuantity } from '../../utils/payrollQuantity'
+import { payrollIncomeCategory } from './payrollIncomeCategories'
 
 export const canEditPayrollNovelties = (document: Pick<PayrollDocument, 'status'>) =>
   ['DRAFT', 'REJECTED'].includes(document.status)
@@ -70,8 +72,11 @@ export function payrollNoveltyLine(
   const zeroLegalDeduction = concept.kind === 'deduction' && ['eps', 'pension', 'solidarity', 'subsistence'].includes(concept.code) && Number.isSafeInteger(input.typeLawDeductionsId) && input.typeLawDeductionsId! > 0
   if ((!zeroLegalDeduction && cents(input.amount) <= 0n) || cents(input.quantity) <= 0n)
     throw new Error('La cantidad y el valor deben ser mayores que cero.')
+  if (payrollIncomeCategory(concept) !== 'Horas extras' && cents(input.quantity) % 100n !== 0n)
+    throw new Error('Los días deben ser un número entero.')
   const line: PayrollLine = {
     ...input,
+    quantity: payrollQuantity(input.quantity),
     concept: concept.code,
     kind: concept.kind,
     mapping: concept.code.startsWith('internal_')

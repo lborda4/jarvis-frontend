@@ -16,8 +16,8 @@ export const statusLabels: Record<string, string> = {
   PENDING: 'Pendiente de envío',
   PROCESSING: 'En procesamiento',
   ACCEPTED: 'Aceptada',
-  REJECTED: 'Rechazada',
-  UNCERTAIN: 'Por confirmar',
+  REJECTED: 'Error',
+  UNCERTAIN: 'Error · Por confirmar',
 }
 export const employeeName = (
   e: Pick<Employee, 'firstName' | 'surname' | 'secondName' | 'secondSurname'>,
@@ -205,21 +205,6 @@ export function blankParameters(date = localDate()): Parameters {
   }
 }
 
-export function payrollParametersForSettings(saved?: Parameters, date = localDate()): Parameters {
-  const defaults = blankParameters(date)
-  if (!saved) return defaults
-  return {
-    ...saved,
-    minimumSalary: Number.isFinite(Number(saved.minimumSalary)) && Number(saved.minimumSalary) > 0 && Number(saved.minimumSalary) >= Number(defaults.minimumSalary)
-      ? saved.minimumSalary
-      : defaults.minimumSalary,
-    transportAllowance: Number.isFinite(Number(saved.transportAllowance)) && Number(saved.transportAllowance) > 0 && Number(saved.transportAllowance) >= Number(defaults.transportAllowance)
-      ? saved.transportAllowance
-      : defaults.transportAllowance,
-    weeklyHours: Number(saved.weeklyHours) > 0 ? saved.weeklyHours : defaults.weeklyHours,
-    monthlyHours: Number(saved.monthlyHours) > 0 ? saved.monthlyHours : monthlyHoursForWeek(Number(saved.weeklyHours) > 0 ? saved.weeklyHours : defaults.weeklyHours),
-  }
-}
 export function blankPayroll(period = localDate().slice(0, 7)): PayrollState {
   const [year, month] = period.split('-').map(Number)
   return {

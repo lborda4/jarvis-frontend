@@ -170,6 +170,7 @@ function patchResolutionDraft(
 }
 
 export function useJarvisIntegrationSettings() {
+  const [billingRevision, setBillingRevision] = useState(0)
   const { user, isLoading: isAuthLoading } = useAuth()
   const {
     markConfigured,
@@ -354,7 +355,7 @@ export function useJarvisIntegrationSettings() {
         setStatusLoaded(true)
       }
     })()
-  }, [markConfigured, user?.company?.id])
+  }, [markConfigured, user?.company?.id, billingRevision])
 
   useEffect(() => {
     if (!statusLoaded || steps.length === 0) {
@@ -890,6 +891,10 @@ export function useJarvisIntegrationSettings() {
   )
 
   return {
+    reloadBillingConfiguration: () => {
+      setBillingRevision(revision => revision + 1)
+      void refreshSetupStatus({ force: true }).catch(() => {})
+    },
     isAuthLoading,
     hasCompany: Boolean(user?.company),
     businessName,

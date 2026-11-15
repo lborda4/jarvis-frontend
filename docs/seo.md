@@ -1,4 +1,14 @@
-# SEO de JARVIS
+# SEO de Jenius
+
+La marca pública es **Jenius**. Se conserva `https://www.jarviscol.com` como
+dominio canónico, junto con los correos y perfiles de contacto existentes. Los
+títulos, textos públicos, datos `WebSite` y `Organization` y tarjetas
+sociales usan Jenius. El favicon conserva el logo anterior (`/logo5.png`). Esto no cambia el nombre legal de la empresa ni la marca
+de los documentos y pantallas de la aplicación privada.
+
+Después de publicar, solicitar una nueva indexación de las cuatro páginas en
+Search Console y revisar las consultas de la nueva marca. El cambio no garantiza
+la primera posición ni que Google actualice inmediatamente el nombre mostrado.
 
 Las páginas públicas se generan como HTML durante `npm run build`. No necesitan
 JavaScript, una sesión ni una respuesta del backend para mostrar sus textos,
@@ -6,7 +16,7 @@ precios, preguntas frecuentes, enlaces y metadatos a los buscadores.
 
 | URL canónica | Necesidad que atiende |
 | --- | --- |
-| https://www.jarviscol.com/ | Conocer JARVIS y elegir una solución |
+| https://www.jarviscol.com/ | Conocer Jenius y elegir una solución |
 | https://www.jarviscol.com/siigo | Automatización contable con Siigo, IA y cargue masivo de documentos soporte |
 | https://www.jarviscol.com/facturacion-electronica | Facturación electrónica en Colombia: factura de venta, documento soporte, nota débito, nota crédito y RADIAN; planes y precios |
 

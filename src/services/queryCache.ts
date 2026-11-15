@@ -28,6 +28,8 @@ export const QUERY_STALE_MS = {
   filterOptions: 30_000,
   documents: 10 * 60_000,
   jarvisHistory: 60_000,
+  jarvisConfiguration: 24 * 60 * 60_000,
+  jarvisQuota: 24 * 60 * 60_000,
   siigoCatalogBundle: 5 * 60_000,
 } as const
 
@@ -70,6 +72,12 @@ export function setCachedQuery<T>(key: string, value: T): void {
     value,
     fetchedAt: Date.now(),
   })
+}
+
+/** Patch cached data without extending its freshness or creating a missing entry. */
+export function updateCachedQuery<T>(key: string, update: (value: T) => T): void {
+  const entry = store.get(key) as CacheEntry<T> | undefined
+  if (entry?.value !== undefined) entry.value = update(entry.value)
 }
 
 export function invalidateQueryCache(prefix?: string): void {

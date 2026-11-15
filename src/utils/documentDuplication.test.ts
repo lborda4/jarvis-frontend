@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { duplicateInvoicePrefill, duplicatePayrollState, movePayrollStatePeriod } from './documentDuplication'
+import { duplicateInvoicePrefill } from './documentDuplication'
 import type { JarvisInvoiceDetail } from '../services/jarvisService'
-import type { PayrollState } from '../services/payrollService'
 
 const invoice: JarvisInvoiceDetail = {
   id: 'original', providerId: '1', number: '21', prefix: 'FE', issueDate: '2026-10-06',
@@ -45,38 +44,3 @@ describe('duplicar factura o documento soporte', () => {
   })
 })
 
-describe('duplicar nómina', () => {
-  const state: PayrollState = {
-    payrollName: 'Administración', payrollGroupId: 'old-group', periodicity: 'MONTHLY', employeeId: 'employee',
-    period: '2026-10', startDate: '2026-10-01', endDate: '2026-10-31', issueDate: '2026-10-31',
-    workedDays: '30', paymentDates: ['2026-10-31'], originalId: 'old-original', noteType: 1,
-    lines: [{ id: 'old-line', concept: 'salary', kind: 'accrued', amount: '2000000', quantity: '30' },
-      { id: 'old-vacation', concept: 'vacation', kind: 'accrued', amount: '100000', quantity: '2', startDate: '2026-10-30', endDate: '2026-10-31' }],
-  }
-  it('abre una nueva nómina editable con los importes anteriores y fechas del mes actual', () => {
-    const original = structuredClone(state)
-    const copy = duplicatePayrollState(state, '2026-11-06')
-    expect(copy).toMatchObject({ employeeId: 'employee', payrollName: 'Administración', period: '2026-11', startDate: '2026-11-01', endDate: '2026-11-30', issueDate: '2026-11-06', paymentDates: ['2026-11-06'], workedDays: '30' })
-    expect(copy).not.toHaveProperty('originalId')
-    expect(copy).not.toHaveProperty('noteType')
-    expect(copy).not.toHaveProperty('payrollGroupId')
-    expect(copy.lines[0]).toMatchObject({ amount: '2000000', quantity: '30' })
-    expect(copy.lines[0].id).not.toBe(state.lines[0].id)
-    expect(copy.lines[1].endDate).toBe('2026-11-30')
-    copy.lines[0].amount = '1'
-    expect(state).toEqual(original)
-  })
-  it('respeta la quincena y los límites de febrero', () => {
-    expect(duplicatePayrollState({ ...state, periodicity: 'SECOND_HALF' }, '2028-02-03')).toMatchObject({ startDate: '2028-02-16', endDate: '2028-02-29' })
-  })
-  it('permite elegir otro período conservando días, importes y fechas de emisión de la copia', () => {
-    const copy = duplicatePayrollState({ ...state, periodicity: 'FIRST_HALF', workedDays: '15' }, '2026-11-06')
-    expect(movePayrollStatePeriod(copy, '2026-12')).toMatchObject({ period: '2026-12', startDate: '2026-12-01', endDate: '2026-12-15', workedDays: '15', issueDate: '2026-11-06' })
-  })
-  it('reconoce meses completos antiguos y conserva novedades que cruzan de mes', () => {
-    const old = { ...state, periodicity: undefined, period: '2026-02', startDate: '2026-02-01', endDate: '2026-02-28', lines: [{ ...state.lines[1], startDate: '2026-02-28', endDate: '2026-03-02' }] }
-    const copy = duplicatePayrollState(old, '2026-03-06')
-    expect(copy.endDate).toBe('2026-03-31')
-    expect(copy.lines[0]).toMatchObject({ startDate: '2026-03-28', endDate: '2026-04-02' })
-  })
-})

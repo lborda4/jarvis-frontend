@@ -39,7 +39,7 @@ export default function SolutionLanding() {
 
     <main id="contenido">
       <section className="solution-plans" aria-labelledby="solution-title">
-        <div className="solution-intro"><span className="solution-eyebrow">Facturación · Nómina · Contabilidad</span><h1 id="solution-title">Elige tu solución <span>JARVIS</span></h1><p>Factura ante la DIAN, envía tu nómina electrónica o agiliza la causación en Siigo. Elige lo que necesita tu negocio; te acompañamos a ponerlo en marcha.</p></div>
+        <div className="solution-intro"><span className="solution-eyebrow">Facturación · Nómina · Contabilidad</span><h1 id="solution-title">Elige tu solución <span>Jenius</span></h1><p>Factura ante la DIAN, envía tu nómina electrónica o agiliza la causación en Siigo. Elige lo que necesita tu negocio; te acompañamos a ponerlo en marcha.</p></div>
         <PricingPeriodToggle period={period} onChange={setPeriod} />
         <div className="solution-cards" id="precios">
           <article className="solution-card solution-card--featured" aria-labelledby="billing-title">
@@ -84,8 +84,8 @@ export default function SolutionLanding() {
         <ComplianceCombos period={period} />
       </section>
 
-      <section className="solution-benefits" id="acompanamiento" aria-label="Beneficios de JARVIS">{benefits.map(benefit => <div key={benefit.title}><SolutionIcon name={benefit.icon} /><p><strong>{benefit.title}</strong><span>{benefit.description}</span></p></div>)}</section>
-      <section className="solution-more" id="integraciones" aria-labelledby="integration-title"><div><span className="solution-eyebrow">Conecta tu operación</span><h2 id="integration-title">Tus soluciones, en un solo lugar</h2><p>Emite tus documentos electrónicos desde JARVIS, directamente con la DIAN. Si ya trabajas con Siigo, conecta tu cuenta para agilizar tu operación contable.</p></div><div className="solution-more__links"><Link to="/facturacion-electronica#precios">Ver planes de facturación <span aria-hidden="true">↗</span></Link><Link to="/siigo">Conocer la integración con Siigo <span aria-hidden="true">↗</span></Link><a href={WHATSAPP_DEMO_HREF} target="_blank" rel="noopener noreferrer">Hablar con un asesor <span aria-hidden="true">↗</span></a></div></section>
+      <section className="solution-benefits" id="acompanamiento" aria-label="Beneficios de Jenius">{benefits.map(benefit => <div key={benefit.title}><SolutionIcon name={benefit.icon} /><p><strong>{benefit.title}</strong><span>{benefit.description}</span></p></div>)}</section>
+      <section className="solution-more" id="integraciones" aria-labelledby="integration-title"><div><span className="solution-eyebrow">Conecta tu operación</span><h2 id="integration-title">Tus soluciones, en un solo lugar</h2><p>Emite tus documentos electrónicos desde Jenius, directamente con la DIAN. Si ya trabajas con Siigo, conecta tu cuenta para agilizar tu operación contable.</p></div><div className="solution-more__links"><Link to="/facturacion-electronica#precios">Ver planes de facturación <span aria-hidden="true">↗</span></Link><Link to="/siigo">Conocer la integración con Siigo <span aria-hidden="true">↗</span></Link><a href={WHATSAPP_DEMO_HREF} target="_blank" rel="noopener noreferrer">Hablar con un asesor <span aria-hidden="true">↗</span></a></div></section>
       <section className="solution-faq" aria-labelledby="solution-faq-title"><h2 id="solution-faq-title">Te ayudamos a elegir</h2>{MARKETING_FAQS.home.map(faq => <details key={faq.question}><summary>{faq.question}</summary><p>{faq.answer}</p></details>)}</section>
     </main>
     <MarketingFooter />

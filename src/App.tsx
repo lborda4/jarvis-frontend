@@ -57,7 +57,6 @@ function App() {
                 <Route path="/nomina" element={<PayrollPage />} />
                 <Route path="/nomina/nueva" element={<PayrollPage />} />
                 <Route path="/nomina/empleados" element={<PayrollPage />} />
-                <Route path="/nomina/configuracion" element={<PayrollPage />} />
                 <Route path="/eventos-radian" element={<RadianRoute />} />
 
                 <Route

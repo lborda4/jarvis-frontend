@@ -22,6 +22,8 @@ export default function PayrollPeriodAccordion({
   onExport,
   actions,
   periodActions,
+  selectable = true,
+  draftLabel,
 }: {
   group: ReturnType<typeof groupPayrollPeriods>[number]
   documents: PayrollDocument[]
@@ -35,6 +37,8 @@ export default function PayrollPeriodAccordion({
   onExport: () => void
   actions: (document: PayrollDocument) => PayrollRowAction[]
   periodActions: PayrollRowAction[]
+  selectable?: boolean
+  draftLabel?: string
 }) {
   const regionId = useId(),
     buttonId = useId()
@@ -70,7 +74,7 @@ export default function PayrollPeriodAccordion({
             <strong>{currency(group.net)}</strong>
           </span>
           <span className={`payroll__badge payroll__badge--${group.status}`}>
-            {group.statusLabel}
+            {group.status === 'DRAFT' ? draftLabel ?? group.statusLabel : group.statusLabel}
           </span>
         </button>
         <PayrollRowActions
@@ -109,6 +113,7 @@ export default function PayrollPeriodAccordion({
             </div>
           </div>
           <PayrollDocumentTable
+            selectable={selectable}
             documents={documents}
             selected={selected}
             busy={busy}

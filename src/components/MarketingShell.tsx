@@ -20,11 +20,8 @@ export function MarketingHeader({ home = false, links, planHref }: {
     <a className="solution-skip" href="#contenido">Saltar al contenido</a>
     <div className="solution-announcement">Software colombiano. Acompañamiento de principio a fin.</div>
     <header className="solution-header">
-      <Link to="/" className="solution-brand" aria-label="JARVIS, inicio">
-        <svg viewBox="0 0 900 215" role="img" aria-label="JARVIS. Automatiza. Conecta. Simplifica.">
-          <svg width="205" height="205" viewBox="175 90 295 290"><image href="/logo.png" width="640" height="640" /></svg>
-          <svg x="235" y="32" width="665" height="150" viewBox="40 395 560 115"><image href="/logo.png" width="640" height="640" /></svg>
-        </svg>
+      <Link to="/" className="solution-brand" aria-label="Jenius, inicio">
+        <img src="/jenius-logo.svg" width="240" height="64" alt="Jenius" />
       </Link>
       <nav className="solution-nav" aria-label="Navegación principal">
         <details className="solution-nav__dropdown"><summary>Soluciones <span aria-hidden="true">⌄</span></summary><div>
@@ -44,7 +41,7 @@ export function MarketingHeader({ home = false, links, planHref }: {
 
 export function MarketingFooter() {
   return <footer className="solution-footer">
-    <p>© {new Date().getFullYear()} JARVIS. Automatiza. Conecta. Simplifica.</p>
+    <p>© {new Date().getFullYear()} Jenius. Automatiza. Conecta. Simplifica.</p>
     <div><a href={`tel:${CONTACT_PHONE}`}>{CONTACT_PHONE_LABEL}</a><a href={`mailto:${SALES_EMAIL}`}>{SALES_EMAIL}</a><a href={INSTAGRAM_HREF} target="_blank" rel="noopener noreferrer">@{INSTAGRAM_HANDLE}</a><PrivacyPolicyLink mode="jarvis">Política de privacidad</PrivacyPolicyLink></div>
   </footer>
 }

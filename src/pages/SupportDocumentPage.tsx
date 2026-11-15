@@ -1449,7 +1449,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setShowSendOnly(true)
       setSelectedDocumentIds(new Set(summary.documentIds))
       reloadDocuments()
-      void refreshSetupStatus()
+      void refreshSetupStatus(config.provider === 'JARVIS' ? { background: true, quotaOnly: true, force: true } : undefined)
     },
     onDocumentStatusChange: setImportStatus,
   })

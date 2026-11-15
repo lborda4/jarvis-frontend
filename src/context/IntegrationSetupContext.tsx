@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { fetchIntegrationProviders } from '../services/integrationService'
 import { readIntegrationSetupSnapshot, saveIntegrationSetupSnapshot, removeIntegrationSetupSnapshot } from '../utils/integrationSetupSnapshot'
-import { fetchJarvisCredentialsStatus } from '../services/jarvisService'
+import { fetchJarvisCredentialsStatus, fetchJarvisSubscriptionStatus } from '../services/jarvisService'
 import { companyJarvisModules } from '../types/companyModules'
 import { fetchSiigoCredentialsStatus } from '../services/siigoService'
 import {
@@ -65,7 +65,7 @@ interface IntegrationSetupContextValue {
   requiresSetup: boolean
   setupPath: string
   markConfigured: () => void
-  refreshSetupStatus: (options?: { background?: boolean }) => Promise<void>
+  refreshSetupStatus: (options?: { background?: boolean; quotaOnly?: boolean; force?: boolean }) => Promise<void>
 }
 
 const IntegrationSetupContext =
@@ -136,7 +136,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     setIsElectronicInvoiceResolutionConfigured(false)
   }, [])
 
-  const refreshSetupStatus = useCallback(async (options?: { background?: boolean }) => {
+  const refreshSetupStatus = useCallback(async (options?: { background?: boolean; quotaOnly?: boolean; force?: boolean }) => {
     // Evita un frame en falso "no configurado" durante el restore de sesión.
     if (isAuthLoading) {
       setIsCheckingSetup(true)
@@ -164,6 +164,18 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       return
     }
 
+    if (options?.quotaOnly) {
+      try {
+        const subscription = await fetchJarvisSubscriptionStatus({ force: options.force })
+        if (getActiveCompanyId() !== companyId) return
+        setIsSubscriptionActive(subscription.status === 'ACTIVE')
+        setDocumentLimit(subscription.documentLimit)
+        setDocumentsUsed(subscription.documentsUsed)
+        setDocumentsRemaining(subscription.remaining)
+      } catch { /* Keep the last confirmed quota if a background refresh fails. */ }
+      return
+    }
+
     // Si ya hay datos frescos en caché, no bloquear la UI.
     const hasFreshSetupCache =
       isCachedQueryFresh(
@@ -172,7 +184,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       ) &&
       (isCachedQueryFresh(
         companyQueryKey(['jarvis', 'credentials-status']),
-        QUERY_STALE_MS.credentials,
+        QUERY_STALE_MS.jarvisConfiguration,
       ) ||
         isCachedQueryFresh(
           companyQueryKey(['siigo', 'credentials-status']),

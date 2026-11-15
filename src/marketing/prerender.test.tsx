@@ -11,7 +11,21 @@ it('renderiza las páginas públicas sin una sesión ni APIs del navegador', () 
     expect(page.html).not.toContain('Cargando...')
     expect(page.head).toContain('rel="canonical"')
     expect(page.head).not.toContain('noindex')
+    expect(page.head).toContain('Jenius')
+    expect(page.head).not.toMatch(/JARVIS|Jarvis/)
+    expect(page.html).not.toMatch(/JARVIS|Jarvis/)
+    expect(page.head).toContain('https://www.jarviscol.com')
+    expect(page.head).toContain('/jenius-social.png')
   }
+})
+
+it('identifica la nueva marca con el dominio existente y los contactos reales', () => {
+  const page = renderPage('/')
+  const graph = JSON.parse(page.head.match(/<script[^>]+type="application\/ld\+json">([\s\S]*?)<\/script>/)![1])['@graph']
+  expect(graph.find((item: { '@type': string }) => item['@type'] === 'WebSite')).toMatchObject({ name: 'Jenius', url: 'https://www.jarviscol.com/' })
+  expect(graph.find((item: { '@type': string }) => item['@type'] === 'Organization')).toMatchObject({ name: 'Jenius', email: 'ventas@jarviscol.com' })
+  expect(page.html).toContain('/jenius-logo.svg')
+  expect(page.html).toContain('mailto:ventas@jarviscol.com')
 })
 
 it('no presenta metadatos de producto ni canonical de la landing en la aplicación privada', () => {

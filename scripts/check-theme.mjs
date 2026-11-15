@@ -40,6 +40,7 @@ export function inspectStyles(source, file, themeTokens = new Set()) {
 export function inspectComponent(source, file) {
   // PDF text is laid out by react-pdf, which does not support CSS custom properties.
   if (/^src\/components\/invoice\/(?:Purchase|Sales)InvoicePdfDocument\.tsx$/.test(file)) return []
+  if (file === 'src/pages/payroll/PayrollPayslipPdf.tsx') return []
   const issues = []
   const pattern = /\b(fill|stroke|color|background|backgroundColor|border|borderColor|boxShadow|fontFamily|fontSize|fontWeight|lineHeight)\s*(?:=\s*(["'])(.*?)\2|:\s*(["'])(.*?)\4)/g
   for (const match of source.matchAll(pattern)) {

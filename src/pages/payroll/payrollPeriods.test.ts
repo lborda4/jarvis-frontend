@@ -93,7 +93,7 @@ describe('períodos de nómina', () => {
       document({ status: 'ACCEPTED' }),
       document({ id: 'doc-2', status: 'REJECTED' }),
     ])
-    expect(period.statusLabel).toBe('Con rechazos')
+    expect(period.statusLabel).toBe('Con errores')
     expect(period.net).toBe('160.18')
   })
   it('reconoce meses completos incluidos febrero bisiesto y períodos personalizados', () => {

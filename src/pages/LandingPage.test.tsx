@@ -96,10 +96,10 @@ it('presenta la inscripción inicial, regular, combos y las seis recargas con su
 
   const messages = [...html.matchAll(/href="(https:\/\/wa\.me\/[^"\s]+)"/g)]
     .map(([, href]) => new URL(href.replaceAll('&amp;', '&')).searchParams.get('text'))
-  expect(messages).toContain('Hola, me interesa el Combo cumplimiento ilimitado de JARVIS por $720.000 COP al año: Facturación y nómina ilimitadas')
-  expect(messages).toContain('Hola, me interesa la Inscripción inicial de facturación de JARVIS por $139.900 COP al año: 50 documentos de obsequio')
+  expect(messages).toContain('Hola, me interesa el Combo cumplimiento ilimitado de Jenius por $720.000 COP al año: Facturación y nómina ilimitadas')
+  expect(messages).toContain('Hola, me interesa la Inscripción inicial de facturación de Jenius por $139.900 COP al año: 50 documentos de obsequio')
   for (const [documents, price] of [[10, '$25.000'], [25, '$45.000'], [50, '$80.000'], [100, '$140.000'], [250, '$300.000'], [500, '$480.000']]) {
-    expect(messages).toContain(`Hola, quiero una recarga de ${documents} documentos electrónicos para Facturación JARVIS por ${price}`)
+    expect(messages).toContain(`Hola, quiero una recarga de ${documents} documentos electrónicos para Facturación Jenius por ${price}`)
   }
 })
 

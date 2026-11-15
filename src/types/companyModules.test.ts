@@ -10,7 +10,7 @@ describe('módulos de Jarvis por empresa', () => {
     expect(companyJarvisModules(['BILLING'])).toEqual(['BILLING'])
     expect(companyJarvisModules([])).toEqual([])
   })
-  it.each(['/nomina', '/nomina/nueva', '/nomina/empleados', '/nomina/configuracion'])('clasifica la ruta de nómina %s', path => {
+  it.each(['/nomina', '/nomina/nueva', '/nomina/empleados'])('clasifica la ruta de nómina %s', path => {
     expect(jarvisModuleForPath(path)).toBe('PAYROLL')
   })
   it.each(['/factura-venta/nueva', '/documento-soporte/a/visualizar', '/nota-credito', '/nota-ajuste', '/productos/listar', '/eventos-radian', '/reportes'])('clasifica la ruta de facturación %s', path => {

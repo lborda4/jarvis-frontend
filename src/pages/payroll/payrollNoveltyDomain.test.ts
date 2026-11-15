@@ -10,6 +10,15 @@ const state = { ...blankPayroll('2026-10'), employeeId: employee.id, payrollName
   startDate: '2026-10-01', endDate: '2026-10-15', issueDate: '2026-10-15', workedDays: '15', lines: [salary] }
 const custom = { code: 'internal_commission', kind: 'accrued' as const, name: 'Comisión especial', category: 'commissions', active: true, base: 'manual', factor: '', percentage: '', salaried: true }
 describe('Novedades por empleado', () => {
+  it('guarda los días como enteros y rechaza fracciones sin redondearlas', () => {
+    const input = { id: 'days', quantity: '13.00', amount: '100', percentage: '0', manual: true }
+    expect(payrollNoveltyLine(state, custom, input).quantity).toBe('13')
+    expect(() => payrollNoveltyLine(state, custom, { ...input, quantity: '13.5' })).toThrow('Los días deben ser un número entero.')
+  })
+  it('conserva las fracciones de las horas extras', () => {
+    const concept = { ...custom, category: 'Horas extras' }
+    expect(payrollNoveltyLine(state, concept, { id: 'hours', quantity: '1.05', amount: '100', percentage: '0', manual: true }).quantity).toBe('1.05')
+  })
   it('resta los días no hábiles del rango de vacaciones y conserva el dato para editar', () => {
     const quantity = payrollNoveltyDateQuantity('2026-10-01', '2026-10-15', '4')
     expect(quantity).toBe('11')

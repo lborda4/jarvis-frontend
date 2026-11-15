@@ -1,6 +1,7 @@
 import type { PayrollDocument } from '../../services/payrollService'
 import { currency, employeeName, statusLabels } from './payrollDefaults'
 import PayrollRowActions, { type PayrollRowAction } from './PayrollRowActions'
+import PayrollSubmissionFeedback from './PayrollSubmissionFeedback'
 
 export default function PayrollDocumentTable({
   documents,
@@ -9,6 +10,9 @@ export default function PayrollDocumentTable({
   onSelection,
   onOpen,
   actions,
+  selectable = true,
+  onNovelties,
+  onPayslip,
 }: {
   documents: PayrollDocument[]
   selected: string[]
@@ -16,10 +20,13 @@ export default function PayrollDocumentTable({
   onSelection: (ids: string[]) => void
   onOpen: (document: PayrollDocument) => void
   actions: (document: PayrollDocument) => PayrollRowAction[]
+  selectable?: boolean
+  onNovelties?: (document: PayrollDocument) => void
+  onPayslip?: (document: PayrollDocument) => void
 }) {
   const drafts = documents.filter((document) => document.status === 'DRAFT')
   return (
-    <div className="payroll-documents-table">
+    <div className={`payroll-documents-table${onNovelties ? ' payroll-documents-table--novelties' : ''}${onPayslip ? ' payroll-documents-table--payslips' : ''}`}>
       <table>
         <colgroup>
           <col className="payroll-documents-table__check" />
@@ -28,12 +35,13 @@ export default function PayrollDocumentTable({
           <col />
           <col />
           <col className="payroll-documents-table__status" />
+          {onPayslip && <col className="payroll-documents-table__payslip" />}
           <col className="payroll-documents-table__actions" />
         </colgroup>
         <thead>
           <tr>
             <th>
-              <input
+              {selectable && <input
                 type="checkbox"
                 aria-label="Seleccionar borradores visibles"
                 disabled={busy || !drafts.length}
@@ -49,13 +57,14 @@ export default function PayrollDocumentTable({
                       : selected.filter((id) => !ids.includes(id)),
                   )
                 }}
-              />
+              />}
             </th>
             <th>Empleado</th>
             <th>Ingresos</th>
             <th>Deducciones</th>
             <th>Neto a pagar</th>
             <th>Estado</th>
+            {onPayslip && <th>Desprendibles</th>}
             <th>
               <span className="payroll__sr-only">Acciones</span>
             </th>
@@ -72,7 +81,7 @@ export default function PayrollDocumentTable({
               }
             >
               <td data-label="Seleccionar">
-                {document.status === 'DRAFT' && (
+                {selectable && document.status === 'DRAFT' && (
                   <input
                     type="checkbox"
                     disabled={busy}
@@ -106,6 +115,7 @@ export default function PayrollDocumentTable({
                     : 'Sin documento asignado'}
                   {document.originalId ? ' · Nota de ajuste' : ''}
                 </small>
+                <PayrollSubmissionFeedback errors={document.submissionErrors ?? []} />
               </td>
               <td data-label="Ingresos">{currency(document.accrued)}</td>
               <td data-label="Deducciones">{currency(document.deductions)}</td>
@@ -119,18 +129,21 @@ export default function PayrollDocumentTable({
                   {statusLabels[document.status] ?? document.status}
                 </span>
               </td>
+              {onPayslip && <td data-label="Desprendibles"><button className="payroll__link" disabled={busy}
+                aria-label={`Ver desprendible de ${employeeName(document.employee)}`} onClick={() => onPayslip(document)}>Ver PDF</button></td>}
               <td data-label="Acciones">
-                <PayrollRowActions
+                {onNovelties ? <button className="payroll__link" disabled={busy || !['DRAFT', 'REJECTED'].includes(document.status)}
+                  onClick={() => onNovelties(document)}>Gestionar novedades</button> : <PayrollRowActions
                   name={employeeName(document.employee)}
                   disabled={busy}
                   actions={actions(document)}
-                />
+                />}
               </td>
             </tr>
           ))}
           {!documents.length && (
             <tr>
-              <td colSpan={7} className="payroll__empty">
+              <td colSpan={onPayslip ? 8 : 7} className="payroll__empty">
                 No hay empleados para estos filtros.
               </td>
             </tr>

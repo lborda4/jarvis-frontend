@@ -10,6 +10,8 @@ vi.mock('../components/JarvisDocumentQuotaCard', () => ({ default: () => null })
 vi.mock('../components/CompanyLogoSettings', () => ({ default: () => null }))
 vi.mock('../components/InvoiceAppearanceSettings', () => ({ default: () => null }))
 vi.mock('../components/InviteAccountant', () => ({ default: () => null }))
+vi.mock('../components/AdminBillingEnvironmentSettings', () => ({ default: () => null }))
+vi.mock('../components/AdminPayrollNumberingSettings', () => ({ default: () => null }))
 
 const base = {
   hasCompany: true, businessName: 'Empresa SAS', tradeName: 'Mi negocio',

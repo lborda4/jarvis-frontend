@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import AdminBillingEnvironmentSettings from '../components/AdminBillingEnvironmentSettings'
+import AdminPayrollNumberingSettings from '../components/AdminPayrollNumberingSettings'
 import CompanyLogoSettings from '../components/CompanyLogoSettings'
 import InvoiceAppearanceSettings from '../components/InvoiceAppearanceSettings'
 import InviteAccountant from '../components/InviteAccountant'
@@ -103,6 +105,7 @@ function JarvisIntegrationSettings() {
     handleRutUpload,
     handleSubmit,
     handleResolutionsSubmit,
+    reloadBillingConfiguration,
   } = useJarvisIntegrationSettings()
 
   const canSubmitCompany =
@@ -300,6 +303,8 @@ function JarvisIntegrationSettings() {
       )}
 
       <JarvisDocumentQuotaCard />
+      <AdminBillingEnvironmentSettings disabled={isBusy} onConfigured={reloadBillingConfiguration} />
+      <AdminPayrollNumberingSettings disabled={isBusy} />
       <InviteAccountant />
 
       {/* Sin barra de pasos, igual que en SIIGO: el acordeón ya numera cada

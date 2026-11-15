@@ -10,7 +10,6 @@ import {
   type PayrollBootstrap,
 } from '../../services/payrollService'
 import PayrollEmployees from './PayrollEmployees'
-import PayrollSettingsPage from './PayrollSettingsPage'
 import PayrollDocuments from './PayrollDocuments'
 import PayrollCreatePage from './PayrollCreatePage'
 import './Payroll.css'
@@ -106,8 +105,8 @@ function PayrollWorkspace() {
   const location = useLocation()
   const [data, setData] = useState<PayrollBootstrap | null>(null)
   const [error, setError] = useState(''),
-    [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ text: string; routeKey: string } | null>(null)
   const mounted = useRef(true)
   const reload = useCallback(async () => {
     const result = await payrollService.bootstrap()
@@ -129,11 +128,11 @@ function PayrollWorkspace() {
   ) => {
     setBusy(true)
     setError('')
-    setMessage('')
+    setMessage(null)
     try {
       await action()
       await reload()
-      if (mounted.current) setMessage(success)
+      if (mounted.current) setMessage(success ? { text: success, routeKey: location.key } : null)
       return true
     } catch (e) {
       if (mounted.current)
@@ -145,22 +144,18 @@ function PayrollWorkspace() {
   }
   const view = location.pathname.endsWith('/empleados')
     ? 'employees'
-    : location.pathname.endsWith('/configuracion')
-      ? 'settings'
-      : location.pathname.endsWith('/nueva')
-        ? 'new'
-        : 'documents'
+    : location.pathname.endsWith('/nueva')
+      ? 'new'
+      : 'documents'
   return (
     <main className="payroll">
       <div className="payroll__muted" style={{ marginBottom: 18 }}>
         Nómina electrónica ›{' '}
         {view === 'employees'
           ? 'Empleados'
-          : view === 'settings'
-            ? 'Configuración'
-            : view === 'new'
-              ? 'Nueva nómina'
-              : 'Nóminas'}
+          : view === 'new'
+            ? 'Nueva nómina'
+            : 'Nóminas'}
       </div>
       {error && (
         <div role="alert" className="payroll__notice payroll__notice--error">
@@ -174,9 +169,9 @@ function PayrollWorkspace() {
           </button>
         </div>
       )}
-      {message && (
+      {message?.routeKey === location.key && (
         <div role="status" className="payroll__notice payroll__notice--success">
-          {message}
+          {message.text}
         </div>
       )}
       {!data ? (
@@ -185,13 +180,6 @@ function PayrollWorkspace() {
         <PayrollCreatePage data={data} reload={reload} run={run} busy={busy} />
       ) : view === 'employees' ? (
         <PayrollEmployees key={location.key} data={data} reload={reload} run={run} busy={busy} />
-      ) : view === 'settings' ? (
-        <PayrollSettingsPage
-          data={data}
-          reload={reload}
-          run={run}
-          busy={busy}
-        />
       ) : (
         <PayrollDocuments data={data} reload={reload} run={run} busy={busy} />
       )}

@@ -10,7 +10,7 @@ export function buildWhatsappHref(message: string): string {
 }
 
 export const WHATSAPP_DEMO_HREF = buildWhatsappHref(
-  'Hola, quiero solicitar una demo de JARVIS',
+  'Hola, quiero solicitar una demo de Jenius',
 )
 
 export const WHATSAPP_SUPPORT_HREF = buildWhatsappHref(

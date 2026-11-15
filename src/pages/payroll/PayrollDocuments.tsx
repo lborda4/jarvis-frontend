@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import { openPayrollPayslipPdf } from './payrollPayslipPreview'
 import * as XLSX from 'xlsx'
 import {
   SearchIcon,
@@ -10,13 +12,18 @@ import {
   payrollService,
   type PayrollDetail,
   type PayrollDocument,
-  type PayrollState,
 } from '../../services/payrollService'
 import { filterPayrollList, payrollListStatusOptions } from './payrollListPresentation'
 import PayrollDocumentTable from './PayrollDocumentTable'
-import PayrollPeriodAccordion from './PayrollPeriodAccordion'
+import PayrollRegistersTable from './PayrollRegistersTable'
+import PayrollPeriodNoveltiesModal from './PayrollPeriodNoveltiesModal'
+import PayrollMonthlyReview from './PayrollMonthlyReview'
+import { groupPayrollMonths } from './payrollMonths'
 import './PayrollDocuments.css'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
+import { getApiErrorMessage } from '../../services/apiClient'
+import { payrollSubmissionErrors } from '../../utils/payrollSubmissionErrors'
+import PayrollSubmissionFeedback from './PayrollSubmissionFeedback'
 import {
   employeeName,
   localDate,
@@ -28,44 +35,41 @@ import {
   PayrollHeading,
   type PayrollContext,
 } from './PayrollPage'
-import PayrollEditor from './PayrollEditor'
-import { duplicatePayrollState } from '../../utils/documentDuplication'
 import PayrollNovelties from './PayrollNovelties'
 import PayrollImport from './PayrollImport'
 import PayrollRowActions from './PayrollRowActions'
 import { useJarvisBackAction } from '../../hooks/useJarvisBackAction'
 import {
-  groupPayrollPeriods,
   payrollPeriodKey,
 } from './payrollPeriods'
 const pageSize = 10
 export default function PayrollDocuments(context: PayrollContext) {
   const { data, run, busy } = context
+  const { user } = useAuth()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [year, setYear] = useState(
       params.get('year') ?? localDate().slice(0, 4),
     ),
+    [month, setMonth] = useState(''),
     [search, setSearch] = useState(''),
     [status, setStatus] = useState(''),
     [page, setPage] = useState(1)
   const [documents, setDocuments] = useState<PayrollDocument[]>([]),
     [loaded, setLoaded] = useState(false),
     [loadError, setLoadError] = useState('')
-  const [editor, setEditor] = useState<{
-      id?: string
-      state?: PayrollState
-      detail?: PayrollDetail
-      readOnly?: boolean
-    } | null>(null),
-    [importing, setImporting] = useState(false),
+  const [importing, setImporting] = useState(false),
     [detail, setDetail] = useState<PayrollDetail | null>(null)
   const [selected, setSelected] = useState<string[]>([]),
     [confirmBulk, setConfirmBulk] = useState(false),
-    [bulkResult, setBulkResult] = useState<string[]>([])
+    [sendingName, setSendingName] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<PayrollDocument | null>(null)
+  const [reviewMonth, setReviewMonth] = useState<string | null>(null)
+  const [noveltyPeriod, setNoveltyPeriod] = useState<string | null>(null)
+  const [noveltyDocumentId, setNoveltyDocumentId] = useState<string | null>(null)
+  const listRequest = useRef(0)
+  const [monthlyBusy, setMonthlyBusy] = useState(false)
   const [employeeAction, setEmployeeAction] = useState<{
-    action: 'edit' | 'delete'
     documents: PayrollDocument[]
   } | null>(null)
   const [detailPeriod, setDetailPeriod] = useState<string | null>(
@@ -77,11 +81,11 @@ export default function PayrollDocuments(context: PayrollContext) {
   )
   const period = detailPeriod?.includes('|')
     ? detailPeriod.slice(0, 7)
-    : `${year}-${localDate().slice(5, 7)}`
+    : `${year}-${month || localDate().slice(5, 7)}`
   useJarvisBackAction(
     () => {
-      if (busy) return
-      if (editor) setEditor(null)
+      if (busy || monthlyBusy) return
+      if (reviewMonth) setReviewMonth(null)
       else {
         setDetailPeriod(null)
         setSearch('')
@@ -90,7 +94,7 @@ export default function PayrollDocuments(context: PayrollContext) {
         setPage(1)
       }
     },
-    Boolean(editor || (detailPeriod && (isSummaryView || params.get('view') === 'novelties' || params.has('employee')))),
+    Boolean(reviewMonth || (detailPeriod && (isSummaryView || params.get('view') === 'novelties' || params.has('employee')))),
   )
   const years = [
     ...new Set([
@@ -104,12 +108,18 @@ export default function PayrollDocuments(context: PayrollContext) {
     .sort()
     .reverse()
   const reload = useCallback(async () => {
+    const request = ++listRequest.current
     const list = await payrollService.list()
+    if (request !== listRequest.current) return
     setDocuments(list)
     setLoaded(true)
     setSelected([])
     setLoadError('')
   }, [])
+  const refreshAfterNovelty = async () => {
+    try { await reload() }
+    catch { setLoadError('La novedad quedó guardada, pero no se pudo actualizar el listado. Pulsa Reintentar para actualizar los totales.') }
+  }
   useEffect(() => {
     let active = true
     void payrollService
@@ -137,12 +147,16 @@ export default function PayrollDocuments(context: PayrollContext) {
       d.state.startDate.startsWith(`${year}-`) &&
       (!params.get('employee') || d.employeeId === params.get('employee')),
   )
-  const statusScope = annualDocuments.filter(document => !isSummaryView ||
+  const dateDocuments = annualDocuments.filter(document =>
+    isSummaryView || !month || document.state.startDate.slice(5, 7) === month)
+  const statusScope = dateDocuments.filter(document => !isSummaryView ||
     (detailPeriod!.includes('|') ? payrollPeriodKey(document) === detailPeriod : document.state.period === detailPeriod))
   const statusOptions = payrollListStatusOptions(filterPayrollList(statusScope, search, ''))
   const effectiveStatus = statusOptions.some(option => option.value === status) ? status : ''
-  const matchingDocuments = filterPayrollList(annualDocuments, search, effectiveStatus)
-  const groups = groupPayrollPeriods(matchingDocuments)
+  const matchingDocuments = filterPayrollList(dateDocuments, search, effectiveStatus)
+  const allMonths = groupPayrollMonths(annualDocuments)
+  const matchingIds = new Set(matchingDocuments.map(document => document.id))
+  const months = allMonths.filter(month => month.documents.some(document => matchingIds.has(document.id)))
   const filtered = matchingDocuments
   const visible = filtered.filter(
     (d) =>
@@ -151,10 +165,10 @@ export default function PayrollDocuments(context: PayrollContext) {
         ? payrollPeriodKey(d) === detailPeriod
         : d.state.period === detailPeriod),
   )
-  const totalRows = isSummaryView ? visible.length : groups.length
+  const totalRows = isSummaryView ? visible.length : months.length
   const pageCount = Math.max(1, Math.ceil(totalRows / pageSize))
   const currentPage = Math.min(page, pageCount)
-  const periodRows = groups.slice(
+  const monthRows = months.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   )
@@ -162,49 +176,11 @@ export default function PayrollDocuments(context: PayrollContext) {
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   )
-  const openPeriod = (key: string) => {
-    setDetailPeriod((current) => (current === key ? null : key))
-    setSelected([])
-  }
-  const open = async (d: PayrollDocument, edit = false) => {
-    await run(async () => {
-      const full = await payrollService.get(d.id)
-      setEditor({ id: d.id, state: full.state, detail: full, readOnly: !edit })
-    }, '')
-  }
-  const actOnPeriod = (key: string, action: 'edit' | 'delete') => {
-    const candidates = matchingDocuments.filter(
-      (document) =>
-        payrollPeriodKey(document) === key &&
-        (action === 'edit'
-          ? ['DRAFT', 'REJECTED'].includes(document.status)
-          : document.canDelete),
-    )
-    if (candidates.length === 1) {
-      if (action === 'edit') void open(candidates[0], true)
-      else setDeleteTarget(candidates[0])
-    } else if (candidates.length > 1)
-      setEmployeeAction({ action, documents: candidates })
-  }
-  const adjustment = async (d: PayrollDocument, type: number) => {
-    await run(async () => {
-      const full = await payrollService.get(d.id)
-      setEditor({
-        state: {
-          ...full.state,
-          originalId: d.id,
-          noteType: type,
-          issueDate: localDate(),
-        },
-        detail: full,
-      })
-    }, '')
-  }
-  const duplicate = async (document: PayrollDocument) => {
-    await run(async () => {
-      const full = await payrollService.get(document.id)
-      setEditor({ state: duplicatePayrollState(full.state, localDate()) })
-    }, 'Copia lista para revisar. Se actualizó la fecha de emisión y el período al mes actual; revisa las fechas de las novedades antes de guardar.')
+  const deleteFromPeriod = (key: string) => {
+    const candidates = annualDocuments.filter(document =>
+      payrollPeriodKey(document) === key && document.canDelete)
+    if (candidates.length === 1) setDeleteTarget(candidates[0])
+    else if (candidates.length > 1) setEmployeeAction({ documents: candidates })
   }
   const exportExcel = (items = isSummaryView ? visible : matchingDocuments) => {
     const sheet = XLSX.utils.json_to_sheet(
@@ -225,10 +201,10 @@ export default function PayrollDocuments(context: PayrollContext) {
   }
   const documentActions = (document: PayrollDocument) => [
     ...(!document.originalId
-      ? [{ label: 'Duplicar', onClick: () => void duplicate(document) }]
+      ? [{ label: 'Duplicar', onClick: () => {} }]
       : []),
     ...(['DRAFT', 'REJECTED'].includes(document.status)
-      ? [{ label: 'Editar', onClick: () => void open(document, true) }]
+      ? [{ label: 'Editar', onClick: () => {} }]
       : []),
     ...(document.canDelete
       ? [
@@ -243,18 +219,18 @@ export default function PayrollDocuments(context: PayrollContext) {
       label: 'Resultado',
       onClick: () =>
         void run(async () => {
-          setDetail(await payrollService.get(document.id))
+          setDetail(await payrollService.get(document.monthlySubmission?.id ?? document.id))
         }, ''),
     },
     ...(document.status === 'ACCEPTED'
       ? [
           {
             label: 'Nota de reemplazo',
-            onClick: () => void adjustment(document, 1),
+            onClick: () => {},
           },
           {
             label: 'Nota de eliminación',
-            onClick: () => void adjustment(document, 2),
+            onClick: () => {},
           },
         ]
       : []),
@@ -267,35 +243,75 @@ export default function PayrollDocuments(context: PayrollContext) {
     setPage(1)
     navigate(`/nomina?year=${year}`, { replace: true })
   }
-  const manageNovelties = (key: string) => {
-    setDetailPeriod(key)
-    navigate(
-      `/nomina?period=${encodeURIComponent(key)}&year=${year}&view=novelties`,
-      { replace: true },
-    )
+  const manageNovelties = (key: string, document?: PayrollDocument) => {
+    setNoveltyDocumentId(document?.id ?? null)
+    setNoveltyPeriod(key)
+  }
+  const openPayslip = async (document: PayrollDocument) => {
+    const company = user?.company
+    if (!company) throw new Error('Selecciona una empresa para generar el desprendible.')
+    try {
+      await openPayrollPayslipPdf(async () => {
+        const [detail, renderer] = await Promise.all([
+          payrollService.get(document.id),
+          import('./PayrollPayslipPdf'),
+        ])
+        return renderer.generatePayrollPayslip({ detail, company,
+          position: data.positions.find(position => position.id === detail.employee_snapshot.positionId)?.name })
+      })
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No se pudo generar el desprendible. Intenta nuevamente.'), { cause: error })
+    }
   }
   const bulk = async () => {
     setConfirmBulk(false)
-    const results: string[] = []
+    setStatus('')
+    const failures: Record<string, string[]> = {}
     await run(async () => {
-      for (const id of selected) {
-        const d = documents.find((v) => v.id === id)!
-        try {
-          await payrollService.send(id)
-          results.push(
-            `${employeeName(d.employee)}: solicitud procesada; consulta el resultado.`,
-          )
-        } catch {
-          results.push(
-            `${employeeName(d.employee)}: no se pudo confirmar el envío. Revisa el resultado individual.`,
-          )
+      try {
+        for (const id of selected) {
+          const d = documents.find((v) => v.id === id)!
+          setSendingName(employeeName(d.employee))
+          try {
+            const result = await payrollService.send(id)
+            const last = result.transmissions[0]
+            const messages = payrollSubmissionErrors([last?.error, last?.validation, last?.response])
+            const failed = ['REJECTED', 'UNCERTAIN'].includes(result.status)
+            if (failed) failures[id] = messages.length ? messages : ['No se confirmó la aceptación. Revisa el resultado antes de reenviar.']
+            setDocuments(items => items.map(item => item.id === id ? {
+              ...item, status: result.status, submissionErrors: failed ? failures[id] : [],
+            } : item))
+          } catch (error) {
+            failures[id] = [getApiErrorMessage(error, 'No se pudo completar el envío. Revisa el resultado antes de reintentar.')]
+            try {
+              const result = await payrollService.get(id)
+              const last = result.transmissions[0]
+              const messages = payrollSubmissionErrors([last?.error, last?.validation, last?.response])
+              setDocuments(items => items.map(item => item.id === id ? {
+                ...item, status: result.status,
+                submissionErrors: result.status === 'ACCEPTED' ? [] : messages.length ? messages : failures[id],
+              } : item))
+              if (result.status === 'ACCEPTED') delete failures[id]
+            } catch {
+              setDocuments(items => items.map(item => item.id === id ? { ...item, submissionErrors: failures[id] } : item))
+            }
+          }
         }
+      } finally {
+        setSendingName('')
       }
       await reload()
-      setBulkResult(results)
-    }, 'Procesamiento masivo finalizado.')
+      setDocuments(items => items.map(item => ({ ...item,
+        submissionErrors: item.submissionErrors?.length ? item.submissionErrors : failures[item.id] ?? item.submissionErrors,
+      })))
+    }, '')
   }
-  if (detailPeriod && params.get('view') === 'novelties' && !editor) {
+  const monthlyReview = allMonths.find(month => month.key === reviewMonth)
+  if (monthlyReview) return (
+    <div className="payroll__documents"><PayrollHeading title="Revisar nómina del mes" description="Revisa el acumulado de cada empleado antes del envío mensual." /><PayrollMonthlyReview key={monthlyReview.key} month={monthlyReview} concepts={data.parameters.flatMap(parameter => parameter.data.concepts)} onBack={() => setReviewMonth(null)} onReload={reload} onBusyChange={setMonthlyBusy}
+      onEditEmployee={id => navigate(`/nomina/empleados?edit=${encodeURIComponent(id)}`)} /></div>
+  )
+  if (detailPeriod && params.get('view') === 'novelties') {
     return (
       <PayrollNovelties
         context={context}
@@ -313,15 +329,12 @@ export default function PayrollDocuments(context: PayrollContext) {
           setPage(1)
           navigate(`/nomina?year=${year}`, { replace: true })
         }}
-        onFinish={() =>
-          navigate(
-            `/nomina?period=${encodeURIComponent(detailPeriod)}&year=${year}&view=summary`,
-            { replace: true },
-          )
-        }
-        onOpenDocument={(document) =>
-          void open(document, ['DRAFT', 'REJECTED'].includes(document.status))
-        }
+        onFinish={() => {
+          setReviewMonth(detailPeriod.slice(0, 7))
+          setDetailPeriod(null)
+          navigate(`/nomina?year=${year}`, { replace: true })
+        }}
+        onOpenDocument={() => {}}
       />
     )
   }
@@ -329,21 +342,16 @@ export default function PayrollDocuments(context: PayrollContext) {
     <div className="payroll__documents">
       <PayrollHeading
         title={
-          editor
-            ? 'Nómina electrónica'
-            : isSummaryView
+          isSummaryView
               ? 'Resumen de nómina'
               : 'Nóminas'
         }
         description={
-          editor
-            ? 'Revisa y ajusta la nómina del empleado.'
-            : isSummaryView
+          isSummaryView
               ? 'Revisa los valores del período antes de enviar la nómina.'
-              : 'Organiza tus períodos y consulta los empleados de cada nómina.'
+              : 'Guarda tus quincenas y revisa la nómina mensual de cada empleado.'
         }
         actions={
-          !editor && (
             <>
               {isSummaryView ? (
                 <>
@@ -371,28 +379,6 @@ export default function PayrollDocuments(context: PayrollContext) {
                 </>
               ) : (
                 <>
-                  <label className="payroll-register__year">
-                    <span>Año</span>
-                    <select
-                      aria-label="Año de nómina"
-                      value={year}
-                      disabled={busy}
-                      onChange={(event) => {
-                        setYear(event.target.value)
-                        setPage(1)
-                        setDetailPeriod(null)
-                        setSelected([])
-                        setSearch('')
-                        setStatus('')
-                      }}
-                    >
-                      {years.map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                   <button
                     className="payroll__button payroll__button--primary"
                     disabled={busy}
@@ -414,22 +400,9 @@ export default function PayrollDocuments(context: PayrollContext) {
                 </>
               )}
             </>
-          )
         }
       />
-      {editor ? (
-        <PayrollEditor
-          {...context}
-          initial={editor.state}
-          documentId={editor.id}
-          parameterSnapshot={editor.detail?.parameter_snapshot}
-          employeeSnapshot={editor.detail?.employee_snapshot}
-          readOnly={editor.readOnly}
-          onClose={() => setEditor(null)}
-          onSaved={reload}
-        />
-      ) : (
-        <>
+      <>
           {loadError && (
             <div
               className="payroll__notice payroll__notice--error"
@@ -450,20 +423,17 @@ export default function PayrollDocuments(context: PayrollContext) {
               isSummaryView ? 'Empleados de la nómina' : 'Períodos de nómina'
             }
           >
+            {sendingName && <p className="payroll__notice" role="status">Enviando la nómina de {sendingName}… Cada resultado aparecerá junto al empleado.</p>}
             <div className="payroll__card payroll-register__filter-card">
-              <div className="payroll__filters payroll__period-filters">
+              <div className={`payroll__filters payroll__period-filters${isSummaryView ? "" : " payroll-register__date-filters"}`}>
                 <label className="payroll__period-search">
                   <span className="payroll__sr-only">
-                    Buscar período o empleado
+                    Buscar empleado o identificación
                   </span>
                   <span className="payroll__search-control">
                     <SearchIcon />
                     <input
-                      placeholder={
-                        isSummaryView
-                          ? 'Buscar empleado o identificación'
-                          : 'Buscar período, empleado o identificación'
-                      }
+                      placeholder="Buscar empleado o identificación"
                       value={search}
                       onChange={(event) => {
                         setSearch(event.target.value)
@@ -475,6 +445,39 @@ export default function PayrollDocuments(context: PayrollContext) {
                     />
                   </span>
                 </label>
+                {!isSummaryView && (
+                  <>
+                    <Field label="Mes">
+                      <select aria-label="Mes de nómina" value={month} disabled={busy}
+                        onChange={event => {
+                          setMonth(event.target.value)
+                          setPage(1)
+                          setSelected([])
+                          setStatus('')
+                        }}>
+                        <option value="">Todos los meses</option>
+                        {Array.from({ length: 12 }, (_, index) => {
+                          const value = String(index + 1).padStart(2, '0')
+                          const label = new Intl.DateTimeFormat('es-CO', { month: 'long' })
+                            .format(new Date(2026, index, 1))
+                          return <option key={value} value={value}>{label.charAt(0).toUpperCase() + label.slice(1)}</option>
+                        })}
+                      </select>
+                    </Field>
+                    <Field label="Año">
+                      <select aria-label="Año de nómina" value={year} disabled={busy}
+                        onChange={event => {
+                          setYear(event.target.value)
+                          setPage(1)
+                          setDetailPeriod(null)
+                          setSelected([])
+                          setStatus('')
+                        }}>
+                        {years.map(value => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    </Field>
+                  </>
+                )}
                 <Field label="Estado">
                   <select
                     value={effectiveStatus}
@@ -495,6 +498,8 @@ export default function PayrollDocuments(context: PayrollContext) {
                 <button
                   className="payroll__clear-filters"
                   onClick={() => {
+                    setMonth('')
+                    if (!isSummaryView) setYear(localDate().slice(0, 4))
                     setSearch('')
                     setStatus('')
                     setPage(1)
@@ -529,65 +534,32 @@ export default function PayrollDocuments(context: PayrollContext) {
                   </div>
                 </div>
                 <PayrollDocumentTable
+                  selectable={false}
                   documents={rows}
                   selected={selected}
                   busy={busy}
                   onSelection={setSelected}
-                  onOpen={(document) => void open(document)}
+                  onOpen={() => {}}
                   actions={documentActions}
                 />
               </div>
             ) : (
               <div className="payroll-register__periods">
-                {periodRows.map((group) => {
-                  const items = matchingDocuments.filter(
-                    (document) => payrollPeriodKey(document) === group.key,
-                  )
-                  return (
-                    <PayrollPeriodAccordion
-                      key={group.key}
-                      group={group}
-                      documents={items}
-                      expanded={
-                        detailPeriod === group.key ||
-                        detailPeriod === group.period
-                      }
-                      busy={busy}
-                      selected={selected}
-                      onToggle={() => openPeriod(group.key)}
-                      onSelection={setSelected}
-                      onOpen={(document) => void open(document)}
-                      onNovelties={() => manageNovelties(group.key)}
-                      onExport={() => exportExcel(items)}
-                      actions={documentActions}
-                      periodActions={[
-                        ...(items.some((document) =>
-                          ['DRAFT', 'REJECTED'].includes(document.status),
-                        )
-                          ? [
-                              {
-                                label: 'Editar',
-                                onClick: () => actOnPeriod(group.key, 'edit'),
-                              },
-                            ]
-                          : []),
-                        ...(items.some((document) => document.canDelete)
-                          ? [
-                              {
-                                label: 'Eliminar',
-                                danger: true,
-                                onClick: () => actOnPeriod(group.key, 'delete'),
-                              },
-                            ]
-                          : []),
-                      ]}
-                    />
-                  )
-                })}
-                {!groups.length && (
+                {(month || search || effectiveStatus) && <p className="payroll__muted">Se muestran los meses que coinciden con los filtros, con todos sus períodos para conservar el acumulado completo.</p>}
+                {months.length > 0 && <PayrollRegistersTable months={monthRows} busy={busy} initialMonthKey={detailPeriod?.slice(0, 7)}
+                  onReview={setReviewMonth} onNovelties={manageNovelties} onExport={exportExcel}
+                  onPayslip={openPayslip}
+                  onOpen={() => {}} documentActions={documentActions}
+                  periodActions={(group, items) => [
+                    ...(items.some(document => ['DRAFT', 'REJECTED'].includes(document.status))
+                      ? [{ label: 'Editar', onClick: () => {} }] : []),
+                    ...(items.some(document => document.canDelete)
+                      ? [{ label: 'Eliminar', danger: true, onClick: () => deleteFromPeriod(group.key) }] : []),
+                  ]} />}
+                {!months.length && (
                   <div className="payroll__card payroll__empty">
                     <h2>No hay nóminas para mostrar</h2>
-                    <p>Prueba con otro año o limpia los filtros.</p>
+                    <p>Prueba con otro mes o año, o limpia los filtros.</p>
                   </div>
                 )}
               </div>
@@ -596,7 +568,7 @@ export default function PayrollDocuments(context: PayrollContext) {
               <nav
                 className="payroll__pagination payroll-register__pagination"
                 aria-label={
-                  isSummaryView ? 'Páginas de empleados' : 'Páginas de períodos'
+                  isSummaryView ? 'Páginas de empleados' : 'Páginas de meses'
                 }
               >
                 <button
@@ -654,16 +626,7 @@ export default function PayrollDocuments(context: PayrollContext) {
               </div>
             )}
           </section>
-          {!!bulkResult.length && (
-            <div className="payroll__card payroll__section">
-              <h2>Resultado del procesamiento</h2>
-              {bulkResult.map((result) => (
-                <p key={result}>{result}</p>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      </>
       {importing && (
         <PayrollImport
           kind="documents"
@@ -678,11 +641,7 @@ export default function PayrollDocuments(context: PayrollContext) {
       )}
       {employeeAction && (
         <Modal
-          title={
-            employeeAction.action === 'edit'
-              ? 'Editar nómina de un empleado'
-              : 'Eliminar nómina de un empleado'
-          }
+          title="Eliminar nómina de un empleado"
           onClose={() => setEmployeeAction(null)}
         >
           <p>
@@ -697,10 +656,8 @@ export default function PayrollDocuments(context: PayrollContext) {
                 key={document.id}
                 disabled={busy}
                 onClick={() => {
-                  const action = employeeAction.action
                   setEmployeeAction(null)
-                  if (action === 'edit') void open(document, true)
-                  else setDeleteTarget(document)
+                  setDeleteTarget(document)
                 }}
               >
                 {employeeName(document.employee)} ·{' '}
@@ -752,6 +709,9 @@ export default function PayrollDocuments(context: PayrollContext) {
           </div>
         </Modal>
       )}
+      {noveltyPeriod && <PayrollPeriodNoveltiesModal key={noveltyPeriod} context={context}
+        documents={annualDocuments.filter(document => payrollPeriodKey(document) === noveltyPeriod && (!noveltyDocumentId || document.id === noveltyDocumentId))}
+        onReload={refreshAfterNovelty} onClose={() => { if (!busy) setNoveltyPeriod(null) }} />}
       {confirmBulk && (
         <Modal
           title="Confirmar envío masivo"
@@ -759,8 +719,8 @@ export default function PayrollDocuments(context: PayrollContext) {
         >
           <p>
             Se enviarán {selected.length} nóminas individualmente en ambiente de{' '}
-            {data.settings.environment === 1 ? 'producción' : 'pruebas'}. Cada
-            una se validará antes de transmitir.
+            {data.settings.environment === 1 ? 'producción' : 'pruebas'}. Los
+            errores de validación se mostrarán al recibir el resultado del envío.
           </p>
           <button
             disabled={busy}
@@ -796,8 +756,9 @@ export default function PayrollDocuments(context: PayrollContext) {
                 {new Date(t.created_at).toLocaleString('es-CO')} · Resultado de
                 validación
               </summary>
-              {t.error && <p role="alert">{t.error}</p>}
-              <pre>{JSON.stringify(t.validation ?? t.response, null, 2)}</pre>
+              {(t.validation as { isValid?: boolean } | null)?.isValid !== true &&
+                <PayrollSubmissionFeedback errors={payrollSubmissionErrors([t.error, t.validation, t.response])} />}
+              <details><summary>Ver respuesta técnica</summary><pre>{JSON.stringify(t.validation ?? t.response, null, 2)}</pre></details>
             </details>
           ))}
           <div className="payroll__toolbar">

@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { jarvisBackDestination, shouldShowJarvisBackNavigation } from './jarvisBackNavigation'
 
 it.each([
-  '/nomina', '/nomina/empleados', '/nomina/configuracion',
+  '/nomina', '/nomina/empleados',
   '/factura-venta', '/factura-compra', '/documento-soporte',
   '/productos/listar', '/terceros', '/reportes',
   '/formas-de-pago', '/configuracion/integracion-jarvis',

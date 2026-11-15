@@ -174,7 +174,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
   ].sort((a, b) => b - a)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (submitting.current || busy) return
+    if (submitting.current || busy || !chosen.length) return
     const request = {
       name,
       period,
@@ -229,7 +229,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
             <button
               type="submit"
               form="create-payroll-period"
-              disabled={busy || !loaded}
+              disabled={busy || !loaded || !chosen.length}
               className="payroll__button payroll__button--primary"
             >
               {busy ? 'Creando…' : 'Continuar a novedades'}

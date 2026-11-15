@@ -97,6 +97,10 @@ export interface PayrollState {
   noteType?: number
 }
 export interface PayrollDocument {
+  sourceVersion?: string
+  sourceStatus?: string
+  monthlySubmission?: { id: string; status: string; cune: string | null; number: string | null; prefix: string | null }
+  submissionErrors?: string[]
   id: string
   canDelete?: boolean
   employeeId: string
@@ -194,11 +198,6 @@ export const payrollService = {
     (await apiClient.delete(`${root}/positions/${id}`)).data,
   parameters: async (parameters: Parameters) =>
     (await apiClient.post(`${root}/parameters`, parameters)).data,
-  updateParameters: async (parameters: Parameters) =>
-    (await apiClient.put(`${root}/parameters`, parameters)).data,
-  settings: async (settings: Pick<PayrollSettings, 'environment' | 'enabled'>) =>
-    (await apiClient.put(`${root}/settings`, settings)).data,
-  environment: async () => (await apiClient.post(`${root}/environment`)).data,
   list: async (period?: string) =>
     (
       await apiClient.get<PayrollDocument[]>(`${root}/documents`, {
@@ -209,16 +208,14 @@ export const payrollService = {
     (await apiClient.get<PayrollDetail>(`${root}/documents/${id}`)).data,
   deleteDocument: async (id: string) =>
     (await apiClient.delete(`${root}/documents/${id}`)).data,
-  save: async (id: string, state: PayrollState) =>
-    (await apiClient.put(`${root}/documents/${id}`, state)).data,
-  validate: async (id: string) =>
-    (
-      await apiClient.post<{ valid: boolean; errors: string[] }>(
-        `${root}/documents/${id}/validate`,
-      )
-    ).data,
+  save: async (id: string, state: PayrollState, options?: { validation: 'provider' }) =>
+    (await apiClient.put(`${root}/documents/${id}`, state, options ? { params: options } : undefined)).data,
   send: async (id: string) =>
     (await apiClient.post<PayrollDetail>(`${root}/documents/${id}/send`)).data,
+  sendMonthlyEmployee: async (month: string, employeeId: string, documents: PayrollDocument[]) =>
+    (await apiClient.post<PayrollDetail>(`${root}/months/${month}/employees/${employeeId}/send`, {
+      sources: documents.map(document => ({ id: document.id, updatedAt: document.updatedAt, ...(document.sourceVersion ? { version: document.sourceVersion } : {}) })),
+    }, { timeout: 90_000 })).data,
   status: async (id: string) =>
     (await apiClient.post<PayrollDetail>(`${root}/documents/${id}/status`))
       .data,

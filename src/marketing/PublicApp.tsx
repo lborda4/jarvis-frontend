@@ -29,7 +29,7 @@ export default function PublicApp() {
   }, [needsApplication, openedApplication])
   if (needsApplication || !isPublicPath(pathname)) return <>
     <ApplicationMetadata />
-    <Suspense fallback={<div className="landing-loading" role="status">Cargando JARVIS...</div>}><Application /></Suspense>
+    <Suspense fallback={<div className="landing-loading" role="status">Cargando Jenius...</div>}><Application /></Suspense>
   </>
   return <LandingContent product={productForPath(pathname)} />
 }

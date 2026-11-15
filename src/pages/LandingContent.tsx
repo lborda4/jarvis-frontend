@@ -26,23 +26,23 @@ const NAV_LINKS = [
 const PRODUCTS = {
   siigo: {
     path: '/siigo',
-    name: 'JARVIS para Siigo',
+    name: 'Jenius para Siigo',
     eyebrow: 'Automatización + inteligencia artificial',
     audience: 'Ya tengo Siigo',
-    description: 'Conecta tu Siigo con JARVIS y agiliza el cargue de documentos, la gestión de terceros y la revisión contable con ayuda de IA.',
+    description: 'Conecta tu Siigo con Jenius y agiliza el cargue de documentos, la gestión de terceros y la revisión contable con ayuda de IA.',
     action: 'Quiero automatizar Siigo',
-    demo: buildWhatsappHref('Hola, quiero una demo de JARVIS para automatizar mi operación en Siigo con IA'),
+    demo: buildWhatsappHref('Hola, quiero una demo de Jenius para automatizar mi operación en Siigo con IA'),
     icon: 'scale' as const,
     features: ['Cargue masivo a Siigo', 'Asistencia contable con IA', 'Gestión de terceros'],
   },
   billing: {
     path: '/facturacion-electronica',
-    name: 'Facturación JARVIS',
+    name: 'Facturación Jenius',
     eyebrow: 'Emisión directa con la DIAN',
     audience: 'Quiero facturar electrónicamente',
-    description: 'Factura de venta, documento soporte, notas débito, notas crédito y eventos RADIAN: gestiona tus documentos electrónicos desde JARVIS con la DIAN.',
-    action: 'Quiero facturar con JARVIS',
-    demo: buildWhatsappHref('Hola, quiero información sobre la facturación electrónica de JARVIS directa con la DIAN'),
+    description: 'Factura de venta, documento soporte, notas débito, notas crédito y eventos RADIAN: gestiona tus documentos electrónicos desde Jenius con la DIAN.',
+    action: 'Quiero facturar con Jenius',
+    demo: buildWhatsappHref('Hola, quiero información sobre la facturación electrónica de Jenius directa con la DIAN'),
     icon: 'invoice' as const,
     features: ['Factura de venta y documento soporte', 'Notas débito, notas crédito y RADIAN', 'Planes anuales y combos con nómina'],
   },
@@ -205,7 +205,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function BrandMark() {
-  return <img src="/logo5.png" alt="JARVIS" width="38" height="38" className="landing-brand__mark" />
+  return <img src="/jenius-icon.svg" alt="Jenius" width="38" height="38" className="landing-brand__mark" />
 }
 
 function HeroVisual({ product }: { product?: Product }) {
@@ -228,8 +228,8 @@ function HeroVisual({ product }: { product?: Product }) {
       <div className="landing-laptop">
         <div className="landing-laptop__screen">
           <div className="landing-laptop__bezel">
-            <span className="landing-laptop__logo">JV</span>
-            <span className="landing-laptop__word">JARVIS</span>
+            <span className="landing-laptop__logo">J</span>
+            <span className="landing-laptop__word">Jenius</span>
           </div>
         </div>
         <div className="landing-laptop__base" />
@@ -296,7 +296,7 @@ function SiigoPricing() {
             <p className="landing-plan__limit">{plan.limit}</p>
           </header>
           <ul>{PLAN_FEATURES.map((feature) => <li key={feature}>{feature}</li>)}</ul>
-          <a href={buildWhatsappHref(`Hola, me interesa el plan ${plan.name} de automatización con Siigo en JARVIS`)}
+          <a href={buildWhatsappHref(`Hola, me interesa el plan ${plan.name} de automatización con Siigo en Jenius`)}
             className="landing-btn landing-btn--ghost landing-plan__cta" target="_blank" rel="noopener noreferrer">
             Consultar plan
           </a>
@@ -322,7 +322,7 @@ function BillingPricing() {
             <li><Icon name="check" />Facturación electrónica y RADIAN incluidos</li>
             <li><Icon name="check" />Recargas de documentos disponibles</li>
           </ul>
-          <a href={buildWhatsappHref(`Hola, me interesa la ${plan.name} de JARVIS por ${plan.price} COP al año: ${plan.capacity}`)} className="landing-btn landing-btn--primary" target="_blank" rel="noopener noreferrer">{plan.action}<Icon name="arrow" /></a>
+          <a href={buildWhatsappHref(`Hola, me interesa la ${plan.name} de Jenius por ${plan.price} COP al año: ${plan.capacity}`)} className="landing-btn landing-btn--primary" target="_blank" rel="noopener noreferrer">{plan.action}<Icon name="arrow" /></a>
         </article>)}
       </div>
       <ComplianceCombos period={period} />
@@ -338,7 +338,7 @@ function BillingPricing() {
         <div className="landing-topups__grid">
           {BILLING_TOP_UPS.map(pack => (
             <a key={pack.documents} className="landing-topup"
-              href={buildWhatsappHref(`Hola, quiero una recarga de ${pack.documents} documentos electrónicos para Facturación JARVIS por ${pack.price}`)}
+              href={buildWhatsappHref(`Hola, quiero una recarga de ${pack.documents} documentos electrónicos para Facturación Jenius por ${pack.price}`)}
               target="_blank" rel="noopener noreferrer"
               aria-label={`Consultar recarga de ${pack.documents} documentos por ${pack.price}`}>
               <strong>{pack.documents}</strong>
@@ -416,7 +416,7 @@ function LandingContent({ product }: { product?: Product }) {
           <Link to="/" className="landing-brand" onClick={closeMenu}>
             <BrandMark />
             <span className="landing-brand__text">
-              <span className="landing-brand__name">JARVIS</span>
+              <span className="landing-brand__name">Jenius</span>
               <span className="landing-brand__tag">Automatiza · Conecta · Simplifica</span>
             </span>
           </Link>
@@ -477,7 +477,7 @@ function LandingContent({ product }: { product?: Product }) {
                   : <>Automatización contable y <span className="landing-accent">facturación electrónica en Colombia.</span></>}
               </h1>
               <p className="landing-hero__lead">
-                {selectedProduct?.description ?? 'Automatiza tu operación en Siigo con ayuda de IA o factura electrónicamente directo con la DIAN. Dos soluciones JARVIS, una para cada necesidad.'}
+                {selectedProduct?.description ?? 'Automatiza tu operación en Siigo con ayuda de IA o factura electrónicamente directo con la DIAN. Dos soluciones Jenius, una para cada necesidad.'}
               </p>
               <div className="landing-hero__actions">
                 <a
@@ -505,11 +505,11 @@ function LandingContent({ product }: { product?: Product }) {
             <h2 id="soluciones-title" className="landing-section__title">
               {product === 'siigo' ? 'Tu operación en Siigo, más ágil'
                 : product === 'billing' ? 'Tus documentos electrónicos, en un solo lugar'
-                : '¿Qué quieres hacer con JARVIS?'}
+                : '¿Qué quieres hacer con Jenius?'}
             </h2>
             <p className="landing-section__lead">
               {product === 'siigo' ? 'Conserva tu sistema contable y suma herramientas para reducir el trabajo manual.'
-                : product === 'billing' ? 'Emite facturas de venta, documentos soporte y notas débito y crédito. Gestiona también tus eventos RADIAN desde JARVIS.'
+                : product === 'billing' ? 'Emite facturas de venta, documentos soporte y notas débito y crédito. Gestiona también tus eventos RADIAN desde Jenius.'
                 : 'Elige tu punto de partida. Cada solución tiene sus propias funciones y planes.'}
             </p>
             {!product ? <ProductChoices /> : <div className={`landing-solutions${product === 'billing' ? ' landing-solutions--billing' : ''}`}>
@@ -542,11 +542,11 @@ function LandingContent({ product }: { product?: Product }) {
         <section className="landing-section landing-section--split" aria-label="Integraciones y beneficios">
           <div className="landing-container landing-split">
             <div id="integraciones" className="landing-integrations">
-              <h2>{product === 'siigo' ? 'JARVIS + Siigo' : product === 'billing' ? 'De tu negocio a la DIAN' : 'Dos caminos, una misma marca'}</h2>
+              <h2>{product === 'siigo' ? 'Jenius + Siigo' : product === 'billing' ? 'De tu negocio a la DIAN' : 'Dos caminos, una misma marca'}</h2>
               <p>
-                {product === 'siigo' ? 'JARVIS se conecta con la API de Siigo para agilizar tu operación. Tu información contable sigue en Siigo.'
-                  : product === 'billing' ? 'Emite desde JARVIS directamente con la DIAN.'
-                  : 'Con Siigo, automatizas tu operación contable. Con Facturación JARVIS, emites directamente con la DIAN. Tú eliges por dónde empezar.'}
+                {product === 'siigo' ? 'Jenius se conecta con la API de Siigo para agilizar tu operación. Tu información contable sigue en Siigo.'
+                  : product === 'billing' ? 'Emite desde Jenius directamente con la DIAN.'
+                  : 'Con Siigo, automatizas tu operación contable. Con Facturación Jenius, emites directamente con la DIAN. Tú eliges por dónde empezar.'}
               </p>
               <div className="landing-partners" role="list">
                 {product !== 'billing' &&
@@ -558,7 +558,7 @@ function LandingContent({ product }: { product?: Product }) {
                 {product !== 'siigo' &&
                 <div className="landing-partner" role="listitem">
                   <span className="landing-partner__name">DIAN</span>
-                  <span className="landing-partner__hint">Facturación directa desde JARVIS</span>
+                  <span className="landing-partner__hint">Facturación directa desde Jenius</span>
                 </div>}
               </div>
             </div>
@@ -601,11 +601,11 @@ function LandingContent({ product }: { product?: Product }) {
         <section id="preguntas-frecuentes" className="landing-section" aria-labelledby="faq-title">
           <div className="landing-container landing-faq">
             <p className="landing-eyebrow landing-eyebrow--center">Resolvemos tus dudas</p>
-            <h2 id="faq-title" className="landing-section__title">{product === 'siigo' ? 'Preguntas sobre la integración con Siigo' : product === 'billing' ? 'Preguntas sobre facturación electrónica JARVIS' : '¿Cuál solución JARVIS es para ti?'}</h2>
+            <h2 id="faq-title" className="landing-section__title">{product === 'siigo' ? 'Preguntas sobre la integración con Siigo' : product === 'billing' ? 'Preguntas sobre facturación electrónica Jenius' : '¿Cuál solución Jenius es para ti?'}</h2>
             <div className="landing-faq__items">{faqs.map(faq => <details key={faq.question}>
               <summary>{faq.question}</summary><p>{faq.answer}</p>
             </details>)}</div>
-            {product === 'siigo' && <p className="landing-related">¿Quieres conocer la facturación electrónica de JARVIS?{' '}
+            {product === 'siigo' && <p className="landing-related">¿Quieres conocer la facturación electrónica de Jenius?{' '}
               <Link to="/facturacion-electronica">Conoce la facturación electrónica directa con la DIAN</Link>
             </p>}
           </div>
@@ -614,7 +614,7 @@ function LandingContent({ product }: { product?: Product }) {
         <section className="landing-cta-band" aria-labelledby="cta-title">
           <div className="landing-container landing-cta-band__inner">
             <div>
-              <h2 id="cta-title">{product === 'billing' ? 'Tu próxima factura empieza aquí' : product === 'siigo' ? 'Dale más tiempo a tu equipo contable' : 'Encuentra el JARVIS que tu negocio necesita'}</h2>
+              <h2 id="cta-title">{product === 'billing' ? 'Tu próxima factura empieza aquí' : product === 'siigo' ? 'Dale más tiempo a tu equipo contable' : 'Encuentra el Jenius que tu negocio necesita'}</h2>
               <p>{product ? 'Conversemos y te ayudamos a dar el primer paso.' : 'Te orientamos para elegir entre automatización con Siigo y facturación electrónica directa.'}</p>
             </div>
             <a
@@ -635,7 +635,7 @@ function LandingContent({ product }: { product?: Product }) {
           <div className="landing-footer__brand">
             <BrandMark />
             <div>
-              <strong>JARVIS</strong>
+              <strong>Jenius</strong>
               <p>{product === 'billing' ? 'Facturación electrónica directa con la DIAN' : 'Automatización con Siigo · Facturación directa con la DIAN'}</p>
             </div>
           </div>
@@ -659,7 +659,7 @@ function LandingContent({ product }: { product?: Product }) {
           </div>
         </div>
         <div className="landing-footer__legal">
-          <p>© {new Date().getFullYear()} JARVIS. Todos los derechos reservados.</p>
+          <p>© {new Date().getFullYear()} Jenius. Todos los derechos reservados.</p>
           <p>
             <a href={`mailto:${SALES_EMAIL}?subject=T%C3%A9rminos%20y%20condiciones`}>
               Términos y condiciones

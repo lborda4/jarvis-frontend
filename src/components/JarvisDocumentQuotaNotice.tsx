@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
-import { apiClient } from '../services/apiClient'
-import { companyQueryKey, invalidateQueryCache } from '../services/queryCache'
+import { observeJarvisQuota } from '../services/jarvisQuotaRefresh'
 import './JarvisDocumentQuotaNotice.css'
 
 export default function JarvisDocumentQuotaNotice() {
@@ -18,30 +17,7 @@ export default function JarvisDocumentQuotaNotice() {
   useEffect(() => {
     if (!isJarvisCompany) return
 
-    const refreshQuota = () => {
-      invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
-      void refreshSetupStatus({ background: true })
-    }
-    // Actualiza el aviso tras emitir documentos, eventos RADIAN o nómina,
-    // incluso si el servidor rechaza un envío por cupo agotado.
-    const shouldRefresh = (config?: { method?: string; url?: string }) =>
-      /^(post|put|patch|delete)$/i.test(config?.method ?? '') &&
-      /^\/(?:integrations\/jarvis|electronic-documents)(?:\/|$)/.test(config?.url ?? '')
-    const interceptor = apiClient.interceptors.response.use(
-      response => {
-        if (shouldRefresh(response.config)) refreshQuota()
-        return response
-      },
-      error => {
-        if (error.response?.status === 403 && shouldRefresh(error.config)) refreshQuota()
-        return Promise.reject(error)
-      },
-    )
-    window.addEventListener('focus', refreshQuota)
-    return () => {
-      apiClient.interceptors.response.eject(interceptor)
-      window.removeEventListener('focus', refreshQuota)
-    }
+    return observeJarvisQuota(force => refreshSetupStatus({ background: true, quotaOnly: true, force }))
   }, [isJarvisCompany, refreshSetupStatus])
 
   const remaining = documentsRemaining ?? Math.max(0, (documentLimit ?? 0) - documentsUsed)

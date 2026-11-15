@@ -190,7 +190,6 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
       children: [
         {label: 'Nóminas', to: '/nomina', icon: DocumentIcon},
         {label: 'Empleados', to: '/nomina/empleados', icon: SuppliersIcon},
-        {label: 'Configuración', to: '/nomina/configuracion', icon: SettingsIcon},
       ],
     }] : []),
     ...(isJarvisCompany && hasBilling
@@ -276,6 +275,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             aria-expanded={false}
             onClick={() => {
               setExpandedGroups(current => ({ ...current, [item.to]: true }))
+              if (item.to === 'nomina-electronica') navigate('/nomina')
               onOpen()
             }}
           >
@@ -295,7 +295,12 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             ]
               .filter(Boolean)
               .join(' ')}
-            onClick={() => setExpandedGroups(current => ({ ...current, [item.to]: !isExpanded }))}
+            onClick={() => {
+              if (item.to === 'nomina-electronica') {
+                setExpandedGroups(current => ({ ...current, [item.to]: true }))
+                navigate('/nomina')
+              } else setExpandedGroups(current => ({ ...current, [item.to]: !isExpanded }))
+            }}
             aria-controls={isExpanded ? groupId : undefined}
             aria-expanded={isExpanded}
           >

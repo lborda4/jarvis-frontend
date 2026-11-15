@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { payrollService, type Employee, type PayrollWorkerCatalogs } from '../../services/payrollService'
 import {
   blankEmployee,
@@ -25,9 +26,22 @@ import { isPayrollEmployeeActive } from '../../utils/payrollEmployeeStatus'
 import type { LookupJarvisTerceroNitResponse } from '../../types/jarvis'
 import { formatMunicipalityLabel, isMunicipalityMatch } from '../../utils/jarvisMunicipality'
 export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
-  const [editing, setEditing] = useState<Employee | null>(null),
+  const [params, setParams] = useSearchParams()
+  const requestedEmployeeId = params.get('edit')
+  const [editing, setEditing] = useState<Employee | null>(() => {
+    const employee = data.employees.find(employee => employee.id === requestedEmployeeId)
+    return employee ? { ...employee } : null
+  }),
     [search, setSearch] = useState(''),
     [importing, setImporting] = useState(false)
+  const closeEditor = () => {
+    setEditing(null)
+    if (requestedEmployeeId) {
+      const next = new URLSearchParams(params)
+      next.delete('edit')
+      setParams(next, { replace: true })
+    }
+  }
   const applyCatalogDefaults = useCallback((value: PayrollWorkerCatalogs) => {
     const documentTypeId = defaultPayrollDocumentType(value.identifications)
     if (documentTypeId) setEditing(current => current && !current.documentTypeId ? { ...current, documentTypeId } : current)
@@ -51,7 +65,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   useJarvisBackAction(() => {
     if (busy) return
     if (importing) setImporting(false)
-    else setEditing(null)
+    else closeEditor()
   }, Boolean(editing) || importing)
   useEffect(() => () => { lookupRequest.current += 1 }, [])
   const lookupKey = editing ? `${editing.id}:${editing.documentTypeId}:${editing.identification}` : ''
@@ -101,7 +115,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
   }
   const save = async () => {
     if (canSave && editing && (await run(() => payrollService.employees({ ...editing, typeContractId: catalogs?.contractTypes?.find(contract => contract.key === editing.contractType)?.id, ...(paymentType ? employeeBankFields(editing, paymentType) : {}), email: editing.email?.trim() ?? '', address: editing.address?.trim() ?? '', active: isPayrollEmployeeActive(editing.retirementDate) }))))
-      setEditing(null)
+      closeEditor()
   }
   const catalogField = (
     key: 'typeWorkerId' | 'subTypeWorkerId' | 'documentTypeId',
@@ -254,7 +268,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   placeholder="empleado@correo.com"
                 />
               </Field>
-              <Field label="Dirección">
+              <Field label="Dirección *">
                 <input
                   required
                   autoComplete="street-address"
@@ -264,7 +278,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                   placeholder="Calle, carrera, número y complemento"
                 />
               </Field>
-              <Field label="Ciudad">
+              <Field label="Ciudad *">
                 <Autocomplete
                   value={municipalities.find(city => city.id === editing.municipalityId) ?? null}
                   onChange={city => update('municipalityId', city?.id ?? 0)}
@@ -295,7 +309,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                 'Subtipo de trabajador',
                 catalogs?.workerSubtypes,
               )}
-              <Field label="Tipo de contrato">
+              <Field label="Tipo de contrato *">
                 <select
                   required
                   disabled={!catalogs || busy}
@@ -388,19 +402,19 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
                 />
                 Salario integral
               </label>
-              <Field label="Método de pago"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
+              <Field label="Método de pago *"><PayrollPaymentMethodSelect required value={editing.paymentMethodId} savedId={editing.jarvisPaymentMethodId} savedName={editing.paymentMethodName} onChange={method => setEditing({ ...editing, paymentMethodId: method?.nextpymeMethodId ?? 0, jarvisPaymentMethodId: method?.id, paymentMethodName: method?.name })} /></Field>
               {paymentType === 'transfer' && <>
-                <Field label="Nombre del banco">
+                <Field label="Nombre del banco *">
                   <input required name="bank_name" autoComplete="off" value={editing.bankName ?? ''}
                     onChange={event => update('bankName', event.target.value)}
                     onBlur={event => update('bankName', event.target.value.trim())} />
                 </Field>
-                <Field label="Tipo de cuenta">
+                <Field label="Tipo de cuenta *">
                   <select required name="account_type" value={editing.accountType ?? ''} onChange={event => update('accountType', event.target.value)}>
                     <option value="">Seleccionar</option><option value="AHORROS">AHORROS</option><option value="CORRIENTE">CORRIENTE</option>
                   </select>
                 </Field>
-                <Field label="Número de cuenta">
+                <Field label="Número de cuenta *">
                   <input required name="account_number" type="text" inputMode="numeric" pattern="[0-9]+" autoComplete="off"
                     title="Ingresa únicamente números." value={editing.accountNumber ?? ''}
                     onChange={event => update('accountNumber', event.target.value.trim())} />
@@ -467,7 +481,7 @@ export default function PayrollEmployees({ data, run, busy }: PayrollContext) {
             <button
               type="button"
               className="payroll__button"
-              onClick={() => setEditing(null)}
+              onClick={closeEditor}
             >
               Cancelar
             </button>

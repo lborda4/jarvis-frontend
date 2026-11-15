@@ -42,13 +42,17 @@ export function groupPayrollPeriods(documents: PayrollDocument[]) {
           ? items[0].status
           : statuses.has('REJECTED')
             ? 'REJECTED'
-            : 'PROCESSING'
+            : statuses.has('UNCERTAIN')
+              ? 'UNCERTAIN'
+              : 'PROCESSING'
       const label =
         statuses.size === 1
           ? statusLabels[status]
           : status === 'REJECTED'
-            ? 'Con rechazos'
-            : 'En proceso'
+            ? 'Con errores'
+            : status === 'UNCERTAIN'
+              ? 'Error · Por confirmar'
+              : 'En proceso'
       const total = (field: 'accrued' | 'deductions' | 'net') =>
         money(items.reduce((sum, d) => sum + cents(d[field]), 0n))
       return {

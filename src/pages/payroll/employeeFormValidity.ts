@@ -15,7 +15,7 @@ export function canSavePayrollEmployee(
   if (!catalogs.identifications?.some(item => item.id === employee.documentTypeId) ||
     !catalogs.workerTypes.some(item => item.id === employee.typeWorkerId) ||
     !catalogs.workerSubtypes.some(item => item.id === employee.subTypeWorkerId) ||
-    !catalogs.contractTypes?.some(item => item.key === employee.contractType) ||
+    !catalogs.contractTypes?.some(item => item.key === employee.contractType && Number.isSafeInteger(item.id) && item.id > 0) ||
     !catalogs.paymentMethods?.some(item => item.id === employee.paymentMethodId) ||
     !municipalities.some(item => item.id === employee.municipalityId) ||
     (Boolean(employee.positionId) && !positions.some(item => item.id === employee.positionId))) return false

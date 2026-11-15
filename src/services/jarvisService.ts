@@ -7,6 +7,7 @@ import type {
   CreateJarvisTercerosBulkResponse,
   DeleteJarvisTaxResponse,
   JarvisCredentialsStatusResponse,
+  JarvisSubscriptionStatus,
   JarvisDianResolution,
   JarvisDocumentType,
   JarvisTaxesListResponse,
@@ -28,8 +29,10 @@ import { isDefaultProductIva } from '../utils/productTaxes'
 import {
   cachedQuery,
   companyQueryKey,
+  getActiveCompanyId,
   invalidateQueryCache,
   QUERY_STALE_MS,
+  updateCachedQuery,
 } from './queryCache'
 
 const JARVIS_CREDENTIALS_STATUS_ENDPOINT =
@@ -244,7 +247,7 @@ export function fetchJarvisSalesInvoices(filters: JarvisHistoryFilters, options?
 export async function fetchJarvisCredentialsStatus(): Promise<JarvisCredentialsStatusResponse> {
   return cachedQuery(
     companyQueryKey(['jarvis', 'credentials-status']),
-    QUERY_STALE_MS.credentials,
+    QUERY_STALE_MS.jarvisConfiguration,
     async () => {
       const response = await apiClient.get<JarvisCredentialsStatusResponse>(
         JARVIS_CREDENTIALS_STATUS_ENDPOINT,
@@ -252,6 +255,20 @@ export async function fetchJarvisCredentialsStatus(): Promise<JarvisCredentialsS
       return response.data
     },
   )
+}
+
+export async function fetchJarvisSubscriptionStatus(options?: { force?: boolean }): Promise<JarvisSubscriptionStatus> {
+  const companyId = getActiveCompanyId()
+  const credentialsKey = companyQueryKey(['jarvis', 'credentials-status'])
+  const subscription = await cachedQuery(
+    companyQueryKey(['jarvis', 'subscription-status']),
+    options?.force ? 0 : QUERY_STALE_MS.jarvisQuota,
+    async () => (await apiClient.get<JarvisSubscriptionStatus>('/integrations/jarvis/subscription/status')).data,
+  )
+  if (getActiveCompanyId() === companyId) {
+    updateCachedQuery<JarvisCredentialsStatusResponse>(credentialsKey, value => ({ ...value, subscription }))
+  }
+  return subscription
 }
 
 export async function fetchJarvisCredentialsConfigured(): Promise<boolean> {
@@ -376,7 +393,7 @@ export async function fetchJarvisTerceros(
 export async function fetchJarvisTypeLiabilities(): Promise<ListJarvisTypeLiabilitiesResponse> {
   return cachedQuery(
     companyQueryKey(['jarvis', 'type-liabilities']),
-    QUERY_STALE_MS.catalogs,
+    QUERY_STALE_MS.jarvisConfiguration,
     async () => {
       const response = await apiClient.get<ListJarvisTypeLiabilitiesResponse>(
         `${JARVIS_TERCEROS_ENDPOINT}/type-liabilities`,
@@ -389,7 +406,7 @@ export async function fetchJarvisTypeLiabilities(): Promise<ListJarvisTypeLiabil
 export async function fetchJarvisMunicipalities(): Promise<ListJarvisMunicipalitiesResponse> {
   return cachedQuery(
     companyQueryKey(['jarvis', 'municipalities']),
-    QUERY_STALE_MS.catalogs,
+    QUERY_STALE_MS.jarvisConfiguration,
     async () => {
       const response = await apiClient.get<ListJarvisMunicipalitiesResponse>(
         `${JARVIS_TERCEROS_ENDPOINT}/municipalities`,
@@ -402,7 +419,7 @@ export async function fetchJarvisMunicipalities(): Promise<ListJarvisMunicipalit
 export function fetchJarvisTerceroPaymentMethods(options?: { force?: boolean }) {
   return cachedQuery(
     companyQueryKey(['jarvis', 'tercero-payment-methods']),
-    QUERY_STALE_MS.catalogs,
+    QUERY_STALE_MS.jarvisConfiguration,
     async () => (await apiClient.get<{ items: JarvisTerceroPaymentMethod[] }>(`${JARVIS_TERCEROS_ENDPOINT}/payment-methods`)).data,
     options,
   )
@@ -411,7 +428,7 @@ export function fetchJarvisTerceroPaymentMethods(options?: { force?: boolean }) 
 export async function fetchJarvisTypeRegimes(): Promise<ListJarvisTypeRegimesResponse> {
   return cachedQuery(
     companyQueryKey(['jarvis', 'type-regimes']),
-    QUERY_STALE_MS.catalogs,
+    QUERY_STALE_MS.jarvisConfiguration,
     async () => {
       const response = await apiClient.get<ListJarvisTypeRegimesResponse>(
         `${JARVIS_TERCEROS_ENDPOINT}/type-regimes`,
@@ -553,7 +570,7 @@ export async function deleteJarvisTax(
 export async function fetchJarvisCatalogs(): Promise<JarvisCatalogsResponse> {
   return cachedQuery(
     companyQueryKey(['jarvis', 'catalogs']),
-    QUERY_STALE_MS.catalogs,
+    QUERY_STALE_MS.jarvisConfiguration,
     async () => {
       const response = await apiClient.get<JarvisCatalogsResponse>(
         JARVIS_CATALOGS_ENDPOINT,
@@ -564,12 +581,12 @@ export async function fetchJarvisCatalogs(): Promise<JarvisCatalogsResponse> {
 }
 
 export async function fetchJarvisTypeRejections(): Promise<JarvisCatalogItem[]> {
-  return cachedQuery(companyQueryKey(['jarvis', 'type-rejections']), QUERY_STALE_MS.catalogs,
+  return cachedQuery(companyQueryKey(['jarvis', 'type-rejections']), QUERY_STALE_MS.jarvisConfiguration,
     async () => (await apiClient.get<JarvisCatalogItem[]>(`${JARVIS_CATALOGS_ENDPOINT}/type-rejections`)).data)
 }
 
 export async function fetchJarvisNoteReasons(kind: 'credit' | 'debit'): Promise<JarvisCatalogItem[]> {
-  return cachedQuery(companyQueryKey(['jarvis', 'note-reasons', kind]), QUERY_STALE_MS.catalogs,
+  return cachedQuery(companyQueryKey(['jarvis', 'note-reasons', kind]), QUERY_STALE_MS.jarvisConfiguration,
     async () => (await apiClient.get<JarvisCatalogItem[]>(`${JARVIS_CATALOGS_ENDPOINT}/${kind}-note-discrepancy-responses`)).data)
 }
 

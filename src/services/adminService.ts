@@ -27,8 +27,41 @@ import type {
 } from '../types/admin'
 import type { IntegrationProvider } from '../types/admin'
 import { apiClient } from './apiClient'
+import { companyQueryKey, invalidateQueryCache } from './queryCache'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
+
+export interface AdminPayrollNumberingStatus {
+  complete: boolean
+  registered?: string[]
+  applied?: string[]
+  ranges: Array<{ typeDocumentId: 9 | 10; prefix: 'NI' | 'NA'; from: number; to: number; configured: boolean; nextConsecutive: number; issue: string | null }>
+}
+
+export async function fetchAdminPayrollNumbering(companyId: string): Promise<AdminPayrollNumberingStatus> {
+  return (await apiClient.get<AdminPayrollNumberingStatus>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis/payroll-numbering`)).data
+}
+
+export async function configureAdminPayrollNumbering(companyId: string): Promise<AdminPayrollNumberingStatus> {
+  return (await apiClient.put<AdminPayrollNumberingStatus>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis/payroll-numbering`, {})).data
+}
+
+export interface AdminBillingEnvironmentStatus {
+  environment: 1 | 2 | null
+  pending: boolean
+  canRestoreProduction: boolean
+  resolution: { prefix: string; nextConsecutive: number; formNumber: string } | null
+}
+
+export async function fetchAdminBillingEnvironment(companyId: string): Promise<AdminBillingEnvironmentStatus> {
+  return (await apiClient.get<AdminBillingEnvironmentStatus>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis/billing-environment`)).data
+}
+
+export async function configureAdminBillingEnvironment(companyId: string, environment: 1 | 2): Promise<AdminBillingEnvironmentStatus> {
+  const result = (await apiClient.put<AdminBillingEnvironmentStatus>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis/billing-environment`, { environment })).data
+  invalidateQueryCache(companyQueryKey(['jarvis', 'credentials-status']))
+  return result
+}
 export async function sendCompanyWelcome(companyId: string, email: string): Promise<{ status: 'SENT' | 'FAILED'; message: string }> {
   return (await apiClient.post<{ status: 'SENT' | 'FAILED'; message: string }>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/welcome`, { email })).data
 }

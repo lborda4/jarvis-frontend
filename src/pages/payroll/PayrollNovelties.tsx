@@ -13,6 +13,7 @@ import {
 } from '../../utils/payrollDomain'
 import { payrollEmploymentDays } from '../../utils/payrollEmployment'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
+import { payrollQuantity } from '../../utils/payrollQuantity'
 import {
   currency,
   employeeName,
@@ -26,6 +27,7 @@ import {
   type PayrollContext,
 } from './PayrollPage'
 import PayrollNoveltyModal from './PayrollNoveltyModal'
+import { persistPayrollNovelty } from './payrollNoveltyPersistence'
 import {
   canEditPayrollNovelties,
   payrollNoveltyTotals,
@@ -53,7 +55,11 @@ export default function PayrollNovelties({
   onFinish: () => void
   onOpenDocument: (document: PayrollDocument) => void
 }) {
-  const { data, busy, run } = context
+  const { data, busy: contextBusy, run } = context
+  const [actionBusy, setActionBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const busy = contextBusy || actionBusy
+  const onRefreshError = () => setActionError('El cambio quedó guardado, pero no se pudo actualizar el listado. Regresa a nóminas para actualizarlo.')
   const [search, setSearch] = useState(''),
     [page, setPage] = useState(1)
   const [sort, setSort] = useState<
@@ -123,30 +129,30 @@ export default function PayrollNovelties({
     setPage(1)
   }
   const loadDetail = async (document: PayrollDocument, add = false) => {
-    await run(async () => {
+    setActionBusy(true)
+    setActionError('')
+    try {
       const result = await payrollService.get(document.id)
       if (add) setNovelty({ detail: result })
       else setDetail(result)
-    }, '')
+    } catch (error) {
+      setActionError(getApiErrorMessage(error, 'No se pudieron cargar las novedades.'))
+    } finally { setActionBusy(false) }
   }
   const saveNovelty = async (state: PayrollState) => {
-    if (!novelty) return
-    let saveError = 'No se pudo guardar la novedad. Intenta nuevamente.'
-    const ok = await run(async () => {
-      try {
-        await payrollService.save(novelty.detail.id, state)
-        await reload()
-      } catch (cause) {
-        saveError = getApiErrorMessage(cause, saveError)
-        throw cause
-      }
-    }, 'Novedad guardada.')
-    if (ok) {
-      setNovelty(current => current && ({
-        detail: { ...current.detail, state },
-      }))
-      setDetail(current => current?.id === novelty.detail.id ? { ...current, state } : current)
-    } else throw new Error(saveError)
+    if (!novelty) throw new Error('Selecciona el empleado antes de guardar.')
+    setActionBusy(true)
+    setActionError('')
+    try {
+      await persistPayrollNovelty(novelty.detail.id, state, {
+        onSaved: () => {
+          setNovelty(current => current && ({ detail: { ...current.detail, state, status: 'DRAFT' } }))
+          setDetail(current => current?.id === novelty.detail.id ? { ...current, state, status: 'DRAFT' } : current)
+        }, refresh: reload, onRefreshError,
+      })
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No se pudo guardar la novedad. Intenta nuevamente.'))
+    } finally { setActionBusy(false) }
   }
   const removeLine = async (line: PayrollLine) => {
     if (!detail) return
@@ -155,13 +161,17 @@ export default function PayrollNovelties({
       lines: detail.state.lines.filter((item) => item.id !== line.id),
     }
     const errors = validatePayroll(next, detail.employee_snapshot)
-    const ok = await run(async () => {
+    setActionBusy(true)
+    setActionError('')
+    try {
       if (errors.length) throw new Error(errors.join(' '))
-      await payrollService.save(detail.id, next)
-      setDetail(await payrollService.get(detail.id))
-      await reload()
-    }, 'Novedad eliminada.')
-    if (!ok) return
+      await persistPayrollNovelty(detail.id, next, {
+        onSaved: () => setDetail(current => current && ({ ...current, state: next, status: 'DRAFT' })),
+        refresh: reload, onRefreshError,
+      })
+    } catch (error) {
+      setActionError(getApiErrorMessage(error, 'No se pudo eliminar la novedad.'))
+    } finally { setActionBusy(false) }
   }
   const liquidate = async () => {
     setConfirmLiquidate(false)
@@ -187,7 +197,7 @@ export default function PayrollNovelties({
           await reload()
         }
       },
-      'Nómina liquidada. Revisa el resumen y continúa con el envío cuando esté lista.',
+      'Período guardado. Revisa el acumulado mensual.',
     )
     if (ok) onFinish()
   }
@@ -227,6 +237,7 @@ export default function PayrollNovelties({
   }
   return (
     <>
+      {actionError && <div className="payroll__notice payroll__notice--error" role="alert">{actionError}</div>}
       <PayrollHeading
         title="Novedades"
         description={
@@ -248,7 +259,7 @@ export default function PayrollNovelties({
               disabled={busy || !editable.length}
               onClick={() => setConfirmLiquidate(true)}
             >
-              Liquidar
+              Guardar período
             </button>
           </>
         }
@@ -449,7 +460,7 @@ export default function PayrollNovelties({
                         {line.kind === 'accrued' ? 'Ingreso' : 'Deducción'}
                       </small>
                     </td>
-                    <td>{line.quantity}</td>
+                    <td>{payrollQuantity(line.quantity)}</td>
                     <td>{currency(line.amount)}</td>
                     <td>
                       {['DRAFT', 'REJECTED'].includes(detail.status) && (
@@ -525,12 +536,12 @@ export default function PayrollNovelties({
       )}
       {confirmLiquidate && (
         <Modal
-          title="Liquidar nómina"
+          title="Guardar período de nómina"
           onClose={() => setConfirmLiquidate(false)}
         >
           <p>
-            Se guardarán los valores ingresados para {editable.length}{' '}
-            empleados antes de revisar el resumen de la nómina.
+            Se guardarán los ingresos y las deducciones de este período.
+            Después podrás revisar el acumulado del mes con los demás períodos registrados.
           </p>
           <div className="payroll__toolbar">
             <button
@@ -544,7 +555,7 @@ export default function PayrollNovelties({
               disabled={busy}
               onClick={() => void liquidate()}
             >
-              Liquidar
+              Guardar y revisar mes
             </button>
           </div>
         </Modal>
