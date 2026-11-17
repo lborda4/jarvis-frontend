@@ -26,6 +26,7 @@ import { contractLabels, employeeName, localDate } from './payrollDefaults'
 import { PayrollHeading, type PayrollContext } from './PayrollPage'
 import { ensurePayrollParameters } from './ensurePayrollParameters'
 import { payrollEmploymentDays } from '../../utils/payrollEmployment'
+import { payrollDuplicatePeriod } from './payrollDuplicatePeriod'
 
 const pageSize = 10
 function RequiredField({
@@ -50,6 +51,7 @@ function RequiredField({
 export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
   const navigate = useNavigate(),
     [params] = useSearchParams()
+  const duplicateId = params.get('duplicar')
   const initial = /^\d{4}-(0[1-9]|1[0-2])$/.test(params.get('period') ?? '')
     ? params.get('period')!
     : localDate().slice(0, 7)
@@ -77,6 +79,14 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
       .then((result) => {
         if (active) {
           setDocuments(result)
+          if (duplicateId) {
+            const source = payrollDuplicatePeriod(result, duplicateId)
+            if (!source.length) {
+              setLoadError('No se encontró la nómina que quieres duplicar. Regresa al listado y selecciónala de nuevo.')
+              return
+            }
+            setSelected(source.map(document => document.employeeId))
+          }
           setLoaded(true)
         }
       })
@@ -89,17 +99,25 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
     return () => {
       active = false
     }
-  }, [])
+  }, [duplicateId])
   const reloadDocuments = async () => {
     setLoadError('')
     try {
-      setDocuments(await payrollService.list())
+      const result = await payrollService.list()
+      setDocuments(result)
+      if (duplicateId) {
+        const source = payrollDuplicatePeriod(result, duplicateId)
+        if (!source.length) { setLoaded(false); setLoadError('No se encontró la nómina que quieres duplicar. Regresa al listado y selecciónala de nuevo.'); return }
+        setSelected(source.map(document => document.employeeId))
+      }
       setLoaded(true)
     } catch {
       setLoadError('No se pudieron consultar las nóminas existentes.')
     }
   }
   const period = `${year}-${month}`
+  const duplicateSource = duplicateId ? documents.find(document => document.id === duplicateId && !document.originalId) : undefined
+  const duplicateDocuments = duplicateId ? payrollDuplicatePeriod(documents, duplicateId) : []
   let bounds: { startDate: string; endDate: string } | null = null
   try {
     if (periodicity) bounds = payrollPeriodBounds(period, periodicity)
@@ -181,8 +199,10 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
       periodicity: periodicity as PayrollPeriodicity,
       employeeIds: chosen,
       paymentDate,
+      ...(duplicateId ? { duplicateSources: duplicateDocuments.map(document => ({ id: document.id, updatedAt: document.updatedAt })) } : {}),
     }
     const issues = validatePayrollPeriod(request)
+    if (duplicateId && !duplicateDocuments.length) issues.push('Selecciona una nómina de origen válida para duplicar.')
     if (!loaded)
       issues.push('Espera a que se consulten las nóminas existentes.')
     setErrors(issues)
@@ -241,6 +261,8 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
         Todos los campos marcados con{' '}
         <span className="payroll__required">*</span> son obligatorios.
       </p>
+      {duplicateSource && <p className="payroll__notice">Duplicando «{duplicateSource.state.payrollName || duplicateSource.state.period}»: se copiarán los empleados y sus novedades. Elige los datos generales de la nueva nómina. Los valores y cantidades se conservan; las fechas se adaptan al período que elijas.</p>}
+      {duplicateSource && duplicateDocuments.some(document => !eligibleIds.includes(document.employeeId)) && <p className="payroll__notice">Algunos empleados de origen no están disponibles para el período elegido. Revisa el estado que aparece junto a cada empleado en la lista.</p>}
       <form id="create-payroll-period" onSubmit={(e) => void submit(e)}>
         <section className="payroll__card payroll__section payroll__create-general">
           <h2>Información general</h2>

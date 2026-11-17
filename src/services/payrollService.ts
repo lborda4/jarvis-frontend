@@ -80,6 +80,9 @@ export interface PayrollSettings {
   enabled: boolean
 }
 export interface PayrollState {
+  notes?: string
+  headNote?: string
+  footNote?: string
   epsTypeLawDeductionsId?: number
   pensionTypeLawDeductionsId?: number
   payrollName?: string
@@ -97,6 +100,8 @@ export interface PayrollState {
   noteType?: number
 }
 export interface PayrollDocument {
+  adjustmentTargetId?: string | null
+  adjustment?: { id: string; status: string; noteType: number; number: string | null; prefix: string | null }
   sourceVersion?: string
   sourceStatus?: string
   monthlySubmission?: { id: string; status: string; cune: string | null; number: string | null; prefix: string | null }
@@ -118,6 +123,7 @@ export interface PayrollDocument {
 }
 export interface PayrollDetail {
   id: string
+  updated_at?: string
   state: PayrollState
   status: string
   employee_snapshot: Employee
@@ -134,6 +140,13 @@ export interface PayrollDetail {
     error: string | null
     created_at: string
   }[]
+}
+export interface PayrollPayslipRecipient {
+  id: string
+  name: string
+  identification: string
+  email: string
+  canEmail: boolean
 }
 export interface PayrollBootstrap {
   employees: Employee[]
@@ -206,10 +219,23 @@ export const payrollService = {
     ).data,
   get: async (id: string) =>
     (await apiClient.get<PayrollDetail>(`${root}/documents/${id}`)).data,
+  prepareAdjustment: async (originalId: string, id: string, request: {
+    noteType: 1 | 2; state: PayrollState; originalUpdatedAt: string; updatedAt?: string
+  }) => (await apiClient.put<PayrollDetail>(`${root}/documents/${originalId}/adjustments/${id}`, request, { timeout: 90_000 })).data,
   deleteDocument: async (id: string) =>
     (await apiClient.delete(`${root}/documents/${id}`)).data,
   save: async (id: string, state: PayrollState, options?: { validation: 'provider' }) =>
     (await apiClient.put(`${root}/documents/${id}`, state, options ? { params: options } : undefined)).data,
+  saveBatch: async (documents: Array<{ id: string; state: PayrollState; updatedAt: string }>) =>
+    (await apiClient.put(`${root}/documents`, { documents }, { timeout: 120_000 })).data,
+  payslipRecipients: async (ids: string[]) =>
+    (await apiClient.post<PayrollPayslipRecipient[]>(`${root}/payslips/recipients`, { ids })).data,
+  payslipPdf: async (id: string) =>
+    (await apiClient.get<Blob>(`${root}/payslips/${encodeURIComponent(id)}/pdf`, { responseType: 'blob', timeout: 120_000 })).data,
+  payslipZip: async (ids: string[]) =>
+    (await apiClient.post<Blob>(`${root}/payslips/zip`, { ids }, { responseType: 'blob', timeout: 120_000 })).data,
+  emailPayslip: async (id: string, requestId: string) =>
+    (await apiClient.post<{ sent: boolean }>(`${root}/payslips/${encodeURIComponent(id)}/email`, { requestId }, { timeout: 30_000 })).data,
   send: async (id: string) =>
     (await apiClient.post<PayrollDetail>(`${root}/documents/${id}/send`)).data,
   sendMonthlyEmployee: async (month: string, employeeId: string, documents: PayrollDocument[]) =>

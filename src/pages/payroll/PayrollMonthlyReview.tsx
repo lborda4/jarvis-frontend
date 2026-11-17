@@ -2,8 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import axios from 'axios'
 import type { PayrollMonth } from './payrollMonths'
 import { currency, employeeName, statusLabels } from './payrollDefaults'
-import PayrollSubmissionFeedback from './PayrollSubmissionFeedback'
-import { payrollService, type Concept, type PayrollDetail } from '../../services/payrollService'
+import { payrollService, type Concept } from '../../services/payrollService'
 import { getApiErrorMessage } from '../../services/apiClient'
 import { payrollSubmissionErrors } from '../../utils/payrollSubmissionErrors'
 import Modal from '../../components/Modal'
@@ -14,6 +13,8 @@ import { payrollRequiredDeductionErrors } from '../../utils/payrollRequiredDeduc
 import DocumentSendOverlay from '../../components/DocumentSendOverlay'
 import DocumentNotice from '../../components/DocumentNotice'
 import { payrollMonthlySendNotice } from './payrollMonthlySendNotice'
+import { hasUnsavedPayrollNovelties } from './usePayrollNoveltyDrafts'
+import { payrollAdjustmentLabel } from './payrollAdjustmentTargets'
 
 export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyChange, concepts, onEditEmployee }: { month: PayrollMonth; onBack: () => void; onReload?: () => Promise<void>; onBusyChange?: (busy: boolean) => void; concepts?: Concept[]; onEditEmployee?: (id: string) => void }) {
   const modalId = useId()
@@ -22,7 +23,6 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
   const [progress, setProgress] = useState('')
   const [notice, setNotice] = useState<ReturnType<typeof payrollMonthlySendNotice> | null>(null)
   const [error, setError] = useState('')
-  const [detail, setDetail] = useState<PayrollDetail | null>(null)
   const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -44,13 +44,13 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = partlySelected
   }, [partlySelected])
-  const inspect = async (id: string, refresh = false) => {
-    setError('')
-    try { setDetail(await (refresh ? payrollService.status(id) : payrollService.get(id))); if (refresh) await onReload?.() }
-    catch (error) { setError(getApiErrorMessage(error, 'No se pudo consultar el resultado mensual.')) }
-  }
   const send = async () => {
     if (busy || !selectedEmployees.length) return
+    if (hasUnsavedPayrollNovelties(selectedEmployees.flatMap(employee => employee.documents.map(document => document.id)))) {
+      setConfirm(false)
+      setError('Hay novedades sin guardar. Vuelve al período y pulsa Guardar período antes de enviar a la DIAN.')
+      return
+    }
     const queue = [...selectedEmployees]
     const statuses: string[] = []
     setNotice(null); setConfirm(false); setBusy(true); onBusyChange?.(true); setError('')
@@ -107,9 +107,10 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
                 onChange={event => setSelectedIds(previous => event.target.checked ? [...new Set([...previous, employee.id])] : previous.filter(id => id !== employee.id))} /></td>
               <td><button type="button" className="payroll__link payroll-month-employees__name" onClick={() => setEmployeeId(employee.id)}>{employeeName(employee.employee)}</button><small>{employee.employee.identification} · {employee.documents.length} {employee.documents.length === 1 ? 'período' : 'períodos'}</small></td>
               <td>{currency(employee.accrued)}</td><td>{currency(employee.deductions)}</td><td><strong>{currency(employee.net)}</strong></td>
-              <td><span className={`payroll__badge payroll__badge--${status}`}>{statusLabels[status] ?? status}</span></td>
-              <td><button type="button" className="payroll__link" onClick={() => setEmployeeId(employee.id)}>Ver detalle{errors.length > 0 ? ` · ${errors.length} avisos` : ''}</button>
-                {employee.submission && <button className="payroll__link" disabled={busy} aria-label={`Ver resultado mensual de ${employeeName(employee.employee)}`} onClick={() => void inspect(employee.submission!.id)}>Resultado</button>}</td>
+              <td><span className={`payroll__badge payroll__badge--${status}`}>{statusLabels[status] ?? status}</span>
+                {employee.documents.find(document => document.adjustment)?.adjustment && <small>{payrollAdjustmentLabel(employee.documents.find(document => document.adjustment)?.adjustment)}</small>}
+              </td>
+              <td><button type="button" className="payroll__link" onClick={() => setEmployeeId(employee.id)}>Ver detalle{errors.length > 0 ? ` · ${errors.length} avisos` : ''}</button></td>
             </tr>
           })}</tbody>
         </table>
@@ -124,30 +125,12 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
     {employeeDetail && <PayrollMonthlyEmployeeModal key={employeeDetail.id} employee={employeeDetail} monthLabel={month.label} concepts={concepts}
       status={employeeDetail.submission?.status ?? attempts[employeeDetail.id]?.status ?? employeeDetail.status}
       errors={attempts[employeeDetail.id]?.errors ?? employeeDetail.errors} busy={busy} onClose={() => setEmployeeId(null)}
-      onEditEmployee={onEditEmployee ? () => { if (!busy) { setEmployeeId(null); onEditEmployee(employeeDetail.id) } } : undefined}
-      onResult={employeeDetail.submission ? () => { setEmployeeId(null); void inspect(employeeDetail.submission!.id) } : undefined} />}
+      onEditEmployee={onEditEmployee ? () => { if (!busy) { setEmployeeId(null); onEditEmployee(employeeDetail.id) } } : undefined} />}
     {confirm && <Modal isOpen busy={busy} labelledBy={`${modalId}-confirm`} className="payroll-month-modal" onClose={() => setConfirm(false)}>
       <h2 id={`${modalId}-confirm`}>Confirmar envío mensual</h2>
       <p>Se enviará un documento mensual por cada uno de los {selectedEmployees.length} empleados seleccionados, acumulando sus ingresos, deducciones y fechas de pago de {month.label.toLocaleLowerCase('es')}.</p>
       <ul>{selectedEmployees.map(employee => <li key={employee.id}>{employeeName(employee.employee)} · {employee.employee.identification}</li>)}</ul>
       <button className="payroll__button payroll__button--primary" disabled={busy || !selectedEmployees.length} onClick={() => void send()}>Confirmar envío a la DIAN</button>
-    </Modal>}
-    {detail && <Modal isOpen labelledBy={`${modalId}-result`} className="payroll-month-modal" onClose={() => setDetail(null)}>
-      <h2 id={`${modalId}-result`}>Resultado de nómina mensual</h2>
-      <p><span className={`payroll__badge payroll__badge--${detail.status}`}>{statusLabels[detail.status]}</span></p>
-      {detail.cune && <p>CUNE: {detail.cune}</p>}
-      <PayrollSubmissionFeedback errors={detail.status === 'ACCEPTED' ? [] : payrollSubmissionErrors([detail.transmissions[0]?.error, detail.transmissions[0]?.validation, detail.transmissions[0]?.response])} />
-      {detail.cune && <button className="payroll__button" onClick={() => void inspect(detail.id, true)}>Actualizar resultado DIAN</button>}
-      <div className="payroll__toolbar">{[...new Map((detail.files ?? []).map(file => [file.kind, file])).values()].map(file =>
-        <button key={file.kind} className="payroll__button" onClick={() => void (async () => {
-          try {
-            const blob = await payrollService.download(detail.id, file.kind)
-            const url = URL.createObjectURL(blob), anchor = document.createElement('a')
-            anchor.href = url; anchor.download = file.filename; anchor.click()
-            setTimeout(() => URL.revokeObjectURL(url), 1000)
-          } catch (error) { setError(getApiErrorMessage(error, 'No se pudo descargar el documento mensual.')) }
-        })()}>Descargar {file.kind.toUpperCase()}</button>)}</div>
-      <details><summary>Ver respuesta técnica</summary><pre>{JSON.stringify(detail.transmissions[0]?.response, null, 2)}</pre></details>
     </Modal>}
   </section>
 }

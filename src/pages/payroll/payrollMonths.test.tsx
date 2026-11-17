@@ -51,7 +51,9 @@ describe('Vista previa de nómina mensual', () => {
     expect(month.warnings.some(warning => warning.includes('envíos anteriores'))).toBe(false)
     const html = renderToStaticMarkup(<PayrollMonthlyReview month={month} onBack={() => {}} />)
     expect(html).toContain('disabled=""')
-    expect(html).toContain('Ver resultado mensual')
+    expect(html).not.toContain('Ver resultado mensual')
+    expect(html).not.toContain('>Resultado</button>')
+    expect(html).toContain('Ver detalle')
   })
   it('mantiene separados los empleados aceptados y los rechazados en un envío parcial', () => {
     const accepted = { ...first(), status: 'ACCEPTED', monthlySubmission: { id: 'ma', status: 'ACCEPTED', cune: 'cune', number: '1', prefix: 'SETP' } }

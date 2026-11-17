@@ -442,6 +442,12 @@
 .payroll-register-table__month > span { display: inline-flex; }
 .payroll-register-table__month svg { width: 16px; height: 16px; }
 .payroll-register-table__actions { display: flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap; }
+.payroll-adjustment-modal { display: grid; gap: 16px; }
+.payroll-adjustment-modal__fields { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(200px, 3fr); gap: 16px; }
+.payroll-adjustment-modal label { display: grid; gap: 8px; }
+@media (max-width: 760px) {
+  .payroll-adjustment-modal__fields { grid-template-columns: minmax(0, 1fr); }
+}
 .payroll .payroll-register-table > table > tbody > .payroll-register-table__expanded > td { padding: 16px 24px; background: var(--jarvis-gray-100); }
 .payroll-register-table--periods { border-left: 3px solid var(--jarvis-primary); }
 .payroll .payroll-register-table--periods > table > thead > tr > th { background: var(--jarvis-primary-soft); color: var(--jarvis-navy); }
@@ -458,8 +464,6 @@
 .payroll .payroll-employee-modal__table :is(th, td) { padding: 10px 12px; font-size: var(--text-sm); }
 .payroll .payroll-employee-modal__table :is(th, td):not(:first-child) { text-align: right; white-space: nowrap; }
 .payroll-employee-modal__table small { display: block; margin-top: 4px; color: var(--jarvis-text-muted); font-size: var(--text-xs); }
-.payroll-employee-modal__footer { margin-top: 18px; }
-.payroll-month-modal pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; font-family: var(--font-family-mono); }
 .payroll-month-modal { overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .payroll-month__heading { gap: 12px; grid-template-columns: 16px minmax(0, 1fr); padding: 16px; }

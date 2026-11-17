@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { payrollService, type Concept, type PayrollDetail, type PayrollState } from '../../services/payrollService'
 import { isPayrollOvertime } from '../../utils/payrollOvertime'
 import { cents, money, payrollArrayDeductionKind, payrollScalarDeductionField, payrollStructuredDeductionKind, validatePayroll, type PayrollLine } from '../../utils/payrollDomain'
@@ -18,13 +18,15 @@ const pageSize = 10
 const dateLabel = (date: string) => date.split('-').reverse().join('/')
 const timeLabel = (value: string) => `${dateLabel(value.slice(0, 10))} ${value.slice(11, 19)}`
 
-export default function PayrollNoveltyModal({ detail, concepts, initial, busy, onClose, onSave }: {
+export default function PayrollNoveltyModal({ detail, concepts, initial, busy, onClose, onSave, deferred = false, footer }: {
   detail: PayrollDetail
   concepts: Concept[]
   initial?: PayrollLine
   busy: boolean
   onClose: () => void
   onSave: (state: PayrollState) => Promise<void>
+  deferred?: boolean
+  footer?: ReactNode
 }) {
   const allConcepts = [...concepts, ...detail.parameter_snapshot.concepts.filter(item => !concepts.some(current => current.code === item.code))]
   const findConcept = (code: string) => allConcepts.find(item => item.code === code)
@@ -426,7 +428,7 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
       {visibleError && <p className="payroll__notice payroll__notice--error" role="alert">{visibleError}</p>}
       <div className="payroll__toolbar payroll__novelty-actions">
         {editing && <button type="button" className="payroll__button" disabled={locked} onClick={() => socialRows ? resetForm() : chooseConcept(selectedCode)}>Cancelar edición</button>}
-        <button className="payroll__button payroll__button--primary" disabled={locked || disability && (disabilityLoading || Boolean(disabilityError) || !disabilityOptions.some(row => row.id === disabilityType)) || overtime && (!selectedOvertimeSurchargeId || Boolean(overtimeError)) || socialRows && !Object.values(socialAmounts).some(value => value !== '')}>{saving ? 'Guardando…' : editing || (socialRows ? detail.state.lines.some(line => payrollSocialCode(line)) : savedLine(selectedCode, kind) || salaryRows && savedLine(allowanceCode, 'accrued')) ? 'Guardar cambios' : '+ Agregar'}</button>
+        <button className="payroll__button payroll__button--primary" disabled={locked || disability && (disabilityLoading || Boolean(disabilityError) || !disabilityOptions.some(row => row.id === disabilityType)) || overtime && (!selectedOvertimeSurchargeId || Boolean(overtimeError)) || socialRows && !Object.values(socialAmounts).some(value => value !== '')}>{saving ? (deferred ? 'Aplicando…' : 'Guardando…') : editing || (socialRows ? detail.state.lines.some(line => payrollSocialCode(line)) : savedLine(selectedCode, kind) || salaryRows && savedLine(allowanceCode, 'accrued')) ? (deferred ? 'Aplicar cambios' : 'Guardar cambios') : '+ Agregar'}</button>
       </div>
     </form>
     <section className="payroll__novelty-added" aria-label="Lista de novedades">
@@ -453,5 +455,7 @@ export default function PayrollNoveltyModal({ detail, concepts, initial, busy, o
         <button type="button" className="payroll__button" disabled={currentPage * pageSize >= detail.state.lines.length} onClick={() => setPage(currentPage + 1)}>Siguiente</button>
       </nav>}
     </section>
+    {deferred && <p className="payroll__muted">Los cambios se mantienen aquí hasta que pulses Guardar período.</p>}
+    {footer}
   </Modal>
 }

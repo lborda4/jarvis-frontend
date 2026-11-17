@@ -27,7 +27,7 @@ import {
   type PayrollContext,
 } from './PayrollPage'
 import PayrollNoveltyModal from './PayrollNoveltyModal'
-import { persistPayrollNovelty } from './payrollNoveltyPersistence'
+import { usePayrollNoveltyDrafts } from './usePayrollNoveltyDrafts'
 import {
   canEditPayrollNovelties,
   payrollNoveltyTotals,
@@ -40,7 +40,7 @@ const pageSize = 10
 const dateLabel = (date: string) => date.split('-').reverse().join('/')
 export default function PayrollNovelties({
   context,
-  documents,
+  documents: savedDocuments,
   allDocuments,
   reload,
   onBack,
@@ -56,10 +56,13 @@ export default function PayrollNovelties({
   onOpenDocument: (document: PayrollDocument) => void
 }) {
   const { data, busy: contextBusy, run } = context
+  const { drafts, dirty, stage, clear } = usePayrollNoveltyDrafts(savedDocuments.map(document => document.id))
+  const documents = savedDocuments.map(document => drafts[document.id] && canEditPayrollNovelties(document)
+    ? { ...document, state: drafts[document.id].state, ...totals(drafts[document.id].state.lines) } : document)
+  const [loadedDetails, setLoadedDetails] = useState<Record<string, PayrollDetail>>({})
   const [actionBusy, setActionBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const busy = contextBusy || actionBusy
-  const onRefreshError = () => setActionError('El cambio quedó guardado, pero no se pudo actualizar el listado. Regresa a nóminas para actualizarlo.')
   const [search, setSearch] = useState(''),
     [page, setPage] = useState(1)
   const [sort, setSort] = useState<
@@ -132,7 +135,8 @@ export default function PayrollNovelties({
     setActionBusy(true)
     setActionError('')
     try {
-      const result = await payrollService.get(document.id)
+      const result = drafts[document.id] ?? loadedDetails[document.id] ?? await payrollService.get(document.id)
+      setLoadedDetails(current => ({ ...current, [document.id]: result }))
       if (add) setNovelty({ detail: result })
       else setDetail(result)
     } catch (error) {
@@ -141,18 +145,10 @@ export default function PayrollNovelties({
   }
   const saveNovelty = async (state: PayrollState) => {
     if (!novelty) throw new Error('Selecciona el empleado antes de guardar.')
-    setActionBusy(true)
     setActionError('')
-    try {
-      await persistPayrollNovelty(novelty.detail.id, state, {
-        onSaved: () => {
-          setNovelty(current => current && ({ detail: { ...current.detail, state, status: 'DRAFT' } }))
-          setDetail(current => current?.id === novelty.detail.id ? { ...current, state, status: 'DRAFT' } : current)
-        }, refresh: reload, onRefreshError,
-      })
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'No se pudo guardar la novedad. Intenta nuevamente.'))
-    } finally { setActionBusy(false) }
+    const next = stage(novelty.detail, state)
+    setNovelty({ detail: next })
+    setDetail(current => current?.id === next.id ? next : current)
   }
   const removeLine = async (line: PayrollLine) => {
     if (!detail) return
@@ -165,10 +161,7 @@ export default function PayrollNovelties({
     setActionError('')
     try {
       if (errors.length) throw new Error(errors.join(' '))
-      await persistPayrollNovelty(detail.id, next, {
-        onSaved: () => setDetail(current => current && ({ ...current, state: next, status: 'DRAFT' })),
-        refresh: reload, onRefreshError,
-      })
+      setDetail(stage(detail, next))
     } catch (error) {
       setActionError(getApiErrorMessage(error, 'No se pudo eliminar la novedad.'))
     } finally { setActionBusy(false) }
@@ -177,9 +170,9 @@ export default function PayrollNovelties({
     setConfirmLiquidate(false)
     const ok = await run(
       async () => {
-        const pending: { id: string; state: PayrollState }[] = []
+        const pending: { id: string; state: PayrollState; updatedAt: string }[] = []
         for (const document of editable) {
-          const full = await payrollService.get(document.id)
+          const full = drafts[document.id] ?? loadedDetails[document.id] ?? { ...document, employee_snapshot: document.employee, updated_at: document.updatedAt }
           const state = preparePayrollNovelties(full.state)
           const errors = validatePayroll(state, full.employee_snapshot)
           if (!state.lines.some(line => line.kind === 'accrued' && Number(line.amount) > 0))
@@ -188,14 +181,12 @@ export default function PayrollNovelties({
             throw new Error(
               `${employeeName(full.employee_snapshot)}: ${errors.join(' ')}`,
             )
-          pending.push({ id: full.id, state })
+          pending.push({ id: full.id, state, updatedAt: full.updated_at ?? document.updatedAt })
         }
-        try {
-          for (const item of pending)
-            await payrollService.save(item.id, item.state)
-        } finally {
-          await reload()
-        }
+        await payrollService.saveBatch(pending)
+        clear(pending.map(item => item.id))
+        setLoadedDetails({})
+        await reload()
       },
       'Período guardado. Revisa el acumulado mensual.',
     )
@@ -238,6 +229,7 @@ export default function PayrollNovelties({
   return (
     <>
       {actionError && <div className="payroll__notice payroll__notice--error" role="alert">{actionError}</div>}
+      {dirty && <p className="payroll__muted" role="status">Tienes cambios sin guardar. Pulsa Guardar período para guardarlos juntos.</p>}
       <PayrollHeading
         title="Novedades"
         description={
@@ -428,6 +420,7 @@ export default function PayrollNovelties({
               : novelty.detail.parameter_snapshot.concepts
           }
           initial={novelty.line}
+          deferred
           busy={busy}
           onClose={() => setNovelty(null)}
           onSave={saveNovelty}

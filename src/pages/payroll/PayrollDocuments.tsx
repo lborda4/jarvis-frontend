@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { openPayrollPayslipPdf } from './payrollPayslipPreview'
-import * as XLSX from 'xlsx'
+import { exportPayrollSummary } from './payrollSummaryExcel'
 import {
   SearchIcon,
   ChevronLeftIcon,
@@ -10,24 +10,25 @@ import {
 } from '../../components/icons/SidebarIcons'
 import {
   payrollService,
-  type PayrollDetail,
   type PayrollDocument,
 } from '../../services/payrollService'
 import { filterPayrollList, payrollListStatusOptions } from './payrollListPresentation'
 import PayrollDocumentTable from './PayrollDocumentTable'
 import PayrollRegistersTable from './PayrollRegistersTable'
 import PayrollPeriodNoveltiesModal from './PayrollPeriodNoveltiesModal'
+import PayrollPayslipsModal from './PayrollPayslipsModal'
+import { hasUnsavedPayrollNovelties } from './usePayrollNoveltyDrafts'
 import PayrollMonthlyReview from './PayrollMonthlyReview'
 import { groupPayrollMonths } from './payrollMonths'
+import type { PayrollMonth } from './payrollMonths'
+import PayrollAdjustmentModal from './PayrollAdjustmentModal'
 import './PayrollDocuments.css'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
 import { getApiErrorMessage } from '../../services/apiClient'
 import { payrollSubmissionErrors } from '../../utils/payrollSubmissionErrors'
-import PayrollSubmissionFeedback from './PayrollSubmissionFeedback'
 import {
   employeeName,
   localDate,
-  statusLabels,
 } from './payrollDefaults'
 import {
   Field,
@@ -58,8 +59,7 @@ export default function PayrollDocuments(context: PayrollContext) {
   const [documents, setDocuments] = useState<PayrollDocument[]>([]),
     [loaded, setLoaded] = useState(false),
     [loadError, setLoadError] = useState('')
-  const [importing, setImporting] = useState(false),
-    [detail, setDetail] = useState<PayrollDetail | null>(null)
+  const [importing, setImporting] = useState(false)
   const [selected, setSelected] = useState<string[]>([]),
     [confirmBulk, setConfirmBulk] = useState(false),
     [sendingName, setSendingName] = useState('')
@@ -67,6 +67,9 @@ export default function PayrollDocuments(context: PayrollContext) {
   const [reviewMonth, setReviewMonth] = useState<string | null>(null)
   const [noveltyPeriod, setNoveltyPeriod] = useState<string | null>(null)
   const [noveltyDocumentId, setNoveltyDocumentId] = useState<string | null>(null)
+  const [payslipDocuments, setPayslipDocuments] = useState<PayrollDocument[] | null>(null)
+  const [duplicateError, setDuplicateError] = useState('')
+  const [adjustment, setAdjustment] = useState<{ month: PayrollMonth; noteType: 1 | 2 } | null>(null)
   const listRequest = useRef(0)
   const [monthlyBusy, setMonthlyBusy] = useState(false)
   const [employeeAction, setEmployeeAction] = useState<{
@@ -183,21 +186,7 @@ export default function PayrollDocuments(context: PayrollContext) {
     else if (candidates.length > 1) setEmployeeAction({ documents: candidates })
   }
   const exportExcel = (items = isSummaryView ? visible : matchingDocuments) => {
-    const sheet = XLSX.utils.json_to_sheet(
-      items.map((d) => ({
-        Documento: `${d.prefix ?? ''}${d.number ?? ''}`,
-        Empleado: employeeName(d.employee),
-        Identificacion: d.employee.identification,
-        Periodo: d.state.period,
-        Devengados: d.accrued,
-        Deducciones: d.deductions,
-        Neto: d.net,
-        Estado: statusLabels[d.status],
-      })),
-    )
-    const book = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(book, sheet, 'Nóminas')
-    XLSX.writeFile(book, `Nomina-${items[0]?.state.period ?? year}.xlsx`)
+    exportPayrollSummary(items, year)
   }
   const documentActions = (document: PayrollDocument) => [
     ...(!document.originalId
@@ -215,13 +204,6 @@ export default function PayrollDocuments(context: PayrollContext) {
           },
         ]
       : []),
-    {
-      label: 'Resultado',
-      onClick: () =>
-        void run(async () => {
-          setDetail(await payrollService.get(document.monthlySubmission?.id ?? document.id))
-        }, ''),
-    },
     ...(document.status === 'ACCEPTED'
       ? [
           {
@@ -340,6 +322,7 @@ export default function PayrollDocuments(context: PayrollContext) {
   }
   return (
     <div className="payroll__documents">
+      {duplicateError && <p className="payroll__notice payroll__notice--error" role="alert">{duplicateError}</p>}
       <PayrollHeading
         title={
           isSummaryView
@@ -547,10 +530,21 @@ export default function PayrollDocuments(context: PayrollContext) {
               <div className="payroll-register__periods">
                 {(month || search || effectiveStatus) && <p className="payroll__muted">Se muestran los meses que coinciden con los filtros, con todos sus períodos para conservar el acumulado completo.</p>}
                 {months.length > 0 && <PayrollRegistersTable months={monthRows} busy={busy} initialMonthKey={detailPeriod?.slice(0, 7)}
-                  onReview={setReviewMonth} onNovelties={manageNovelties} onExport={exportExcel}
+                  onReview={setReviewMonth} onAdjustment={(month, noteType) => setAdjustment({ month, noteType })} onNovelties={manageNovelties} onExport={exportExcel}
                   onPayslip={openPayslip}
                   onOpen={() => {}} documentActions={documentActions}
                   periodActions={(group, items) => [
+                    { label: 'Duplicar', onClick: () => {
+                      if (hasUnsavedPayrollNovelties(items.map(document => document.id))) {
+                        setDuplicateError('Guarda las novedades pendientes de este período antes de duplicarlo.')
+                        return
+                      }
+                      setDuplicateError('')
+                      navigate(`/nomina/nueva?duplicar=${encodeURIComponent(items[0].id)}`)
+                    } },
+                    ...(group.status === 'ACCEPTED'
+                      ? [{ label: 'Exportar Excel', onClick: () => exportExcel(items) },
+                        { label: 'Desprendibles', onClick: () => setPayslipDocuments(items) }] : []),
                     ...(items.some(document => ['DRAFT', 'REJECTED'].includes(document.status))
                       ? [{ label: 'Editar', onClick: () => {} }] : []),
                     ...(items.some(document => document.canDelete)
@@ -639,6 +633,10 @@ export default function PayrollDocuments(context: PayrollContext) {
           }}
         />
       )}
+      {payslipDocuments && <PayrollPayslipsModal documents={payslipDocuments} onClose={() => setPayslipDocuments(null)} />}
+      {adjustment && <PayrollAdjustmentModal month={adjustment.month} noteType={adjustment.noteType}
+        concepts={[...data.parameters].sort((a, b) => b.validFrom.localeCompare(a.validFrom)).find(parameter => parameter.validFrom <= localDate())?.data.concepts ?? []} onReload={reload}
+        onBusyChange={setMonthlyBusy} onClose={() => { if (!monthlyBusy) setAdjustment(null) }} />}
       {employeeAction && (
         <Modal
           title="Eliminar nómina de un empleado"
@@ -729,85 +727,6 @@ export default function PayrollDocuments(context: PayrollContext) {
           >
             Confirmar envío
           </button>
-        </Modal>
-      )}
-      {detail && (
-        <Modal title="Resultado de nómina" onClose={() => setDetail(null)}>
-          <p>
-            <span className={`payroll__badge payroll__badge--${detail.status}`}>
-              {statusLabels[detail.status]}
-            </span>
-          </p>
-          {detail.cune && (
-            <Field label="CUNE">
-              <input
-                readOnly
-                value={detail.cune}
-                onFocus={(e) => e.target.select()}
-              />
-            </Field>
-          )}
-          {!detail.transmissions.length && (
-            <p>Esta nómina aún no se ha transmitido.</p>
-          )}
-          {detail.transmissions.map((t) => (
-            <details key={t.id} open>
-              <summary>
-                {new Date(t.created_at).toLocaleString('es-CO')} · Resultado de
-                validación
-              </summary>
-              {(t.validation as { isValid?: boolean } | null)?.isValid !== true &&
-                <PayrollSubmissionFeedback errors={payrollSubmissionErrors([t.error, t.validation, t.response])} />}
-              <details><summary>Ver respuesta técnica</summary><pre>{JSON.stringify(t.validation ?? t.response, null, 2)}</pre></details>
-            </details>
-          ))}
-          <div className="payroll__toolbar">
-            {detail.cune && (
-              <button
-                disabled={busy}
-                className="payroll__button"
-                onClick={() =>
-                  void run(async () => {
-                    setDetail(await payrollService.status(detail.id))
-                    await reload()
-                  }, 'Estado actualizado.')
-                }
-              >
-                Actualizar resultado DIAN
-              </button>
-            )}
-            {[
-              ...new Map((detail.files ?? []).map((f) => [f.kind, f])).values(),
-            ].map((f) => (
-              <button
-                key={f.kind}
-                disabled={busy}
-                className="payroll__button"
-                onClick={() =>
-                  void run(async () => {
-                    const blob = await payrollService.download(
-                      detail.id,
-                      f.kind,
-                    )
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = f.filename
-                    a.click()
-                    setTimeout(() => URL.revokeObjectURL(url), 1000)
-                  }, '')
-                }
-              >
-                Descargar {f.kind.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          {detail.status === 'UNCERTAIN' && (
-            <p className="payroll__notice">
-              El envío requiere confirmación del proveedor antes de reenviar. No
-              se generan duplicados automáticamente.
-            </p>
-          )}
         </Modal>
       )}
     </div>

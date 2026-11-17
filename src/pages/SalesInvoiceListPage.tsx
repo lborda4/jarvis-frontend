@@ -14,6 +14,9 @@ import SuccessMessage from '../components/SuccessMessage'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
 import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
+import { fetchJarvisInvoicePdfData } from '../services/jarvisService'
+import { loadSalesInvoicePdfRenderer } from '../utils/loadSalesInvoicePdfRenderer'
+import { triggerBrowserDownload } from '../utils/downloadFile'
 import { jarvisHistoryQueryKey, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSalesInvoices, fetchJarvisSupportCreditNotes, fetchJarvisSupportInvoices, type JarvisSalesInvoiceList } from '../services/jarvisService'
 import './SalesInvoiceListPage.css'
 
@@ -88,12 +91,29 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState('')
+  const downloadInProgress = useRef(false)
   const [emailDocument, setEmailDocument] = useState<JarvisSalesInvoiceList['items'][number] | null>(null)
   const isSalesInvoice = !supportDocument && !creditNote && !debitNote && !adjustmentNote
   const ImportModal = supportDocument ? ImportSupportDocumentsModal : ImportSalesInvoicesModal
   const showNoteActions = isSalesInvoice || supportDocument
   const listPath = debitNote ? '/nota-debito' : adjustmentNote ? '/nota-ajuste' : creditNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
   const documentLabel = debitNote ? 'nota débito' : adjustmentNote ? 'nota de ajuste' : creditNote ? 'nota crédito' : supportDocument ? 'documento' : 'factura'
+
+  const downloadPdf = async (id: string) => {
+    if (downloadInProgress.current) return
+    downloadInProgress.current = true
+    setDownloadingId(id); setDownloadError('')
+    try {
+      const [invoice, renderer] = await Promise.all([fetchJarvisInvoicePdfData(id), loadSalesInvoicePdfRenderer()])
+      const blob = await renderer.generateSalesInvoicePdf(invoice)
+      const number = (invoice.invoiceNumber || id).replace(/[^a-zA-Z0-9_-]/g, '_')
+      triggerBrowserDownload(blob, `Factura-${number}.pdf`)
+    } catch (failure) {
+      setDownloadError(getApiErrorMessage(failure, 'No se pudo descargar el PDF. Intenta nuevamente.'))
+    } finally { downloadInProgress.current = false; setDownloadingId(null) }
+  }
 
   useEffect(() => {
     let active = true
@@ -145,6 +165,8 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
       </>}
     />
     {success && <SuccessMessage message={success} />}
+    {downloadingId && <LoadingIndicator message="Preparando descarga del PDF…" />}
+    {downloadError && <ErrorMessage message={downloadError} />}
     {isImportOpen && !isNoteList && <Suspense fallback={<LoadingIndicator message="Cargando importador…" />}>
       <ImportModal key={supportDocument ? 'support' : 'sales'} onClose={() => setIsImportOpen(false)} onImported={count => {
         setSuccess(`Se guardaron ${count} ${supportDocument ? 'documentos soporte' : 'facturas de venta'}. Puedes abrirlos desde el listado para revisar y enviar a DIAN.`)
@@ -201,7 +223,8 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                     <ViewIcon />
                   </Link>
                   <button type="button" className="sales-history__view" title="Enviar correo" aria-label={`Enviar correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
-                  {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`} />}
+                  {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`}
+                    onDownload={isSalesInvoice ? () => void downloadPdf(invoice.id) : undefined} downloadDisabled={Boolean(downloadingId)} />}
                   </>}
                 </div></td>
               </tr>)}</tbody>

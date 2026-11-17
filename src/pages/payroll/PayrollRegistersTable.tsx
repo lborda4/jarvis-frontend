@@ -8,6 +8,7 @@ import { groupPayrollPeriods, payrollPeriodKey } from './payrollPeriods'
 import type { PayrollMonth } from './payrollMonths'
 import PayrollDocumentTable from './PayrollDocumentTable'
 import PayrollRowActions, { type PayrollRowAction } from './PayrollRowActions'
+import { payrollAdjustmentLabel } from './payrollAdjustmentTargets'
 
 type Period = ReturnType<typeof groupPayrollPeriods>[number]
 type PeriodActions = (period: Period, documents: PayrollDocument[]) => PayrollRowAction[]
@@ -15,11 +16,12 @@ type PeriodActions = (period: Period, documents: PayrollDocument[]) => PayrollRo
 export function PayrollPeriodsTable({ documents, busy, onDetails, periodActions }: {
   documents: PayrollDocument[]; busy: boolean; onDetails: (key: string) => void; periodActions: PeriodActions;
 }) {
-  const periods = groupPayrollPeriods(documents).sort((a, b) => a.start.localeCompare(b.start))
+  const originals = documents.filter(document => !document.originalId)
+  const periods = groupPayrollPeriods(originals).sort((a, b) => a.start.localeCompare(b.start))
   return <div className="payroll-register-table payroll-register-table--periods" role="region" aria-label="Nóminas del mes" tabIndex={0}>
     <table><thead><tr><th>Nómina / Período</th><th>Empleados</th><th>Ingresos</th><th>Deducciones</th><th>Neto a pagar</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody>{periods.map(period => {
-        const items = documents.filter(document => payrollPeriodKey(document) === period.key)
+        const items = originals.filter(document => payrollPeriodKey(document) === period.key)
         return <tr key={period.key}>
           <td><button className="payroll__link payroll-register-table__name" onClick={() => onDetails(period.key)}>{period.label}</button><small>{period.type} · {period.start.split('-').reverse().join('/')} – {period.end.split('-').reverse().join('/')}</small></td>
           <td>{period.employees}</td><td>{currency(period.accrued)}</td><td>{currency(period.deductions)}</td><td><strong>{currency(period.net)}</strong></td>
@@ -31,9 +33,10 @@ export function PayrollPeriodsTable({ documents, busy, onDetails, periodActions 
   </div>
 }
 
-export default function PayrollRegistersTable({ months, busy, initialMonthKey, onReview, onNovelties, onPayslip, onExport, onOpen, documentActions, periodActions }: {
+export default function PayrollRegistersTable({ months, busy, initialMonthKey, onReview, onAdjustment, onNovelties, onPayslip, onExport, onOpen, documentActions, periodActions }: {
   months: PayrollMonth[]; busy: boolean; initialMonthKey?: string;
   onReview: (month: string) => void; onNovelties: (period: string, document?: PayrollDocument) => void;
+  onAdjustment?: (month: PayrollMonth, noteType: 1 | 2) => void;
   onPayslip?: (document: PayrollDocument) => Promise<void>;
   onExport: (documents: PayrollDocument[]) => void; onOpen: (document: PayrollDocument) => void;
   documentActions: (document: PayrollDocument) => PayrollRowAction[]; periodActions: PeriodActions;
@@ -52,7 +55,7 @@ export default function PayrollRegistersTable({ months, busy, initialMonthKey, o
     catch (error) { setPayslipError(error instanceof Error ? error.message : 'No se pudo generar el desprendible. Intenta nuevamente.') }
     finally { setPayslipBusy(false) }
   }
-  const allDocuments = months.flatMap(month => month.documents)
+  const allDocuments = months.flatMap(month => month.documents).filter(document => !document.originalId)
   const selectedPeriod = groupPayrollPeriods(allDocuments).find(period => period.key === periodKey)
   const selectedDocuments = allDocuments.filter(document => payrollPeriodKey(document) === periodKey)
   const pageSize = 10
@@ -66,8 +69,15 @@ export default function PayrollRegistersTable({ months, busy, initialMonthKey, o
           <tr>
             <td><button type="button" className="payroll__link payroll-register-table__month" aria-expanded={expandedMonth === month.key} aria-controls={`${id}-${month.key}`} disabled={busy} onClick={() => setExpandedMonth(expandedMonth === month.key ? null : month.key)}><span aria-hidden="true">{expandedMonth === month.key ? <ChevronDownIcon /> : <ChevronRightIcon />}</span>{month.label}</button></td>
             <td>{month.employees.length}</td><td>{currency(month.accrued)}</td><td>{currency(month.deductions)}</td><td><strong>{currency(month.net)}</strong></td>
-            <td><span className={`payroll__badge payroll__badge--${month.status}`}>{month.statusLabel}</span></td>
-            <td><button className="payroll__link" disabled={busy} onClick={() => onReview(month.key)}>Revisar mes</button></td>
+            <td><span className={`payroll__badge payroll__badge--${month.status}`}>{month.statusLabel}</span>
+              {[...new Set(month.documents.filter(document => !document.originalId).map(document => payrollAdjustmentLabel(document.adjustment)).filter(Boolean))].map(label => <small key={label}>{label}</small>)}
+            </td>
+            <td><PayrollRowActions name={month.label} disabled={busy} actions={[
+              { label: 'Revisar mes', onClick: () => onReview(month.key) },
+              ...(onAdjustment && month.documents.some(document => !document.originalId && (document.monthlySubmission?.status ?? document.status) === 'ACCEPTED' && document.adjustmentTargetId !== null)
+                ? [{ label: 'Eliminar', danger: true, onClick: () => onAdjustment(month, 2) },
+                  { label: 'Reemplazar', onClick: () => onAdjustment(month, 1) }] : []),
+            ]} /></td>
           </tr>
           {expandedMonth === month.key && <tr className="payroll-register-table__expanded"><td colSpan={7} id={`${id}-${month.key}`}>
             <PayrollPeriodsTable documents={month.documents} busy={busy} onDetails={openPeriod} periodActions={periodActions} />

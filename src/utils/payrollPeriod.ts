@@ -7,6 +7,7 @@ export interface CreatePayrollPeriodRequest {
   periodicity: PayrollPeriodicity
   employeeIds: string[]
   paymentDate: string
+  duplicateSources?: Array<{ id: string; updatedAt: string }>
 }
 export const PAYROLL_PERIODICITY_LABELS: Record<PayrollPeriodicity, string> = {
   FIRST_HALF: 'Primera quincena',

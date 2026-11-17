@@ -21,8 +21,8 @@ describe('Tablas compactas del registro de nóminas', () => {
     const html = renderToStaticMarkup(<PayrollDocumentTable documents={[draft, sent]} selected={[]} selectable={false}
       busy={false} onSelection={() => {}} onOpen={() => {}} onNovelties={() => {}} onPayslip={() => {}}
       actions={() => [{ label: 'Editar', onClick: () => {} }]} />)
-    expect(html.match(/>Gestionar novedades<\/button>/g)).toHaveLength(2)
-    expect(html).toContain('disabled="">Gestionar novedades</button>')
+    expect(html.match(/>Gestionar novedades<\/button>/g)).toHaveLength(1)
+    expect(html).not.toContain('disabled="">Gestionar novedades</button>')
     expect(html).not.toContain('aria-haspopup')
     expect(html).not.toContain('>Editar<')
     expect(html).toContain('<th>Desprendibles</th>')
@@ -34,7 +34,8 @@ describe('Tablas compactas del registro de nóminas', () => {
     expect(html).toContain('<th>Mes</th>')
     expect(html).toContain('Noviembre 2026')
     expect(html).toContain('Octubre 2026')
-    expect(html).toContain('Revisar mes')
+    expect(html).toContain('Acciones de Noviembre 2026')
+    expect(html).toContain('aria-haspopup="menu"')
     expect(html).toContain('aria-expanded="false"')
     expect(html).not.toContain('Primera nómina')
     expect(html).not.toContain('payroll-period__toggle')

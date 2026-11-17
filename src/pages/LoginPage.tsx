@@ -9,6 +9,7 @@ import { isAdminRole } from '../constants/userRole'
 import { resetBackendWake } from '../services/healthService'
 import PrivacyPolicyLink from '../components/PrivacyPolicyLink'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
+import { readLoginCredentials } from '../utils/readLoginCredentials'
 import {
   resolveLoginError,
   type LoginErrorKind,
@@ -96,8 +97,15 @@ function LoginPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (isSubmitting || autoRetryLogin) return
+    // El autocompletado puede cambiar el DOM sin emitir onChange.
+    // Leer antes de deshabilitar los inputs, que FormData omite si están disabled.
+    const credentials = readLoginCredentials(new FormData(event.currentTarget))
+    credentialsRef.current = credentials
+    setEmail(credentials.email)
+    setPassword(credentials.password)
     loginRetryUsedRef.current = false
-    await runLogin({ email, password })
+    await runLogin(credentials)
   }
 
   useEffect(() => {
@@ -225,8 +233,12 @@ function LoginPage() {
                 name="email"
                 type="email"
                 autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                defaultValue={email}
+                onChange={(event) => {
+                  setEmail(event.target.value)
+                  setErrorMessage(null)
+                  setErrorKind(null)
+                }}
                 placeholder="correo@empresa.com"
                 required
                 disabled={isSubmitting}
@@ -253,8 +265,12 @@ function LoginPage() {
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                defaultValue={password}
+                onChange={(event) => {
+                  setPassword(event.target.value)
+                  setErrorMessage(null)
+                  setErrorKind(null)
+                }}
                 placeholder="Tu contraseña"
                 required
                 disabled={isSubmitting}

@@ -18,8 +18,12 @@ async function readPdf(data: PayrollDetail) {
   const buffer = await renderToBuffer(<PayrollPayslipPdf detail={data} company={{ name: 'Empresa de ejemplo', nit: '900123456' }} position="Asesora comercial" />)
   const pdf = await getDocument({ data: new Uint8Array(buffer), useSystemFonts: true }).promise
   try {
-    const text = (await (await pdf.getPage(1)).getTextContent()).items.map(item => 'str' in item ? item.str : '').join(' ')
-    return { pages: pdf.numPages, text }
+    const pageTexts: string[] = []
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const text = (await (await pdf.getPage(number)).getTextContent()).items.map(item => 'str' in item ? item.str : '').join(' ')
+      pageTexts.push(text)
+    }
+    return { pages: pdf.numPages, text: pageTexts.join(' '), pageTexts }
   } finally { await pdf.destroy() }
 }
 
@@ -37,4 +41,26 @@ describe('Desprendible de nómina por empleado', () => {
     expect(result.text).toContain('NETO A PAGAR')
     expect(result.text).toContain('0,00')
   }, 30000)
+  it('muestra fecha de pago y consecutivo sin duplicar el prefijo', async () => {
+    for (const number of ['27', 'NI27']) {
+      const result = await readPdf({ ...detail, number, prefix: 'NI', state: { ...detail.state, paymentDates: ['2026-03-31'] } })
+      expect(result.text).toContain('31/03/2026')
+      expect(result.text).toContain('NI27')
+      expect(result.text).not.toContain('NINI27')
+    }
+  }, 30000)
+  it('conserva los conceptos largos y repite identificación y columnas al continuar en otra página', async () => {
+    const lines = Array.from({ length: 45 }, (_, index) => ({
+      id: `line-${index}`, concept: 'salary', kind: 'accrued' as const, quantity: '1', amount: '1000.01',
+      description: `Detalle ${String(index).padStart(2, '0')} de una novedad de nómina con explicación completa del concepto liquidado`,
+    }))
+    const result = await readPdf({ ...detail, state: { ...detail.state, lines } })
+    expect(result.pages).toBeGreaterThan(1)
+    for (const text of result.pageTexts) {
+      for (const heading of ['Ana Pérez', 'CONCEPTO', 'INGRESOS', 'DEDUCCIONES']) expect(text).toContain(heading)
+    }
+    for (let index = 0; index < lines.length; index++) expect(result.text).toContain(`Detalle ${String(index).padStart(2, '0')}`)
+    expect(result.text.match(/NETO A PAGAR/g)).toHaveLength(1)
+    expect(result.pageTexts.at(-1)).toContain('45.000,45')
+  }, 60000)
 })

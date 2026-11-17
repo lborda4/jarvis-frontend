@@ -1,4 +1,5 @@
 import type { PayrollDocument } from '../../services/payrollService'
+import { payrollAdjustmentLabel } from './payrollAdjustmentTargets'
 import { currency, employeeName, statusLabels } from './payrollDefaults'
 import PayrollRowActions, { type PayrollRowAction } from './PayrollRowActions'
 import PayrollSubmissionFeedback from './PayrollSubmissionFeedback'
@@ -128,12 +129,13 @@ export default function PayrollDocumentTable({
                 >
                   {statusLabels[document.status] ?? document.status}
                 </span>
+                {document.adjustment && <small>{payrollAdjustmentLabel(document.adjustment)}</small>}
               </td>
               {onPayslip && <td data-label="Desprendibles"><button className="payroll__link" disabled={busy}
                 aria-label={`Ver desprendible de ${employeeName(document.employee)}`} onClick={() => onPayslip(document)}>Ver PDF</button></td>}
               <td data-label="Acciones">
-                {onNovelties ? <button className="payroll__link" disabled={busy || !['DRAFT', 'REJECTED'].includes(document.status)}
-                  onClick={() => onNovelties(document)}>Gestionar novedades</button> : <PayrollRowActions
+                {onNovelties ? (document.status === 'ACCEPTED' || document.monthlySubmission?.status === 'ACCEPTED' ? null : <button className="payroll__link" disabled={busy || !['DRAFT', 'REJECTED'].includes(document.status)}
+                  onClick={() => onNovelties(document)}>Gestionar novedades</button>) : <PayrollRowActions
                   name={employeeName(document.employee)}
                   disabled={busy}
                   actions={actions(document)}

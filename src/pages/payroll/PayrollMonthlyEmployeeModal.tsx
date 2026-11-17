@@ -26,9 +26,9 @@ export function payrollEmployeeConcepts(documents: PayrollDocument[], concepts: 
   return [...rows.values()].map(row => ({ ...row, amount: money(row.amount) }))
 }
 
-export default function PayrollMonthlyEmployeeModal({ employee, monthLabel, status, errors, busy, concepts, onClose, onResult, onEditEmployee }: {
+export default function PayrollMonthlyEmployeeModal({ employee, monthLabel, status, errors, busy, concepts, onClose, onEditEmployee }: {
   employee: PayrollMonth['employees'][number]; monthLabel: string; status: string; errors: string[]; busy: boolean;
-  concepts?: Concept[]; onClose: () => void; onResult?: () => void;
+  concepts?: Concept[]; onClose: () => void;
   onEditEmployee?: () => void;
 }) {
   const titleId = useId()
@@ -60,6 +60,5 @@ export default function PayrollMonthlyEmployeeModal({ employee, monthLabel, stat
       </table></div>
     </> : <p className="payroll__notice">No hay un registro separado para esta quincena. Si la nómina se registró como un período mensual, puedes consultar sus valores en «Mes completo».</p>}
     <PayrollSubmissionFeedback errors={errors} />
-    {onResult && <div className="payroll-employee-modal__footer"><button className="payroll__button" disabled={busy} onClick={onResult}>Ver resultado mensual</button></div>}
   </Modal>
 }
