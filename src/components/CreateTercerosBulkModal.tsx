@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 import Modal from './Modal'
+import Autocomplete from './Autocomplete'
+import type { JarvisMunicipality } from '../types/jarvis'
+import { formatMunicipalityLabel, isMunicipalityMatch } from '../utils/jarvisMunicipality'
 import { getApiErrorMessage } from '../services/apiClient'
 import './CreateTercerosBulkModal.css'
 
@@ -16,6 +19,7 @@ export interface PendingSupplierRow {
   document_number: string
   name: string | null
   email: string | null
+  municipality_id?: number
 }
 
 export interface CreateTercerosBulkModalProps {
@@ -29,6 +33,7 @@ export interface CreateTercerosBulkModalProps {
   onSubmit: (selected: PendingSupplierRow[]) => Promise<void>
   title?: string
   descriptionLines?: string[]
+  municipalities?: JarvisMunicipality[]
 }
 
 const DEFAULT_TITLE = 'Crear terceros pendientes'
@@ -52,6 +57,7 @@ function CreateTercerosBulkModal({
   onSubmit,
   title = DEFAULT_TITLE,
   descriptionLines = DEFAULT_DESCRIPTION_LINES,
+  municipalities,
 }: CreateTercerosBulkModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   // Copia editable — el usuario puede corregir nombre/correo antes de crear
@@ -103,8 +109,8 @@ function CreateTercerosBulkModal({
 
   const handleFieldChange = (
     documentId: string,
-    field: 'name' | 'email',
-    value: string,
+    field: 'name' | 'email' | 'municipality_id',
+    value: string | number | undefined,
   ) => {
     setEditedSuppliers((current) => {
       const row = current[documentId]
@@ -126,6 +132,10 @@ function CreateTercerosBulkModal({
   const handleCreate = async () => {
     if (selectedSuppliers.length === 0) {
       setErrorMessage('Selecciona al menos un tercero para crear.')
+      return
+    }
+    if (municipalities && selectedSuppliers.some(row => !municipalities.some(city => city.id === row.municipality_id))) {
+      setErrorMessage('Selecciona una ciudad para cada tercero seleccionado.')
       return
     }
 
@@ -189,12 +199,13 @@ function CreateTercerosBulkModal({
               <th>Número de documento</th>
               <th>Nombre / razón social</th>
               <th>Correo</th>
+              {municipalities && <th>Ciudad</th>}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="terceros-bulk-modal__empty">
+                <td colSpan={municipalities ? 6 : 5} className="terceros-bulk-modal__empty">
                   No hay proveedores pendientes por crear.
                 </td>
               </tr>
@@ -259,6 +270,13 @@ function CreateTercerosBulkModal({
                         aria-label={`Correo de ${row.document_number}`}
                       />
                     </td>
+                    {municipalities && <td><label htmlFor={`supplier-city-${row.document_id}`}>Ciudad de {row.document_number}</label><Autocomplete<JarvisMunicipality>
+                      id={`supplier-city-${row.document_id}`} options={municipalities}
+                      value={municipalities.find(city => city.id === row.municipality_id) ?? null}
+                      onChange={city => handleFieldChange(row.document_id, 'municipality_id', city?.id)}
+                      getOptionKey={city => city.id} getOptionLabel={formatMunicipalityLabel}
+                      isOptionMatch={isMunicipalityMatch} placeholder="Buscar ciudad" disabled={isSaving}
+                      emptyMessage="No hay ciudades que coincidan." /></td>}
                   </tr>
                 )
               })

@@ -8,6 +8,8 @@
   pointer-events: none;
 }
 
+.document-notice-layer--center { top: 50%; transform: translate(-50%, -50%); }
+
 .document-notice.success-message,
 .document-notice.error-message {
   --notice-accent: var(--jarvis-primary-hover);
@@ -62,6 +64,8 @@
   font-weight: var(--font-weight-normal);
   overflow-wrap: anywhere;
 }
+
+.document-notice .banner__action { display: flex; flex-direction: column; align-items: flex-end; gap: .35rem; }
 
 .document-notice__close {
   display: grid;

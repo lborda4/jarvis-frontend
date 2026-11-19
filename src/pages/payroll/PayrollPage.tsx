@@ -12,6 +12,7 @@ import {
 import PayrollEmployees from './PayrollEmployees'
 import PayrollDocuments from './PayrollDocuments'
 import PayrollCreatePage from './PayrollCreatePage'
+import PayrollNotice, { PayrollErrorNotice } from './PayrollNotice'
 import './Payroll.css'
 export interface PayrollContext {
   data: PayrollBootstrap
@@ -104,19 +105,22 @@ export function Modal({
 function PayrollWorkspace() {
   const location = useLocation()
   const [data, setData] = useState<PayrollBootstrap | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ text: string; routeKey: string } | null>(null)
   const mounted = useRef(true)
   const reload = useCallback(async () => {
     const result = await payrollService.bootstrap()
-    if (mounted.current) setData(result)
+    if (mounted.current) { setData(result); setLoadFailed(false) }
   }, [])
   useEffect(() => {
     mounted.current = true
     void reload().catch((e) => {
-      if (mounted.current)
+      if (mounted.current) {
+        setLoadFailed(true)
         setError(getApiErrorMessage(e, 'No se pudo cargar la nómina.'))
+      }
     })
     return () => {
       mounted.current = false
@@ -158,24 +162,14 @@ function PayrollWorkspace() {
             : 'Nóminas'}
       </div>
       {error && (
-        <div role="alert" className="payroll__notice payroll__notice--error">
-          {error}{' '}
-          <button
-            type="button"
-            className="payroll__link"
-            onClick={() => void run(reload, 'Información actualizada.')}
-          >
-            Reintentar
-          </button>
-        </div>
+        <PayrollErrorNotice message={error} onDismiss={() => setError('')}
+          onRetry={() => void run(reload, 'Información actualizada.')} />
       )}
       {message?.routeKey === location.key && (
-        <div role="status" className="payroll__notice payroll__notice--success">
-          {message.text}
-        </div>
+        <PayrollNotice message={message.text} variant="success" />
       )}
       {!data ? (
-        <p>Cargando información de nómina…</p>
+        <>{loadFailed ? <button type="button" className="payroll__button" disabled={busy} onClick={() => void run(reload, '')}>Reintentar carga</button> : <p>Cargando información de nómina…</p>}</>
       ) : view === 'new' ? (
         <PayrollCreatePage data={data} reload={reload} run={run} busy={busy} />
       ) : view === 'employees' ? (

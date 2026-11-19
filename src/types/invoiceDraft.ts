@@ -22,6 +22,7 @@ export interface InvoiceDraftLine {
 export type InvoiceDraftCustomer = Pick<JarvisTercero, 'id' | 'document_type' | 'document_number' | 'name'> & { check_digit?: string | null }
 
 export interface InvoiceDraftState {
+  importDelivery?: { status: 'sending' | 'sent'; invoiceId?: string }
   sourceInvoiceId?: string | null
   attachment?: InvoiceAttachment
   documentTotal?: number

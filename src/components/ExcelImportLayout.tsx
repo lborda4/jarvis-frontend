@@ -1,18 +1,21 @@
-import { useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Button from './Button'
 import Modal from './Modal'
+import PageHeader from './PageHeader'
 import { ExcelFileIcon } from './icons/ImportIcons'
 import './ExcelImportLayout.css'
 
 interface ExcelImportLayoutProps {
   title: string
-  description: string
-  templateDescription: ReactNode
-  reviewDescription: ReactNode
+  description?: string
+  templateDescription?: ReactNode
+  reviewDescription?: ReactNode
   className: string
   fileName: string
   hasPreview: boolean
+  autoReview?: boolean
+  presentation?: 'modal' | 'page'
   busy: boolean
   downloading?: boolean
   status?: string
@@ -47,6 +50,9 @@ export default function ExcelImportLayout(props: ExcelImportLayoutProps) {
   const [reviewing, setReviewing] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [fileError, setFileError] = useState('')
+  useEffect(() => {
+    if (props.autoReview && props.hasPreview) setReviewing(true)
+  }, [props.autoReview, props.hasPreview])
 
   const selectFiles = (files: FileList | null) => {
     if (busy || !files?.length) return
@@ -56,6 +62,45 @@ export default function ExcelImportLayout(props: ExcelImportLayoutProps) {
     setReviewing(false)
     props.onFile(files[0])
   }
+
+  const fileInput = <input ref={inputRef} id={fileId} type="file" hidden accept=".xlsx,.xls" disabled={busy} onChange={event => { selectFiles(event.target.files); event.target.value = '' }} />
+
+  const upload = <>
+    <div className={`excel-import__dropzone${dragging ? ' excel-import__dropzone--active' : ''}${busy ? ' excel-import__dropzone--busy' : ''}`}
+      onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true) }}
+      onDragLeave={event => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false) }}
+      onDrop={event => { event.preventDefault(); setDragging(false); selectFiles(event.dataTransfer.files) }}>
+      {fileInput}
+      <svg className="excel-import__cloud" width="55" height="48" viewBox="0 0 56 48" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true"><path d="M15 36H12a10 10 0 0 1-1-20 16 16 0 0 1 30-3 11 11 0 0 1 2 23h-3M28 43V22m-8 8 8-8 8 8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <strong>Arrastra tu archivo aquí</strong>
+      <span>o <button type="button" className="excel-import__select" disabled={busy} onClick={() => inputRef.current?.click()}>selecciona un archivo</button> desde tu equipo</span>
+      <small className="excel-import__format">Formato .xlsx o .xls · Máximo 5 MB</small>
+    </div>
+    {props.fileName && <p className="excel-import__selected-file"><ExcelFileIcon /><span>{props.fileName}</span>{props.hasPreview && <strong>Listo para revisar</strong>}</p>}
+    {fileError && <p role="alert">{fileError}</p>}
+  </>
+
+  if (props.presentation === 'page') return <main className={`${props.className} excel-import-page integration-page`}>
+    <PageHeader title={props.title} description={props.description}
+      actions={<Button variant="outline" disabled={busy} onClick={onClose}>Volver al listado</Button>} />
+    <div className="excel-import-page__actions" role="group" aria-label="Archivos de importación">
+      <Button variant="outline" disabled={busy} onClick={props.onDownload}>{props.downloading ? 'Descargando…' : 'Descargar plantilla'}</Button>
+      <Button disabled={busy} onClick={() => inputRef.current?.click()}>Subir Excel</Button>
+      {fileInput}
+      <small className="excel-import-page__file-help">.xls / .xlsx · 5 MB</small>
+      {props.fileName && <span className="excel-import-page__file-name">{props.fileName}</span>}
+    </div>
+    {fileError && <p role="alert">{fileError}</p>}
+    {props.status && <p role="status" className="excel-import__status">{props.status}</p>}
+    {props.notice}
+    <section className="excel-import-page__panel integration-card" aria-labelledby={`${titleId}-review`} aria-busy={busy}>
+      <div className="excel-import-page__review-header">
+        <div><h2 id={`${titleId}-review`}>Documentos</h2>{props.reviewDescription && <p>{props.reviewDescription}</p>}</div>
+        {props.hasPreview && !props.finished && <Button disabled={busy || props.importDisabled} onClick={props.onImport}>{props.importLabel}</Button>}
+      </div>
+      {props.hasPreview ? props.children : <p className="excel-import-page__empty">Sube un Excel para comenzar.</p>}
+    </section>
+  </main>
 
   return createPortal(<Modal isOpen busy={busy} onClose={onClose} labelledBy={titleId} size="lg" className={`${props.className} excel-import-modal`}>
     <header className="excel-import__header">
@@ -80,18 +125,7 @@ export default function ExcelImportLayout(props: ExcelImportLayoutProps) {
         <span className="excel-import__number" aria-hidden="true">2</span>
         <div className="excel-import__step-content">
           <h3>2. Carga tu archivo</h3>
-          <div className={`excel-import__dropzone${dragging ? ' excel-import__dropzone--active' : ''}${busy ? ' excel-import__dropzone--busy' : ''}`}
-            onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true) }}
-            onDragLeave={event => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false) }}
-            onDrop={event => { event.preventDefault(); setDragging(false); selectFiles(event.dataTransfer.files) }}>
-            <input ref={inputRef} id={fileId} type="file" hidden accept=".xlsx,.xls" disabled={busy} onChange={event => { selectFiles(event.target.files); event.target.value = '' }} />
-            <svg className="excel-import__cloud" width="55" height="48" viewBox="0 0 56 48" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true"><path d="M15 36H12a10 10 0 0 1-1-20 16 16 0 0 1 30-3 11 11 0 0 1 2 23h-3M28 43V22m-8 8 8-8 8 8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <strong>Arrastra tu archivo aquí</strong>
-            <span>o <button type="button" className="excel-import__select" disabled={busy} onClick={() => inputRef.current?.click()}>selecciona un archivo</button> desde tu equipo</span>
-            <small className="excel-import__format">Formato .xlsx o .xls · Máximo 5 MB</small>
-          </div>
-          {props.fileName && <p className="excel-import__selected-file"><ExcelFileIcon /><span>{props.fileName}</span>{props.hasPreview && <strong>Listo para revisar</strong>}</p>}
-          {fileError && <p role="alert">{fileError}</p>}
+          {upload}
         </div>
       </li>
       <li className="excel-import__step">

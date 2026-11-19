@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
+import { styleExcelTemplate } from '../../utils/excelTemplateStyle'
 import {
   payrollService,
   type Employee,
@@ -105,6 +106,7 @@ export default function PayrollImport({
           name,
         )
     }
+    styleExcelTemplate(book, book.SheetNames)
     XLSX.writeFile(
       book,
       kind === 'employees'

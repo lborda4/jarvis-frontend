@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as XLSX from 'xlsx'
+import * as CFB from 'cfb'
 import { apiClient } from './apiClient'
 import { setActiveCompanyId, setCachedQuery, companyQueryKey } from './queryCache'
-import { assignSupportDraftIds, MissingSupportSuppliersError, saveImportedSupportDocuments } from './supportDocumentsImportService'
-import { createSupportDocumentsTemplate, readSupportDocumentsWorkbook } from '../utils/supportDocumentsExcel'
+import { assignSupportDraftIds, downloadSupportImportTemplate, fetchSupportImportCatalogs, MissingSupportSuppliersError, saveImportedSupportDocuments } from './supportDocumentsImportService'
+import { triggerBrowserDownload } from '../utils/downloadFile'
+import { LEGACY_SUPPORT_EXCEL_COLUMNS, readSupportDocumentsWorkbook } from '../utils/supportDocumentsExcel'
 import type { JarvisTercero } from '../types/jarvis'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn(), put: vi.fn(), post: vi.fn() }, getApiErrorMessage: (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback }))
+vi.mock('../utils/downloadFile', () => ({ triggerBrowserDownload: vi.fn() }))
 const supplier = { id: 'supplier', document_type: 'NIT', document_number: '900123', name: 'Proveedor' } as JarvisTercero
 function rows(references = ['REF-1']) {
-  const book = createSupportDocumentsTemplate()
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([[...LEGACY_SUPPORT_EXCEL_COLUMNS]]), 'Documentos soporte')
   XLSX.utils.sheet_add_aoa(book.Sheets['Documentos soporte'], references.map(reference => [reference, '2026-11-07', 'NIT', '900123', 'Servicio', '1', '100', 'Efectivo']), { origin: 'A2' })
   return readSupportDocumentsWorkbook(XLSX.write(book, { type: 'array', bookType: 'xlsx' }), { currencies: ['COP'], taxes: [], paymentMethods: [{ id: 'cash', name: 'Efectivo', negotiation: 'CASH', nextpymeMethodId: 10, nextpymeMethodName: 'Efectivo' }] }, [supplier])
 }
@@ -24,9 +28,37 @@ describe('carga masiva de documentos soporte', () => {
     const progress = vi.fn()
     const result = await saveImportedSupportDocuments(rows(), progress)
     expect(result[0].status).toBe('saved')
-    expect(apiClient.put).toHaveBeenCalledExactlyOnceWith(`/integrations/jarvis/drafts/${result[0].draftId}`, { documentKind: 'SUPPORT_DOCUMENT', state: expect.objectContaining({ selectedCustomer: expect.objectContaining({ id: 'supplier' }), lines: expect.any(Array), importReference: 'REF-1', documentTotal: 100 }) })
+    expect(apiClient.put).toHaveBeenCalledExactlyOnceWith(`/integrations/jarvis/drafts/${result[0].draftId}`, { documentKind: 'SUPPORT_DOCUMENT', state: expect.objectContaining({ selectedCustomer: expect.objectContaining({ id: 'supplier' }), lines: expect.any(Array), importReference: 'REF-1', documentTotal: 100, currency: 'COP' }) })
     expect(apiClient.post).not.toHaveBeenCalled()
     expect(progress).toHaveBeenCalledOnce()
+  })
+  it('descarga el archivo con una sola hoja, pagos y códigos de productos de la empresa', async () => {
+    setCachedQuery(companyQueryKey(['products', 'list']), { items: [{ sku: 'CODIGO-VIEJO' }], total: 1 })
+    vi.mocked(apiClient.get).mockImplementation(async url => ({ data: url === '/integrations/jarvis/catalogs'
+      ? { taxes: [], currencies: [{ code: 'USD' }] }
+      : { items: url === '/integrations/jarvis/payment-methods' ? [{ id: 'cash', name: 'Mi efectivo', negotiation: 'CASH', nextpymeMethodId: 10, nextpymeMethodName: 'Efectivo' }] : url === '/products' ? [{ sku: '00042' }, { sku: 'SERV-001' }] : [] } }))
+    await downloadSupportImportTemplate()
+    const [blob, filename] = vi.mocked(triggerBrowserDownload).mock.calls[0]
+    expect(filename).toBe('plantilla-documentos-soporte-jarvis.xlsx')
+    const data = await blob.arrayBuffer()
+    const book = XLSX.read(data, { type: 'array' })
+    expect(book.SheetNames).toEqual(['Documentos soporte'])
+    expect(book.Sheets['Documentos soporte'].R2.v).toBe('Mi efectivo')
+    expect(book.Sheets['Documentos soporte'].E1.v).toBe('Producto')
+    expect(book.Sheets['Documentos soporte'].F1.v).toBe('Descripción *')
+    expect(book.Sheets['Documentos soporte'].W2.v).toBe('00042')
+    expect(book.Sheets['Documentos soporte'].W3.v).toBe('SERV-001')
+    expect(vi.mocked(apiClient.get).mock.calls.some(([url]) => url === '/products')).toBe(true)
+    const archive = CFB.read(new Uint8Array(data), { type: 'buffer' })
+    const xml = new TextDecoder().decode(new Uint8Array(CFB.find(archive, '/xl/worksheets/sheet1.xml')!.content))
+    expect(xml.includes('<formula1>FormasPagoSoporte</formula1>')).toBe(true)
+    expect(xml.includes('<formula1>CodigosProductosSoporte</formula1>')).toBe(true)
+  })
+  it('no consulta productos al obtener los catálogos de facturas de venta', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async url => ({ data: url === '/integrations/jarvis/catalogs' ? { taxes: [], currencies: [] } : { items: [] } }))
+    const catalogs = await fetchSupportImportCatalogs('sales')
+    expect(catalogs.products).toBeUndefined()
+    expect(vi.mocked(apiClient.get).mock.calls.some(([url]) => url === '/products')).toBe(false)
   })
   it('reconsulta los NIT y no guarda nada si falta uno, aunque la caché lo tenga', async () => {
     setCachedQuery(companyQueryKey(['jarvis', 'terceros']), { items: [supplier], total: 1 })

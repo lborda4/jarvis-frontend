@@ -4,6 +4,7 @@ import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 import Modal from './Modal'
 import { getApiErrorMessage } from '../services/apiClient'
+import { getActiveCompanyId } from '../services/queryCache'
 import { resumeElectronicDocument } from '../services/electronicDocumentService'
 import {
   createJarvisTercero,
@@ -114,6 +115,7 @@ export interface CreateJarvisTerceroModalProps {
   provider?: CreateTerceroModalProvider
   onCreated?: (tercero: JarvisTercero) => void
   editingTercero?: JarvisTercero
+  expectedCompanyId?: string | null
 }
 
 function resolveDocumentType(value?: string | null): JarvisDocumentType {
@@ -146,6 +148,7 @@ function CreateJarvisTerceroModal({
   provider = 'JARVIS',
   onCreated,
   editingTercero,
+  expectedCompanyId,
 }: CreateJarvisTerceroModalProps) {
   const [form, setForm] = useState<CreateJarvisTerceroRequest>(EMPTY_FORM)
   const [copyEmails, setCopyEmails] = useState<string[]>([])
@@ -362,6 +365,7 @@ function CreateJarvisTerceroModal({
     setErrorMessage(null)
 
     try {
+      if (expectedCompanyId !== undefined && expectedCompanyId !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Vuelve a cargar el archivo.')
       const payload: CreateJarvisTerceroRequest = {
         document_type: form.document_type,
         document_number: form.document_number.trim(),

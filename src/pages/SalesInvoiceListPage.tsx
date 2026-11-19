@@ -12,7 +12,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import SuccessMessage from '../components/SuccessMessage'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
-import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
+import { BULK_IMPORT_ENABLED, SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
 import { fetchJarvisInvoicePdfData } from '../services/jarvisService'
 import { loadSalesInvoicePdfRenderer } from '../utils/loadSalesInvoicePdfRenderer'
@@ -20,7 +20,6 @@ import { triggerBrowserDownload } from '../utils/downloadFile'
 import { jarvisHistoryQueryKey, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSalesInvoices, fetchJarvisSupportCreditNotes, fetchJarvisSupportInvoices, type JarvisSalesInvoiceList } from '../services/jarvisService'
 import './SalesInvoiceListPage.css'
 
-const ImportSupportDocumentsModal = lazy(() => import('../components/ImportSupportDocumentsModal'))
 const ImportSalesInvoicesModal = lazy(() => import('../components/ImportSalesInvoicesModal'))
 
 function InvoiceIcon() {
@@ -50,24 +49,26 @@ function SentTime({ sentAt }: { sentAt: string }) {
   return time ? <span className="sales-history__muted" title="Hora de envío en Colombia"><time dateTime={sentAt}>{time} (COL)</time></span> : null
 }
 
-const adjustmentLabels = {
-  CREDIT_NOTE: 'Con nota crédito',
-  DEBIT_NOTE: 'Con nota débito',
-  CREDIT_AND_DEBIT: 'Con nota crédito y débito',
-} as const
-
 function AdjustmentStatus({ invoice }: { invoice: JarvisSalesInvoiceList['items'][number] }) {
   if (invoice.status === 'SAVED' || !invoice.adjustmentStatus || invoice.adjustmentStatus === 'NONE') {
     return <span className="sales-history__muted">—</span>
   }
-  const notes = invoice.relatedCreditNotes ?? []
-  return <>
-    {(notes.length === 0 || invoice.adjustmentStatus !== 'CREDIT_NOTE') && <span className="sales-history__status sales-history__status--adjusted">{adjustmentLabels[invoice.adjustmentStatus]}</span>}
-    {notes.map(note => {
+  const groups = [
+    { kind: 'credit', label: 'nota crédito', path: '/nota-credito', notes: invoice.relatedCreditNotes ?? [], present: invoice.adjustmentStatus === 'CREDIT_NOTE' || invoice.adjustmentStatus === 'CREDIT_AND_DEBIT' },
+    { kind: 'debit', label: 'nota débito', path: '/nota-debito', notes: invoice.relatedDebitNotes ?? [], present: invoice.adjustmentStatus === 'DEBIT_NOTE' || invoice.adjustmentStatus === 'CREDIT_AND_DEBIT' },
+  ]
+  return <div className="sales-history__adjustments">{groups.filter(group => group.present).map(group => {
+    const notes = [...new Map(group.notes.map(note => [note.id, note])).values()]
+    const className = 'sales-history__status sales-history__status--adjusted'
+    const links = notes.map(note => {
       const number = note.number.startsWith(note.prefix) ? note.number : `${note.prefix}${note.number}`
-      return <Link key={note.id} className="sales-history__status sales-history__status--adjusted" to={`/nota-credito/${encodeURIComponent(note.id)}/visualizar`} aria-label={`Ver nota crédito ${number}`}>Con nota crédito · {number}</Link>
-    })}
-  </>
+      return <Link key={note.id} className={notes.length === 1 ? className : undefined} to={`${group.path}/${encodeURIComponent(note.id)}/visualizar`} aria-label={`Ver ${group.label} ${number}`}>
+        {notes.length === 1 ? `Con ${group.label} · ${number}` : number}
+      </Link>
+    })
+    return notes.length === 1 ? <span key={group.kind}>{links}</span>
+      : <span key={group.kind} className={className}>Con {group.label}{links.length > 0 && <> · <span className="sales-history__adjustment-links">{links}</span></>}</span>
+  })}</div>
 }
 
 export default function SalesInvoiceListPage({ supportDocument = false, creditNote = false, debitNote = false, adjustmentNote = false }: { supportDocument?: boolean; creditNote?: boolean; debitNote?: boolean; adjustmentNote?: boolean }) {
@@ -96,7 +97,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
   const downloadInProgress = useRef(false)
   const [emailDocument, setEmailDocument] = useState<JarvisSalesInvoiceList['items'][number] | null>(null)
   const isSalesInvoice = !supportDocument && !creditNote && !debitNote && !adjustmentNote
-  const ImportModal = supportDocument ? ImportSupportDocumentsModal : ImportSalesInvoicesModal
+  const canImport = !isNoteList && (supportDocument ? SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED : BULK_IMPORT_ENABLED)
   const showNoteActions = isSalesInvoice || supportDocument
   const listPath = debitNote ? '/nota-debito' : adjustmentNote ? '/nota-ajuste' : creditNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
   const documentLabel = debitNote ? 'nota débito' : adjustmentNote ? 'nota de ajuste' : creditNote ? 'nota crédito' : supportDocument ? 'documento' : 'factura'
@@ -160,16 +161,18 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
       title={debitNote ? 'Notas débito' : adjustmentNote ? 'Notas de ajuste' : creditNote ? 'Notas crédito' : supportDocument ? 'Documentos soporte' : 'Facturas de venta'}
       description={`Consulta tus ${plural} y crea ${supportDocument ? 'uno nuevo' : 'una nueva'} cuando lo necesites.`}
       actions={<>
-        {BULK_IMPORT_ENABLED && !isNoteList && <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />{supportDocument ? 'Importar documentos soporte' : 'Importar facturas de venta'}</Button>}
+        {canImport && (supportDocument
+          ? <Link className="btn btn--outline btn--md" to="/documento-soporte/importar"><ImportIcon />Importar documentos soporte</Link>
+          : <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />Importar facturas de venta</Button>)}
         <Link className="sales-history__new" to={newPath}>{!isNoteList && <PlusIcon />}{newLabel}</Link>
       </>}
     />
     {success && <SuccessMessage message={success} />}
     {downloadingId && <LoadingIndicator message="Preparando descarga del PDF…" />}
     {downloadError && <ErrorMessage message={downloadError} />}
-    {isImportOpen && !isNoteList && <Suspense fallback={<LoadingIndicator message="Cargando importador…" />}>
-      <ImportModal key={supportDocument ? 'support' : 'sales'} onClose={() => setIsImportOpen(false)} onImported={count => {
-        setSuccess(`Se guardaron ${count} ${supportDocument ? 'documentos soporte' : 'facturas de venta'}. Puedes abrirlos desde el listado para revisar y enviar a DIAN.`)
+    {isImportOpen && canImport && !supportDocument && <Suspense fallback={<LoadingIndicator message="Cargando importador…" />}>
+      <ImportSalesInvoicesModal onClose={() => setIsImportOpen(false)} onImported={count => {
+        setSuccess(`Se guardaron ${count} facturas de venta. Puedes abrirlos desde el listado para revisar y enviar a DIAN.`)
         reload()
       }} />
     </Suspense>}

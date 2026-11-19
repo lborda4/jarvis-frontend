@@ -8,10 +8,17 @@ vi.mock('../components/InvoiceNoteActions', () => ({ default: () => null }))
 vi.mock('../components/DateRangeFilter', () => ({ default: () => null }))
 beforeEach(() => { mocks.cached = { items: [], total: 0, page: 1, pageSize: 20 } })
 
+it('abre la importación de documentos soporte mediante un enlace a su propia pantalla', () => {
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage supportDocument /></MemoryRouter>)
+  expect(html).toContain('href="/documento-soporte/importar"')
+  expect(html).toContain('Importar documentos soporte</a>')
+})
+
 it.each(['CREDIT_NOTE', 'CREDIT_AND_DEBIT'])('abre cada nota crédito vinculada para el estado %s', adjustmentStatus => {
   mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status: 'SENT', adjustmentStatus,
-    issueDate: '2026-11-11', total: '100', relatedCreditNotes: [
+    issueDate: '2026-11-11', total: '100', relatedDebitNotes: [{ id: 'debit/1', prefix: 'ND', number: 'ND1' }], relatedCreditNotes: [
       { id: 'note/1', prefix: 'NC', number: '1' }, { id: 'note2', prefix: 'NC', number: 'NC2' },
+      { id: 'note/1', prefix: 'NC', number: '1' },
     ] }], total: 1, page: 1, pageSize: 20 }
   const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
   expect(html).toContain('href="/nota-credito/note%2F1/visualizar"')
@@ -19,7 +26,43 @@ it.each(['CREDIT_NOTE', 'CREDIT_AND_DEBIT'])('abre cada nota crédito vinculada 
   expect(html).toContain('aria-label="Ver nota crédito NC1"')
   expect(html).toContain('aria-label="Ver nota crédito NC2"')
   expect(html).not.toContain('NCNC2')
-  if (adjustmentStatus === 'CREDIT_AND_DEBIT') expect(html).toContain('Con nota crédito y débito')
+  expect(html.match(/Con nota crédito/g)).toHaveLength(1)
+  expect(html.match(/href="\/nota-credito\/note%2F1\/visualizar"/g)).toHaveLength(1)
+  expect(html).not.toContain('Con nota crédito y débito')
+  if (adjustmentStatus === 'CREDIT_AND_DEBIT') {
+    expect(html.match(/Con nota débito/g)).toHaveLength(1)
+    expect(html).toContain('href="/nota-debito/debit%2F1/visualizar"')
+    expect(html).toContain('aria-label="Ver nota débito ND1"')
+    expect(html).not.toContain('NDND1')
+  }
+})
+
+it.each([
+  ['CREDIT_NOTE', 'relatedCreditNotes', 'nota-credito', 'crédito', 'NC'],
+  ['DEBIT_NOTE', 'relatedDebitNotes', 'nota-debito', 'débito', 'ND'],
+])('muestra un único aviso enlazado cuando solo tiene %s', (adjustmentStatus, field, path, label, prefix) => {
+  mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status: 'SENT', adjustmentStatus,
+    issueDate: '2026-11-11', total: '100', [field]: [{ id: 'note/1', prefix, number: '1' }],
+  }], total: 1, page: 1, pageSize: 20 }
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
+  expect(html.match(/sales-history__status--adjusted/g)).toHaveLength(1)
+  expect(html).toContain(`href="/${path}/note%2F1/visualizar"`)
+  expect(html).toContain(`>Con nota ${label} · ${prefix}1</a>`)
+})
+
+it('muestra un enlace de cada tipo cuando la factura tiene ambas notas', () => {
+  mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status: 'SENT', adjustmentStatus: 'CREDIT_AND_DEBIT',
+    issueDate: '2026-11-11', total: '100',
+    relatedCreditNotes: [{ id: 'credit', prefix: 'NC', number: '1' }],
+    relatedDebitNotes: [{ id: 'debit', prefix: 'ND', number: '1' }],
+  }], total: 1, page: 1, pageSize: 20 }
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
+  expect(html.match(/sales-history__status--adjusted/g)).toHaveLength(2)
+  expect(html).toContain('href="/nota-credito/credit/visualizar"')
+  expect(html).toContain('href="/nota-debito/debit/visualizar"')
+  expect(html.match(/Con nota crédito/g)).toHaveLength(1)
+  expect(html.match(/Con nota débito/g)).toHaveLength(1)
+  expect(html).not.toContain('Con nota crédito y débito')
 })
 
 it.each([{}, { creditNote: true }, { debitNote: true }, { supportDocument: true }, { adjustmentNote: true }])('muestra la hora de envío en Colombia para %j', (props) => {
@@ -84,7 +127,7 @@ it('no añade un bloque de borradores cuando no hay documentos', () => {
 
 it.each([
   ['NONE', '—'], ['CREDIT_NOTE', 'Con nota crédito'],
-  ['DEBIT_NOTE', 'Con nota débito'], ['CREDIT_AND_DEBIT', 'Con nota crédito y débito'],
+  ['DEBIT_NOTE', 'Con nota débito'], ['CREDIT_AND_DEBIT', 'Con nota débito'],
 ])('muestra el estado adicional %s conservando el estado de envío', (adjustmentStatus, label) => {
   mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status: 'SENT', adjustmentStatus,
     issueDate: '2026-11-11', customerName: 'Cliente', total: '100' }], total: 1, page: 1, pageSize: 20 }

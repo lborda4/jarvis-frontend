@@ -426,6 +426,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         if (draft && draft.documentKind !== documentKind) throw new Error('El borrador corresponde a otro tipo de documento.')
         if (draft) {
           const state = draft.state
+          if (state.importDelivery) throw new Error(state.importDelivery.status === 'sent'
+            ? 'Este documento ya fue enviado a la DIAN desde la carga masiva. Consúltalo en el historial.'
+            : 'Este documento tiene un envío masivo por confirmar. Revisa el historial antes de realizar otro envío.')
           setDraftSourceInvoiceId(state.sourceInvoiceId ?? null)
           setStoredAttachment(state.attachment ?? null); setAttachedFile(null); setAttachmentRemoved(false)
           setStoredAttachmentDraftId(draftId!)

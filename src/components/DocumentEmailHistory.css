@@ -1,0 +1,8 @@
+.document-email-history { flex-shrink: 0; max-height: 10rem; overflow-y: auto; margin-top: .65rem; padding: .6rem .8rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-md); background: var(--jarvis-gray-50); color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.document-email-history p { margin: 0; overflow-wrap: anywhere; }
+.document-email-history strong { color: var(--jarvis-text); font-weight: var(--font-weight-label); }
+.document-email-history ul { list-style: none; margin: 0; padding: 0; }
+.document-email-history li { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .3rem 1rem; }
+.document-email-history li + li { margin-top: .5rem; padding-top: .5rem; border-top: 1px solid var(--jarvis-border); }
+.document-email-history li p { flex: 1 1 18rem; }
+.document-email-history time { font-size: var(--text-xs); white-space: nowrap; }

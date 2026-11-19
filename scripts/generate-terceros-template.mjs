@@ -1,5 +1,5 @@
 import { createServer } from 'vite'
-import XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
 try {

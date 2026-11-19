@@ -1,3 +1,4 @@
+import { styleExcelTemplate } from './excelTemplateStyle'
 import * as XLSX from 'xlsx'
 import {
   JARVIS_DOCUMENT_TYPE_OPTIONS,
@@ -92,7 +93,7 @@ export function createTercerosTemplate(catalogs?: TercerosImportCatalogs): XLSX.
     : JARVIS_TAX_RESPONSIBILITY_OPTIONS.map(item => [item.value, item.label]))], [18, 70])
   addSheet('Regímenes', [['Nombre'], ...(catalogs?.regimes.length ? catalogs.regimes.map(item => [item.name]) : [['No Responsable de IVA']])], [55])
   addSheet('Ciudades', [['Código DANE', 'Nombre'], ...(catalogs?.municipalities.filter(item => item.code).map(item => [item.code!.padStart(5, '0'), item.name]) ?? [])], [18, 60])
-  return book
+  return styleExcelTemplate(book)
 }
 
 export function readTercerosWorkbook(

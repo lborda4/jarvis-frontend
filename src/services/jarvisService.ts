@@ -194,8 +194,8 @@ export async function fetchJarvisInvoicePdfData(id: string): Promise<import('../
   return data
 }
 
-export async function sendJarvisDocumentEmail(id: string, request: { additionalEmails: string[]; message: string }): Promise<{ success: boolean }> {
-  const { data } = await apiClient.post<{ success: boolean }>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/send-email`, request, { timeout: 90000 })
+export async function sendJarvisDocumentEmail(id: string, request: { additionalEmails: string[]; message: string }): Promise<{ success: boolean; delivery?: import('../types/electronicDocument').DocumentEmailDelivery }> {
+  const { data } = await apiClient.post<{ success: boolean; delivery?: import('../types/electronicDocument').DocumentEmailDelivery }>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/send-email`, request, { timeout: 90000 })
   return data
 }
 
@@ -219,6 +219,7 @@ export interface JarvisSalesInvoice {
   status: 'SENT' | 'SAVED'
   adjustmentStatus?: 'NONE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'CREDIT_AND_DEBIT'
   relatedCreditNotes?: Array<{ id: string; prefix: string; number: string }>
+  relatedDebitNotes?: Array<{ id: string; prefix: string; number: string }>
 }
 
 export interface JarvisSalesInvoiceList {

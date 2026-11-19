@@ -65,7 +65,7 @@ function App() {
                 />
                 <Route
                   path="/documento-soporte/masivo"
-                  element={<Navigate to="/documento-soporte/nuevo" replace />}
+                  element={<Navigate to="/documento-soporte/importar" replace />}
                 />
                 <Route
                   path="/documento-soporte/nuevo"
@@ -73,7 +73,7 @@ function App() {
                 />
                 <Route
                   path="/documento-soporte/importar"
-                  element={<Navigate to="/documento-soporte" replace />}
+                  element={<SupportDocumentRoute view="import" />}
                 />
                 <Route
                   path="/documento-soporte/historial"

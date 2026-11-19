@@ -4,6 +4,8 @@ import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import SalesInvoicePage from '../pages/SalesInvoicePage'
 import SalesInvoiceListPage from '../pages/SalesInvoiceListPage'
 import SupportDocumentPage from '../pages/SupportDocumentPage'
+import SupportDocumentsImportPage from '../pages/SupportDocumentsImportPage'
+import { SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import {
   JARVIS_SUPPORT_DOCUMENT_WORKSPACE,
   SUPPORT_DOCUMENT_WORKSPACE,
@@ -12,7 +14,7 @@ import { INTEGRATION_PROVIDER } from '../types/integration'
 import '../pages/AuthPages.css'
 
 interface SupportDocumentRouteProps {
-  view?: 'start' | 'workspace' | 'individual'
+  view?: 'start' | 'workspace' | 'individual' | 'import'
 }
 
 function SupportDocumentRoute({ view = 'start' }: SupportDocumentRouteProps) {
@@ -43,6 +45,12 @@ function SupportDocumentRoute({ view = 'start' }: SupportDocumentRouteProps) {
         state={{ integrationSetupRequired: true }}
       />
     )
+  }
+
+  if (view === 'import') {
+    return hasJarvisIntegration && SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED
+      ? <SupportDocumentsImportPage />
+      : <Navigate to="/documento-soporte" replace />
   }
 
   if (hasJarvisIntegration && (view === 'start' || view === 'individual')) {

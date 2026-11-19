@@ -4,14 +4,15 @@ import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 import LoadingIndicator from './LoadingIndicator'
 import { fetchJarvisInvoicePdfData, sendJarvisDocumentEmail } from '../services/jarvisService'
+import type { DocumentEmailDelivery } from '../types/electronicDocument'
 import './DocumentEmailModal.css'
 
 export function MailIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7" strokeLinejoin="round"/></svg>
 }
 
-export default function DocumentEmailModal({ id, number, documentLabel, partyLabel, onClose }: {
-  id: string; number: string; documentLabel: string; partyLabel: string; onClose: () => void
+export default function DocumentEmailModal({ id, number, documentLabel, partyLabel, onClose, onSent }: {
+  id: string; number: string; documentLabel: string; partyLabel: string; onClose: () => void; onSent?: (delivery: DocumentEmailDelivery) => void
 }) {
   const [email, setEmail] = useState('')
   const [copyEmails, setCopyEmails] = useState<string[]>([])
@@ -45,6 +46,7 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
       const result = await sendJarvisDocumentEmail(id, { additionalEmails, message: message.trim() })
       if (!result.success) throw new Error('El envío no fue confirmado.')
       setSuccess(true)
+      if (result.delivery) onSent?.(result.delivery)
     } catch { setError('Ha ocurrido un error en el envío del correo. Inténtalo más tarde o comunícate con soporte.') }
     finally { setSaving(false) }
   }

@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
 import { getApiErrorMessage } from './apiClient'
 import { ensureDefaultProductIva, fetchJarvisTaxes } from './jarvisService'
 import { createProduct, fetchProductCategories, fetchProducts, fetchUnitMeasures } from './productService'

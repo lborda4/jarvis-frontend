@@ -1,3 +1,4 @@
+import { styleExcelTemplate } from './excelTemplateStyle'
 import * as XLSX from 'xlsx'
 import { PRODUCT_DESCRIPTION_MAX_LENGTH, PRODUCT_KIND_OPTIONS } from '../constants/createProduct'
 import type { CreateProductRequest, ProductCategoryResponse, ProductResponse, UnitMeasure } from '../services/productService'
@@ -75,7 +76,7 @@ export function createProductsTemplate(catalogs?: ProductsImportCatalogs): XLSX.
     ...(catalogs?.taxes.filter(item => item.is_active).map(item => [item.code, item.name, item.tax_type, item.rate ?? '']) ?? []),
     [DEFAULT_IVA_EXCEL_CODE, 'IVA predeterminado', 'IVA', 19],
   ], [25, 60, 25, 18])
-  return book
+  return styleExcelTemplate(book)
 }
 
 function parsePrice(cell: XLSX.CellObject | undefined): number {

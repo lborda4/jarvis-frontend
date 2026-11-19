@@ -59,6 +59,11 @@ describe('plantilla Excel de facturas de venta', () => {
     expect(row.state.paymentFormId).toBe('2')
     expect(row.state.paymentEntries[0].methodId).toBe('credit')
   })
+  it('conserva la moneda seleccionada en facturas de venta', () => {
+    const [row] = readSalesInvoicesWorkbook(buffer([line({ 9: 'USD' })]), { ...catalogs, currencies: ['COP', 'USD'] }, [customer])
+    expect(row.errors).toEqual([])
+    expect(row.state.currency).toBe('USD')
+  })
   it('no asigna vendedores desconocidos o ambiguos', () => {
     expect(read([line({ 18: 'Desconocido' })])[0].status).toBe('invalid')
     const ambiguous = { ...catalogs, sellers: [{ id: 'a', name: 'Ana' }, { id: 'b', name: 'Ana' }] }

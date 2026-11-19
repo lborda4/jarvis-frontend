@@ -1,26 +1,35 @@
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
 import { getApiErrorMessage } from './apiClient'
 import { fetchJarvisCatalogs, fetchJarvisTaxes, fetchJarvisTerceros } from './jarvisService'
 import { fetchJarvisPaymentMethods } from './jarvisPaymentMethodService'
 import { fetchInvoiceDrafts, saveInvoiceDraft } from './invoiceDraftService'
 import { getActiveCompanyId } from './queryCache'
 import { fetchJarvisSellers } from './jarvisSellerService'
+import { fetchProducts } from './productService'
 import { SALES_TEMPLATE_FILENAME } from '../utils/salesInvoicesExcel'
 import { buildSalesInvoiceTaxOptions } from '../utils/salesInvoiceTaxes'
-import { createSupportDocumentsTemplate, resolveSupportSuppliers, SUPPORT_TEMPLATE_FILENAME, supportReferenceKey, type InvoiceImportKind, type SupportImportCatalogs, type SupportImportRow } from '../utils/supportDocumentsExcel'
+import { createSupportDocumentsTemplate, createSupportDocumentsTemplateFile, resolveSupportSuppliers, SUPPORT_TEMPLATE_FILENAME, supportReferenceKey, type InvoiceImportKind, type SupportImportCatalogs, type SupportImportRow } from '../utils/supportDocumentsExcel'
+import { triggerBrowserDownload } from '../utils/downloadFile'
 
 export async function fetchSupportImportCatalogs(kind: InvoiceImportKind = 'support'): Promise<SupportImportCatalogs> {
-  const [catalogs, savedTaxes, paymentMethods, sellers] = await Promise.all([fetchJarvisCatalogs(), fetchJarvisTaxes(), fetchJarvisPaymentMethods(), kind === 'sales' ? fetchJarvisSellers() : Promise.resolve(undefined)])
+  const [catalogs, savedTaxes, paymentMethods, sellers, products] = await Promise.all([fetchJarvisCatalogs(), fetchJarvisTaxes(), fetchJarvisPaymentMethods(), kind === 'sales' ? fetchJarvisSellers() : Promise.resolve(undefined),
+    kind === 'support' ? fetchProducts(undefined, { force: true }) : Promise.resolve(undefined)])
   return { taxes: buildSalesInvoiceTaxOptions(savedTaxes.items, catalogs.taxes), paymentMethods: paymentMethods.items,
     currencies: [...new Set(['COP', ...catalogs.currencies.map(item => item.code?.trim().toUpperCase()).filter((code): code is string => Boolean(code))])],
     ...(sellers ? { sellers } : {}),
+    ...(products ? { products: products.items } : {}),
   }
 }
 export async function downloadSupportImportTemplate(kind: InvoiceImportKind = 'support'): Promise<void> {
   const company = getActiveCompanyId()
   const catalogs = await fetchSupportImportCatalogs(kind)
   if (company !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Descarga la plantilla de nuevo.')
-  XLSX.writeFile(createSupportDocumentsTemplate(catalogs, kind), kind === 'sales' ? SALES_TEMPLATE_FILENAME : SUPPORT_TEMPLATE_FILENAME, { compression: true })
+  if (kind === 'support') {
+    const buffer = createSupportDocumentsTemplateFile(catalogs)
+    triggerBrowserDownload(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), SUPPORT_TEMPLATE_FILENAME)
+  } else {
+    XLSX.writeFile(createSupportDocumentsTemplate(catalogs, kind), SALES_TEMPLATE_FILENAME, { compression: true })
+  }
 }
 
 /** Stable company/reference IDs make retrying a lost PUT response safe and keep existing drafts intact. */

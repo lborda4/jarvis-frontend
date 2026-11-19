@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
 import { getApiErrorMessage } from './apiClient'
 import { getActiveCompanyId } from './queryCache'
 import { createJarvisTercero, fetchJarvisMunicipalities, fetchJarvisTerceros, fetchJarvisTypeLiabilities, fetchJarvisTypeRegimes } from './jarvisService'

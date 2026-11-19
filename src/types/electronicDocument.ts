@@ -327,8 +327,14 @@ export interface PurchaseInvoiceDownloadWithholding {
   amount?: number | null
 }
 
+export interface DocumentEmailDelivery {
+  recipients: string[]
+  sentAt: string
+}
+
 /** Payload visual certificado para armar el PDF de consulta + QR DIAN. */
 export interface PurchaseInvoiceDownload {
+  emailDeliveries?: DocumentEmailDelivery[]
   invoiceAppearance?: import('../utils/invoiceAppearance').InvoiceAppearance
   isPreviewSample?: boolean
   isDraft?: boolean

@@ -49,6 +49,19 @@
 .excel-import__footer .btn { min-height: 43px; min-width: 120px; }
 .excel-import__footer .btn > span { font-size: var(--text-h1); line-height: var(--line-height-icon); margin-left: 5px; }
 .excel-import__review { margin-bottom: 20px; }
+.excel-import-page__actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.5rem; }
+.excel-import-page__file-help, .excel-import-page__file-name { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.excel-import-page__file-name { overflow-wrap: anywhere; min-width: 0; }
+.excel-import-page__panel { min-width: 0; padding: 1.5rem; }
+.excel-import-page__panel h2 { margin: 0 0 .75rem; color: var(--jarvis-navy); font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.excel-import-page__panel p { color: var(--jarvis-text-muted); }
+.excel-import-page__review-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+.excel-import-page__review-header > div { flex: 1; min-width: min(100%, 280px); }
+.excel-import-page__review-header p { margin: 0; }
+.excel-import-page__empty { padding: 2rem 1rem; text-align: center; background: var(--jarvis-gray-50); border-radius: var(--r-md); }
+@media (max-width: 800px) {
+  .excel-import-page__panel { padding: 1rem; }
+}
 @media (max-width: 600px) {
   .excel-import-modal.modal-dialog { padding: 20px 16px; border-radius: var(--r-xl); }
   .excel-import__header { gap: 12px; margin-bottom: 24px; }

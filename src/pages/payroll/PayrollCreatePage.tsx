@@ -27,6 +27,7 @@ import { PayrollHeading, type PayrollContext } from './PayrollPage'
 import { ensurePayrollParameters } from './ensurePayrollParameters'
 import { payrollEmploymentDays } from '../../utils/payrollEmployment'
 import { payrollDuplicatePeriod } from './payrollDuplicatePeriod'
+import PayrollNotice, { PayrollErrorNotice } from './PayrollNotice'
 
 const pageSize = 10
 function RequiredField({
@@ -67,6 +68,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
     [descending, setDescending] = useState(false)
   const [documents, setDocuments] = useState<PayrollDocument[]>([]),
     [loaded, setLoaded] = useState(false),
+    [loadFailed, setLoadFailed] = useState(false),
     [loadError, setLoadError] = useState(''),
     [errors, setErrors] = useState<string[]>([])
   const [groupId] = useState(() => crypto.randomUUID())
@@ -82,19 +84,23 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
           if (duplicateId) {
             const source = payrollDuplicatePeriod(result, duplicateId)
             if (!source.length) {
+              setLoadFailed(true)
               setLoadError('No se encontró la nómina que quieres duplicar. Regresa al listado y selecciónala de nuevo.')
               return
             }
             setSelected(source.map(document => document.employeeId))
           }
           setLoaded(true)
+          setLoadFailed(false)
         }
       })
       .catch(() => {
-        if (active)
+        if (active) {
+          setLoadFailed(true)
           setLoadError(
             'No se pudo consultar qué empleados ya están incluidos en nóminas. Intenta de nuevo.',
           )
+        }
       })
     return () => {
       active = false
@@ -107,11 +113,13 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
       setDocuments(result)
       if (duplicateId) {
         const source = payrollDuplicatePeriod(result, duplicateId)
-        if (!source.length) { setLoaded(false); setLoadError('No se encontró la nómina que quieres duplicar. Regresa al listado y selecciónala de nuevo.'); return }
+        if (!source.length) { setLoaded(false); setLoadFailed(true); setLoadError('No se encontró la nómina que quieres duplicar. Regresa al listado y selecciónala de nuevo.'); return }
         setSelected(source.map(document => document.employeeId))
       }
       setLoaded(true)
+      setLoadFailed(false)
     } catch {
+      setLoadFailed(true)
       setLoadError('No se pudieron consultar las nóminas existentes.')
     }
   }
@@ -261,8 +269,8 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
         Todos los campos marcados con{' '}
         <span className="payroll__required">*</span> son obligatorios.
       </p>
-      {duplicateSource && <p className="payroll__notice">Duplicando «{duplicateSource.state.payrollName || duplicateSource.state.period}»: se copiarán los empleados y sus novedades. Elige los datos generales de la nueva nómina. Los valores y cantidades se conservan; las fechas se adaptan al período que elijas.</p>}
-      {duplicateSource && duplicateDocuments.some(document => !eligibleIds.includes(document.employeeId)) && <p className="payroll__notice">Algunos empleados de origen no están disponibles para el período elegido. Revisa el estado que aparece junto a cada empleado en la lista.</p>}
+      {duplicateSource && <PayrollNotice message={`Duplicando «${duplicateSource.state.payrollName || duplicateSource.state.period}»: se copiarán los empleados y sus novedades. Elige los datos generales de la nueva nómina. Los valores y cantidades se conservan; las fechas se adaptan al período que elijas.`} />}
+      {duplicateSource && duplicateDocuments.some(document => !eligibleIds.includes(document.employeeId)) && <PayrollNotice message="Algunos empleados de origen no están disponibles para el período elegido. Revisa el estado que aparece junto a cada empleado en la lista." />}
       <form id="create-payroll-period" onSubmit={(e) => void submit(e)}>
         <section className="payroll__card payroll__section payroll__create-general">
           <h2>Información general</h2>
@@ -352,16 +360,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
           )}
         </section>
         {loadError && (
-          <div role="alert" className="payroll__notice payroll__notice--error">
-            {loadError}{' '}
-            <button
-              type="button"
-              className="payroll__link"
-              onClick={() => void reloadDocuments()}
-            >
-              Reintentar
-            </button>
-          </div>
+          <PayrollErrorNotice message={loadError} onDismiss={() => setLoadError('')} onRetry={() => void reloadDocuments()} />
         )}
         <section className="payroll__card payroll__create-employees">
           <div className="payroll__footer payroll__create-employees-header">
@@ -375,6 +374,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
                   : 'Selecciona los empleados que incluirás en la nómina'}{' '}
                 · <strong>{chosen.length} seleccionados</strong>
               </p>
+              {loadFailed && <button type="button" className="payroll__link" disabled={busy} onClick={() => void reloadDocuments()}>Reintentar consulta de nóminas</button>}
             </div>
             <label className="payroll__create-search">
               <span className="payroll__sr-only">Buscar empleado</span>
@@ -558,13 +558,7 @@ export default function PayrollCreatePage({ data, run, busy }: PayrollContext) {
           </div>
         </section>
         {!!errors.length && (
-          <div role="alert" className="payroll__notice payroll__notice--error">
-            <ul>
-              {errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          </div>
+          <PayrollErrorNotice message={errors.join(' ')} onDismiss={() => setErrors([])} />
         )}
       </form>
     </>
