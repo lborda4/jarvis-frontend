@@ -44,7 +44,7 @@ export function getStructuredData(product?: MarketingProduct) {
   const graph: Record<string, unknown>[] = [
     {
       '@type': 'Organization', '@id': organizationId, name: 'Jarvis',
-      url: `${SITE_URL}/`, logo: `${SITE_URL}/jarvis-logo.png`,
+      url: `${SITE_URL}/`, logo: `${SITE_URL}/jarvis-logo-dark.png`,
       email: SALES_EMAIL, telephone: CONTACT_PHONE, sameAs: [INSTAGRAM_HREF],
     },
     {

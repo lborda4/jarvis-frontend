@@ -24,7 +24,7 @@ it('identifica la nueva marca con el dominio existente y los contactos reales', 
   const graph = JSON.parse(page.head.match(/<script[^>]+type="application\/ld\+json">([\s\S]*?)<\/script>/)![1])['@graph']
   expect(graph.find((item: { '@type': string }) => item['@type'] === 'WebSite')).toMatchObject({ name: 'Jarvis', url: 'https://www.jarviscol.com/' })
   expect(graph.find((item: { '@type': string }) => item['@type'] === 'Organization')).toMatchObject({ name: 'Jarvis', email: 'ventas@jarviscol.com' })
-  expect(page.html).toContain('/jarvis-logo.png')
+  expect(page.html).toContain('/jarvis-logo-dark.png')
   expect(page.html).toContain('mailto:ventas@jarviscol.com')
 })
 

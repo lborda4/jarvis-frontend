@@ -21,7 +21,7 @@ export function MarketingHeader({ home = false, links, planHref }: {
     <div className="solution-announcement">Software colombiano. Acompañamiento de principio a fin.</div>
     <header className="solution-header">
       <Link to="/" className="solution-brand" aria-label="Jarvis, inicio">
-        <img src="/jarvis-logo.png" width="872" height="654" alt="Jarvis" />
+        <img src="/jarvis-logo-dark.png" width="2048" height="2048" alt="Jarvis" />
       </Link>
       <nav className="solution-nav" aria-label="Navegación principal">
         <details className="solution-nav__dropdown"><summary>Soluciones <span aria-hidden="true">⌄</span></summary><div>

@@ -7,7 +7,7 @@
 .solution-announcement { padding: .45rem 1rem; background: var(--jarvis-primary-soft); color: var(--jarvis-primary-hover); text-align: center; font-size: var(--text-sm); line-height: var(--line-height-body); }
 .solution-header { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; max-width: 1200px; margin: auto; padding: 1.25rem 2rem; border-bottom: 1px solid var(--jarvis-gray-100); }
 .solution-brand { display: block; width: 140px; flex-shrink: 0; }
-.solution-brand :is(svg, img) { display: block; width: 100%; height: auto; }
+.solution-brand :is(svg, img) { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
 .solution-nav { display: flex; align-items: center; justify-content: center; gap: 1.5rem; font-size: var(--text-md); }
 .solution-nav a { text-decoration: none; }
 .solution-nav a:hover { color: var(--jarvis-primary); }
