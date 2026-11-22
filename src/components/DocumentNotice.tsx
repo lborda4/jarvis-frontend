@@ -5,7 +5,7 @@ import { clientFacingError } from '../utils/clientFacingError'
 import './DocumentNotice.css'
 
 interface DocumentNoticeProps {
-  variant: 'success' | 'error'
+  variant: 'success' | 'error' | 'warning'
   title: string
   message: string
   onDismiss: () => void

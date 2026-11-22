@@ -1,4 +1,5 @@
 import PurchaseInvoiceImportModal from '../components/supportDocument/PurchaseInvoiceImportModal'
+import { useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { SiigoAccountOption } from '../constants/siigoAccountCatalog'
 import type { SiigoProductOption } from '../constants/siigoProductCatalog'
@@ -618,6 +619,9 @@ function resolveSharedSelectionValue<T>(
 
 
 export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceConfig }) {
+  const [searchParams] = useSearchParams()
+  const urlSearch = searchParams.get('buscar')?.trim() ?? ''
+  const linkedDocumentId = searchParams.get('documento')?.trim() || undefined
   const { user } = useAuth()
   const { refreshSetupStatus } = useIntegrationSetup()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -682,7 +686,16 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     useState(false)
   const [selectedSupplierNits, setSelectedSupplierNits] = useState<string[]>([])
   const [columnFilters, setColumnFilters] =
-    useState<SupportDocumentColumnFilters>(EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS)
+    useState<SupportDocumentColumnFilters>(() => ({ ...EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS, referenceSearch: urlSearch }))
+  const selectedSearchDocumentId = columnFilters.referenceSearch === urlSearch ? linkedDocumentId : undefined
+  const previousSearchLink = useRef(`${urlSearch}:${linkedDocumentId ?? ''}`)
+  useEffect(() => {
+    const link = `${urlSearch}:${linkedDocumentId ?? ''}`
+    if (previousSearchLink.current === link) return
+    previousSearchLink.current = link
+    setColumnFilters({ ...EMPTY_SUPPORT_DOCUMENT_COLUMN_FILTERS, referenceSearch: urlSearch })
+    setSelectedSupplierNits([]); setPage(1); setSelectedDocumentIds(new Set())
+  }, [urlSearch, linkedDocumentId])
   const [filterOptions, setFilterOptions] =
     useState<ElectronicDocumentFilterOptions | null>(null)
   const [sortColumn, setSortColumn] = useState<SupportDocumentSortColumn | null>(
@@ -769,14 +782,14 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     let cancelled = false
 
     void (async () => {
-      const requestFilters = buildElectronicDocumentListFilters({
+      const requestFilters = { ...buildElectronicDocumentListFilters({
         electronicDocumentType: config.electronicDocumentType,
         provider: config.provider,
         page,
         limit: pageLimit,
         columnFilters,
         selectedSupplierNits,
-      })
+      }), ...(selectedSearchDocumentId ? { documentIds: [selectedSearchDocumentId], search: undefined } : {}) }
 
       const applyResponse = (
         response: Awaited<ReturnType<typeof fetchElectronicDocuments>>,
@@ -937,6 +950,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     config.retentionCatalogTypes,
     page,
     pageLimit,
+    selectedSearchDocumentId,
     selectedSupplierNits,
     refreshToken,
   ])
@@ -2399,13 +2413,13 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
       setErrorMessage(null)
 
       try {
-        const exportFilters = buildElectronicDocumentListFilters({
+        const exportFilters = { ...buildElectronicDocumentListFilters({
           electronicDocumentType: config.electronicDocumentType,
           provider: config.provider,
           columnFilters,
           selectedSupplierNits,
           defaultToCurrentMonthWhenUnfiltered: true,
-        })
+        }), ...(selectedSearchDocumentId ? { documentIds: [selectedSearchDocumentId], search: undefined } : {}) }
 
         const usedDefaultMonth = !hasUiElectronicDocumentFilters(
           columnFilters,
@@ -2458,6 +2472,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
     columnFilters.statuses,
     config.electronicDocumentType,
     config.showPeriodSummaryExport,
+    selectedSearchDocumentId,
     selectedSupplierNits,
     setErrorMessage,
     user?.company?.name,
@@ -2918,7 +2933,7 @@ export function DocumentWorkspacePage({ config }: { config: DocumentWorkspaceCon
               </Button>
             )}
 
-            <Button variant="primary" onClick={config.importCufe ? () => setIsPurchaseImportOpen(true) : openFilePicker} disabled={isImporting}>
+            <Button writeAction variant="primary" onClick={config.importCufe ? () => setIsPurchaseImportOpen(true) : openFilePicker} disabled={isImporting}>
               <span className="support-document-page__import-icon" aria-hidden="true">
                 +
               </span>

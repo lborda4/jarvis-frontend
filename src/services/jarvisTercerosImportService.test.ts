@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as XLSX from 'xlsx'
+import * as CFB from 'cfb'
 import type { TerceroImportRow } from '../utils/jarvisTercerosExcel'
 import { apiClient } from './apiClient'
 import { companyQueryKey, setActiveCompanyId, setCachedQuery } from './queryCache'
-import { saveImportedTerceros } from './jarvisTercerosImportService'
+import { downloadTercerosTemplate, saveImportedTerceros } from './jarvisTercerosImportService'
+import { triggerBrowserDownload } from '../utils/downloadFile'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn(), post: vi.fn() }, getApiErrorMessage: (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback }))
+vi.mock('../utils/downloadFile', () => ({ triggerBrowserDownload: vi.fn() }))
 
 function row(number: string, status: TerceroImportRow['status'] = 'ready'): TerceroImportRow {
   return { row: Number(number) + 1, documentType: 'CC', documentNumber: number, name: `Persona ${number}`, errors: [], status, payload: { document_type: 'CC', document_number: number, name: `Persona ${number}`, email: 'persona@example.com', copy_emails: ['cc@example.com'], municipality_id: 149, type_regime_id: 2, tax_responsibility: 'R-99-PN', entity_type: 'natural_person', phone: '123456', address: 'Calle 1' } }
@@ -103,5 +107,31 @@ describe('guardado masivo de terceros en Jarvis', () => {
     const result = await saveImportedTerceros([row('1'), row('2'), row('3'), row('4')], vi.fn())
     expect(apiClient.post).toHaveBeenCalledTimes(1)
     expect(result.filter(row => row.status === 'failed')).toHaveLength(3)
+  })
+
+  it('descarga una sola hoja con los desplegables de los catálogos de la empresa', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async url => ({ data: { items: String(url).endsWith('/municipalities') ? [{ id: 149, code: '05001', name: 'Medellín' }]
+      : String(url).endsWith('/type-liabilities') ? [{ id: 117, code: 'R-99-PN', name: 'No aplica' }]
+        : String(url).endsWith('/type-regimes') ? [{ id: 2, code: '49', name: 'No Responsable de IVA' }] : [] } }))
+    await downloadTercerosTemplate()
+    const [blob, filename] = vi.mocked(triggerBrowserDownload).mock.calls[0]
+    expect(filename).toBe('plantilla-terceros-jarvis.xlsx')
+    const buffer = await blob.arrayBuffer()
+    const book = XLSX.read(buffer, { type: 'array' })
+    expect(book.SheetNames).toEqual(['Terceros'])
+    expect(book.Sheets.Terceros.O2.v).toBe('R-99-PN — No aplica')
+    expect(book.Sheets.Terceros.P2.v).toBe('No Responsable de IVA')
+    expect(book.Sheets.Terceros.Q2.v).toBe('05001 — Medellín')
+    const archive = CFB.read(new Uint8Array(buffer), { type: 'buffer' })
+    const xml = new TextDecoder().decode(new Uint8Array(CFB.find(archive, '/xl/worksheets/sheet1.xml')!.content))
+    expect(xml).toContain('<formula1>CiudadesTercero</formula1>')
+    expect(xml).toContain('<formula1>ResponsabilidadesTercero</formula1>')
+    expect(xml).toContain('<dataValidations')
+  })
+
+  it('no descarga datos si cambia la empresa activa durante la consulta de catálogos', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async () => { setActiveCompanyId('company-b'); return { data: { items: [] } } })
+    await expect(downloadTercerosTemplate()).rejects.toThrow('empresa activa cambió')
+    expect(triggerBrowserDownload).not.toHaveBeenCalled()
   })
 })

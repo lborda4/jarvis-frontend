@@ -2,9 +2,11 @@ import { Navigate } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import TercerosPage from '../pages/TercerosPage'
+import TercerosImportPage from '../pages/TercerosImportPage'
+import { TERCEROS_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import '../pages/AuthPages.css'
 
-function TercerosRoute() {
+function TercerosRoute({ importing = false }: { importing?: boolean }) {
   const {
     isCheckingSetup,
     isJarvisCompany,
@@ -34,6 +36,12 @@ function TercerosRoute() {
         state={{ integrationSetupRequired: true }}
       />
     )
+  }
+
+  if (importing) {
+    return isJarvisCompany && TERCEROS_BULK_IMPORT_ENABLED
+      ? <TercerosImportPage />
+      : <Navigate to="/terceros" replace />
   }
 
   return <TercerosPage />

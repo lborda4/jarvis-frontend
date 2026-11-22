@@ -14,6 +14,15 @@ it('abre la importación de documentos soporte mediante un enlace a su propia pa
   expect(html).toContain('Importar documentos soporte</a>')
 })
 
+it('abre la importación de ventas desde un botón estándar y no la muestra en notas', () => {
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
+  expect(html).toContain('class="btn btn--outline btn--md" href="/factura-venta/importar"')
+  expect(html).toContain('Importar facturas de venta</a>')
+  for (const props of [{ creditNote: true }, { debitNote: true }, { adjustmentNote: true }]) {
+    expect(renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage {...props} /></MemoryRouter>)).not.toContain('Importar facturas de venta')
+  }
+})
+
 it.each(['CREDIT_NOTE', 'CREDIT_AND_DEBIT'])('abre cada nota crédito vinculada para el estado %s', adjustmentStatus => {
   mocks.cached = { items: [{ id: 'invoice', prefix: 'FE', number: '1', status: 'SENT', adjustmentStatus,
     issueDate: '2026-11-11', total: '100', relatedDebitNotes: [{ id: 'debit/1', prefix: 'ND', number: 'ND1' }], relatedCreditNotes: [

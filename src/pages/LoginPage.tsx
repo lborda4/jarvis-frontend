@@ -5,7 +5,7 @@ import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
 import { useBackendWakeup } from '../hooks/useBackendWakeup'
-import { isAdminRole } from '../constants/userRole'
+import { isAdminRole, isAdvisorRole } from '../constants/userRole'
 import { resetBackendWake } from '../services/healthService'
 import PrivacyPolicyLink from '../components/PrivacyPolicyLink'
 import { setAuthEntryMode } from '../utils/siigoSetupStorage'
@@ -24,7 +24,7 @@ const ADMIN_APP_PATH = '/admin'
 const LOGIN_STUCK_RERENDER_MS = 15_000
 
 function resolvePostLoginPath(role?: string): string {
-  return isAdminRole(role) ? ADMIN_APP_PATH : DEFAULT_APP_PATH
+  return isAdvisorRole(role) ? '/asesor' : isAdminRole(role) ? ADMIN_APP_PATH : DEFAULT_APP_PATH
 }
 
 function LoginPage() {

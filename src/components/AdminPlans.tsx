@@ -7,6 +7,7 @@ import ErrorMessage from './ErrorMessage'
 import SuccessMessage from './SuccessMessage'
 import LoadingIndicator from './LoadingIndicator'
 import './AdminPlans.css'
+import { formatAdminPlanCapacity, formatAdminPlanPrice, formatCop } from '../utils/adminPlan'
 
 function PlanEditor({ plan, onUpdated }: { plan: AdminPlan; onUpdated: (plan: AdminPlan) => void }) {
   const [editing, setEditing] = useState(false)
@@ -16,6 +17,8 @@ function PlanEditor({ plan, onUpdated }: { plan: AdminPlan; onUpdated: (plan: Ad
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [commissionClass, setCommissionClass] = useState(plan.commissionClass ?? '')
+  const [price, setPrice] = useState(plan.salePriceCop == null ? '' : String(plan.salePriceCop))
   const provider = plan.provider === INTEGRATION_PROVIDER.SIIGO ? 'Siigo' : 'Jarvis'
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -28,7 +31,8 @@ function PlanEditor({ plan, onUpdated }: { plan: AdminPlan; onUpdated: (plan: Ad
     setSaving(true)
     setError(null)
     try {
-      const updated = await updateAdminPlan(plan.id, { name: name.trim(), documentLimit })
+      const updated = await updateAdminPlan(plan.id, { name: name.trim(), documentLimit, commissionClass: commissionClass ? commissionClass as NonNullable<AdminPlan['commissionClass']> : null,
+        ...(!plan.commercialTerms ? { salePriceCop: price.trim() ? Number(price) : null } : {}) })
       onUpdated(updated)
       setEditing(false)
       setSuccess(true)
@@ -50,15 +54,18 @@ function PlanEditor({ plan, onUpdated }: { plan: AdminPlan; onUpdated: (plan: Ad
         <label htmlFor={`plan-limit-${plan.id}`}>Documentos incluidos</label>
         <input id={`plan-limit-${plan.id}`} type="number" min={1} max={2147483647} step={1} required value={limit} onChange={event => setLimit(event.target.value)} disabled={saving} />
       </div>}
+      <label className="admin-form__field">Clase de comisión<select value={commissionClass} onChange={event => setCommissionClass(event.target.value as typeof commissionClass)} disabled={saving}><option value="">Sin configurar</option><option value="BASIC">Básica · 10 %</option><option value="PLUS">Plus · 15 %</option><option value="PRO">Pro · 20 %</option></select></label>
+      {!plan.commercialTerms && <label className="admin-form__field">Precio de venta (COP)<input type="number" min="0" max="999999999999.99" step="0.01" value={price} onChange={event => setPrice(event.target.value)} disabled={saving} /></label>}
       <p className="admin-plan-editor__notice">El cambio se aplicará a todas las empresas que tengan este plan.</p>
       <div className="admin-plan-editor__actions">
         <button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar plan'}</button>
         <button type="button" disabled={saving} onClick={() => { setEditing(false); setError(null) }}>Cancelar</button>
       </div>
     </form> : <div className="admin-plan-editor__summary">
-      <div><h3>{plan.name}</h3><p>{plan.documentLimit === null ? 'Sin límite de documentos' : `${plan.documentLimit} documentos`}</p></div>
+      <div><h3>{plan.name}</h3>{plan.commercialTerms ? <p>{formatAdminPlanPrice(plan)}</p> : plan.salePriceCop != null && <p>{formatCop(plan.salePriceCop)}</p>}<p>{formatAdminPlanCapacity(plan)}</p><p>Comisión: {plan.commissionClass === 'BASIC' ? 'Básica · 10 %' : plan.commissionClass === 'PLUS' ? 'Plus · 15 %' : plan.commissionClass === 'PRO' ? 'Pro · 20 %' : 'Sin configurar'}</p></div>
       <button type="button" aria-label={`Editar plan ${provider} ${plan.name}`} onClick={() => {
         setName(plan.name); setLimit(String(plan.documentLimit ?? '')); setUnlimited(plan.documentLimit === null)
+        setCommissionClass(plan.commissionClass ?? ''); setPrice(plan.salePriceCop == null ? '' : String(plan.salePriceCop))
         setSuccess(false); setError(null); setEditing(true)
       }}>Editar</button>
     </div>}

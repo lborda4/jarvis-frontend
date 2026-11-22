@@ -5,7 +5,7 @@ import type { InvoiceDraftState } from '../types/invoiceDraft'
 import type { JarvisPaymentMethod } from '../services/jarvisPaymentMethodService'
 import type { JarvisSeller } from '../services/jarvisSellerService'
 import { isCreditPaymentMethod } from './paymentNegotiation'
-import { calculateSalesInvoiceTax, formatSalesInvoiceTaxLabel, type SalesInvoiceTaxOption } from './salesInvoiceTaxes'
+import { calculateSalesInvoiceTax, type SalesInvoiceTaxOption } from './salesInvoiceTaxes'
 import { calculateJarvisRetention } from './jarvisTaxTechnical'
 import { normalizeJarvisTaxType } from './jarvisTaxPresets'
 import { writeExcelTemplate, type ExcelTemplateValidation } from './excelTemplateValidation'
@@ -25,7 +25,11 @@ const SUPPORT_EXCEL_COLUMNS_WITH_CURRENCY = LEGACY_SUPPORT_EXCEL_COLUMNS
 const SUPPORT_EXCEL_COLUMNS_WITHOUT_PRODUCT = SUPPORT_EXCEL_COLUMNS_WITH_CURRENCY.filter(header => header !== 'Moneda')
 const SUPPORT_EXCEL_COLUMNS_WITH_ITEM_NOTE = SUPPORT_EXCEL_COLUMNS_WITHOUT_PRODUCT.flatMap(header => header === 'Descripción *' ? ['Producto', header] : [header])
 export const SUPPORT_EXCEL_COLUMNS = SUPPORT_EXCEL_COLUMNS_WITH_ITEM_NOTE.filter(header => header !== 'Nota del ítem')
-export const SALES_INVOICE_EXCEL_COLUMNS = [...LEGACY_SUPPORT_EXCEL_COLUMNS, 'Vendedores', 'Nota de encabezado', 'Nota al pie'] as const
+export const LEGACY_SALES_INVOICE_EXCEL_COLUMNS = [...LEGACY_SUPPORT_EXCEL_COLUMNS, 'Vendedores', 'Nota de encabezado', 'Nota al pie'] as const
+export const SALES_INVOICE_EXCEL_COLUMNS = [
+  ...SUPPORT_EXCEL_COLUMNS.flatMap(header => header === 'Vencimiento' ? [header, 'Moneda'] : [header]),
+  'Nota del ítem', 'Vendedores', 'Nota de encabezado', 'Nota al pie',
+]
 export type InvoiceImportKind = 'support' | 'sales'
 export interface SupportImportCatalogs {
   paymentMethods: JarvisPaymentMethod[]
@@ -53,58 +57,21 @@ export const supportReferenceKey = normalize
 export const supportSupplierKey = (type: string, number: string) => `${type.trim().toUpperCase()}:${number.trim().toUpperCase()}`
 
 export function createSupportDocumentsTemplate(catalogs?: SupportImportCatalogs, kind: InvoiceImportKind = 'support'): XLSX.WorkBook {
-  if (kind === 'support') return buildSingleSheetSupportTemplate(catalogs).book
+  return buildSingleSheetSupportTemplate(catalogs, kind).book
+}
+
+function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs, kind: InvoiceImportKind = 'support'): { book: XLSX.WorkBook; validations: ExcelTemplateValidation[] } {
   const sales = kind === 'sales'
   const sheetName = sales ? 'Facturas de venta' : 'Documentos soporte'
   const columns = sales ? SALES_INVOICE_EXCEL_COLUMNS : SUPPORT_EXCEL_COLUMNS
   const party = sales ? 'cliente' : 'proveedor'
+  const suffix = sales ? 'Venta' : 'Soporte'
   const book = XLSX.utils.book_new()
   const sheet = XLSX.utils.aoa_to_sheet([[...columns]])
-  for (let r = 1; r <= SUPPORT_IMPORT_LIMIT; r++) for (let c = 0; c < columns.length; c++) sheet[XLSX.utils.encode_cell({ r, c })] = { t: 's', v: '', z: '@' }
-  sheet['!ref'] = `A1:${XLSX.utils.encode_col(columns.length - 1)}${SUPPORT_IMPORT_LIMIT + 1}`
-  sheet['!cols'] = columns.map((_, c) => ({ wch: [4, 16, 17, 19, 20].includes(c) ? 45 : 27 }))
-  XLSX.utils.book_append_sheet(book, sheet, sheetName)
-  const add = (name: string, rows: (string | number)[][], widths: number[]) => {
-    const reference = XLSX.utils.aoa_to_sheet(rows)
-    reference['!cols'] = widths.map(wch => ({ wch }))
-    XLSX.utils.book_append_sheet(book, reference, name)
-  }
-  add('Instrucciones', [
-    [`Plantilla de ${sheetName.toLowerCase()} Jarvis`, 'Instrucciones'],
-    ['Cómo llenar', `Completa ${sheetName} desde la fila 2. Conserva la hoja, los encabezados y su orden. Hasta 1.000 filas por archivo de máximo 5 MB.`],
-    ['Referencia', `Código único elegido por ti para identificar cada documento, por ejemplo ${sales ? 'FV-VENTA-001' : 'DS-COMPRA-001'}. No es el consecutivo DIAN. Usa una referencia nueva para cada documento nuevo.`],
-    ['Varios ítems', `Repite la referencia en cada ítem del mismo documento. Repite también fecha, ${party}, forma de pago, vencimiento, moneda, retenciones generales y observaciones sin cambiar sus valores.${sales ? ' Conserva también los vendedores y las notas de encabezado y pie.' : ''}`],
-    ['NIT / identificación', 'El tercero debe existir primero en Jarvis con el mismo tipo y número. Sin puntos, espacios, guiones ni dígito de verificación. Si falta alguno, no se guardará la carga.'],
-    ['Tipo de documento', 'NIT, CC, CE o PA. Consulta Tipos de documento.'],
-    ['Fechas', 'AAAA-MM-DD o DD/MM/AAAA; también se aceptan fechas de Excel. El vencimiento es obligatorio para pagos a crédito y debe ser igual o posterior a la emisión.'],
-    ['Forma de pago', 'Nombre de una forma de pago existente de Jarvis. Descarga la plantilla desde la aplicación para consultar la hoja Formas de pago.'],
-    ['Importes', 'Usa números de Excel o texto sin separadores de miles ni símbolos: 1250,50 o 1250.50. Valor unitario mayor que cero, hasta dos decimales. Cantidad mayor que cero, hasta seis decimales.'],
-    ['Moneda', 'Opcional, COP por defecto. Consulta Monedas.'],
-    ['Código producto', 'Opcional. La descripción, cantidad y valor unitario de cada ítem son obligatorios, incluso si escribes un código.'],
-    ['Descuento (valor)', 'Descuento por ítem en dinero, no en porcentaje. Vacío significa cero; no puede superar cantidad por valor unitario.'],
-    ['Impuestos y retenciones', 'Tarifas de las hojas IVA, Retefuente, ReteICA y ReteIVA. En blanco o cero significa sin ese impuesto. IVA y Retefuente son por ítem. ReteICA y ReteIVA son por documento.'],
-    ['Guardado', 'Se crean documentos en estado Guardado. Ábrelos desde el listado para revisar y enviar a DIAN. El consecutivo se asignará al enviarlos.'],
-    ['Reintentos', 'Las referencias ya guardadas como borrador se omiten sin sobrescribirlas. Puedes reintentar fallos de conexión. Conserva la referencia para no repetir el documento.'],
-    ...(sales ? [['Vendedores', 'Opcional. Nombres de vendedores existentes, separados por punto y coma. Consulta la hoja Vendedores. No se crean vendedores al importar.'], ['Notas de encabezado y pie', 'Opcionales. Se guardan en la factura y deben coincidir en todos sus ítems.']] : []),
-  ], [30, 115])
-  add('Tipos de documento', [['Código', 'Descripción'], ...JARVIS_DOCUMENT_TYPE_OPTIONS.map(item => [item.value, item.label])], [20, 35])
-  add('Formas de pago', [['Nombre', 'Negociación'], ...(catalogs?.paymentMethods.map(item => [item.name, isCreditPaymentMethod(item) ? 'Crédito' : 'Contado']) ?? [])], [50, 20])
-  add('Monedas', [['Código'], ...(catalogs?.currencies ?? ['COP']).map(code => [code])], [20])
-  if (sales) add('Vendedores', [['Nombre'], ...(catalogs?.sellers?.map(seller => [seller.name]) ?? [])], [50])
-  for (const [name, type] of [['IVA', 'iva'], ['Retefuente', 'reterenta'], ['ReteICA', 'reteica'], ['ReteIVA', 'reteiva']]) {
-    const options = catalogs?.taxes.filter(tax => normalizeJarvisTaxType(tax.type) === type && tax.catalogId != null) ?? []
-    add(name, [['Tarifa', 'Descripción'], ...options.map(tax => [tax.percentage ?? 0, formatSalesInvoiceTaxLabel(tax)])], [20, 60])
-  }
-  return styleExcelTemplate(book)
-}
-
-function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs): { book: XLSX.WorkBook; validations: ExcelTemplateValidation[] } {
-  const book = XLSX.utils.book_new()
-  const sheet = XLSX.utils.aoa_to_sheet([[...SUPPORT_EXCEL_COLUMNS]])
   sheet.A1.c = [{ a: 'Jarvis', t: "utiliza números consecutivos (1, 2, 3, etc.) para identificar los productos o servicios que pertenecen a un mismo documento soporte.\n\nEjemplo: Si un documento tiene 3 productos, escribe el número 1 en las tres filas. Si el siguiente documento tiene 2 productos, escribe el número 2 en ambas filas, y así sucesivamente.\n\nEl sistema agrupará automáticamente los productos y asignará el consecutivo correspondiente a cada documento soporte." }]
   sheet.A1.c.hidden = true
+  if (sales) sheet.A1.c[0].t = 'Repite el mismo grupo en los productos de una factura y usa otro grupo para la siguiente. Jarvis asigna el consecutivo al enviar a DIAN.'
   const validations: ExcelTemplateValidation[] = []
-  const columns = SUPPORT_EXCEL_COLUMNS
   const index = (header: string) => columns.indexOf(header as typeof columns[number])
   const ref = (header: string) => `${XLSX.utils.encode_col(index(header))}2`
   const formats = columns.map(header => header.includes('Fecha') || header === 'Vencimiento' ? 'yyyy-mm-dd'
@@ -117,10 +84,10 @@ function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs): { bo
   sheet['!cols'] = columns.map((header, c) => ({ wch: /Descripción|Observaciones|Nota/.test(header) ? 40 : 25, z: formats[c] }))
   sheet['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(columns.length - 1)}${SUPPORT_IMPORT_LIMIT + 1}` }
   const help: Record<string, string> = {
-    'Grupo de documento *': 'Etiqueta libre para unir filas, por ejemplo COMPRA-A. Repítela en los ítems de un mismo soporte y usa COMPRA-B para otro. Jarvis asigna automáticamente el consecutivo oficial.',
+    'Grupo de documento *': `Etiqueta libre para unir filas de un mismo ${sales ? 'documento de venta' : 'soporte'}. Jarvis asigna el consecutivo oficial al enviar.`,
     'Fecha de emisión *': 'Fecha de emisión. Escribe AAAA-MM-DD, DD/MM/AAAA o una fecha de Excel.',
-    'Tipo de documento *': 'Selecciona el tipo de identificación del proveedor: NIT, CC, CE o PA.',
-    'NIT / identificación *': 'Identificación del proveedor existente en Jarvis, sin puntos, guiones ni dígito de verificación. Conserva el formato Texto y los ceros iniciales.',
+    'Tipo de documento *': `Selecciona el tipo de identificación del ${party}: NIT, CC, CE o PA.`,
+    'NIT / identificación *': `Identificación del ${party}, sin puntos, guiones ni dígito de verificación. Conserva el formato Texto y los ceros iniciales.`,
     'Producto': 'Opcional. Selecciona un código de producto de tu empresa. Si lo dejas vacío, el código se completa automáticamente al emitir.',
     'Descripción *': 'Descripción del producto o servicio de esta fila.',
     'Cantidad *': 'Número mayor que cero, con hasta seis decimales.',
@@ -133,6 +100,11 @@ function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs): { bo
     'ReteICA (por mil)': 'Opcional. Selecciona una tarifa de ReteICA disponible, expresada por mil. Debe coincidir en todos los ítems del documento.',
     'ReteIVA (%)': 'Opcional. Selecciona una tarifa de ReteIVA disponible. Debe coincidir en todos los ítems del documento.',
     'Observaciones': 'Opcional. Observación general; repítela en los ítems del mismo documento.',
+    'Moneda': 'Opcional. Selecciona una moneda. En blanco se usa COP.',
+    'Vendedores': 'Opcional. Selecciona un vendedor de tu empresa. Puedes pegar varios nombres separados por punto y coma.',
+    'Nota de encabezado': 'Opcional. Repítela en los ítems de la misma factura.',
+    'Nota al pie': 'Opcional. Repítela en los ítems de la misma factura.',
+    'Nota del ítem': 'Opcional. Nota del producto o servicio de esta fila.',
   }
   let catalogColumn = columns.length
   let lastRow = SUPPORT_IMPORT_LIMIT + 1
@@ -142,20 +114,25 @@ function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs): { bo
     lastRow = Math.max(lastRow, unique.length + 1)
     sheet['!cols']![c] = { hidden: true }
     unique.forEach((value, r) => { sheet[XLSX.utils.encode_cell({ r: r + 1, c })] = { t: typeof value === 'number' ? 'n' : 's', v: value } })
-    book.Workbook!.Names!.push({ Name: name, Ref: `'Documentos soporte'!$${letter}$2:$${letter}$${Math.max(2, unique.length + 1)}` })
+    book.Workbook!.Names!.push({ Name: name, Ref: `'${sheetName}'!$${letter}$2:$${letter}$${Math.max(2, unique.length + 1)}` })
     validations.push({ column: index(header), type: 'list', formula1: name, optional: !header.endsWith('*'), prompt: help[header] })
   }
   book.Workbook = { Names: [] }
-  addList('Tipo de documento *', 'TiposIdentificacionSoporte', JARVIS_DOCUMENT_TYPE_OPTIONS.map(option => option.value))
+  addList('Tipo de documento *', `TiposIdentificacion${suffix}`, JARVIS_DOCUMENT_TYPE_OPTIONS.map(option => option.value))
   const methods = catalogs?.paymentMethods.filter(method => catalogs.paymentMethods.filter(other => normalize(other.name) === normalize(method.name)).length === 1) ?? []
-  addList('Forma de pago *', 'FormasPagoSoporte', methods.map(method => method.name))
+  addList('Forma de pago *', `FormasPago${suffix}`, methods.map(method => method.name))
   for (const [header, type, name] of [
     ['IVA (%)', 'iva', 'TarifasIVASoporte'], ['Retefuente (%)', 'reterenta', 'TarifasRetefuenteSoporte'],
     ['ReteICA (por mil)', 'reteica', 'TarifasReteICASoporte'], ['ReteIVA (%)', 'reteiva', 'TarifasReteIVASoporte'],
   ]) {
-    addList(header, name, [0, ...(catalogs?.taxes.filter(tax => normalizeJarvisTaxType(tax.type) === type && tax.catalogId != null && tax.percentage != null).map(tax => tax.percentage!) ?? [])])
+    addList(header, name.replace('Soporte', suffix), [0, ...(catalogs?.taxes.filter(tax => normalizeJarvisTaxType(tax.type) === type && tax.catalogId != null && tax.percentage != null).map(tax => tax.percentage!) ?? [])])
   }
-  addList('Producto', 'CodigosProductosSoporte', catalogs?.products?.map(product => product.sku).filter(code => code.trim()) ?? [])
+  addList('Producto', `CodigosProductos${suffix}`, catalogs?.products?.map(product => product.sku).filter(code => code.trim()) ?? [])
+  if (sales) {
+    addList('Moneda', 'MonedasVenta', catalogs?.currencies ?? ['COP'])
+    const sellers = catalogs?.sellers?.filter(seller => catalogs.sellers!.filter(other => normalize(other.name) === normalize(seller.name)).length === 1) ?? []
+    addList('Vendedores', 'VendedoresVenta', sellers.map(seller => seller.name))
+  }
   const addValidation = (header: string, rule: Omit<ExcelTemplateValidation, 'column' | 'prompt'>) => validations.push({ column: index(header), prompt: help[header], ...rule })
   addValidation('Grupo de documento *', { type: 'textLength', operator: 'greaterThan', formula1: '0' })
   addValidation('Descripción *', { type: 'textLength', operator: 'greaterThan', formula1: '0' })
@@ -169,18 +146,18 @@ function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs): { bo
   // A numeric Excel date avoids losing a day through historical time zone offsets.
   const date = Date.parse(`${today}T00:00:00Z`) / 86400000 + 25569
   const exampleMethod = methods.find(method => !isCreditPaymentMethod(method)) ?? methods[0]
-  const example = ['DOC-001', date, 'NIT', '900123456', '', 'Servicio de ejemplo', 1, 150000, exampleMethod?.name ?? '', exampleMethod && isCreditPaymentMethod(exampleMethod) ? date : '']
+  const example = [sales ? 'FV-001' : 'DOC-001', date, 'NIT', '900123456', '', 'Servicio de ejemplo', 1, 150000, exampleMethod?.name ?? '', exampleMethod && isCreditPaymentMethod(exampleMethod) ? date : '']
   for (const [c, value] of example.entries()) {
     sheet[XLSX.utils.encode_cell({ r: 1, c })] = { t: typeof value === 'number' ? 'n' : 's', v: value, z: formats[c] }
   }
   sheet['!ref'] = `A1:${XLSX.utils.encode_col(catalogColumn - 1)}${lastRow}`
-  XLSX.utils.book_append_sheet(book, sheet, 'Documentos soporte')
-  styleExcelTemplate(book, ['Documentos soporte'])
+  XLSX.utils.book_append_sheet(book, sheet, sheetName)
+  styleExcelTemplate(book, [sheetName])
   return { book, validations }
 }
 
-export function createSupportDocumentsTemplateFile(catalogs?: SupportImportCatalogs): ArrayBuffer {
-  const { book, validations } = buildSingleSheetSupportTemplate(catalogs)
+export function createSupportDocumentsTemplateFile(catalogs?: SupportImportCatalogs, kind: InvoiceImportKind = 'support'): ArrayBuffer {
+  const { book, validations } = buildSingleSheetSupportTemplate(catalogs, kind)
   return writeExcelTemplate(book, validations, SUPPORT_IMPORT_LIMIT)
 }
 
@@ -219,19 +196,19 @@ export function resolveSupportSuppliers(rows: SupportImportRow[], suppliers: Jar
 export function readSupportDocumentsWorkbook(buffer: ArrayBuffer, catalogs: SupportImportCatalogs, suppliers: JarvisTercero[], kind: InvoiceImportKind = 'support'): SupportImportRow[] {
   const sales = kind === 'sales'
   const sheetName = sales ? 'Facturas de venta' : 'Documentos soporte'
-  const legacyColumns = sales ? SALES_INVOICE_EXCEL_COLUMNS : LEGACY_SUPPORT_EXCEL_COLUMNS
+  const legacyColumns = sales ? LEGACY_SALES_INVOICE_EXCEL_COLUMNS : LEGACY_SUPPORT_EXCEL_COLUMNS
   let book: XLSX.WorkBook
   try { book = XLSX.read(buffer, { type: 'array', cellDates: true, cellFormula: true, cellStyles: true }) }
   catch { throw new Error(`No pudimos leer el Excel. Descarga la plantilla de ${sheetName.toLowerCase()}.`) }
   const sheet = book.Sheets[sheetName]
   if (!sheet?.['!ref']) throw new Error(`El archivo debe contener la hoja ${sheetName} de la plantilla.`)
   const range = XLSX.utils.decode_range(sheet['!ref'])
-  const modern = !sales && sheet.A1?.v === SUPPORT_EXCEL_COLUMNS[0]
+  const modern = sheet.A1?.v === SUPPORT_EXCEL_COLUMNS[0]
   const hasProduct = modern && sheet.E1?.v === 'Producto'
   const hasCurrency = modern && sheet.J1?.v === 'Moneda'
   const hasItemNote = hasProduct && sheet.Q1?.v === 'Nota del ítem'
-  const columns: readonly string[] = modern ? hasProduct ? hasItemNote ? SUPPORT_EXCEL_COLUMNS_WITH_ITEM_NOTE : SUPPORT_EXCEL_COLUMNS : hasCurrency ? SUPPORT_EXCEL_COLUMNS_WITH_CURRENCY : SUPPORT_EXCEL_COLUMNS_WITHOUT_PRODUCT : legacyColumns
-  if (range.e.r > 10000 || range.e.c >= columns.length + (modern ? hasProduct || hasCurrency ? 7 : 6 : 0)) throw new Error(`El archivo no tiene el formato de la plantilla de ${sheetName.toLowerCase()}.`)
+  const columns: readonly string[] = modern ? sales ? SALES_INVOICE_EXCEL_COLUMNS : hasProduct ? hasItemNote ? SUPPORT_EXCEL_COLUMNS_WITH_ITEM_NOTE : SUPPORT_EXCEL_COLUMNS : hasCurrency ? SUPPORT_EXCEL_COLUMNS_WITH_CURRENCY : SUPPORT_EXCEL_COLUMNS_WITHOUT_PRODUCT : legacyColumns
+  if (range.e.r > 10000 || range.e.c >= columns.length + (modern ? sales ? 9 : hasProduct || hasCurrency ? 7 : 6 : 0)) throw new Error(`El archivo no tiene el formato de la plantilla de ${sheetName.toLowerCase()}.`)
   const extraColumns = Array.from({ length: Math.max(0, range.e.c + 1 - columns.length) }, (_, index) => columns.length + index)
   if (extraColumns.some(column => !sheet['!cols']?.[column]?.hidden)) throw new Error(`El archivo no tiene el formato de la plantilla de ${sheetName.toLowerCase()}.`)
   if (columns.some((header, c) => sheet[XLSX.utils.encode_cell({ r: 0, c })]?.v !== header)) throw new Error(`Conserva los encabezados de la plantilla de ${sheetName.toLowerCase()} y su orden.`)
@@ -283,7 +260,7 @@ export function readSupportDocumentsWorkbook(buffer: ArrayBuffer, catalogs: Supp
     if (sales) {
       for (const name of [...new Set(values[18].split(';').map(normalize).filter(Boolean))]) {
         const matches = (catalogs.sellers ?? []).filter(seller => normalize(seller.name) === name)
-        if (matches.length !== 1) errors.push(`Vendedor "${name}" desconocido o ambiguo. Consulta la hoja Vendedores.`)
+        if (matches.length !== 1) errors.push(`Vendedor "${name}" desconocido o ambiguo. Selecciona un vendedor de la lista.`)
         else sellers.push(matches[0])
       }
       sellers.sort((a, b) => a.id.localeCompare(b.id))

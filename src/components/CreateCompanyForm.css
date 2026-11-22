@@ -1,0 +1,36 @@
+.company-create { gap: var(--space-5); }
+.company-create .admin-card { margin-bottom: 0; min-width: 0; }
+.company-create h2 { margin: 0 0 var(--space-4); color: var(--jarvis-navy); font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.company-create__columns { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; gap: var(--space-5); }
+.company-create__information, .company-create__commercial { display: flex; flex-direction: column; gap: var(--space-4); }
+.company-create__information h2, .company-create__commercial h2 { margin-bottom: 0; }
+.company-create__integrations { padding: var(--space-4) var(--space-5); }
+.company-create__integrations legend, .company-create__plans legend { font-size: var(--text-md); font-weight: var(--font-weight-label); color: var(--jarvis-navy); }
+.company-create__integration-options { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.company-create__integration { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); cursor: pointer; font-size: var(--text-md); }
+.company-create__integration--selected { background: var(--jarvis-primary-soft); border-color: var(--jarvis-primary); color: var(--jarvis-primary); }
+.company-create input[type="checkbox"], .company-create input[type="radio"] { accent-color: var(--jarvis-primary); }
+.company-create__plans { margin: 0; padding: 0; border: 0; min-width: 0; }
+.company-create__plans legend { margin-bottom: var(--space-3); }
+.company-create__plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); }
+.company-create__plan { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); position: relative; padding: var(--space-4); border: 1px solid var(--jarvis-border); border-radius: var(--r-md); background: var(--jarvis-card-bg); cursor: pointer; overflow-wrap: anywhere; }
+.company-create__plan--selected { background: var(--jarvis-primary-soft); border-color: var(--jarvis-primary); box-shadow: var(--shadow-inset-primary); }
+.company-create__plan strong { color: var(--jarvis-navy); font-size: var(--text-md); font-weight: var(--font-weight-label); }
+.company-create__plan span { color: var(--jarvis-primary); font-size: var(--text-md); }
+.company-create__plan small, .company-create__hint { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.company-create__hint { margin: 0; }
+.company-create__empty { margin: 0; padding: var(--space-6) var(--space-4); text-align: center; color: var(--jarvis-text-muted); }
+.company-create__topup-toggle { display: flex; gap: var(--space-3); align-items: center; min-height: var(--control-height); font-size: var(--text-md); font-weight: var(--font-weight-label); cursor: pointer; }
+.company-create__advanced summary { cursor: pointer; color: var(--jarvis-text-muted); font-size: var(--text-md); }
+.company-create__advanced[open] summary { margin-bottom: var(--space-4); }
+.company-create__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+.company-topups { margin: 0; padding: var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-md); min-width: 0; }
+.company-topups legend { font-size: var(--text-sm); color: var(--jarvis-text-muted); }
+.company-topups__options { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-2); }
+.company-topups__option { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); cursor: pointer; font-size: var(--text-sm); }
+.company-topups__option:has(input:checked) { background: var(--jarvis-primary-soft); border-color: var(--jarvis-primary); }
+.company-topups__option small { display: block; margin-top: var(--space-1); color: var(--jarvis-text-muted); font-size: var(--text-xs); }
+.company-topups input { accent-color: var(--jarvis-primary); }
+.company-create__plan:focus-within, .company-create__integration:focus-within, .company-topups__option:focus-within { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
+@media (max-width: 1000px) { .company-create__columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .company-create .admin-form__grid { grid-template-columns: minmax(0, 1fr); } .company-create__integration { flex: 1; justify-content: center; padding: var(--space-3); } .company-create__actions .btn { flex: 1; } }

@@ -32,12 +32,12 @@ export default function SentPurchaseActions({ documentId, disabled, onEdit, onRe
   }
   return <div className="support-table__sent-purchase">
     <div className="support-table__sent-actions">
-      <Button variant="secondary" size="sm" disabled={disabled || busy} onClick={onEdit}>Editar</Button>
-      <Button variant="secondary" size="sm" disabled={disabled || busy} onClick={() => void refresh()}
+      <Button writeAction variant="secondary" size="sm" disabled={disabled || busy} onClick={onEdit}>Editar</Button>
+      <Button writeAction variant="secondary" size="sm" disabled={disabled || busy} onClick={() => void refresh()}
         title="Recargar estado en SIIGO" aria-label="Recargar estado en SIIGO">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 8a7 7 0 0 1 12-2l2 3M18 16a7 7 0 0 1-12 2l-2-3" /></svg>
       </Button>
-      {missing && <Button variant="secondary" size="sm" disabled={disabled || busy} onClick={() => setConfirm(true)}>Reenviar</Button>}
+      {missing && <Button writeAction variant="secondary" size="sm" disabled={disabled || busy} onClick={() => setConfirm(true)}>Reenviar</Button>}
     </div>
     {busy && <small role="status">{confirm ? 'Reenviando a SIIGO…' : 'Consultando SIIGO…'}</small>}
     {!busy && message && <small role="status">{message}</small>}

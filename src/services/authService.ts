@@ -25,6 +25,7 @@ import {
   extractAuthCompanies,
 } from '../utils/authTokens'
 import { apiClient } from './apiClient'
+import { AUTH_ADVISOR_REGISTER_ENDPOINT } from '../constants/authEndpoints'
 import { clearTokens, getRefreshToken, setTokens } from './authStorage'
 
 function toAuthSession(data: unknown): AuthSession {
@@ -55,12 +56,17 @@ export async function resetPassword(token: string, password: string): Promise<vo
 }
 
 export async function register(request: RegisterRequest): Promise<AuthSession> {
-  const response = await apiClient.post(AUTH_REGISTER_ENDPOINT, request)
+  const { advisorRegistration, ...payload } = request
+  const response = await apiClient.post(advisorRegistration ? AUTH_ADVISOR_REGISTER_ENDPOINT : AUTH_REGISTER_ENDPOINT, payload)
   const session = toAuthSession(response.data)
 
   setTokens(session.tokens)
 
   return session
+}
+
+export async function fetchAdvisorRegistration(registrationToken: string): Promise<{ name: string; email: string }> {
+  return (await apiClient.post(`${AUTH_ADVISOR_REGISTER_ENDPOINT}/preview`, { registrationToken })).data
 }
 
 export async function fetchRegistrationPolicy(registrationToken: string): Promise<import('../types/auth').RegistrationLinkInfo> {

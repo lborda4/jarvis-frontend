@@ -1,0 +1,20 @@
+.advisors { display: flex; flex-direction: column; gap: var(--space-4); }
+.advisors .admin-card { margin-bottom: 0; }
+.advisors h2 { margin: 0 0 var(--space-4); color: var(--jarvis-navy); font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.advisors__heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.advisors__heading h2 { margin: 0; }
+.advisors__actions, .advisors__pagination { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.advisors__pagination { justify-content: flex-end; margin-top: var(--space-4); }
+.advisors__search { width: min(100%, 360px); }
+.advisors__assign { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; margin-bottom: var(--space-4); }
+.advisors__assign .admin-form__field { flex: 1 1 250px; }
+.advisors__clients > .advisors__search { margin-bottom: var(--space-4); }
+.advisors__table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--text-sm); }
+.advisors__table th, .advisors__table td { padding: var(--space-3) var(--space-2); text-align: left; vertical-align: top; border-bottom: 1px solid var(--jarvis-border); overflow-wrap: anywhere; }
+.advisors__table th { background: var(--jarvis-input-bg); color: var(--jarvis-text-muted); font-weight: var(--font-weight-label); }
+.advisors__table a, .advisors__link { color: var(--jarvis-primary); }
+.advisors__link { padding: 0; border: 0; background: var(--jarvis-transparent); font: inherit; cursor: pointer; text-decoration: underline; }
+.advisors__table small { display: block; color: var(--jarvis-warning); font-size: var(--text-xs); margin-top: var(--space-1); }
+.advisors__status { display: inline-block; padding: var(--space-1) var(--space-2); color: var(--jarvis-warning); background: var(--jarvis-warning-soft); border-radius: var(--r-pill); font-size: var(--text-xs); }
+.advisors__status--active { color: var(--jarvis-success); background: var(--jarvis-success-soft); }
+@media (max-width: 700px) { .advisors__table, .advisors__table tbody, .advisors__table tr, .advisors__table td { display: block; } .advisors__table thead { display: none; } .advisors__table tr { padding-block: var(--space-3); border-bottom: 1px solid var(--jarvis-border); } .advisors__table td { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: var(--space-2); border: 0; } .advisors__table td::before { content: attr(data-label); color: var(--jarvis-text-muted); font-weight: var(--font-weight-label); } .advisors__table td[colspan] { display: block; } }

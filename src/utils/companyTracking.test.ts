@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { colombiaToday, companyTrackingStatus, trackingCsvCell, trackingDocumentBalance, trackingBillingMonths, trackingPeriodLabel, trackingRenewalDueDate } from './companyTracking'
+import { colombiaToday, companyTrackingStatus, trackingCsvCell, trackingDocumentBalance, trackingBillingMonths, trackingPeriodLabel, trackingRenewalDueDate, trackingDueDate } from './companyTracking'
 import type { AdminIntegrationItem } from '../types/admin'
 
 describe('seguimiento de empresas', () => {
+  it('usa el certificado de Jarvis aunque la fecha calculada de la empresa sea diferente', () => {
+    const company = { subscriptionDueDate: '2028-12-01', integrations: [{ provider: 'JARVIS', jarvisCertificateTerm: { startsAt: '2025-11-22T03:00:00Z', endsAt: '2026-11-22T03:00:00Z', checkedAt: '2026-01-01T15:00:00Z' } } as AdminIntegrationItem] }
+    expect(trackingDueDate(company)).toBe('2026-11-21')
+    expect(companyTrackingStatus(company, '2026-11-22')).toBe('OVERDUE')
+    expect(trackingDueDate({ ...company, integrations: [{ provider: 'JARVIS' } as AdminIntegrationItem] })).toBeNull()
+    expect(trackingDueDate({ ...company, integrations: [{ provider: 'SIIGO' } as AdminIntegrationItem] })).toBe('2028-12-01')
+  })
   it('anticipa la renovación desde el vencimiento vigente o desde hoy si ya venció', () => {
     expect(trackingRenewalDueDate({ subscriptionDueDate: '2026-10-09' }, 1, '2026-11-11')).toBe('2026-12-11')
     expect(trackingRenewalDueDate({ subscriptionDueDate: '2026-12-30' }, 3, '2026-11-11')).toBe('2027-03-30')

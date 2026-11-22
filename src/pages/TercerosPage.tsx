@@ -1,5 +1,5 @@
-import { lazy, Suspense, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../components/Button'
 import CatalogRowActions from '../components/CatalogRowActions'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -9,7 +9,8 @@ import LoadingIndicator from '../components/LoadingIndicator'
 import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
-import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
+import { TERCEROS_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
+import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteJarvisTercero, fetchJarvisTerceros } from '../services/jarvisService'
 import {
@@ -28,8 +29,6 @@ import {
 } from '../types/jarvis'
 import './TercerosPage.css'
 import './InvoiceUpload.css'
-
-const ImportJarvisTercerosModal = lazy(() => import('../components/ImportJarvisTercerosModal'))
 
 function formatEntityType(value: JarvisEntityType | null): string {
   if (!value) return '—'
@@ -56,14 +55,15 @@ function formatTaxRegime(item: JarvisTercero): string {
 }
 
 function TercerosPage() {
+  const { isJarvisCompany } = useIntegrationSetup()
   const [searchParams, setSearchParams] = useSearchParams()
+  const urlSearch = searchParams.get('buscar')?.trim() ?? ''
   const initialQueryHandledRef = useRef(false)
   const [items, setItems] = useState<JarvisTercero[]>([])
   const [total, setTotal] = useState(0)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(urlSearch)
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingTercero, setEditingTercero] = useState<JarvisTercero | null>(null)
   const [pendingDelete, setPendingDelete] = useState<JarvisTercero | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -92,7 +92,9 @@ function TercerosPage() {
     } finally { setIsDeleting(false) }
   }
 
+  const loadRequest = useRef(0)
   const loadTerceros = useCallback(async (query?: string) => {
+    const request = ++loadRequest.current
     const trimmed = query?.trim()
     setErrorMessage(null)
 
@@ -113,22 +115,26 @@ function TercerosPage() {
 
     try {
       const response = await fetchJarvisTerceros(trimmed)
+      if (request !== loadRequest.current) return
       setItems(response.items)
       setTotal(response.total)
     } catch (error) {
+      if (request !== loadRequest.current) return
       setErrorMessage(
         getApiErrorMessage(error, 'No se pudieron cargar los terceros.'),
       )
     } finally {
-      setIsLoading(false)
+      if (request === loadRequest.current) setIsLoading(false)
     }
   }, [])
 
   useEffect(() => {
     // La carga inicial muestra la caché y luego consulta el catálogo.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadTerceros()
-  }, [loadTerceros])
+    setSearch(urlSearch)
+    void loadTerceros(urlSearch)
+    return () => { loadRequest.current += 1 }
+  }, [loadTerceros, urlSearch])
 
   useEffect(() => {
     if (
@@ -171,7 +177,10 @@ function TercerosPage() {
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    void loadTerceros(search)
+    if (search.trim() === urlSearch) { void loadTerceros(search); return }
+    const next = new URLSearchParams(searchParams)
+    if (search.trim()) next.set('buscar', search.trim()); else next.delete('buscar')
+    setSearchParams(next)
   }
 
   const handleCreated = (tercero: JarvisTercero) => {
@@ -188,9 +197,9 @@ function TercerosPage() {
         description="Consulta y crea los terceros de tu empresa Jarvis."
         actions={
           <>
-            {BULK_IMPORT_ENABLED && <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            {TERCEROS_BULK_IMPORT_ENABLED && isJarvisCompany && <Link className="btn btn--outline btn--md" to="/terceros/importar">
               <ImportIcon />Importar terceros
-            </Button>}
+            </Link>}
             <Button variant="primary" onClick={openCreate}>
               <PlusIcon />Crear tercero
             </Button>
@@ -288,12 +297,6 @@ function TercerosPage() {
         message={`¿Seguro que quieres eliminar "${pendingDelete?.name ?? ''}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" variant="danger" isBusy={isDeleting}
         onConfirm={() => void confirmDelete()} onCancel={() => { if (!isDeleting) setPendingDelete(null) }} />
-      {isImportOpen && <Suspense fallback={<LoadingIndicator message="Cargando importador de terceros…" />}>
-        <ImportJarvisTercerosModal onClose={() => setIsImportOpen(false)} onImported={(saved) => {
-          setSuccessMessage(`Se guardaron ${saved} terceros en Jarvis correctamente.`)
-          void loadTerceros(search)
-        }} />
-      </Suspense>}
       {editingTercero && <CreateJarvisTerceroModal
         key={editingTercero.id} isOpen editingTercero={editingTercero}
         onClose={() => setEditingTercero(null)}

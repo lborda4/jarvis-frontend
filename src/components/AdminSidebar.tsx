@@ -4,10 +4,13 @@ import { AdminIcon, HomeIcon, PackageIcon } from './icons/SidebarIcons'
 import './AdminSidebar.css'
 
 const sections = [
-  { id: 'jarvis', label: 'Jarvis', Icon: PackageIcon },
+  { id: 'overview', label: 'Resumen', Icon: HomeIcon },
+  { id: 'tracking', label: 'Clientes', Icon: AdminIcon },
+  { id: 'jarvis', label: 'Empresas e integraciones', Icon: PackageIcon },
+  { id: 'advisors', label: 'Asesores', Icon: AdminIcon },
+  { id: 'commissions', label: 'Pagos y comisiones', Icon: AdminIcon },
   { id: 'plans', label: 'Planes', Icon: PackageIcon },
   { id: 'bold', label: 'Bold', Icon: HomeIcon },
-  { id: 'tracking', label: 'Seguimiento', Icon: AdminIcon },
 ] as const
 type Section = typeof sections[number]['id']
 

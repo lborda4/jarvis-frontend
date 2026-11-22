@@ -1,4 +1,5 @@
-import { lazy, Suspense, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../components/Button'
 import { useCreateFromQuery } from '../hooks/useCreateFromQuery'
 import CatalogRowActions from '../components/CatalogRowActions'
@@ -10,7 +11,7 @@ import PageHeader from '../components/PageHeader'
 import SuccessMessage from '../components/SuccessMessage'
 import { PackageIcon } from '../components/icons/SidebarIcons'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
-import { BULK_IMPORT_ENABLED } from '../constants/featureFlags'
+import { PRODUCTS_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
 import { deleteProduct, fetchProducts, type ProductResponse } from '../services/productService'
 import {
@@ -20,8 +21,6 @@ import {
 import type { ProductsListResponse } from '../services/productService'
 import './CreateProductPage.css'
 import './ProductListPage.css'
-
-const ImportProductsModal = lazy(() => import('../components/ImportProductsModal'))
 
 type KindFilter = 'all' | 'product' | 'service'
 
@@ -50,6 +49,8 @@ function formatTaxes(product: ProductResponse): string {
 }
 
 function ProductListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlSearch = searchParams.get('buscar')?.trim() ?? ''
   // Semilla desde la caché de empresa (si existe) para mostrar algo al instante
   // sin parpadeo mientras el efecto revalida contra el backend.
   const cachedList = peekCachedQuery<ProductsListResponse>(
@@ -59,14 +60,13 @@ function ProductListPage() {
     () => cachedList?.items ?? [],
   )
   const [total, setTotal] = useState(() => cachedList?.total ?? 0)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(urlSearch)
   const [kindFilter, setKindFilter] = useState<KindFilter>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [isLoading, setIsLoading] = useState(!cachedList)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useCreateFromQuery()
-  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ProductResponse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -88,28 +88,34 @@ function ProductListPage() {
     } finally { setIsDeleting(false) }
   }
 
+  const loadRequest = useRef(0)
   const loadProducts = useCallback(async (query?: string) => {
+    const request = ++loadRequest.current
     const trimmed = query?.trim()
 
     try {
       const response = await fetchProducts(trimmed)
+      if (request !== loadRequest.current) return
       setItems(response.items)
       setTotal(response.total)
       setErrorMessage(null)
     } catch (error) {
+      if (request !== loadRequest.current) return
       setErrorMessage(
         getApiErrorMessage(error, 'No se pudieron cargar los productos.'),
       )
     } finally {
-      setIsLoading(false)
+      if (request === loadRequest.current) setIsLoading(false)
     }
   }, [])
 
   useEffect(() => {
     // La carga inicial actualiza el listado después de la consulta asíncrona.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadProducts()
-  }, [loadProducts])
+    setSearch(urlSearch); setKindFilter('all'); setCategoryFilter('all'); setIsLoading(true)
+    void loadProducts(urlSearch)
+    return () => { loadRequest.current += 1 }
+  }, [loadProducts, urlSearch])
 
   const handleProductCreated = (product: ProductResponse) => {
     setSuccessMessage(`Producto "${product.name}" creado correctamente.`)
@@ -123,7 +129,10 @@ function ProductListPage() {
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    runSearch(search)
+    if (search.trim() === urlSearch) { runSearch(search); return }
+    const next = new URLSearchParams(searchParams)
+    if (search.trim()) next.set('buscar', search.trim()); else next.delete('buscar')
+    setSearchParams(next)
   }
 
   // Categorías presentes en el resultado actual, para el filtro por categoría.
@@ -154,7 +163,8 @@ function ProductListPage() {
     setSearch('')
     setKindFilter('all')
     setCategoryFilter('all')
-    runSearch()
+    if (urlSearch) { const next = new URLSearchParams(searchParams); next.delete('buscar'); setSearchParams(next) }
+    else runSearch()
   }
 
   return (
@@ -164,7 +174,7 @@ function ProductListPage() {
         description="Consulta el catálogo de productos y servicios registrados en Jarvis."
         actions={
           <>
-            {BULK_IMPORT_ENABLED && <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />Importar productos</Button>}
+            {PRODUCTS_BULK_IMPORT_ENABLED && <Link className="btn btn--outline btn--md" to="/productos/importar"><ImportIcon />Importar productos</Link>}
             <Button
               variant="primary"
               onClick={() => setIsCreateOpen(true)}
@@ -323,12 +333,6 @@ function ProductListPage() {
         message={`¿Seguro que quieres eliminar "${pendingDelete?.name ?? ''}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" variant="danger" isBusy={isDeleting}
         onConfirm={() => void confirmDelete()} onCancel={() => { if (!isDeleting) setPendingDelete(null) }} />
-      {isImportOpen && <Suspense fallback={<LoadingIndicator message="Cargando importador de productos…" />}>
-        <ImportProductsModal onClose={() => setIsImportOpen(false)} onImported={(saved) => {
-          setSuccessMessage(`Se guardaron ${saved} productos en Jarvis correctamente.`)
-          void loadProducts(search)
-        }} />
-      </Suspense>}
       <CreateProductModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}

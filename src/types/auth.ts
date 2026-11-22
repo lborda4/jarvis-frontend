@@ -30,6 +30,7 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  advisorRegistration?: boolean
   registrationToken: string
   password: string
   acceptPrivacyPolicy: boolean

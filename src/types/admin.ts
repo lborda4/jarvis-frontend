@@ -39,6 +39,16 @@ export interface AdminCompanyResponsible {
 }
 
 export interface AdminPlan {
+  commissionClass?: 'BASIC' | 'PLUS' | 'PRO' | null
+  salePriceCop?: number | null
+  commercialTerms?: {
+    priceCop: number
+    billingMonths: number
+    employeeLimit: number | null
+    modules: import('./companyModules').JarvisModule[]
+    includesDigitalCertificate: boolean
+    includesRadian: boolean
+  } | null
   id: string
   name: string
   code: string
@@ -48,6 +58,11 @@ export interface AdminPlan {
 }
 
 export interface AdminIntegrationItem {
+  jarvisDocumentCycle?: { id: string; startedAt: string } | null
+  jarvisCertificateTerm?: { startsAt: string; endsAt: string; checkedAt: string } | null
+  pendingInitialDocuments?: number
+  topUpOperations?: AdminJarvisTopUpOperation[]
+  commercialTopUps?: AdminJarvisTopUp[]
   documentQuota?: {
     documentLimit: number | null
     documentsUsed: number
@@ -62,7 +77,42 @@ export interface AdminIntegrationItem {
   plan: AdminPlan | null
 }
 
+export interface AdminJarvisTopUp {
+  commissionClass?: 'BASIC' | 'PLUS' | 'PRO'
+  code: string
+  name: string
+  kind: 'DOCUMENTS' | 'PAYROLL_EMPLOYEES'
+  units: number
+  priceCop: number
+}
+
+export interface AdminJarvisTopUpOperation {
+  cycleId?: string
+  id: string
+  periodStart: string
+  createdAt: string
+  status: 'PROCESSING' | 'APPLIED' | 'FAILED' | 'UNCERTAIN'
+  topUps: AdminJarvisTopUp[]
+}
+
+export interface AdminCommercialActivity {
+  id: string
+  kind: 'PAYMENT' | 'COMMENT'
+  createdAt: string
+  text?: string
+  amountCop?: number | null
+  planName?: string
+  provider?: string
+}
+
+export interface AdminCompanyDetails { company: AdminCompanyListItem; activity: AdminCommercialActivity[] }
+
+export interface ApplyAdminJarvisTopUpResponse extends UpdateIntegrationSubscriptionResponse {
+  operation: AdminJarvisTopUpOperation
+}
+
 export interface AdminCompanyListItem {
+  advisorId?: string | null
   registrationEmail?: string | null
   jarvisModules?: import('./companyModules').JarvisModule[] | null
   email?: string | null
@@ -88,6 +138,21 @@ export interface AdminCompanyListItem {
   cityName: string | null
   integrations: AdminIntegrationItem[]
 }
+
+export interface AdminAdvisor {
+  id: string
+  name: string
+  email: string
+  commissionType: 'FIXED' | 'PERCENT'
+  commissionValue: number | null
+  registered: boolean
+  active: boolean
+  lastDeliveryStatus: 'SENT' | 'FAILED' | null
+  lastInvitedAt: string | null
+  clients: Array<{ id: string; name: string; nit: string }>
+}
+export interface AdminAdvisorInput { name: string; email?: string; commissionType: AdminAdvisor['commissionType']; commissionValue: number | null }
+export interface AdvisorAccessDelivery { status: 'SENT' | 'FAILED'; message: string }
 
 export interface AdminCityOption {
   code: string
@@ -124,6 +189,7 @@ export interface CreateAdminCompanyRequest {
   integrations: IntegrationProvider[]
   siigoPlanId?: string
   jarvisPlanId?: string
+  jarvisTopUpCodes?: string[]
   includedDocumentTypes?: ElectronicDocumentType[]
   jarvisCredentials?: JarvisCredentialsSeed
   cityCode?: string
@@ -164,6 +230,7 @@ export interface RegenerateCompanyInviteCodeResponse {
 }
 
 export interface UpdateIntegrationSubscriptionRequest {
+  topUpCodes?: string[]
   planId?: string
   subscriptionStatus?: SubscriptionStatus
   includedDocumentTypes?: ElectronicDocumentType[]
@@ -171,6 +238,7 @@ export interface UpdateIntegrationSubscriptionRequest {
 }
 
 export interface UpdateIntegrationSubscriptionResponse {
+  company?: AdminCompanyListItem
   integration: AdminIntegrationItem
 }
 

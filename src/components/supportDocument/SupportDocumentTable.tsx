@@ -197,6 +197,7 @@ function ActionCell({
     if (onClick) {
       return (
         <Button
+          writeAction
           variant="outline"
           size="sm"
           className="support-table__action"
@@ -243,6 +244,7 @@ function ActionCell({
   if (action === 'delete') {
     return (
       <Button
+        writeAction
         variant="outline-danger"
         size="sm"
         className="support-table__action"
@@ -256,6 +258,7 @@ function ActionCell({
 
   return (
     <Button
+      writeAction
       variant="outline"
       size="sm"
       className="support-table__action"

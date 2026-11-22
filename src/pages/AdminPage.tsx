@@ -1,14 +1,21 @@
 import AdminSidebar from '../components/AdminSidebar'
 import AdminPlans from '../components/AdminPlans'
-import AdminDocumentPackages from '../components/AdminDocumentPackages'
 import AdminBoldSettings from '../components/AdminBoldSettings'
 import AdminTracking from '../components/AdminTracking'
+import AdminAdvisors from '../components/AdminAdvisors'
+import { AdminBusinessOverview } from '../components/BusinessDashboard'
+import CommissionReport from '../components/CommissionReport'
+import Button from '../components/Button'
+import { shouldShowTablePagination } from '../utils/tablePagination'
 import CompanyAiContextFields from '../components/CompanyAiContextFields'
 import CompanyModuleSelect from '../components/CompanyModuleSelect'
 import AdminCompanyWelcome from '../components/AdminCompanyWelcome'
-import { JARVIS_MODULES, JARVIS_MODULE_LABELS, companyJarvisModules, type JarvisModule } from '../types/companyModules'
-import { Fragment, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import CreateCompanyForm from '../components/CreateCompanyForm'
+import { formatAdminPlanOption } from '../utils/adminPlan'
+import CompanyJarvisCommercialEditor from '../components/CompanyJarvisCommercialEditor'
+import { JARVIS_MODULE_LABELS, companyJarvisModules, type JarvisModule } from '../types/companyModules'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Autocomplete from '../components/Autocomplete'
 import { formatMunicipalityLabel } from '../utils/jarvisMunicipality'
 import ErrorMessage from '../components/ErrorMessage'
@@ -22,6 +29,7 @@ import {
   fetchAdminCities,
   fetchAdminCompanies,
   fetchAdminPlans,
+  fetchAdminJarvisTopUps,
   lookupAdminCompanyName,
   updateCompanyCity,
   updateCompanyDescription,
@@ -40,10 +48,10 @@ import {
   type AdminCompanyListItem,
   type AdminIntegrationItem,
   type AdminPlan,
+  type AdminJarvisTopUp,
   type CompanyPersonType,
   type ElectronicDocumentType,
   type IntegrationProvider,
-  type JarvisCredentialsSeed,
   type SubscriptionStatus,
 } from '../types/admin'
 import './AdminPage.css'
@@ -61,18 +69,6 @@ const AVAILABLE_DOCUMENT_TYPES: Array<{
     label: 'Factura de compra',
   },
 ]
-
-function formatDocumentLimit(limit: number | null | undefined): string {
-  if (limit == null) {
-    return 'Sin límite'
-  }
-
-  return `${limit} docs`
-}
-
-function formatPlanName(plan: AdminPlan): string {
-  return plan.name
-}
 
 function formatProviderLabel(provider: IntegrationProvider): string {
   if (provider === INTEGRATION_PROVIDER.SIIGO) return 'SIIGO'
@@ -103,24 +99,28 @@ function formatResponsible(
 }
 
 function AdminPage() {
+  const [params, setParams] = useSearchParams()
   const [switchingIntegrationCompanyId, setSwitchingIntegrationCompanyId] = useState<string | null>(null)
-  const [activeAdminTab, setActiveAdminTab] = useState<'jarvis' | 'bold' | 'tracking' | 'plans'>('jarvis')
-  const [commercial, setCommercial] = useState('')
-  const [billingMonths, setBillingMonths] = useState('1')
+  const requestedTab = params.get('tab')
+  const activeAdminTab = requestedTab === 'tracking' || requestedTab === 'plans' || requestedTab === 'bold' || requestedTab === 'advisors' || requestedTab === 'jarvis' || requestedTab === 'commissions' ? requestedTab : 'overview'
+  const setActiveAdminTab = (tab: string) => setParams({ tab })
+  const [creating, setCreating] = useState(false)
+  const [companySearch, setCompanySearch] = useState('')
+  const [companyPages, setCompanyPages] = useState<Record<string, number>>({})
+  const [expandedCompany, setExpandedCompany] = useState<string | null>(null)
   const { logout, refreshUser } = useAuth()
-  const [jarvisModules, setJarvisModules] = useState<JarvisModule[]>([...JARVIS_MODULES])
   const [editingModules, setEditingModules] = useState<{ companyId: string; modules: JarvisModule[] } | null>(null)
   const [savingModules, setSavingModules] = useState(false)
   const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([])
   const [plans, setPlans] = useState<AdminPlan[]>([])
+  const [topUpCatalog, setTopUpCatalog] = useState<AdminJarvisTopUp[]>([])
   const [cities, setCities] = useState<AdminCityOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [dataRevision, setDataRevision] = useState(0)
   const [updatingIntegrationId, setUpdatingIntegrationId] = useState<
     string | null
   >(null)
-  const [registrationEmail, setRegistrationEmail] = useState('')
   const [editingTokenCompanyId, setEditingTokenCompanyId] = useState<
     string | null
   >(null)
@@ -142,38 +142,12 @@ function AdminPage() {
   >(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [nit, setNit] = useState('')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [editingDescriptionCompanyId, setEditingDescriptionCompanyId] =
     useState<string | null>(null)
   const [descriptionDraft, setDescriptionDraft] = useState('')
   const [aiRulesDraft, setAiRulesDraft] = useState<string[]>([])
   const [savingDescriptionCompanyId, setSavingDescriptionCompanyId] =
     useState<string | null>(null)
-  const [isLookingUpName, setIsLookingUpName] = useState(false)
-  const [personType, setPersonType] = useState<CompanyPersonType | ''>('')
-  const [responsibleName, setResponsibleName] = useState('')
-  const [responsiblePhone, setResponsiblePhone] = useState('')
-  const [responsibleEmail, setResponsibleEmail] = useState('')
-  const [idSoftware, setIdSoftware] = useState('')
-  const [selectedCity, setSelectedCity] = useState<AdminCityOption | null>(
-    null,
-  )
-  // Único campo de Token NextPyme del formulario — se manda tanto a
-  // jarvisCredentials.tokenNextPyme (si se incluye Jarvis) como a
-  // companies.next_pyme_token (para la consulta de Factura de compra por
-  // CUFE, de cualquier proveedor). Antes eran dos inputs separados que
-  // pedían literalmente el mismo dato dos veces en la misma pantalla.
-  const [companyNextPymeToken, setCompanyNextPymeToken] = useState('')
-  const [siigoPlanId, setSiigoPlanId] = useState('')
-  const [jarvisPlanId, setJarvisPlanId] = useState('')
-  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
-    ElectronicDocumentType[]
-  >([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
-  const [selectedIntegrations, setSelectedIntegrations] = useState<
-    IntegrationProvider[]
-  >([INTEGRATION_PROVIDER.SIIGO])
 
   const siigoPlans = useMemo(
     () => plans.filter((plan) => plan.provider === INTEGRATION_PROVIDER.SIIGO),
@@ -184,204 +158,23 @@ function AdminPage() {
     [plans],
   )
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true)
-    setErrorMessage(null)
-
-    try {
-      const [companiesResponse, plansResponse, citiesResponse] =
-        await Promise.all([
-        fetchAdminCompanies(),
-        fetchAdminPlans(),
-          fetchAdminCities(),
-      ])
-
+  useEffect(() => {
+    let cancelled = false
+    void Promise.all([fetchAdminCompanies(), fetchAdminPlans(), fetchAdminCities(), fetchAdminJarvisTopUps()]).then(([companiesResponse, plansResponse, citiesResponse, topUpsResponse]) => {
+      if (cancelled) return
       setCompanies(companiesResponse.items)
       setPlans(plansResponse.items)
+      setTopUpCatalog(topUpsResponse.items)
       setCities(citiesResponse.items)
 
-      const firstSiigoPlan = plansResponse.items.find(
-        (plan) => plan.provider === INTEGRATION_PROVIDER.SIIGO,
-      )
-      const firstJarvisPlan = plansResponse.items.find(
-        (plan) => plan.provider === INTEGRATION_PROVIDER.JARVIS,
-      )
-
-      if (firstSiigoPlan) {
-        setSiigoPlanId((current) => current || firstSiigoPlan.id)
-      }
-      if (firstJarvisPlan) {
-        setJarvisPlanId((current) => current || firstJarvisPlan.id)
-      }
-    } catch (error) {
+    }).catch(error => {
+      if (cancelled) return
       setErrorMessage(
         getApiErrorMessage(error, 'No se pudieron cargar los datos del panel.'),
       )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadData()
-  }, [loadData])
-
-  const toggleIntegration = (provider: IntegrationProvider) => {
-    setSelectedIntegrations((current) => {
-      if (current.includes(provider)) {
-        return current.filter((item) => item !== provider)
-      }
-
-      return [...current, provider]
-    })
-  }
-
-  const toggleCreateDocumentType = (documentType: ElectronicDocumentType) => {
-    setSelectedDocumentTypes((current) => {
-      if (current.includes(documentType)) {
-        return current.filter((item) => item !== documentType)
-      }
-
-      return [...current, documentType]
-    })
-  }
-
-  /** Al salir del campo NIT, busca la razón social en el RUT/RUES de la DIAN
-   * y precarga "Nombre" — solo si el admin todavía no escribió nada ahí a
-   * mano (no le pisa una edición manual) y no encontró nada, se queda en
-   * blanco para llenarlo como siempre. */
-  const handleNitBlur = async () => {
-    const trimmedNit = nit.trim()
-
-    if (!trimmedNit || name.trim()) {
-      return
-    }
-
-    setIsLookingUpName(true)
-
-    try {
-      const response = await lookupAdminCompanyName(trimmedNit)
-
-      if (response.name && !name.trim()) {
-        setName(response.name)
-      }
-    } catch {
-      // Silencioso: el admin puede llenar el nombre a mano igual que hoy.
-    } finally {
-      setIsLookingUpName(false)
-    }
-  }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setErrorMessage(null)
-    setSuccessMessage(null)
-    setIsSubmitting(true)
-
-    try {
-      const includesSiigo = selectedIntegrations.includes(
-        INTEGRATION_PROVIDER.SIIGO,
-      )
-      const includesJarvis = selectedIntegrations.includes(
-        INTEGRATION_PROVIDER.JARVIS,
-      )
-      const trimmedIdSoftware = idSoftware.trim()
-      if (includesJarvis && !jarvisModules.length) throw new Error('Selecciona al menos un módulo de Jarvis.')
-      const trimmedTokenNextPyme = companyNextPymeToken.trim()
-      const mergedJarvisCredentials: JarvisCredentialsSeed | undefined =
-        includesJarvis
-          ? {
-              ...(trimmedIdSoftware ? { idSoftware: trimmedIdSoftware } : {}),
-              ...(trimmedTokenNextPyme
-                ? { tokenNextPyme: trimmedTokenNextPyme }
-                : {}),
-            }
-          : undefined
-      const hasJarvisCredentials =
-        Boolean(mergedJarvisCredentials) &&
-        Object.values(mergedJarvisCredentials ?? {}).some(
-          (value) => typeof value === 'string' && value.trim().length > 0,
-        )
-
-      const months = Number(billingMonths)
-      if (!Number.isInteger(months) || months < 1 || months > 1200) throw new Error('Indica una cantidad entera de meses entre 1 y 1200.')
-      const response = await createAdminCompany({
-        commercial: commercial.trim(),
-        billingMonths: months,
-        nit: nit.trim(),
-        registrationEmail: registrationEmail.trim(),
-        name: name.trim(),
-        ...(includesSiigo && description.trim()
-          ? { description: description.trim() }
-          : {}),
-        personType: personType as CompanyPersonType,
-        ...(responsibleName.trim() ||
-        responsiblePhone.trim() ||
-        responsibleEmail.trim()
-          ? {
-        responsible: {
-          name: responsibleName.trim(),
-          phone: responsiblePhone.trim(),
-          email: responsibleEmail.trim(),
-        },
-            }
-          : {}),
-        integrations: selectedIntegrations,
-        ...(includesSiigo
-          ? {
-              siigoPlanId,
-            }
-          : {}),
-        ...(includesJarvis
-          ? {
-              jarvisPlanId,
-              jarvisModules,
-            }
-          : {}),
-        ...(includesSiigo && selectedDocumentTypes.length > 0
-          ? { includedDocumentTypes: selectedDocumentTypes }
-          : {}),
-        ...(hasJarvisCredentials
-          ? { jarvisCredentials: mergedJarvisCredentials }
-          : {}),
-        ...(selectedCity
-          ? { cityCode: selectedCity.code, cityName: selectedCity.name }
-          : {}),
-        ...(companyNextPymeToken.trim()
-          ? { nextPymeToken: companyNextPymeToken.trim() }
-          : {}),
-      })
-
-      setCompanies((current) => [response.company, ...current])
-      setSuccessMessage(`Empresa ${response.company.name} creada correctamente.${response.welcome?.status === 'SENT' ? ' Se envió el correo de bienvenida.' : ''}`)
-      if (response.welcome?.status === 'FAILED') setErrorMessage(response.welcome.message)
-
-      setNit('')
-      setRegistrationEmail('')
-      setCommercial('')
-      setBillingMonths('1')
-      setName('')
-      setDescription('')
-      setPersonType('')
-      setResponsibleName('')
-      setResponsiblePhone('')
-      setResponsibleEmail('')
-      setIdSoftware('')
-      setCompanyNextPymeToken('')
-      setSelectedCity(null)
-      setSelectedIntegrations([INTEGRATION_PROVIDER.SIIGO])
-      setJarvisModules([...JARVIS_MODULES])
-      setSelectedDocumentTypes([ELECTRONIC_DOCUMENT_TYPE.SUPPORT_DOCUMENT])
-      setSiigoPlanId(siigoPlans[0]?.id ?? '')
-      setJarvisPlanId(jarvisPlans[0]?.id ?? '')
-    } catch (error) {
-      setErrorMessage(
-        getApiErrorMessage(error, 'No se pudo crear la empresa.'),
-      )
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+    }).finally(() => { if (!cancelled) setIsLoading(false) })
+    return () => { cancelled = true }
+  }, [dataRevision])
 
   const applyIntegrationUpdate = (
     companyId: string,
@@ -695,16 +488,13 @@ function AdminPage() {
     }
   }
 
-  const includesSiigo = selectedIntegrations.includes(INTEGRATION_PROVIDER.SIIGO)
-  const includesJarvis = selectedIntegrations.includes(
-    INTEGRATION_PROVIDER.JARVIS,
-  )
-  const includesBold = selectedIntegrations.includes(INTEGRATION_PROVIDER.BOLD)
-
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
   }
+
+  const openCreate = () => { setCreating(true); setActiveAdminTab('jarvis') }
+  const titles: Record<string, string> = { overview: 'Resumen del negocio', tracking: 'Clientes', jarvis: creating ? 'Crear empresa' : 'Empresas e integraciones', advisors: 'Asesores', commissions: 'Pagos y comisiones', plans: 'Planes y recargas', bold: 'Integración Bold' }
 
   return (
     <div className="admin-shell">
@@ -712,10 +502,21 @@ function AdminPage() {
     <main className={`admin-page${activeAdminTab === 'tracking' ? ' admin-page--tracking' : ''}`}>
       <PageHeader
         eyebrow="Panel interno"
-        title="Administración de empresas"
-        description="Gestione empresas, integraciones, planes y suscripciones."
+        title={titles[activeAdminTab]}
+        actions={<Button variant="outline" disabled={isLoading} onClick={() => { setIsLoading(true); setErrorMessage(null); setDataRevision(value => value + 1) }}>Actualizar</Button>}
       />
+      {successMessage && <SuccessMessage message={successMessage} />}
+      {errorMessage && <ErrorMessage message={errorMessage} />}
+      <div id="admin-panel-overview" role="tabpanel" aria-labelledby="admin-tab-overview" hidden={activeAdminTab !== 'overview'}>
+        {activeAdminTab === 'overview' && (isLoading ? <LoadingIndicator message="Cargando resumen…" /> : <AdminBusinessOverview companies={companies} onClients={status => setParams(status ? { tab: 'tracking', status } : { tab: 'tracking' })} onCreate={openCreate} onAdvisors={() => setActiveAdminTab('advisors')} onCommissions={() => setActiveAdminTab('commissions')} />)}
+      </div>
+      <div id="admin-panel-commissions" role="tabpanel" aria-labelledby="admin-tab-commissions" hidden={activeAdminTab !== 'commissions'}>
+        {activeAdminTab === 'commissions' && <CommissionReport admin />}
+      </div>
 
+      <div id="admin-panel-advisors" role="tabpanel" aria-labelledby="admin-tab-advisors" hidden={activeAdminTab !== 'advisors'}>
+        {activeAdminTab === 'advisors' && <AdminAdvisors companies={companies} onCompanyAssigned={(companyId, advisorId, name) => setCompanies(current => current.map(company => company.id === companyId ? { ...company, advisorId, commercial: name } : company))} />}
+      </div>
       <div id="admin-panel-plans" role="tabpanel" aria-labelledby="admin-tab-plans" hidden={activeAdminTab !== 'plans'}>
         {activeAdminTab === 'plans' && <AdminPlans plans={plans} loading={isLoading} onUpdated={plan => {
           setPlans(current => current.map(item => item.id === plan.id ? plan : item))
@@ -726,333 +527,19 @@ function AdminPage() {
         {activeAdminTab === 'bold' && <AdminBoldSettings companies={companies} loading={isLoading} />}
       </div>
       <div id="admin-panel-tracking" role="tabpanel" aria-labelledby="admin-tab-tracking" hidden={activeAdminTab !== 'tracking'}>
-        {activeAdminTab === 'tracking' && <AdminTracking companies={companies} loading={isLoading}
+        {activeAdminTab === 'tracking' && <AdminTracking key={params.get('status') ?? 'all'} initialStatus={params.get('status') ?? ''} companies={companies} loading={isLoading}
           onUpdated={company => setCompanies(current => current.map(item => item.id === company.id ? company : item))}
-          onCreate={() => { setActiveAdminTab('jarvis'); requestAnimationFrame(() => { document.getElementById('admin-company-nit')?.focus(); document.getElementById('admin-company-nit')?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }) }} />}
+          onCreate={openCreate} />}
       </div>
       <div id="admin-panel-jarvis" role="tabpanel" aria-labelledby="admin-tab-jarvis" hidden={activeAdminTab !== 'jarvis'}>
-      {activeAdminTab === 'jarvis' && <AdminDocumentPackages companies={companies} />}
-      <section className="admin-card">
-        <div className="admin-card__header">
-          <h2>Crear empresa</h2>
-          <p>
-            Registre una empresa por NIT, asigne un plan por integración y
-            seleccione las integraciones habilitadas.
-          </p>
-        </div>
+      <div className="business-section-heading"><h2>{creating ? 'Nueva empresa' : 'Directorio de empresas'}</h2><Button variant={creating ? 'outline' : 'primary'} disabled={isLoading} onClick={() => setCreating(value => !value)}>{creating ? 'Volver al directorio' : '+ Crear empresa'}</Button></div>
+{!isLoading && creating && <CreateCompanyForm plans={plans} cities={cities} topUpCatalog={topUpCatalog} onCancel={() => setCreating(false)} createCompany={createAdminCompany} lookupName={lookupAdminCompanyName} onCreated={response => { setCompanies(current => [response.company, ...current]); setCreating(false); setSuccessMessage(`Empresa ${response.company.name} creada.`); if (response.welcome?.status === 'FAILED') setErrorMessage(response.welcome.message) }} />}
+      {!creating && <div className="business-filters"><label className="admin-form__field">Buscar empresa<input type="search" placeholder="Nombre, NIT, correo o asesor" value={companySearch} onChange={event => { setCompanySearch(event.target.value); setCompanyPages({}) }} /></label></div>}
 
-        <form className="admin-form" onSubmit={handleSubmit}>
-          <div className="admin-form__grid">
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-nit">NIT</label>
-              <input
-                id="admin-company-nit"
-                type="text"
-                inputMode="numeric"
-                value={nit}
-                onChange={(event) => setNit(event.target.value)}
-                onBlur={() => void handleNitBlur()}
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-name">Nombre de la empresa</label>
-              <input
-                id="admin-company-name"
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-                disabled={isSubmitting}
-                placeholder={
-                  isLookingUpName ? 'Buscando en el RUT/RUES...' : undefined
-                }
-              />
-            </div>
-
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-commercial">Comercial</label>
-              <input id="admin-company-commercial" value={commercial} onChange={event => setCommercial(event.target.value)} maxLength={120} placeholder="Nombre del comercial" disabled={isSubmitting} />
-            </div>
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-billing-months">Periodicidad del plan (meses)</label>
-              <input id="admin-company-billing-months" type="number" min="1" max="1200" step="1" required value={billingMonths} onChange={event => setBillingMonths(event.target.value)} disabled={isSubmitting} />
-              <small>El vencimiento se calcula desde la fecha de creación de la empresa.</small>
-            </div>
-
-
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-person-type">
-                Tipo de persona
-              </label>
-              <select
-                id="admin-company-person-type"
-                value={personType}
-                onChange={(event) =>
-                  setPersonType(event.target.value as CompanyPersonType | '')
-                }
-                required
-                disabled={isSubmitting}
-              >
-                <option value="">Seleccione una opción</option>
-                <option value={COMPANY_PERSON_TYPE.NATURAL_PERSON}>
-                  Persona natural
-                    </option>
-                <option value={COMPANY_PERSON_TYPE.LEGAL_ENTITY}>
-                  Persona jurídica
-                </option>
-              </select>
-            </div>
-
-            <div className="admin-form__field">
-              <label htmlFor="admin-company-city">Ciudad</label>
-              <Autocomplete<AdminCityOption>
-                id="admin-company-city"
-                value={selectedCity}
-                onChange={setSelectedCity}
-                options={cities}
-                disabled={isSubmitting}
-                placeholder="Buscar ciudad..."
-                emptyMessage="No se encontraron ciudades"
-                getOptionKey={(city) => city.code}
-                getOptionLabel={formatMunicipalityLabel}
-              />
-            </div>
-          </div>
-
-          <div className="admin-form__field">
-            <label htmlFor="admin-registration-email">Correo de bienvenida</label>
-            <input id="admin-registration-email" type="email" value={registrationEmail} onChange={event => setRegistrationEmail(event.target.value)} required maxLength={254} disabled={isSubmitting} placeholder="usuario@empresa.com" />
-            <small>Enviaremos a este correo el enlace para crear el usuario de la empresa. El destinatario solo tendrá que definir su contraseña.</small>
-          </div>
-
-          <fieldset className="admin-form__responsible">
-            <legend>Persona a cargo (opcional)</legend>
-            <div className="admin-form__grid">
-              <div className="admin-form__field">
-                <label htmlFor="admin-responsible-name">Nombre</label>
-                <input
-                  id="admin-responsible-name"
-                  type="text"
-                  value={responsibleName}
-                  onChange={(event) => setResponsibleName(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="admin-form__field">
-                <label htmlFor="admin-responsible-phone">Teléfono</label>
-                <input
-                  id="admin-responsible-phone"
-                  type="tel"
-                  inputMode="tel"
-                  value={responsiblePhone}
-                  onChange={(event) => setResponsiblePhone(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="admin-form__field">
-                <label htmlFor="admin-responsible-email">Correo</label>
-                <input
-                  id="admin-responsible-email"
-                  type="email"
-                  autoComplete="email"
-                  value={responsibleEmail}
-                  onChange={(event) => setResponsibleEmail(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <fieldset className="admin-form__integrations">
-            <legend>Integraciones</legend>
-            <label className="admin-form__checkbox">
-              <input
-                type="checkbox"
-                checked={selectedIntegrations.includes(INTEGRATION_PROVIDER.SIIGO)}
-                onChange={() => toggleIntegration(INTEGRATION_PROVIDER.SIIGO)}
-                disabled={isSubmitting}
-              />
-              SIIGO
-            </label>
-            <label className="admin-form__checkbox">
-              <input
-                type="checkbox"
-                checked={selectedIntegrations.includes(INTEGRATION_PROVIDER.JARVIS)}
-                onChange={() => toggleIntegration(INTEGRATION_PROVIDER.JARVIS)}
-                disabled={isSubmitting}
-              />
-              Jarvis
-            </label>
-            <label className="admin-form__checkbox">
-              <input
-                type="checkbox"
-                checked={selectedIntegrations.includes(INTEGRATION_PROVIDER.BOLD)}
-                onChange={() => toggleIntegration(INTEGRATION_PROVIDER.BOLD)}
-                disabled={isSubmitting}
-              />
-              Bold
-            </label>
-          </fieldset>
-
-          {includesJarvis && <CompanyModuleSelect value={jarvisModules} onChange={setJarvisModules} disabled={isSubmitting} />}
-
-          {includesSiigo && (
-            <div className="admin-form__field admin-form__field--wide">
-              <label htmlFor="admin-company-description">
-                Descripción de la empresa
-              </label>
-              <textarea
-                id="admin-company-description"
-                value={description}
-                onChange={(event) =>
-                  setDescription(event.target.value.slice(0, 1000))
-                }
-                disabled={isSubmitting}
-                rows={3}
-                maxLength={1000}
-                placeholder="A qué se dedica: rubro, actividad, si maneja inventario, etc. La IA lo usa para sugerir cuenta o producto."
-              />
-              <span className="admin-form__hint">
-                {description.length} / 1000
-              </span>
-            </div>
-          )}
-
-          {(includesSiigo || includesJarvis || includesBold) && (
-            <div className="admin-form__grid">
-              {includesSiigo && (
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-plan-siigo">Plan SIIGO</label>
-                  <select
-                    id="admin-company-plan-siigo"
-                    value={siigoPlanId}
-                    onChange={(event) => setSiigoPlanId(event.target.value)}
-                    required
-                    disabled={isSubmitting || siigoPlans.length === 0}
-                  >
-                    {siigoPlans.length === 0 ? (
-                      <option value="">Sin planes SIIGO disponibles</option>
-                    ) : (
-                      siigoPlans.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              )}
-
-              {includesJarvis && (
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-plan-jarvis">Plan Jarvis</label>
-                  <select
-                    id="admin-company-plan-jarvis"
-                    value={jarvisPlanId}
-                    onChange={(event) => setJarvisPlanId(event.target.value)}
-                    required
-                    disabled={isSubmitting || jarvisPlans.length === 0}
-                  >
-                    {jarvisPlans.length === 0 ? (
-                      <option value="">Sin planes Jarvis disponibles</option>
-                    ) : (
-                      jarvisPlans.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              )}
-
-              {includesJarvis && (
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-id-software">IDSoftware</label>
-                  <input
-                    id="admin-company-id-software"
-                    type="text"
-                    value={idSoftware}
-                    onChange={(event) => setIdSoftware(event.target.value)}
-                    placeholder="Identificador de software NextPyme/DIAN"
-                    disabled={isSubmitting}
-                    autoComplete="off"
-                  />
-                </div>
-              )}
-
-              {(includesSiigo || includesJarvis) && (
-                <div className="admin-form__field">
-                  <label htmlFor="admin-company-nextpyme-token">
-                    Token NextPyme (opcional)
-                  </label>
-                  <input
-                    id="admin-company-nextpyme-token"
-                    type="password"
-                    value={companyNextPymeToken}
-                    onChange={(event) =>
-                      setCompanyNextPymeToken(event.target.value)
-                    }
-                    placeholder="Deja en blanco para usar el token global"
-                    disabled={isSubmitting}
-                    autoComplete="new-password"
-                  />
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {includesSiigo && (
-            <fieldset className="admin-form__integrations">
-              <legend>Documentos incluidos</legend>
-              {AVAILABLE_DOCUMENT_TYPES.map((documentType) => (
-                <label
-                  key={documentType.value}
-                  className="admin-form__checkbox"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDocumentTypes.includes(documentType.value)}
-                    onChange={() => toggleCreateDocumentType(documentType.value)}
-                    disabled={isSubmitting}
-                  />
-                  {documentType.label}
-                </label>
-              ))}
-            </fieldset>
-          )}
-
-          <button
-            type="submit"
-            className="admin-form__submit"
-            disabled={
-              isSubmitting ||
-              selectedIntegrations.length === 0 ||
-              !nit.trim() ||
-              !name.trim() ||
-              !personType ||
-              (includesSiigo &&
-                (!siigoPlanId || selectedDocumentTypes.length === 0)) ||
-              !registrationEmail.trim() ||
-              (includesJarvis && (!jarvisPlanId || !jarvisModules.length))
-            }
-          >
-            {isSubmitting ? 'Creando empresa...' : 'Crear empresa'}
-          </button>
-        </form>
-
-        {successMessage && <SuccessMessage message={successMessage} />}
-        {errorMessage && <ErrorMessage message={errorMessage} />}
-      </section>
-
-      {[INTEGRATION_PROVIDER.SIIGO, INTEGRATION_PROVIDER.JARVIS].map(provider => {
-        const rows = companies.filter(company => company.integrations.some(item => item.provider === provider));
+      {!creating && [INTEGRATION_PROVIDER.SIIGO, INTEGRATION_PROVIDER.JARVIS].map(provider => {
+        const rows = companies.filter(company => company.integrations.some(item => item.provider === provider) && `${company.name} ${company.nit} ${company.email ?? ''} ${company.responsible?.email ?? ''} ${company.commercial ?? ''}`.toLocaleLowerCase('es').includes(companySearch.trim().toLocaleLowerCase('es')));
+        const pages = Math.max(1, Math.ceil(rows.length / 10));
+        const page = Math.min(companyPages[provider] ?? 1, pages);
         const columns = provider === INTEGRATION_PROVIDER.SIIGO
           ? [0, 1, 2, 14, 3, 6, 7, 8, 11, 13]
           : [0, 1, 2, 14, 6, 7, 11, 12];
@@ -1060,9 +547,9 @@ function AdminPage() {
         return <section className="admin-card" key={provider}>
           <div className="admin-card__header"><h2>Empresas con integración {formatProviderLabel(provider)}</h2></div>
           {isLoading ? <LoadingIndicator message="Cargando empresas..." /> : rows.length === 0 ? <p className="admin-empty">No hay empresas con esta integración.</p> :
-            <div className="admin-table-wrapper"><table className="admin-table">
-              <thead><tr>{columns.map(index => <th key={index}>{headings[index]}</th>)}</tr></thead>
-              <tbody>{rows.map(company => {
+            <div className="admin-table-wrapper"><table className="admin-table admin-directory">
+              <thead><tr><th>Empresa / NIT</th><th>Contacto</th><th>Plan</th><th>Gestión</th></tr></thead>
+              <tbody>{rows.slice((page - 1) * 10, page * 10).map(company => {
                 const plansByProvider: Partial<Record<IntegrationProvider, AdminPlan[]>> = {
                   [INTEGRATION_PROVIDER.SIIGO]: siigoPlans, [INTEGRATION_PROVIDER.JARVIS]: jarvisPlans,
                 };
@@ -1071,7 +558,7 @@ function AdminPage() {
                         <AdminCompanyWelcome company={company} onSent={email => setCompanies(current => current.map(item => item.id === company.id ? { ...item, registrationEmail: email } : item))} />
                       </td>,
                   <td>{company.nit}</td>,
-                  <td>{company.name}</td>,
+                  <td><button type="button" className="admin-page__client-link" onClick={() => navigate(`/admin/clientes/${encodeURIComponent(company.id)}`)}>{company.name}</button></td>,
                   <td>
                         {editingDescriptionCompanyId === company.id ? (
                           <div className="admin-nextpyme-token admin-nextpyme-token--editing">
@@ -1187,6 +674,14 @@ function AdminPage() {
                               const providerPlans =
                                 plansByProvider[integration.provider] ?? []
 
+                              if (integration.provider === INTEGRATION_PROVIDER.JARVIS) return <CompanyJarvisCommercialEditor key={integration.id}
+                                company={company} integration={integration} plans={providerPlans} catalog={topUpCatalog}
+                                onSaved={(updated, message) => {
+                                  setCompanies(current => current.map(item => item.id === updated.id ? updated : item))
+                                  setSuccessMessage(message ?? `Cambios guardados para ${updated.name}.`)
+                                  void refreshUser().catch(() => undefined)
+                                }} />
+
                               return (
                                 <div
                                   key={integration.id}
@@ -1217,7 +712,7 @@ function AdminPage() {
                                     )}
                                     {providerPlans.map((plan) => (
                                       <option key={plan.id} value={plan.id}>
-                                        {formatPlanName(plan)} · {formatDocumentLimit(plan.documentLimit)}
+                                        {formatAdminPlanOption(plan)}
                                       </option>
                                     ))}
                                   </select>
@@ -1503,13 +998,20 @@ function AdminPage() {
                       </td>,
                   <td>{company.email?.trim() || 'Sin correo'}</td>
                 ];
-                return <tr key={company.id}>{columns.map(index => <Fragment key={index}>{cells[index]}</Fragment>)}</tr>;
+                const detailId = `company-config-${provider}-${company.id}`;
+                const expanded = expandedCompany === detailId;
+                return <Fragment key={company.id}><tr>
+                  <td data-label="Empresa">{cells[2].props.children}<small>NIT {company.nit}</small></td>
+                  <td data-label="Contacto">{company.responsible?.name || 'Sin contacto'}<small>{company.responsible?.email ?? company.email ?? company.registrationEmail ?? 'Sin correo'}</small></td>
+                  <td data-label="Plan">{company.integrations.find(item => item.provider === provider)?.plan?.name ?? 'Sin plan'}<small>{formatProviderLabel(provider)}</small></td>
+                  <td data-label="Gestión"><Button variant="outline" size="sm" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpandedCompany(expanded ? null : detailId)}>{expanded ? 'Cerrar' : 'Configurar'}</Button></td>
+                </tr>{expanded && <tr className="admin-directory__details"><td colSpan={4}><div id={detailId} className="admin-company-config">{columns.filter(index => ![1, 2].includes(index)).map(index => <section key={index}><h3>{headings[index]}</h3>{cells[index].props.children}</section>)}</div></td></tr>}</Fragment>;
               })}</tbody>
             </table></div>}
+          {shouldShowTablePagination(rows.length) && <div className="business-actions admin-directory-pages"><span>{rows.length} empresas · {page} / {pages}</span><Button variant="outline" disabled={page === 1} onClick={() => setCompanyPages(current => ({ ...current, [provider]: page - 1 }))}>Anterior</Button><Button variant="outline" disabled={page === pages} onClick={() => setCompanyPages(current => ({ ...current, [provider]: page + 1 }))}>Siguiente</Button></div>}
         </section>;
       })}
 
-      {errorMessage && <ErrorMessage message={errorMessage} />}
       </div>
     </main>
     </div>

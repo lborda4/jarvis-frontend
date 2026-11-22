@@ -11,6 +11,7 @@ interface ExcelImportLayoutProps {
   description?: string
   templateDescription?: ReactNode
   reviewDescription?: ReactNode
+  reviewTitle?: string
   className: string
   fileName: string
   hasPreview: boolean
@@ -85,7 +86,7 @@ export default function ExcelImportLayout(props: ExcelImportLayoutProps) {
       actions={<Button variant="outline" disabled={busy} onClick={onClose}>Volver al listado</Button>} />
     <div className="excel-import-page__actions" role="group" aria-label="Archivos de importación">
       <Button variant="outline" disabled={busy} onClick={props.onDownload}>{props.downloading ? 'Descargando…' : 'Descargar plantilla'}</Button>
-      <Button disabled={busy} onClick={() => inputRef.current?.click()}>Subir Excel</Button>
+      <Button writeAction disabled={busy} onClick={() => inputRef.current?.click()}>Subir Excel</Button>
       {fileInput}
       <small className="excel-import-page__file-help">.xls / .xlsx · 5 MB</small>
       {props.fileName && <span className="excel-import-page__file-name">{props.fileName}</span>}
@@ -95,8 +96,8 @@ export default function ExcelImportLayout(props: ExcelImportLayoutProps) {
     {props.notice}
     <section className="excel-import-page__panel integration-card" aria-labelledby={`${titleId}-review`} aria-busy={busy}>
       <div className="excel-import-page__review-header">
-        <div><h2 id={`${titleId}-review`}>Documentos</h2>{props.reviewDescription && <p>{props.reviewDescription}</p>}</div>
-        {props.hasPreview && !props.finished && <Button disabled={busy || props.importDisabled} onClick={props.onImport}>{props.importLabel}</Button>}
+        <div><h2 id={`${titleId}-review`}>{props.reviewTitle ?? 'Documentos'}</h2>{props.reviewDescription && <p>{props.reviewDescription}</p>}</div>
+        {props.hasPreview && !props.finished && <Button writeAction disabled={busy || props.importDisabled} onClick={props.onImport}>{props.importLabel}</Button>}
       </div>
       {props.hasPreview ? props.children : <p className="excel-import-page__empty">Sube un Excel para comenzar.</p>}
     </section>

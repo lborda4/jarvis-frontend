@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from './apiClient'
 import { companyQueryKey, setActiveCompanyId, setCachedQuery } from './queryCache'
-import { fetchProductsImportCatalogs, saveImportedProducts } from './productsImportService'
+import { downloadProductsTemplate, fetchProductsImportCatalogs, saveImportedProducts } from './productsImportService'
+import { triggerBrowserDownload } from '../utils/downloadFile'
+import * as XLSX from 'xlsx'
+import * as CFB from 'cfb'
 import { DEFAULT_PRODUCT_IVA_ID } from '../utils/productTaxes'
 import type { ProductImportRow } from '../utils/productsExcel'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn(), post: vi.fn() }, getApiErrorMessage: (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback }))
+vi.mock('../utils/downloadFile', () => ({ triggerBrowserDownload: vi.fn() }))
 function row(sku: string): ProductImportRow {
   return { row: Number(sku) + 1, sku, name: `Producto ${sku}`, errors: [], status: 'ready', payload: { sku, name: `Producto ${sku}`, kind: 'product', unit: '94', categoryId: 'category', description: 'Descripción', taxIds: [], priceIncludesIva: true, priceLists: [{ position: 1, name: 'General', price: 1250.5, enabled: true }, { position: 2, name: 'Mayorista', price: 1000.25, enabled: true }] } }
 }
@@ -111,5 +115,30 @@ describe('guardado masivo de productos', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/products/unit-measures')
     expect(apiClient.get).toHaveBeenCalledWith('/products/categories')
     expect(apiClient.get).toHaveBeenCalledWith('/integrations/jarvis/taxes')
+  })
+  it('descarga el Excel con desplegables de las unidades, categorías e impuestos de la empresa', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async url => ({ data: { items: url === '/products/unit-measures' ? [{ code: 'KGM', name: 'Kilogramo' }]
+      : url === '/products/categories' ? [{ id: 'category', name: 'Mi categoría' }]
+        : url === '/integrations/jarvis/taxes' ? [{ id: 'tax', code: 'RET-4', name: 'Retefuente', rate: 4, is_active: true }] : [] } }))
+    await downloadProductsTemplate()
+    const [blob, filename] = vi.mocked(triggerBrowserDownload).mock.calls[0]
+    expect(filename).toBe('plantilla-productos-jarvis.xlsx')
+    const buffer = await blob.arrayBuffer()
+    const book = XLSX.read(buffer, { type: 'array' })
+    expect(book.SheetNames).toEqual(['Productos'])
+    expect(book.Sheets.Productos.M2.v).toBe('94 — Unidad')
+    expect(book.Sheets.Productos.M3.v).toBe('KGM — Kilogramo')
+    expect(book.Sheets.Productos.N2.v).toBe('Mi categoría')
+    expect(book.Sheets.Productos.O2.v).toBe('RET-4 — Retefuente (4 %)')
+    const archive = CFB.read(new Uint8Array(buffer), { type: 'buffer' })
+    const xml = new TextDecoder().decode(new Uint8Array(CFB.find(archive, '/xl/worksheets/sheet1.xml')!.content))
+    expect(xml).toContain('<formula1>UnidadesProducto</formula1>')
+    expect(xml).toContain('<formula1>ImpuestosProducto</formula1>')
+    expect(xml).toContain('<dataValidations')
+  })
+  it('no descarga catálogos de otra empresa si cambia la empresa activa', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async () => { setActiveCompanyId('company-b'); return { data: { items: [] } } })
+    await expect(downloadProductsTemplate()).rejects.toThrow('empresa activa cambió')
+    expect(triggerBrowserDownload).not.toHaveBeenCalled()
   })
 })

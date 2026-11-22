@@ -1,4 +1,5 @@
 import { CLIENT_ERROR_FALLBACK, clientFacingError } from '../utils/clientFacingError'
+import { blockedSubscriptionRequest } from './subscriptionAccessStore'
 import { companyQueryKey, getActiveCompanyId, peekCachedQuery } from './queryCache'
 import axios, {
   type AxiosError,
@@ -79,6 +80,8 @@ async function refreshAccessToken(): Promise<string | null> {
 apiClient.interceptors.request.use((config) => {
   const requestUrl = config.url ?? ''
   const requestPath = new URL(requestUrl, `${config.baseURL ?? API_BASE_URL}/`).pathname
+  const blocked = blockedSubscriptionRequest(getActiveCompanyId(), config.method ?? 'get', requestPath)
+  if (blocked) throw new Error(blocked)
   if (/^\/(?:bold|integrations\/bold)(?:\/|$)/i.test(requestPath)) {
     const providers = peekCachedQuery<{ providers: string[] }>(
       companyQueryKey(['integrations', 'providers']),

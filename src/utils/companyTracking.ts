@@ -20,6 +20,13 @@ export type TrackingStatus = 'CURRENT' | 'DUE_SOON' | 'DUE_TODAY' | 'OVERDUE' | 
 export const TRACKING_STATUS_LABELS: Record<TrackingStatus, string> = {
   CURRENT: 'Activo', DUE_SOON: 'Por vencer', DUE_TODAY: 'Vence hoy', OVERDUE: 'Vencido', UNCONFIGURED: 'Sin configurar',
 }
+export function trackingDueDate(company: Pick<AdminCompanyListItem, 'subscriptionDueDate'> & Partial<Pick<AdminCompanyListItem, 'integrations'>>): string | null {
+  const jarvis = company.integrations?.find(item => item.provider === 'JARVIS')
+  if (!jarvis) return company.subscriptionDueDate ?? null
+  const endsAt = jarvis.jarvisCertificateTerm?.endsAt
+  if (!endsAt || !Number.isFinite(Date.parse(endsAt))) return null
+  return colombiaToday(new Date(endsAt))
+}
 export function trackingRenewalDueDate(company: Pick<AdminCompanyListItem, 'subscriptionDueDate'>, months: number, today = colombiaToday()): string | null {
   if (!Number.isInteger(months) || months < 1 || months > 1200) return null
   const base = company.subscriptionDueDate && company.subscriptionDueDate > today ? company.subscriptionDueDate : today
@@ -35,9 +42,10 @@ export function colombiaToday(now = new Date()): string {
   const part = (type: string) => parts.find(value => value.type === type)?.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }
-export function companyTrackingStatus(company: Pick<AdminCompanyListItem, 'subscriptionDueDate'>, today: string): TrackingStatus {
-  if (!company.subscriptionDueDate) return 'UNCONFIGURED'
-  const days = Math.round((Date.parse(company.subscriptionDueDate) - Date.parse(today)) / 86400000)
+export function companyTrackingStatus(company: Pick<AdminCompanyListItem, 'subscriptionDueDate'> & Partial<Pick<AdminCompanyListItem, 'integrations'>>, today: string): TrackingStatus {
+  const dueDate = trackingDueDate(company)
+  if (!dueDate) return 'UNCONFIGURED'
+  const days = Math.round((Date.parse(dueDate) - Date.parse(today)) / 86400000)
   if (!Number.isFinite(days)) return 'UNCONFIGURED'
   return days < 0 ? 'OVERDUE' : days === 0 ? 'DUE_TODAY' : days <= 7 ? 'DUE_SOON' : 'CURRENT'
 }

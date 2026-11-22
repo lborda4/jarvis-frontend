@@ -1,0 +1,7 @@
+.admin-document-packages__heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.admin-document-packages__heading h2 { margin: 0; }
+.admin-document-packages__heading .btn { max-width: 100%; white-space: normal; }
+.admin-document-packages__controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.admin-document-packages__controls .admin-form__field { flex: 1 1 200px; max-width: 320px; }
+.admin-document-packages__balance { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); padding: var(--space-3); border-radius: var(--r-md); background: var(--jarvis-primary-soft); font-size: var(--text-md); }
+.admin-document-packages__balance strong { color: var(--jarvis-primary); }

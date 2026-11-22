@@ -1,10 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import LoadingIndicator from './LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
+import { isAdvisorRole } from '../constants/userRole'
 import '../pages/AuthPages.css'
 
 function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const location = useLocation()
 
   if (isLoading) {
@@ -19,6 +20,7 @@ function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
+  if (isAdvisorRole(user?.role)) return <Navigate to="/asesor" replace />
   return <Outlet />
 }
 

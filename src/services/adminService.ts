@@ -1,5 +1,6 @@
 import type {
   AdminPlan,
+  AdminJarvisTopUp,
   AdminBoldCredentialsStatus,
   SaveAdminBoldCredentialsRequest,
   BoldBindedTerminalsResponse,
@@ -94,12 +95,27 @@ export async function addAdminCompanyIntegration(companyId: string, provider: In
   )).data
 }
 
-export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingMonths: number; paymentReceived?: boolean; expectedDueDate?: string | null }) {
+export async function fetchAdminCompanyDetails(companyId: string): Promise<import('../types/admin').AdminCompanyDetails> {
+  return (await apiClient.get<import('../types/admin').AdminCompanyDetails>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/details`)).data
+}
+
+export async function addAdminCompanyComment(companyId: string, text: string): Promise<import('../types/admin').AdminCompanyDetails> {
+  return (await apiClient.post<import('../types/admin').AdminCompanyDetails>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/comments`, { text })).data
+}
+
+export async function updateAdminCompanyProfile(companyId: string, request: { name: string; responsible: import('../types/admin').AdminCompanyResponsible | null; commercial: string | null; registrationEmail?: string }): Promise<import('../types/admin').AdminCompanyDetails> {
+  return (await apiClient.patch<import('../types/admin').AdminCompanyDetails>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/profile`, request)).data
+}
+
+export async function updateCompanyTracking(companyId: string, request: { commercial: string | null; billingMonths: number; paymentReceived?: boolean; expectedDueDate?: string | null; expectedJarvisCycleId?: string | null }) {
   const { data } = await apiClient.patch<CreateAdminCompanyResponse>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/tracking`, request)
   return data.company
 }
 const ADMIN_PLANS_ENDPOINT = '/admin/plans'
-export async function updateAdminPlan(planId: string, request: { name: string; documentLimit: number | null }): Promise<AdminPlan> {
+export async function fetchAdminJarvisTopUps(): Promise<{ items: AdminJarvisTopUp[] }> {
+  return (await apiClient.get<{ items: AdminJarvisTopUp[] }>('/admin/jarvis/top-ups')).data
+}
+export async function updateAdminPlan(planId: string, request: { name: string; documentLimit: number | null; commissionClass?: AdminPlan['commissionClass']; salePriceCop?: number | null }): Promise<AdminPlan> {
   const { data } = await apiClient.patch<{ plan: AdminPlan }>(`${ADMIN_PLANS_ENDPOINT}/${encodeURIComponent(planId)}`, request)
   return data.plan
 }
@@ -257,6 +273,12 @@ export async function saveBoldCashRegister(
   )
 
   return response.data
+}
+
+export async function applyAdminJarvisTopUp(companyId: string, request: { operationId: string; topUpCodes: string[] }): Promise<import('../types/admin').ApplyAdminJarvisTopUpResponse> {
+  return (await apiClient.post<import('../types/admin').ApplyAdminJarvisTopUpResponse>(
+    `${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/jarvis/top-ups`, request,
+  )).data
 }
 
 export async function updateIntegrationSubscription(

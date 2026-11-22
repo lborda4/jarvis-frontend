@@ -4,16 +4,21 @@ import { PRODUCT_DESCRIPTION_MAX_LENGTH, PRODUCT_KIND_OPTIONS } from '../constan
 import type { CreateProductRequest, ProductCategoryResponse, ProductResponse, UnitMeasure } from '../services/productService'
 import type { JarvisTax } from '../types/jarvis'
 import { DEFAULT_PRODUCT_IVA_ID } from './productTaxes'
+import { writeExcelTemplate, type ExcelTemplateValidation } from './excelTemplateValidation'
 
 export const PRODUCTS_IMPORT_LIMIT = 1000
 export const PRODUCTS_IMPORT_MAX_BYTES = 5 * 1024 * 1024
 export const PRODUCTS_TEMPLATE_FILENAME = 'plantilla-productos-jarvis.xlsx'
 export const DEFAULT_IVA_EXCEL_CODE = 'IVA19'
-export const PRODUCTS_EXCEL_COLUMNS = [
+export const LEGACY_PRODUCTS_EXCEL_COLUMNS = [
   'Código / SKU *', 'Nombre *', 'Tipo *', 'Unidad DIAN *', 'Precio de venta *',
   'Categoría', 'Descripción', 'Impuestos (códigos)', 'Precio incluye IVA',
   'Nombre precio 1', 'Precio 1 activo', 'Precio 2', 'Nombre precio 2', 'Precio 2 activo',
   'Precio 3', 'Nombre precio 3', 'Precio 3 activo',
+] as const
+export const PRODUCTS_EXCEL_COLUMNS = [
+  'Código / SKU *', 'Nombre *', 'Tipo *', 'Unidad DIAN *', 'Precio de venta *',
+  'Categoría', 'Descripción', 'Impuesto 1', 'Impuesto 2', 'Impuesto 3', 'Precio incluye IVA',
 ] as const
 
 export interface ProductsImportCatalogs {
@@ -33,50 +38,86 @@ export interface ProductImportRow {
 const normalize = (value: string) => value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 export const productImportKey = (sku: string) => sku.trim().toUpperCase()
 
-export function createProductsTemplate(catalogs?: ProductsImportCatalogs): XLSX.WorkBook {
+const unitLabel = (unit: UnitMeasure) => `${unit.code} — ${unit.name}`
+function productTaxChoices(catalogs?: ProductsImportCatalogs): Array<{ value: string; code: string }> {
+  const active = catalogs?.taxes.filter(tax => tax.is_active && tax.code.trim()) ?? []
+  return [...active.filter(tax => productImportKey(tax.code) !== DEFAULT_IVA_EXCEL_CODE
+    && active.filter(other => productImportKey(other.code) === productImportKey(tax.code)).length === 1)
+    .map(tax => ({ code: tax.code, value: `${tax.code} — ${tax.name}${tax.rate == null ? '' : ` (${tax.rate} %)`}` })),
+  { code: DEFAULT_IVA_EXCEL_CODE, value: `${DEFAULT_IVA_EXCEL_CODE} — IVA predeterminado (19 %)` }]
+}
+
+function buildProductsTemplate(catalogs?: ProductsImportCatalogs): { book: XLSX.WorkBook; validations: ExcelTemplateValidation[] } {
   const book = XLSX.utils.book_new()
   const sheet = XLSX.utils.aoa_to_sheet([[...PRODUCTS_EXCEL_COLUMNS]])
+  const columns = PRODUCTS_EXCEL_COLUMNS
+  const validations: ExcelTemplateValidation[] = []
+  const help: Record<typeof columns[number], string> = {
+    'Código / SKU *': 'Código único del producto. Conserva el formato Texto para mantener los ceros iniciales.',
+    'Nombre *': 'Nombre del producto o servicio.',
+    'Tipo *': 'Selecciona Producto o Servicio.',
+    'Unidad DIAN *': 'Selecciona la unidad de medida DIAN.',
+    'Precio de venta *': 'Precio mayor que cero, con hasta dos decimales, sin símbolos ni separadores de miles.',
+    'Categoría': 'Opcional. Selecciona una categoría de tu empresa.',
+    'Descripción': `Opcional. Hasta ${PRODUCT_DESCRIPTION_MAX_LENGTH} caracteres.`,
+    'Impuesto 1': 'Opcional. Selecciona un impuesto o retención de tu empresa.',
+    'Impuesto 2': 'Opcional. Selecciona otro impuesto o retención. No repitas el mismo impuesto.',
+    'Impuesto 3': 'Opcional. Selecciona otro impuesto o retención. No repitas el mismo impuesto.',
+    'Precio incluye IVA': 'Selecciona Sí si el precio ya incluye IVA. En blanco equivale a No; este campo no agrega impuestos.',
+  }
   for (let r = 1; r <= PRODUCTS_IMPORT_LIMIT; r++) {
-    for (let c = 0; c < PRODUCTS_EXCEL_COLUMNS.length; c++) {
-      sheet[XLSX.utils.encode_cell({ r, c })] = { t: 's', v: '', z: '@' }
+    for (let c = 0; c < columns.length; c++) {
+      sheet[XLSX.utils.encode_cell({ r, c })] = { t: 's', v: '', z: c === 4 ? '0.00' : '@' }
     }
   }
-  const last = XLSX.utils.encode_col(PRODUCTS_EXCEL_COLUMNS.length - 1)
-  sheet['!ref'] = `A1:${last}${PRODUCTS_IMPORT_LIMIT + 1}`
-  sheet['!autofilter'] = { ref: sheet['!ref'] }
-  sheet['!cols'] = PRODUCTS_EXCEL_COLUMNS.map((_, c) => ({ wch: c === 1 || c === 6 ? 45 : 25 }))
-  XLSX.utils.book_append_sheet(book, sheet, 'Productos')
-  const addSheet = (name: string, rows: (string | number)[][], widths: number[]) => {
-    const reference = XLSX.utils.aoa_to_sheet(rows)
-    reference['!cols'] = widths.map(wch => ({ wch }))
-    XLSX.utils.book_append_sheet(book, reference, name)
+  sheet['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(columns.length - 1)}${PRODUCTS_IMPORT_LIMIT + 1}` }
+  sheet['!cols'] = columns.map(() => ({ wch: 25 }))
+  columns.forEach((header, column) => {
+    const cell = sheet[XLSX.utils.encode_cell({ r: 0, c: column })]
+    cell.c = [{ a: 'Jarvis', t: help[header] }]
+    cell.c.hidden = true
+  })
+  book.Workbook = { Names: [] }
+  let catalogColumn = columns.length
+  let lastRow = PRODUCTS_IMPORT_LIMIT + 1
+  const listRanges = new Map<string, string>()
+  const addList = (header: typeof columns[number], name: string, options: string[]) => {
+    if (!listRanges.has(name)) {
+      const c = catalogColumn++, letter = XLSX.utils.encode_col(c)
+      const unique = [...new Set(options)]
+      lastRow = Math.max(lastRow, unique.length + 1)
+      sheet['!cols']![c] = { hidden: true }
+      unique.forEach((value, r) => { sheet[XLSX.utils.encode_cell({ r: r + 1, c })] = { t: 's', v: value, z: '@' } })
+      const reference = `'Productos'!$${letter}$2:$${letter}$${Math.max(2, unique.length + 1)}`
+      book.Workbook!.Names!.push({ Name: name, Ref: reference })
+      listRanges.set(name, reference)
+    }
+    validations.push({ column: columns.indexOf(header), type: 'list', formula1: name, optional: !header.endsWith('*'), prompt: help[header] })
   }
-  addSheet('Instrucciones', [
-    ['Plantilla de productos Jarvis', 'Instrucciones'],
-    ['Cómo llenar', 'Un producto o servicio por fila en Productos, desde la fila 2. Conserva la hoja y los encabezados.'],
-    ['Obligatorios (*)', 'Código / SKU, nombre, tipo, unidad DIAN y precio de venta. Las demás columnas son opcionales.'],
-    ['Código / SKU', 'Escribe un código único. Conserva el formato Texto para no perder ceros iniciales. La carga utiliza este código tal como lo escribes.'],
-    ['Tipo', 'Producto o Servicio. También se aceptan product y service.'],
-    ['Unidad DIAN', 'Usa un código de la hoja Unidades DIAN. Por ejemplo, 94 corresponde a Unidad.'],
-    ['Precios', 'Mayores a cero. Usa números de Excel o texto sin separadores de miles ni símbolos: 1250,50 o 1250.50. Máximo dos decimales.'],
-    ['Categoría', 'Usa el nombre exacto de una categoría existente, de la hoja Categorías descargada desde Jarvis. Vacío significa sin categoría.'],
-    ['Descripción', `Opcional, máximo ${PRODUCT_DESCRIPTION_MAX_LENGTH} caracteres.`],
-    ['Impuestos (códigos)', `Separa los códigos de la hoja Impuestos con punto y coma. ${DEFAULT_IVA_EXCEL_CODE} selecciona el IVA predeterminado del 19 %. Vacío significa sin impuestos.`],
-    ['Precio incluye IVA', 'Sí o No. Si está vacío se usa No. Esta columna no agrega impuestos por sí sola.'],
-    ['Listas de precios', 'El precio de venta corresponde al precio 1. Puedes agregar precio 2 y precio 3, en ese orden.'],
-    ['Nombres de precios', 'Si están vacíos se usan Precio general, Precio 2 y Precio 3.'],
-    ['Precios activos', 'Sí o No. Si están vacíos se usa Sí para los precios completados. Al menos uno debe estar activo.'],
-    ['Límites', 'Hasta 1.000 registros por archivo .xlsx o .xls de máximo 5 MB.'],
-    ['Revisión y guardado', 'Corrige los errores antes de guardar. Los SKU existentes o repetidos se omiten; no se actualizan productos. Puedes reintentar las filas no guardadas.'],
-  ], [28, 115])
-  addSheet('Tipos', [['Valor'], ...PRODUCT_KIND_OPTIONS.map(item => [item.label])], [25])
-  addSheet('Unidades DIAN', [['Código', 'Nombre'], ...(catalogs?.units ?? [{ code: '94', name: 'Unidad' }]).map(item => [item.code, item.name])], [20, 60])
-  addSheet('Categorías', [['Nombre'], ...(catalogs?.categories.map(item => [item.name]) ?? [])], [60])
-  addSheet('Impuestos', [['Código para importar', 'Nombre', 'Tipo', 'Tarifa (%)'],
-    ...(catalogs?.taxes.filter(item => item.is_active).map(item => [item.code, item.name, item.tax_type, item.rate ?? '']) ?? []),
-    [DEFAULT_IVA_EXCEL_CODE, 'IVA predeterminado', 'IVA', 19],
-  ], [25, 60, 25, 18])
-  return styleExcelTemplate(book)
+  addList('Tipo *', 'TiposProducto', PRODUCT_KIND_OPTIONS.map(item => item.label))
+  addList('Unidad DIAN *', 'UnidadesProducto', (catalogs?.units ?? [{ code: '94', name: 'Unidad' }]).map(unitLabel))
+  const categories = catalogs?.categories.filter(category => catalogs.categories.filter(other => normalize(other.name) === normalize(category.name)).length === 1) ?? []
+  addList('Categoría', 'CategoriasProducto', categories.map(category => category.name))
+  for (const header of ['Impuesto 1', 'Impuesto 2', 'Impuesto 3'] as const) addList(header, 'ImpuestosProducto', productTaxChoices(catalogs).map(tax => tax.value))
+  addList('Precio incluye IVA', 'BooleanosProducto', ['Sí', 'No'])
+  validations.push(
+    { column: 0, type: 'custom', formula1: 'AND(ISTEXT(A2),LEN(TRIM(A2))>0)', prompt: help['Código / SKU *'] },
+    { column: 1, type: 'custom', formula1: 'LEN(TRIM(B2))>0', prompt: help['Nombre *'] },
+    { column: 4, type: 'custom', formula1: 'AND(ISNUMBER(E2),E2>0,ROUND(E2,2)=E2)', prompt: help['Precio de venta *'] },
+    { column: 6, type: 'textLength', operator: 'between', formula1: '0', formula2: String(PRODUCT_DESCRIPTION_MAX_LENGTH), optional: true, prompt: help['Descripción'] },
+  )
+  sheet['!ref'] = `A1:${XLSX.utils.encode_col(catalogColumn - 1)}${lastRow}`
+  XLSX.utils.book_append_sheet(book, sheet, 'Productos')
+  return { book: styleExcelTemplate(book), validations }
+}
+
+export function createProductsTemplate(catalogs?: ProductsImportCatalogs): XLSX.WorkBook {
+  return buildProductsTemplate(catalogs).book
+}
+
+export function createProductsTemplateFile(catalogs?: ProductsImportCatalogs): ArrayBuffer {
+  const { book, validations } = buildProductsTemplate(catalogs)
+  return writeExcelTemplate(book, validations, PRODUCTS_IMPORT_LIMIT)
 }
 
 function parsePrice(cell: XLSX.CellObject | undefined): number {
@@ -93,40 +134,47 @@ function parseBoolean(text: string): boolean | undefined {
 
 export function readProductsWorkbook(buffer: ArrayBuffer, catalogs: ProductsImportCatalogs, existing: Pick<ProductResponse, 'sku'>[]): ProductImportRow[] {
   let book: XLSX.WorkBook
-  try { book = XLSX.read(buffer, { type: 'array', cellFormula: true }) }
+  try { book = XLSX.read(buffer, { type: 'array', cellFormula: true, cellStyles: true }) }
   catch { throw new Error('No pudimos leer el Excel. Descarga la plantilla de productos y vuelve a intentarlo.') }
   const sheet = book.Sheets.Productos
   if (!sheet?.['!ref']) throw new Error('El archivo debe contener la hoja Productos de la plantilla.')
   const range = XLSX.utils.decode_range(sheet['!ref'])
-  if (range.e.r > 10000 || range.e.c >= PRODUCTS_EXCEL_COLUMNS.length) throw new Error('El archivo no tiene el formato de la plantilla de productos.')
-  if (PRODUCTS_EXCEL_COLUMNS.some((header, c) => sheet[XLSX.utils.encode_cell({ r: 0, c })]?.v !== header)) {
+  const modern = sheet.H1?.v === 'Impuesto 1'
+  const columns: readonly string[] = modern ? PRODUCTS_EXCEL_COLUMNS : LEGACY_PRODUCTS_EXCEL_COLUMNS
+  if (range.e.r > 10000 || range.e.c >= columns.length + (modern ? 5 : 0)) throw new Error('El archivo no tiene el formato de la plantilla de productos.')
+  if (Array.from({ length: Math.max(0, range.e.c + 1 - columns.length) }, (_, index) => index + columns.length).some(column => !sheet['!cols']?.[column]?.hidden)) throw new Error('El archivo no tiene el formato de la plantilla de productos.')
+  if (columns.some((header, c) => sheet[XLSX.utils.encode_cell({ r: 0, c })]?.v !== header)) {
     throw new Error('Los encabezados no coinciden con la plantilla de productos. Conserva las columnas y su orden.')
   }
   const existingKeys = new Set(existing.map(item => productImportKey(item.sku)))
   const fileKeys = new Set<string>()
   const rows: ProductImportRow[] = []
+  const taxCodeByLabel = new Map(productTaxChoices(catalogs).map(tax => [tax.value, tax.code]))
   for (let r = 1; r <= range.e.r; r++) {
-    const cells = PRODUCTS_EXCEL_COLUMNS.map((_, c) => sheet[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined)
-    if (!cells.some(cell => cell?.f || String(cell?.v ?? '').trim())) continue
+    const sourceCells = columns.map((_, c) => sheet[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined)
+    if (!sourceCells.some(cell => cell?.f || String(cell?.v ?? '').trim())) continue
     if (rows.length >= PRODUCTS_IMPORT_LIMIT) throw new Error('El archivo admite máximo 1.000 productos.')
+    const cells = LEGACY_PRODUCTS_EXCEL_COLUMNS.map(header => sourceCells[columns.indexOf(header)])
     const values = cells.map(cell => String(cell?.v ?? '').trim())
-    const [sku, name, kindText, unit, , categoryName, description, taxCodes, includesIva] = values
+    const [sku, name, kindText, unitValue, , categoryName, description, taxCodes, includesIva] = values
+    const unit = catalogs.units.find(item => item.code === unitValue || unitLabel(item) === unitValue)?.code ?? unitValue
+    const selectedTaxes = modern ? ['Impuesto 1', 'Impuesto 2', 'Impuesto 3'].map(header => String(sourceCells[columns.indexOf(header)]?.v ?? '').trim()) : taxCodes.split(';')
     const errors: string[] = []
-    if (cells.some(cell => cell?.f || cell?.t === 'e')) errors.push('Usa valores de texto o números, sin fórmulas ni errores de Excel.')
+    if (sourceCells.some(cell => cell?.f || cell?.t === 'e')) errors.push('Usa valores de texto o números, sin fórmulas ni errores de Excel.')
     if (cells[0]?.t === 'n' && (typeof cells[0].v !== 'number' || !Number.isSafeInteger(cells[0].v) || Math.abs(cells[0].v) >= 1e15)) errors.push('Conserva el SKU como texto para evitar pérdida de dígitos.')
     if (!sku) errors.push('El código / SKU es obligatorio.')
     if (!name) errors.push('El nombre es obligatorio.')
     const kind = PRODUCT_KIND_OPTIONS.find(item => normalize(item.label) === normalize(kindText) || item.value === normalize(kindText))?.value
     if (!kind) errors.push('El tipo es obligatorio: Producto o Servicio.')
-    if (!unit || !catalogs.units.some(item => item.code === unit)) errors.push('Usa una unidad de medida de la hoja Unidades DIAN.')
+    if (!unit || !catalogs.units.some(item => item.code === unit)) errors.push('Selecciona una unidad de medida DIAN válida.')
     const categories = catalogs.categories.filter(item => normalize(item.name) === normalize(categoryName))
-    if (categoryName && categories.length !== 1) errors.push('La categoría no existe o es ambigua. Usa un nombre único de la hoja Categorías.')
+    if (categoryName && categories.length !== 1) errors.push('La categoría no existe o es ambigua. Selecciona una categoría válida.')
     if (description.length > PRODUCT_DESCRIPTION_MAX_LENGTH) errors.push(`La descripción admite máximo ${PRODUCT_DESCRIPTION_MAX_LENGTH} caracteres.`)
     const taxIds: string[] = []
-    for (const code of [...new Set(taxCodes.split(';').map(productImportKey).filter(Boolean))]) {
+    for (const code of [...new Set(selectedTaxes.map(value => productImportKey(taxCodeByLabel.get(value) ?? value)).filter(Boolean))]) {
       if (code === DEFAULT_IVA_EXCEL_CODE) { taxIds.push(DEFAULT_PRODUCT_IVA_ID); continue }
       const matches = catalogs.taxes.filter(item => item.is_active && productImportKey(item.code) === code)
-      if (matches.length !== 1) errors.push(`Impuesto ${code} desconocido, inactivo o ambiguo. Consulta la hoja Impuestos.`)
+      if (matches.length !== 1) errors.push(`Impuesto ${code} desconocido, inactivo o ambiguo. Selecciona un impuesto válido.`)
       else taxIds.push(matches[0].id)
     }
     const priceIncludesIva = includesIva ? parseBoolean(includesIva) : false

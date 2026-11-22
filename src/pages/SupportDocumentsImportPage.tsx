@@ -14,14 +14,18 @@ import { assignSupportDraftIds, downloadSupportImportTemplate, fetchSupportImpor
 import { sendImportedSupportDocuments } from '../services/supportDocumentsBulkSendService'
 import { createSupportImportSuppliers } from '../services/supportImportSuppliersService'
 import { JARVIS_DOCUMENT_TYPE_OPTIONS, type JarvisMunicipality, type JarvisTercero } from '../types/jarvis'
-import { readSupportDocumentsWorkbook, resolveSupportSuppliers, SUPPORT_IMPORT_MAX_BYTES, supportSupplierKey, type SupportImportRow } from '../utils/supportDocumentsExcel'
+import { readSupportDocumentsWorkbook, resolveSupportSuppliers, SUPPORT_IMPORT_MAX_BYTES, supportSupplierKey, type InvoiceImportKind, type SupportImportRow } from '../utils/supportDocumentsExcel'
 import { shouldShowTablePagination } from '../utils/tablePagination'
 import './SupportDocumentsImportPage.css'
 
 const PAGE_SIZE = 10
 const labels: Record<SupportImportRow['status'], string> = { ready: 'Listo', invalid: 'Revisar Excel', missing_supplier: 'NIT sin registrar', saved: 'Guardado', duplicate: 'Omitido', failed: 'No guardado' }
 
-export default function SupportDocumentsImportPage() {
+export default function SupportDocumentsImportPage({ kind = 'support' }: { kind?: InvoiceImportKind }) {
+  const sales = kind === 'sales'
+  const listPath = sales ? '/factura-venta' : '/documento-soporte'
+  const newPath = sales ? '/factura-venta/nueva' : '/documento-soporte/nuevo'
+  const documentLabel = sales ? 'facturas de venta' : 'documentos soporte'
   const navigate = useNavigate()
   const [success, setSuccess] = useState('')
   const [rows, setRows] = useState<SupportImportRow[]>([])
@@ -50,7 +54,7 @@ export default function SupportDocumentsImportPage() {
   const uncertain = rows.filter(row => row.delivery === 'uncertain').length
   const omitted = rows.filter(row => row.status === 'duplicate').length
   const summary = [
-    `Documentos: ${rows.length}`,
+    `${sales ? 'Facturas' : 'Documentos'}: ${rows.length}`,
     ...[
       ['Pendientes', pending], ['Enviados', sent], ['Por confirmar', uncertain], ['Guardados', saved],
       ['Omitidos', omitted], ['Con errores', invalid], ['Terceros faltantes', missing.length], ['No guardados', failed],
@@ -84,8 +88,8 @@ export default function SupportDocumentsImportPage() {
       previewCompanyRef.current = company
       if (!/\.xlsx?$/i.test(file.name)) throw new Error('Selecciona un Excel .xlsx o .xls con el formato de la plantilla.')
       if (file.size > SUPPORT_IMPORT_MAX_BYTES) throw new Error('El archivo no debe superar 5 MB.')
-      const [buffer, catalogs, suppliers] = await Promise.all([file.arrayBuffer(), fetchSupportImportCatalogs(), fetchJarvisTerceros(undefined, { force: true })])
-      const parsed = await assignSupportDraftIds(readSupportDocumentsWorkbook(buffer, catalogs, suppliers.items), company)
+      const [buffer, catalogs, suppliers] = await Promise.all([file.arrayBuffer(), fetchSupportImportCatalogs(kind), fetchJarvisTerceros(undefined, { force: true })])
+      const parsed = await assignSupportDraftIds(readSupportDocumentsWorkbook(buffer, catalogs, suppliers.items, kind), company, kind)
       if (company !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Vuelve a cargar el archivo.')
       setRows(parsed)
       setProducts(catalogs.products ?? [])
@@ -95,7 +99,7 @@ export default function SupportDocumentsImportPage() {
     if (previewCompanyRef.current !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Vuelve a cargar el archivo.')
     const suppliers = await fetchJarvisTerceros(undefined, { force: true })
     if (previewCompanyRef.current !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Vuelve a cargar el archivo.')
-    setRows(current => resolveSupportSuppliers(current, suppliers.items))
+    setRows(current => resolveSupportSuppliers(current, suppliers.items, kind))
   })
   const createSelectedSuppliers = async (selected: PendingSupplierRow[]) => {
     if (busyRef.current) throw new Error('Espera a que termine la operación actual.')
@@ -105,14 +109,14 @@ export default function SupportDocumentsImportPage() {
     setBusy('Creando terceros…'); setError('')
     try {
       const { suppliers, failures } = await createSupportImportSuppliers(selected, previewCompanyRef.current)
-      setRows(current => resolveSupportSuppliers(current, suppliers))
+      setRows(current => resolveSupportSuppliers(current, suppliers, kind))
       if (failures.length) throw new Error(failures.join(' · '))
     } finally { busyRef.current = false; setBusy('') }
   }
   const handleCreated = (supplier: JarvisTercero) => {
     setCreating(null)
     if (previewCompanyRef.current !== getActiveCompanyId()) { setError('La empresa activa cambió. Vuelve a cargar el archivo.'); return }
-    setRows(current => resolveSupportSuppliers(current, [...current.flatMap(row => row.state.selectedCustomer ? [row.state.selectedCustomer as JarvisTercero] : []), supplier]))
+    setRows(current => resolveSupportSuppliers(current, [...current.flatMap(row => row.state.selectedCustomer ? [row.state.selectedCustomer as JarvisTercero] : []), supplier], kind))
   }
   const send = (selectedRows: SupportImportRow[] = rows) => {
     if (selectedRows.some(row => row.errors.length || !row.state.selectedCustomer)
@@ -125,7 +129,7 @@ export default function SupportDocumentsImportPage() {
         if (update.delivery === 'sending') attempted.add(update.row)
         if (update.delivery === 'sent' && attempted.has(update.row)) completed.add(update.row)
         updateRows([update])
-      })
+      }, kind)
       updateRows(result)
       if (completed.size > 0) setSuccess(`Enviados a DIAN: ${completed.size}.`)
     })
@@ -133,13 +137,14 @@ export default function SupportDocumentsImportPage() {
 
   return <><ExcelImportLayout
     presentation="page"
-    title="Importar documentos soporte"
+    title={`Importar ${documentLabel}`}
+    reviewTitle={sales ? 'Facturas' : 'Documentos'}
     className="support-import" fileName={fileName} hasPreview={rows.length > 0}
     autoReview busy={actionsDisabled} downloading={busy === 'Descargando plantilla…'} status={busy || undefined}
     importLabel={pending ? `Enviar a DIAN (${pending})` : 'Enviar a DIAN'}
     importDisabled={Boolean(invalid) || missing.length > 0 || !pending} finished={!pending && !invalid && !missing.length}
-    onDownload={() => void run('Descargando plantilla…', downloadSupportImportTemplate)}
-    onFile={readFile} onImport={() => send()} onClose={() => navigate('/documento-soporte')}
+    onDownload={() => void run('Descargando plantilla…', () => downloadSupportImportTemplate(kind))}
+    onFile={readFile} onImport={() => send()} onClose={() => navigate(listPath)}
     notice={<>{error && <ErrorMessage inline message={error} />}{success && <SuccessMessage message={success} />}</>}
   >
     {rows.length > 0 && <>
@@ -155,7 +160,7 @@ export default function SupportDocumentsImportPage() {
         })}>Crear varios terceros ({missing.length})</Button>
         <Button variant="ghost" disabled={actionsDisabled} onClick={revalidate}>Validar terceros</Button>
       </div>}
-      <div className="support-import__table-wrap" tabIndex={0} aria-label="Revisión de documentos soporte">
+      <div className="support-import__table-wrap" tabIndex={0} aria-label={`Revisión de ${documentLabel}`}>
         <table className="integration-table">
           <colgroup>
             <col className="support-import__col--reference" /><col className="support-import__col--identification" />
@@ -163,7 +168,7 @@ export default function SupportDocumentsImportPage() {
             <col className="support-import__col--code" /><col className="support-import__col--total" />
             <col className="support-import__col--status" /><col className="support-import__col--actions" />
           </colgroup>
-          <thead><tr><th>Referencia</th><th>NIT / ID</th><th>Empresa</th><th>Producto</th><th>Código</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Referencia</th><th>NIT / ID</th><th>{sales ? 'Cliente' : 'Empresa'}</th><th>Producto</th><th>Código</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>{visible.flatMap(row => row.state.lines.map((line, index) => <tr key={`${row.row}-${line.id}`}>
             {index === 0 && <>
               <td rowSpan={row.state.lines.length}><strong>{row.reference || 'Sin referencia'}</strong><span>Filas {row.sourceRows.join(', ')}</span></td>
@@ -177,8 +182,8 @@ export default function SupportDocumentsImportPage() {
             <td rowSpan={row.state.lines.length} className="support-import__amount">{row.state.documentTotal?.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<span>{row.state.currency}</span></td>
             <td rowSpan={row.state.lines.length} className="support-import__result"><strong className={`support-import__status support-import__status--${row.delivery || row.status}`}>{row.delivery === 'sent' ? 'Enviado a DIAN' : row.delivery === 'sending' ? 'Enviando…' : row.delivery === 'uncertain' ? 'Por confirmar' : labels[row.status]}</strong>
               {row.errors.length > 0 ? <ul>{row.errors.map((message, i) => <li key={i}>{message}</li>)}</ul> : row.status !== 'missing_supplier' && row.message && <span>{row.message}</span>}
-              {row.draftId && !row.delivery && (row.status === 'saved' || row.status === 'duplicate') && <a href={`/documento-soporte/nuevo?borrador=${encodeURIComponent(row.draftId)}`} target="_blank" rel="noopener noreferrer">Abrir documento</a>}
-              {row.delivery && <a href={row.invoiceId ? `/documento-soporte/${encodeURIComponent(row.invoiceId)}/visualizar` : '/documento-soporte'} target="_blank" rel="noopener noreferrer">Ver en historial</a>}
+              {row.draftId && !row.delivery && (row.status === 'saved' || row.status === 'duplicate') && <a href={`${newPath}?borrador=${encodeURIComponent(row.draftId)}`} target="_blank" rel="noopener noreferrer">{sales ? 'Abrir factura' : 'Abrir documento'}</a>}
+              {row.delivery && <a href={row.invoiceId ? `${listPath}/${encodeURIComponent(row.invoiceId)}/visualizar` : listPath} target="_blank" rel="noopener noreferrer">Ver en historial</a>}
             </td>
             <td rowSpan={row.state.lines.length} className="support-import__row-actions">
               {missing.some(supplier => supportSupplierKey(supplier.documentType, supplier.identification) === supportSupplierKey(row.documentType, row.identification))
@@ -193,7 +198,7 @@ export default function SupportDocumentsImportPage() {
           </tr>))}</tbody>
         </table>
       </div>
-      {showPagination && <nav className="support-import__pagination" aria-label="Páginas de la revisión de documentos soporte">
+      {showPagination && <nav className="support-import__pagination" aria-label={`Páginas de la revisión de ${documentLabel}`}>
         <Button variant="outline" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><span>Página {currentPage} de {pages}</span>
         <Button variant="outline" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Siguiente</Button>
       </nav>}

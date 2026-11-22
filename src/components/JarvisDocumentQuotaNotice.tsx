@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
+import { useSubscriptionAccess } from '../context/SubscriptionAccessContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { observeJarvisQuota } from '../services/jarvisQuotaRefresh'
 import './JarvisDocumentQuotaNotice.css'
 
 export default function JarvisDocumentQuotaNotice() {
+  const { readOnly } = useSubscriptionAccess()
   const {
     isJarvisCompany,
     isCheckingSetup,
@@ -21,7 +23,7 @@ export default function JarvisDocumentQuotaNotice() {
   }, [isJarvisCompany, refreshSetupStatus])
 
   const remaining = documentsRemaining ?? Math.max(0, (documentLimit ?? 0) - documentsUsed)
-  if (!isJarvisCompany || isCheckingSetup || !isSubscriptionActive || documentLimit == null || remaining > 0) {
+  if (readOnly || !isJarvisCompany || isCheckingSetup || !isSubscriptionActive || documentLimit == null || remaining > 0) {
     return null
   }
 

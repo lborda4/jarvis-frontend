@@ -9,8 +9,8 @@ import './PayrollLandingPage.css'
 import PricingPeriodToggle from '../components/PricingPeriodToggle'
 import { periodicPrice, type PricingPeriod } from '../marketing/pricingPeriod'
 
-const planHref = buildWhatsappHref(`Hola, me interesa el plan anual de nómina electrónica Jenius para hasta 2 empleados por ${PAYROLL_PLAN.price} COP al año`)
-const advisorHref = buildWhatsappHref('Hola, quiero orientación sobre la nómina electrónica de Jenius para mi empresa')
+const planHref = buildWhatsappHref(`Hola, me interesa el plan anual de nómina electrónica Jarvis para hasta 2 empleados por ${PAYROLL_PLAN.price} COP al año`)
+const advisorHref = buildWhatsappHref('Hola, quiero orientación sobre la nómina electrónica de Jarvis para mi empresa')
 const navigation = [
   { href: '#precios', label: 'El plan' },
   { href: '#como-funciona', label: 'Cómo funciona' },
@@ -20,7 +20,7 @@ const navigation = [
 const steps = [
   { title: 'Configura tu empresa y tus empleados', text: 'Registra la información de tu empresa y de las personas a quienes les enviarás la nómina.' },
   { title: 'Prepara y revisa el periodo', text: 'Ingresa la información de la nómina y revisa los datos antes de enviarla.' },
-  { title: 'Envía y consulta tus documentos', text: 'Realiza el envío de la nómina electrónica y consulta sus documentos desde Jenius.' },
+  { title: 'Envía y consulta tus documentos', text: 'Realiza el envío de la nómina electrónica y consulta sus documentos desde Jarvis.' },
 ]
 const faqs = [
   { question: '¿Cuánto cuesta el plan?', answer: `El plan cuesta ${PAYROLL_PLAN.price} COP al año para hasta 2 empleados. Incluye la generación y el envío de nómina electrónica a la DIAN y permite ampliar tu equipo con recargas.` },
@@ -50,7 +50,7 @@ export default function PayrollLandingPage() {
       <nav className="payroll-landing__breadcrumb" aria-label="Ruta de navegación"><Link to="/">Inicio</Link><span aria-hidden="true">/</span><span aria-current="page">Nómina electrónica</span></nav>
       <section className="payroll-landing__hero" aria-labelledby="payroll-title">
         <div className="payroll-landing__intro">
-          <span className="solution-eyebrow">Nómina electrónica Jenius</span>
+          <span className="solution-eyebrow">Nómina electrónica Jarvis</span>
           <h1 id="payroll-title">La nómina de tu equipo,<br /><span>en orden cada mes.</span></h1>
           <p>Genera y envía tu nómina electrónica a la DIAN y cuenta con acompañamiento para poner todo en marcha.</p>
           <div className="payroll-landing__actions">
@@ -101,7 +101,7 @@ export default function PayrollLandingPage() {
         </div>
         <div>{faqs.map(faq => <details key={faq.question}><summary>{faq.question}</summary><p>{faq.answer}</p></details>)}</div>
       </section>
-      <Link className="payroll-landing__back" to="/">← Ver todas las soluciones Jenius</Link>
+      <Link className="payroll-landing__back" to="/">← Ver todas las soluciones Jarvis</Link>
     </main>
     <MarketingFooter />
   </div>

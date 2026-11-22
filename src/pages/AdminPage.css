@@ -4,6 +4,35 @@
   padding: 2.5rem 1.5rem 3rem;
 }
 
+.admin-shell > .admin-page { width: 100%; max-width: 1600px; }
+.admin-page__client-link { background: var(--jarvis-transparent); border: 0; padding: 0; color: var(--jarvis-primary); font: inherit; font-weight: var(--font-weight-label); text-align: left; cursor: pointer; }
+.admin-page__client-link:hover { text-decoration: underline; }
+.admin-directory-pages { justify-content: flex-end; padding-top: var(--space-4); font-size: var(--text-sm); }
+.admin-directory { table-layout: fixed; }
+.admin-directory td { vertical-align: top; overflow-wrap: anywhere; }
+.admin-directory small { display: block; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--jarvis-text-muted); }
+.admin-directory :is(th, td):last-child { width: 110px; }
+.admin-directory .admin-directory__details > td { width: auto; background: var(--jarvis-gray-50); }
+.admin-company-config { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); padding: var(--space-3); }
+.admin-company-config > section { min-width: 0; }
+.admin-company-config h3 { margin: 0 0 var(--space-3); color: var(--jarvis-text-muted); font-size: var(--text-sm); font-weight: var(--font-weight-label); }
+.admin-company-config :is(.admin-integration-stack, .admin-nextpyme-token, .admin-document-types, .admin-invite-code, .admin-plan-select) { min-width: 0; max-width: 100%; }
+.admin-company-config button:not(.btn), .admin-company-config select { min-height: var(--control-height-sm); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); padding: var(--space-2) var(--space-3); background: var(--jarvis-card-bg); color: var(--jarvis-text); font-family: var(--font-family-base); font-size: var(--text-sm); }
+.admin-company-config button:not(.btn) { color: var(--jarvis-primary); font-weight: var(--font-weight-button); cursor: pointer; }
+.admin-company-config button:not(.btn):hover:not(:disabled) { background: var(--jarvis-primary-soft); border-color: var(--jarvis-primary); }
+.admin-company-config :is(button, select):focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
+@media (max-width: 650px) {
+  .admin-directory, .admin-directory tbody, .admin-directory tr, .admin-directory td { display: block; }
+  .admin-directory thead { display: none; }
+  .admin-directory tr { border-bottom: 1px solid var(--jarvis-border); padding: var(--space-3) 0; }
+  .admin-directory td { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: var(--space-2); border: 0; padding: var(--space-2) 0; }
+  .admin-directory td::before { content: attr(data-label); color: var(--jarvis-text-muted); font-size: var(--text-xs); }
+  .admin-directory :is(th, td):last-child { width: auto; }
+  .admin-directory small { grid-column: 2; }
+  .admin-directory td[colspan] { display: block; }
+  .admin-company-config { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Header ahora es <PageHeader eyebrow="Panel interno" ... /> */
 
 .admin-page__header-actions {

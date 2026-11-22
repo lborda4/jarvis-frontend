@@ -1,8 +1,8 @@
-import XLSX from 'xlsx-js-style'
 import { getApiErrorMessage } from './apiClient'
 import { getActiveCompanyId } from './queryCache'
 import { createJarvisTercero, fetchJarvisMunicipalities, fetchJarvisTerceros, fetchJarvisTypeLiabilities, fetchJarvisTypeRegimes } from './jarvisService'
-import { createTercerosTemplate, TERCEROS_TEMPLATE_FILENAME, terceroImportKey, type TerceroImportRow, type TercerosImportCatalogs } from '../utils/jarvisTercerosExcel'
+import { createTercerosTemplateFile, TERCEROS_TEMPLATE_FILENAME, terceroImportKey, type TerceroImportRow, type TercerosImportCatalogs } from '../utils/jarvisTercerosExcel'
+import { triggerBrowserDownload } from '../utils/downloadFile'
 
 export async function fetchTercerosImportCatalogs(): Promise<TercerosImportCatalogs> {
   const [municipalities, liabilities, regimes] = await Promise.all([
@@ -15,7 +15,8 @@ export async function downloadTercerosTemplate(): Promise<void> {
   const company = getActiveCompanyId()
   const catalogs = await fetchTercerosImportCatalogs()
   if (company !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Descarga la plantilla de nuevo.')
-  XLSX.writeFile(createTercerosTemplate(catalogs), TERCEROS_TEMPLATE_FILENAME, { compression: true })
+  const buffer = createTercerosTemplateFile(catalogs)
+  triggerBrowserDownload(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), TERCEROS_TEMPLATE_FILENAME)
 }
 
 /** Use the existing full tercero creation endpoint: /bulk is for suppliers tied to pending documents. */

@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as XLSX from 'xlsx'
+import * as CFB from 'cfb'
 import type { JarvisTercero } from '../types/jarvis'
 import { apiClient } from './apiClient'
 import { setActiveCompanyId } from './queryCache'
 import { assignSupportDraftIds } from './supportDocumentsImportService'
-import { assignSalesDraftIds, fetchSalesImportCatalogs, MissingSalesCustomersError, saveImportedSalesInvoices } from './salesInvoicesImportService'
-import { createSalesInvoicesTemplate, readSalesInvoicesWorkbook } from '../utils/salesInvoicesExcel'
+import { assignSalesDraftIds, downloadSalesImportTemplate, fetchSalesImportCatalogs, MissingSalesCustomersError, saveImportedSalesInvoices } from './salesInvoicesImportService'
+import { LEGACY_SALES_INVOICE_EXCEL_COLUMNS, readSalesInvoicesWorkbook } from '../utils/salesInvoicesExcel'
+import { triggerBrowserDownload } from '../utils/downloadFile'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn(), put: vi.fn(), post: vi.fn() }, getApiErrorMessage: (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback }))
+vi.mock('../utils/downloadFile', () => ({ triggerBrowserDownload: vi.fn() }))
 const customer = { id: 'client', document_type: 'NIT', document_number: '900123', name: 'Cliente' } as JarvisTercero
 function rows(references = ['FV-1']) {
-  const book = createSalesInvoicesTemplate()
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([[...LEGACY_SALES_INVOICE_EXCEL_COLUMNS]]), 'Facturas de venta')
   XLSX.utils.sheet_add_aoa(book.Sheets['Facturas de venta'], references.map(reference => [reference, '2026-11-07', 'NIT', '900123', 'Servicio', 1, 100, 'Efectivo']), { origin: 'A2' })
   return readSalesInvoicesWorkbook(XLSX.write(book, { type: 'array', bookType: 'xlsx' }), { currencies: ['COP'], taxes: [], paymentMethods: [{ id: 'cash', name: 'Efectivo', negotiation: 'CASH', nextpymeMethodId: 10, nextpymeMethodName: 'Efectivo' }] }, [customer])
 }
@@ -75,5 +79,33 @@ describe('guardado masivo de facturas de venta', () => {
     vi.mocked(apiClient.get).mockImplementation(async () => { setActiveCompanyId('company-b'); return { data: { items: [] } } })
     await expect(saveImportedSalesInvoices(rows(), vi.fn())).rejects.toThrow('empresa activa cambió')
     expect(apiClient.put).not.toHaveBeenCalled()
+  })
+  it('descarga una sola hoja con los productos, monedas, vendedores y formas de pago de la empresa', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async url => ({ data: url === '/integrations/jarvis/catalogs' ? { taxes: [], currencies: [{ code: 'USD' }] }
+      : { items: url === '/integrations/jarvis/sellers' ? [{ id: 'seller', name: 'Ana' }]
+        : url === '/products' ? [{ sku: '00042', name: 'Mi producto' }]
+          : url === '/integrations/jarvis/payment-methods' ? [{ id: 'cash', name: 'Mi efectivo', negotiation: 'CASH', nextpymeMethodId: 10, nextpymeMethodName: 'Efectivo' }] : [] } }))
+    await downloadSalesImportTemplate()
+    const [blob, filename] = vi.mocked(triggerBrowserDownload).mock.calls[0]
+    expect(filename).toBe('plantilla-facturas-venta-jarvis.xlsx')
+    const buffer = await blob.arrayBuffer()
+    const book = XLSX.read(buffer, { type: 'array' })
+    expect(book.SheetNames).toEqual(['Facturas de venta'])
+    const sheet = book.Sheets['Facturas de venta']
+    expect(sheet.AB2.v).toBe('00042')
+    expect(sheet.AC2.v).toBe('COP')
+    expect(sheet.AC3.v).toBe('USD')
+    expect(sheet.AD2.v).toBe('Ana')
+    const archive = CFB.read(new Uint8Array(buffer), { type: 'buffer' })
+    const xml = new TextDecoder().decode(new Uint8Array(CFB.find(archive, '/xl/worksheets/sheet1.xml')!.content))
+    for (const name of ['CodigosProductosVenta', 'MonedasVenta', 'VendedoresVenta', 'FormasPagoVenta']) expect(xml).toContain(`<formula1>${name}</formula1>`)
+  })
+  it('no descarga la plantilla con datos de otra empresa si cambia durante la consulta', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async url => {
+      setActiveCompanyId('company-b')
+      return { data: url === '/integrations/jarvis/catalogs' ? { taxes: [], currencies: [] } : { items: [] } }
+    })
+    await expect(downloadSalesImportTemplate()).rejects.toThrow('empresa activa cambió')
+    expect(triggerBrowserDownload).not.toHaveBeenCalled()
   })
 })

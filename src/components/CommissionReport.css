@@ -1,0 +1,23 @@
+.commission-report h2 { margin: 0; font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.commission-report h3 { font-size: var(--text-xl); font-weight: var(--font-weight-heading); margin-top: var(--space-5); }
+.commission-report__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-4); }
+.commission-report__heading label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.commission-report__heading input { padding: var(--space-2); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); color: var(--jarvis-text); background: var(--jarvis-card-bg); font: inherit; }
+.commission-report__totals { display: flex; gap: var(--space-6); flex-wrap: wrap; margin-bottom: var(--space-4); padding: var(--space-4); background: var(--jarvis-primary-soft); border-radius: var(--r-md); }
+.commission-report__totals span, .commission-report__totals strong { display: block; }
+.commission-report__totals strong { font-size: var(--text-2xl); font-weight: var(--font-weight-heading); color: var(--jarvis-primary); }
+.commission-report__table table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--text-sm); }
+.commission-report__table th, .commission-report__table td { text-align: left; vertical-align: top; padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--jarvis-border); overflow-wrap: anywhere; }
+.commission-report__table th { background: var(--jarvis-input-bg); font-weight: var(--font-weight-label); }
+.commission-report__table small { display: block; color: var(--jarvis-text-muted); font-size: var(--text-xs); margin-top: var(--space-1); }
+.commission-report__pages { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+.commission-report__hint { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.commission-report__views { margin: var(--space-5) 0; }
+.commission-report h3 { font-size: var(--text-xl); font-weight: var(--font-weight-heading); color: var(--jarvis-navy); }
+.commission-report__summary { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.commission-report__summary li { display: flex; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); }
+.advisor-preview { border: 1px solid var(--jarvis-primary-border); border-radius: var(--r-md); background: var(--jarvis-primary-soft); padding: var(--space-4); }
+.advisor-preview h3 { margin: 0 0 var(--space-3); font-size: var(--text-xl); font-weight: var(--font-weight-heading); }
+.advisor-preview p { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
+.advisor-preview small { font-size: var(--text-sm); color: var(--jarvis-text-muted); }
+@media (max-width: 650px) { .commission-report__table table, .commission-report__table tbody, .commission-report__table tr, .commission-report__table td { display: block; } .commission-report__table thead { display: none; } .commission-report__table td { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: var(--space-2); } .commission-report__table td::before { content: attr(data-label); color: var(--jarvis-text-muted); } .commission-report__table td[colspan] { display: block; } }

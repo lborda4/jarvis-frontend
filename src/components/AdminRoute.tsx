@@ -1,11 +1,12 @@
 import { Navigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import { isAdminRole } from '../constants/userRole'
 import LoadingIndicator from './LoadingIndicator'
 import { useAuth } from '../context/AuthContext'
 import AdminPage from '../pages/AdminPage'
 import '../pages/AuthPages.css'
 
-function AdminRoute() {
+function AdminRoute({ children }: { children?: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth()
 
   if (isLoading) {
@@ -24,7 +25,7 @@ function AdminRoute() {
     return <Navigate to="/inicio" replace />
   }
 
-  return <AdminPage />
+  return children ?? <AdminPage />
 }
 
 export default AdminRoute

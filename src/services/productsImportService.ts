@@ -1,10 +1,10 @@
-import XLSX from 'xlsx-js-style'
 import { getApiErrorMessage } from './apiClient'
 import { ensureDefaultProductIva, fetchJarvisTaxes } from './jarvisService'
 import { createProduct, fetchProductCategories, fetchProducts, fetchUnitMeasures } from './productService'
 import { getActiveCompanyId } from './queryCache'
 import { DEFAULT_PRODUCT_IVA_ID } from '../utils/productTaxes'
-import { createProductsTemplate, PRODUCTS_TEMPLATE_FILENAME, productImportKey, type ProductImportRow, type ProductsImportCatalogs } from '../utils/productsExcel'
+import { createProductsTemplateFile, PRODUCTS_TEMPLATE_FILENAME, productImportKey, type ProductImportRow, type ProductsImportCatalogs } from '../utils/productsExcel'
+import { triggerBrowserDownload } from '../utils/downloadFile'
 
 export async function fetchProductsImportCatalogs(): Promise<ProductsImportCatalogs> {
   const [units, categories, taxes] = await Promise.all([fetchUnitMeasures(), fetchProductCategories(), fetchJarvisTaxes()])
@@ -15,7 +15,8 @@ export async function downloadProductsTemplate(): Promise<void> {
   const company = getActiveCompanyId()
   const catalogs = await fetchProductsImportCatalogs()
   if (company !== getActiveCompanyId()) throw new Error('La empresa activa cambió. Descarga la plantilla de nuevo.')
-  XLSX.writeFile(createProductsTemplate(catalogs), PRODUCTS_TEMPLATE_FILENAME, { compression: true })
+  const buffer = createProductsTemplateFile(catalogs)
+  triggerBrowserDownload(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), PRODUCTS_TEMPLATE_FILENAME)
 }
 
 export async function saveImportedProducts(rows: ProductImportRow[], onProgress: (row: ProductImportRow) => void): Promise<ProductImportRow[]> {

@@ -1,0 +1,17 @@
+.terceros-import { min-width: 0; }
+.terceros-import__summary { padding: .75rem 1rem; border-radius: var(--r-sm); background: var(--jarvis-gray-50); }
+.terceros-import__table-wrap { overflow-x: auto; border: 1px solid var(--jarvis-border); border-radius: var(--r-sm); }
+.terceros-import__table-wrap table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.terceros-import .terceros-import__table-wrap .integration-table :is(th, td) { padding: .6rem .45rem; text-align: left; vertical-align: top; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.terceros-import__table-wrap th:first-child { width: 6%; }
+.terceros-import__table-wrap th:nth-child(2) { width: 24%; }
+.terceros-import__table-wrap th:nth-child(3) { width: 32%; }
+.terceros-import__table-wrap th { background: var(--jarvis-gray-50); }
+.terceros-import__table-wrap td { border-top: 1px solid var(--jarvis-border); }
+.terceros-import__table-wrap ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+.terceros-import__table-wrap td > span { display: block; margin-top: .3rem; }
+.terceros-import__status--saved { color: var(--jarvis-success); }
+.terceros-import__status--invalid, .terceros-import__status--failed { color: var(--jarvis-danger); }
+.terceros-import__status--duplicate { color: var(--jarvis-text-muted); }
+.terceros-import__pagination { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: .75rem; margin-top: .8rem; }
+.terceros-import__table-wrap:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }

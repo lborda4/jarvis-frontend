@@ -5,9 +5,9 @@ import { test } from 'node:test'
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 const pages = [
   { path: '/', file: 'index.html', heading: 'Elige tu solución', product: null },
-  { path: '/siigo', file: 'siigo/index.html', heading: 'Automatización contable con Siigo', product: 'Jenius para Siigo' },
-  { path: '/facturacion-electronica', file: 'facturacion-electronica/index.html', heading: 'Facturación electrónica en Colombia', product: 'Facturación Jenius' },
-  { path: '/nomina-electronica', file: 'nomina-electronica/index.html', heading: 'La nómina de tu equipo,', product: 'Nómina electrónica Jenius' },
+  { path: '/siigo', file: 'siigo/index.html', heading: 'Automatización contable con Siigo', product: 'Jarvis para Siigo' },
+  { path: '/facturacion-electronica', file: 'facturacion-electronica/index.html', heading: 'Facturación electrónica en Colombia', product: 'Facturación Jarvis' },
+  { path: '/nomina-electronica', file: 'nomina-electronica/index.html', heading: 'La nómina de tu equipo,', product: 'Nómina electrónica Jarvis' },
 ]
 
 for (const page of pages) {
@@ -30,11 +30,11 @@ for (const page of pages) {
     const match = html.match(/<script id="jarvis-structured-data" type="application\/ld\+json">([\s\S]*?)<\/script>/)
     assert.ok(match, 'Structured data must be delivered by the server')
     const graph = JSON.parse(match[1])['@graph']
-    assert.equal(graph.find(item => item['@type'] === 'WebSite').name, 'Jenius')
-    assert.equal(graph.find(item => item['@type'] === 'Organization').name, 'Jenius')
-    assert.ok(html.includes('content="Jenius"'))
-    assert.ok(html.includes('/jenius-social.png'))
-    assert.ok(!html.includes('JARVIS'), 'Public HTML must use the new brand')
+    assert.equal(graph.find(item => item['@type'] === 'WebSite').name, 'Jarvis')
+    assert.equal(graph.find(item => item['@type'] === 'Organization').name, 'Jarvis')
+    assert.ok(html.includes('content="Jarvis"'))
+    assert.ok(html.includes('/jarvis-social.png'))
+    assert.ok(!/jenius/i.test(html), 'Public HTML must use the Jarvis brand')
     assert.equal(graph.find(item => item['@type'] === 'WebPage').url, url)
     const applications = graph.filter(item => item['@type'] === 'SoftwareApplication')
     assert.equal(applications.length, page.product ? 1 : 0)

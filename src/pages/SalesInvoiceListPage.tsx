@@ -5,14 +5,13 @@ import { deleteInvoiceDraft } from '../services/invoiceDraftService'
 import DateRangeFilter from '../components/DateRangeFilter'
 import InvoiceNoteActions from '../components/InvoiceNoteActions'
 import DocumentEmailModal, { MailIcon } from '../components/DocumentEmailModal'
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../components/Button'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingIndicator from '../components/LoadingIndicator'
-import SuccessMessage from '../components/SuccessMessage'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
-import { BULK_IMPORT_ENABLED, SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
+import { SALES_INVOICE_BULK_IMPORT_ENABLED, SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
 import { fetchJarvisInvoicePdfData } from '../services/jarvisService'
 import { loadSalesInvoicePdfRenderer } from '../utils/loadSalesInvoicePdfRenderer'
@@ -20,7 +19,6 @@ import { triggerBrowserDownload } from '../utils/downloadFile'
 import { jarvisHistoryQueryKey, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSalesInvoices, fetchJarvisSupportCreditNotes, fetchJarvisSupportInvoices, type JarvisSalesInvoiceList } from '../services/jarvisService'
 import './SalesInvoiceListPage.css'
 
-const ImportSalesInvoicesModal = lazy(() => import('../components/ImportSalesInvoicesModal'))
 
 function InvoiceIcon() {
   return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Z" strokeLinejoin="round"/><path d="M14 3v5h5M8 12h8M8 16h5" strokeLinecap="round"/></svg>
@@ -72,24 +70,25 @@ function AdjustmentStatus({ invoice }: { invoice: JarvisSalesInvoiceList['items'
 }
 
 export default function SalesInvoiceListPage({ supportDocument = false, creditNote = false, debitNote = false, adjustmentNote = false }: { supportDocument?: boolean; creditNote?: boolean; debitNote?: boolean; adjustmentNote?: boolean }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlSearch = searchParams.get('buscar')?.trim() ?? ''
+  const previousUrlSearch = useRef(urlSearch)
   const newPath = debitNote ? '/nota-debito/nueva' : adjustmentNote ? '/nota-ajuste/nueva' : creditNote ? '/nota-credito/nueva' : supportDocument ? '/documento-soporte/nuevo' : '/factura-venta/nueva'
   const plural = debitNote ? 'notas débito' : adjustmentNote ? 'notas de ajuste' : creditNote ? 'notas crédito' : supportDocument ? 'documentos soporte' : 'facturas'
   const newLabel = debitNote ? 'Nueva nota débito' : adjustmentNote ? 'Nueva nota de ajuste' : creditNote ? 'Nueva nota crédito' : supportDocument ? 'Nuevo documento soporte' : 'Nueva factura'
   const codeLabel = (creditNote || debitNote) ? 'CUDE' : (supportDocument || adjustmentNote) ? 'CUDS' : 'CUFE'
   const isNoteList = creditNote || debitNote || adjustmentNote
   const partyLabel = supportDocument || adjustmentNote ? 'Proveedor' : 'Cliente'
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(urlSearch)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [filters, setFilters] = useState({ search: '', from: '', to: '', page: 1 })
+  const [filters, setFilters] = useState({ search: urlSearch, from: '', to: '', page: 1 })
   const [revision, setRevision] = useState(0)
   const cached = peekCachedQuery<JarvisSalesInvoiceList>(jarvisHistoryQueryKey(debitNote ? 'debit' : adjustmentNote ? 'adjustment' : creditNote ? 'credit' : supportDocument))
   const refreshRequested = useRef(false)
   const [data, setData] = useState<JarvisSalesInvoiceList>(() => cached ?? { items: [], total: 0, page: 1, pageSize: 20 })
   const [isLoading, setIsLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState('')
-  const [isImportOpen, setIsImportOpen] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
@@ -97,7 +96,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
   const downloadInProgress = useRef(false)
   const [emailDocument, setEmailDocument] = useState<JarvisSalesInvoiceList['items'][number] | null>(null)
   const isSalesInvoice = !supportDocument && !creditNote && !debitNote && !adjustmentNote
-  const canImport = !isNoteList && (supportDocument ? SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED : BULK_IMPORT_ENABLED)
+  const canImport = !isNoteList && (supportDocument ? SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED : SALES_INVOICE_BULK_IMPORT_ENABLED)
   const showNoteActions = isSalesInvoice || supportDocument
   const listPath = debitNote ? '/nota-debito' : adjustmentNote ? '/nota-ajuste' : creditNote ? '/nota-credito' : supportDocument ? '/documento-soporte' : '/factura-venta'
   const documentLabel = debitNote ? 'nota débito' : adjustmentNote ? 'nota de ajuste' : creditNote ? 'nota crédito' : supportDocument ? 'documento' : 'factura'
@@ -115,6 +114,13 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
       setDownloadError(getApiErrorMessage(failure, 'No se pudo descargar el PDF. Intenta nuevamente.'))
     } finally { downloadInProgress.current = false; setDownloadingId(null) }
   }
+
+  useEffect(() => {
+    if (previousUrlSearch.current === urlSearch) return
+    previousUrlSearch.current = urlSearch
+    setSearch(urlSearch); setFrom(''); setTo(''); setIsLoading(true); setExpandedId(null)
+    setFilters({ search: urlSearch, from: '', to: '', page: 1 })
+  }, [urlSearch])
 
   useEffect(() => {
     let active = true
@@ -144,10 +150,16 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
     if (from && to && from > to) { setError('La fecha inicial no puede ser posterior a la fecha final.'); return }
     setIsLoading(true); setError(null); setExpandedId(null)
     setFilters({ search: search.trim(), from, to, page: 1 })
+    previousUrlSearch.current = search.trim()
+    const next = new URLSearchParams(searchParams)
+    if (search.trim()) next.set('buscar', search.trim()); else next.delete('buscar')
+    setSearchParams(next)
   }
   const clearFilters = () => {
     setSearch(''); setFrom(''); setTo(''); setError(null); setIsLoading(true); setExpandedId(null)
     setFilters({ search: '', from: '', to: '', page: 1 })
+    previousUrlSearch.current = ''
+    const next = new URLSearchParams(searchParams); next.delete('buscar'); setSearchParams(next)
   }
   const changePage = (page: number) => {
     setIsLoading(true); setError(null); setExpandedId(null)
@@ -163,19 +175,12 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
       actions={<>
         {canImport && (supportDocument
           ? <Link className="btn btn--outline btn--md" to="/documento-soporte/importar"><ImportIcon />Importar documentos soporte</Link>
-          : <Button variant="outline" onClick={() => setIsImportOpen(true)}><ImportIcon />Importar facturas de venta</Button>)}
+          : <Link className="btn btn--outline btn--md" to="/factura-venta/importar"><ImportIcon />Importar facturas de venta</Link>)}
         <Link className="sales-history__new" to={newPath}>{!isNoteList && <PlusIcon />}{newLabel}</Link>
       </>}
     />
-    {success && <SuccessMessage message={success} />}
     {downloadingId && <LoadingIndicator message="Preparando descarga del PDF…" />}
     {downloadError && <ErrorMessage message={downloadError} />}
-    {isImportOpen && canImport && !supportDocument && <Suspense fallback={<LoadingIndicator message="Cargando importador…" />}>
-      <ImportSalesInvoicesModal onClose={() => setIsImportOpen(false)} onImported={count => {
-        setSuccess(`Se guardaron ${count} facturas de venta. Puedes abrirlos desde el listado para revisar y enviar a DIAN.`)
-        reload()
-      }} />
-    </Suspense>}
 
     <section className="sales-history__card integration-card" aria-label={`Historial de ${plural}`}>
       <div className="sales-history__heading integration-card-header">

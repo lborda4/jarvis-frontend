@@ -54,11 +54,11 @@ describe('carga masiva de documentos soporte', () => {
     expect(xml.includes('<formula1>FormasPagoSoporte</formula1>')).toBe(true)
     expect(xml.includes('<formula1>CodigosProductosSoporte</formula1>')).toBe(true)
   })
-  it('no consulta productos al obtener los catálogos de facturas de venta', async () => {
+  it('incluye productos al obtener los catálogos de facturas de venta', async () => {
     vi.mocked(apiClient.get).mockImplementation(async url => ({ data: url === '/integrations/jarvis/catalogs' ? { taxes: [], currencies: [] } : { items: [] } }))
     const catalogs = await fetchSupportImportCatalogs('sales')
-    expect(catalogs.products).toBeUndefined()
-    expect(vi.mocked(apiClient.get).mock.calls.some(([url]) => url === '/products')).toBe(false)
+    expect(catalogs.products).toEqual([])
+    expect(vi.mocked(apiClient.get).mock.calls.some(([url]) => url === '/products')).toBe(true)
   })
   it('reconsulta los NIT y no guarda nada si falta uno, aunque la caché lo tenga', async () => {
     setCachedQuery(companyQueryKey(['jarvis', 'terceros']), { items: [supplier], total: 1 })
