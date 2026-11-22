@@ -10,6 +10,7 @@ import './LandingPage.css'
 import { ComplianceCombos } from '../components/PortfolioPricing'
 import SolutionLanding from './SolutionLanding'
 import PayrollLandingPage from './PayrollLandingPage'
+import BillingPlanSimulator from '../components/BillingPlanSimulator'
 import PricingPeriodToggle from '../components/PricingPeriodToggle'
 import { periodicPrice, type PricingPeriod } from '../marketing/pricingPeriod'
 
@@ -676,5 +677,5 @@ function LandingContent({ product }: { product?: Product }) {
 }
 
 export default function MarketingContent({ product }: { product?: MarketingProduct }) {
-  return product === 'payroll' ? <PayrollLandingPage /> : <LandingContent product={product} />
+  return <>{product === 'payroll' ? <PayrollLandingPage /> : <LandingContent product={product} />}<BillingPlanSimulator /></>
 }

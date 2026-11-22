@@ -831,10 +831,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       try {
         await saveInvoiceDraft(draftIdRef.current, documentKind, draftState())
         await persistAttachment(true)
-        hydratedDraftRef.current = `${documentKind}:${draftIdRef.current}`
-        setDraftLoaded(true)
-        setSearchParams(current => { const next = new URLSearchParams(current); next.delete('duplicar'); next.set('borrador', draftIdRef.current); return next }, { replace: true })
-        setSuccessMessage('Borrador guardado. Puedes seguir editándolo; aún no se ha enviado a la DIAN.')
+        navigate(`${listPath}/${encodeURIComponent(draftIdRef.current)}/visualizar?borrador=1`)
       } catch (error) {
         setErrorMessage(getApiErrorMessage(error, 'No se pudo guardar el borrador.'))
       } finally { setIsSubmitting(false); setSubmitMode(null) }
@@ -852,6 +849,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       const response = await (debitNote ? createJarvisDebitNote : adjustmentNote ? createJarvisSupportCreditNote : isNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest(attachment ? draftIdRef.current : undefined))
       const consecutive = response.invoice?.consecutive || response.invoice?.number
       setSuccessMessage(`${documentTitle} ${consecutive ?? ""} ${supportDocument ? "enviado" : "enviada"} a DIAN.`)
+      const creditPending = response.noteDocumentCredit && response.noteDocumentCredit !== 'APPLIED'
       const usedNumber = Number(response.invoice?.number)
       setNextConsecutive(
         Number.isFinite(usedNumber) && usedNumber >= 1
@@ -859,6 +857,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           : (nextConsecutive ?? 1) + 1,
       )
       resetForm()
+      if (creditPending) setErrorMessage('La nota se envió. El abono de un documento en NextPyme requiere revisión; no vuelvas a enviar la nota.')
       if (duplicateId) setSearchParams(current => { const next = new URLSearchParams(current); next.delete('duplicar'); return next }, { replace: true })
       if ((draftId || attachment) && (!attachment || response.invoice.historyId)) {
         try { await deleteInvoiceDraft(draftIdRef.current) }
@@ -866,7 +865,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         setSearchParams(current => { const next = new URLSearchParams(current); next.delete('borrador'); return next }, { replace: true })
       }
       draftIdRef.current = crypto.randomUUID()
-      if (mode === 'send' && response.invoice.historyId) {
+      if (mode === 'send' && response.invoice.historyId && !creditPending) {
         navigate(`${listPath}/${encodeURIComponent(response.invoice.historyId)}/visualizar`)
       }
     } catch (error) {

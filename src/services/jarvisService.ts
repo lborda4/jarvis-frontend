@@ -174,6 +174,7 @@ export interface CreateJarvisInvoiceRequest {
 
 export interface CreateJarvisInvoiceResponse {
   success: boolean
+  noteDocumentCredit?: 'APPLIED' | 'PROCESSING' | 'FAILED' | 'UNCERTAIN' | 'SKIPPED'
   invoice: {
     historyId?: string
     id: string

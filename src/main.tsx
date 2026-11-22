@@ -14,7 +14,8 @@ const app = (
   </StrictMode>
 )
 
-if (root.hasChildNodes() && isPublicPath(window.location.pathname) && !hasBrowserSession()) {
+// The development template has a comment inside #root, but no prerendered elements to hydrate.
+if (root.childElementCount > 0 && isPublicPath(window.location.pathname) && !hasBrowserSession()) {
   hydrateRoot(root, app)
 } else {
   createRoot(root).render(app)

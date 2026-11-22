@@ -122,6 +122,7 @@ export interface PayrollDocument {
   updatedAt: string
 }
 export interface PayrollDetail {
+  noteDocumentCredit?: 'APPLIED' | 'PROCESSING' | 'FAILED' | 'UNCERTAIN' | 'SKIPPED'
   id: string
   updated_at?: string
   state: PayrollState

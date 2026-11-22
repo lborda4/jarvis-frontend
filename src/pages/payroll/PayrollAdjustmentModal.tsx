@@ -118,6 +118,7 @@ export default function PayrollAdjustmentModal({ month, noteType, concepts, onCl
         {shouldShowTablePagination(lines.length, pageSize) && <nav className="payroll__pagination" aria-label="Páginas de novedades del ajuste"><button className="payroll__button" disabled={busy || currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><span>{currentPage} / {pages}</span><button className="payroll__button" disabled={busy || currentPage === pages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></nav>}
         {result && <div className={`payroll__notice${result.status === 'REJECTED' ? ' payroll__notice--error' : ''}`} role="status">
           {result.status === 'ACCEPTED' ? noteType === 2 ? 'La DIAN aceptó la anulación de este envío.' : 'La DIAN aceptó el reemplazo de la nómina.' : `Ajuste: ${statusLabels[result.status] ?? 'Pendiente de confirmación'}.`}
+          {result.noteDocumentCredit && result.noteDocumentCredit !== 'APPLIED' && <p>El abono de un documento en NextPyme requiere revisión. No vuelvas a enviar el ajuste.</p>}
           {messages.length > 0 && <ul>{messages.map(message => <li key={message}>{message}</li>)}</ul>}
         </div>}
         <div className="payroll__toolbar">
