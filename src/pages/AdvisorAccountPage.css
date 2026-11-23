@@ -18,3 +18,6 @@
   .advisor-clients td::before { content: attr(data-label); font-size: var(--text-xs); color: var(--jarvis-text-muted); }
   .advisor-clients td[colspan] { display: block; }
 }
+
+.advisor-admin-switcher { display: flex; align-items: end; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.advisor-admin-switcher .admin-form__field { flex: 1; min-width: min(100%, 240px); }

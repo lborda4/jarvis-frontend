@@ -1,7 +1,7 @@
 .company-create { gap: var(--space-5); }
 .company-create .admin-card { margin-bottom: 0; min-width: 0; }
 .company-create h2 { margin: 0 0 var(--space-4); color: var(--jarvis-navy); font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
-.company-create__columns { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; gap: var(--space-5); }
+.company-create__columns { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: stretch; gap: var(--space-5); }
 .company-create__information, .company-create__commercial { display: flex; flex-direction: column; gap: var(--space-4); }
 .company-create__information h2, .company-create__commercial h2 { margin-bottom: 0; }
 .company-create__integrations { padding: var(--space-4) var(--space-5); }
@@ -34,3 +34,31 @@
 .company-create__plan:focus-within, .company-create__integration:focus-within, .company-topups__option:focus-within { outline: 2px solid var(--jarvis-primary); outline-offset: 2px; }
 @media (max-width: 1000px) { .company-create__columns { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .company-create .admin-form__grid { grid-template-columns: minmax(0, 1fr); } .company-create__integration { flex: 1; justify-content: center; padding: var(--space-3); } .company-create__actions .btn { flex: 1; } }
+.company-create__information h2, .company-create__commercial h2, .company-create__recharges h2 { display: flex; align-items: center; gap: var(--space-3); }
+.company-create__step { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--r-md); background: var(--jarvis-primary-soft); color: var(--jarvis-primary-hover); font-size: var(--text-sm); font-weight: var(--font-weight-label); }
+.company-create .company-create__information, .company-create .company-create__commercial, .company-create .company-create__recharges { border-top: 3px solid var(--jarvis-primary-border); }
+.company-create__plan-picker { display: grid; gap: var(--space-4); }
+.company-create__selected-plan { display: grid; gap: var(--space-3); border: 1px solid var(--jarvis-primary-border); background: var(--jarvis-primary-soft); border-radius: var(--r-md); padding: var(--space-5); }
+.company-create__selected-label { color: var(--jarvis-primary-hover); font-size: var(--text-xs); font-weight: var(--font-weight-label); }
+.company-create__selected-plan strong { font-size: var(--text-xl); font-weight: var(--font-weight-heading); color: var(--jarvis-navy); }
+.company-create__selected-price { color: var(--jarvis-navy); font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.company-create__selected-plan small { font-size: var(--text-sm); color: var(--jarvis-text-muted); }
+.company-create__purchase { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.company-create__recharges { display: grid; gap: var(--space-4); }
+.company-create__recharges h2 { margin-bottom: 0; }
+.company-create__recharges .company-create__topup-toggle { justify-content: space-between; padding: var(--space-3); background: var(--jarvis-input-bg); border-radius: var(--r-md); }
+.company-create .admin-card.company-create__order { background: var(--jarvis-navy); color: var(--jarvis-white); border-color: var(--jarvis-navy); }
+.company-create .company-create__order h2 { color: var(--jarvis-white); }
+.company-create__order [role="status"] { gap: var(--space-3); font-size: var(--text-sm); }
+.company-create__order [role="status"] > strong:last-child { margin-top: var(--space-2); padding-top: var(--space-4); border-top: 1px solid var(--jarvis-accent); font-size: var(--text-2xl); color: var(--jarvis-accent); font-weight: var(--font-weight-heading); }
+.company-create__order .company-create__hint { margin-top: var(--space-4); color: var(--jarvis-gray-300); font-size: var(--text-xs); }
+.company-topups-picker { display: grid; gap: var(--space-3); }
+.company-topups-picker__list { display: grid; gap: var(--space-2); }
+.company-topups-picker__item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-md); }
+.company-topups-picker__item > span { display: grid; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.company-topups-picker__item strong { font-size: var(--text-sm); font-weight: var(--font-weight-label); }
+.company-topups-picker__item small { font-size: var(--text-sm); color: var(--jarvis-text-muted); }
+.company-create__actions { padding: var(--space-4); background: var(--jarvis-card-bg); border: 1px solid var(--jarvis-border); border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
+@media (max-width: 1000px) { .company-create__columns, .company-create__purchase { grid-template-columns: minmax(0, 1fr); } }
+.company-create__selected-features { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--jarvis-primary-border); }
+.company-create__selected-features span { color: var(--jarvis-primary-hover); font-size: var(--text-xs); }

@@ -93,6 +93,8 @@ function isJarvisSetupComplete({
 
 export function IntegrationSetupProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth()
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const companyId = user?.company?.id
   const hasJarvisBilling = companyJarvisModules(user?.company?.jarvisModules).includes('BILLING')
   const [initialSnapshot] = useState(() => readIntegrationSetupSnapshot<IntegrationSetupContextValue>(user?.id, companyId))
@@ -137,6 +139,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
   }, [])
 
   const refreshSetupStatus = useCallback(async (options?: { background?: boolean; quotaOnly?: boolean; force?: boolean }) => {
+    if (!mounted.current) return
     // Evita un frame en falso "no configurado" durante el restore de sesión.
     if (isAuthLoading) {
       setIsCheckingSetup(true)
@@ -167,7 +170,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
     if (options?.quotaOnly) {
       try {
         const subscription = await fetchJarvisSubscriptionStatus({ force: options.force })
-        if (getActiveCompanyId() !== companyId) return
+        if (!mounted.current || getActiveCompanyId() !== companyId) return
         setIsSubscriptionActive(subscription.status === 'ACTIVE')
         setDocumentLimit(subscription.documentLimit)
         setDocumentsUsed(subscription.documentsUsed)
@@ -196,12 +199,12 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
     try {
       const { providers } = await fetchIntegrationProviders(companyId)
-      if (getActiveCompanyId() !== companyId) return
+      if (!mounted.current || getActiveCompanyId() !== companyId) return
       const mode = resolveIntegrationMode(providers)
 
       if (mode === 'siigo') {
         const status = await fetchSiigoCredentialsStatus()
-        if (getActiveCompanyId() !== companyId) return
+        if (!mounted.current || getActiveCompanyId() !== companyId) return
         confirmedSetupRef.current = true
         setIntegrationProviders(providers)
         setIntegrationMode(mode)
@@ -234,7 +237,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
 
       if (mode === 'jarvis') {
         const status = await fetchJarvisCredentialsStatus()
-        if (getActiveCompanyId() !== companyId) return
+        if (!mounted.current || getActiveCompanyId() !== companyId) return
         confirmedSetupRef.current = true
         setIntegrationProviders(providers)
         setIntegrationMode(mode)
@@ -290,7 +293,7 @@ export function IntegrationSetupProvider({ children }: { children: ReactNode }) 
       setDocumentsRemaining(null)
       clearIntegrationConfigured()
     } catch {
-      if (getActiveCompanyId() !== companyId) return
+      if (!mounted.current || getActiveCompanyId() !== companyId) return
       // A failed background refresh must not discard the confirmed setup or
       // unmount a form immediately after it has saved successfully.
       if (isBackgroundRefresh) return

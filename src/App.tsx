@@ -1,8 +1,8 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import AdminRoute from './components/AdminRoute'
 import AdminClientDetailPage from './pages/AdminClientDetailPage'
 import AdvisorRegistrationPage from './pages/AdvisorRegistrationPage'
-import AdvisorAccountPage from './pages/AdvisorAccountPage'
+import AdvisorAccountPage, { AdminAdvisorAccountPage } from './pages/AdvisorAccountPage'
 import DefaultAppRedirect from './components/DefaultAppRedirect'
 import ProtectedRoute from './components/ProtectedRoute'
 import SupportDocumentRoute from './components/SupportDocumentRoute'
@@ -39,13 +39,13 @@ import PayrollPage from './pages/payroll/PayrollPage'
 import RegisterPage from './pages/RegisterPage'
 import './styles/integration.css'
 
+function CompanyApplicationProviders() {
+  return <SubscriptionAccessProvider><SiigoSetupProvider><SiigoCatalogProvider><ImportSessionProvider><Outlet /></ImportSessionProvider></SiigoCatalogProvider></SiigoSetupProvider></SubscriptionAccessProvider>
+}
+
 function App() {
   return (
     <AuthProvider>
-      <SubscriptionAccessProvider>
-      <SiigoSetupProvider>
-        <SiigoCatalogProvider>
-          <ImportSessionProvider>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/siigo" element={<LandingPage product="siigo" />} />
@@ -59,9 +59,11 @@ function App() {
             <Route path="/asesor" element={<AdvisorAccountPage />} />
             <Route path="/politica-de-tratamiento-de-datos" element={<PrivacyPolicyPage />} />
             <Route path="/admin" element={<AdminRoute />} />
+            <Route path="/admin/asesores/:advisorId" element={<AdminRoute><AdminAdvisorAccountPage /></AdminRoute>} />
             <Route path="/admin/clientes/:companyId" element={<AdminRoute><AdminClientDetailPage /></AdminRoute>} />
 
             <Route element={<ProtectedRoute />}>
+              <Route element={<CompanyApplicationProviders />}>
               <Route element={<AppLayout />}>
                 <Route path="/inicio" element={<DefaultAppRedirect />} />
                 <Route path="/reportes" element={<JarvisReportsPage />} />
@@ -160,12 +162,9 @@ function App() {
                 />
                 <Route path="*" element={<DefaultAppRedirect />} />
               </Route>
+              </Route>
             </Route>
           </Routes>
-          </ImportSessionProvider>
-        </SiigoCatalogProvider>
-      </SiigoSetupProvider>
-      </SubscriptionAccessProvider>
     </AuthProvider>
   )
 }

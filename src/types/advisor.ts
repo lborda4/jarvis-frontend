@@ -1,6 +1,6 @@
 import type { AdminCityOption, AdminJarvisTopUp, AdminPlan } from './admin'
 export type CommissionClass = 'BASIC' | 'PLUS' | 'PRO'
-export interface AdvisorClient { id: string; name: string; nit: string; createdAt: string; plans: { name: string; provider: string }[] }
+export interface AdvisorClient { id: string; name: string; nit: string; createdAt: string; clientStatus?: import('../utils/clientLifecycle').ClientStatus | null; paymentStatus?: 'PAID' | 'PENDING'; plans: { name: string; provider: string }[] }
 export interface AdvisorSale {
   id: string; advisorId: string; advisorName: string; companyId: string; companyName: string; companyNit: string;
   provider: string; kind: 'PLAN' | 'TOP_UP'; productName: string; priceCop: number; commissionClass: CommissionClass;

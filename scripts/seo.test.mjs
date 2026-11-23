@@ -43,7 +43,7 @@ for (const page of pages) {
       assert.equal(applications[0].url, url)
       assert.ok(graph.some(item => item['@type'] === 'BreadcrumbList'))
       const prices = applications[0].offers.map(offer => offer.price)
-      assert.deepEqual(prices, page.path === '/siigo' ? [35000, 75000, 120000, 250000] : page.path === '/nomina-electronica' ? [149900, 220000, 720000] : [139900, 139900, 220000, 720000])
+      assert.deepEqual(prices, page.path === '/siigo' ? [35000, 75000, 120000, 250000] : page.path === '/nomina-electronica' ? [129900, 230000, 720000] : [139900, 139900, 230000, 720000])
       if (page.path !== '/siigo') {
         for (const offer of applications[0].offers) {
           assert.equal(offer.priceSpecification.billingDuration, 'P1Y')

@@ -1,7 +1,10 @@
+import { invalidateQueryCache } from '../services/queryCache'
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { fetchAdminAdvisors } from '../services/adminAdvisorsService'
+import type { AdminAdvisor } from '../types/admin'
 import { useAuth } from '../context/AuthContext'
-import { isAdvisorRole } from '../constants/userRole'
+import { isAdminRole, isAdvisorRole } from '../constants/userRole'
 import { createAdvisorCompany, fetchAdvisorCatalog, fetchAdvisorDashboard, lookupAdvisorCompanyName } from '../services/advisorService'
 import { getApiErrorMessage } from '../services/apiClient'
 import type { AdvisorCatalog, AdvisorClient, AdvisorDashboard } from '../types/advisor'
@@ -16,6 +19,7 @@ import AdvisorCommissionPreview from '../components/AdvisorCommissionPreview'
 import CommissionReport from '../components/CommissionReport'
 import { BusinessMetrics } from '../components/BusinessDashboard'
 import { formatCop } from '../utils/adminPlan'
+import { CLIENT_STATUS_LABELS } from '../utils/clientLifecycle'
 import { colombiaToday } from '../utils/companyTracking'
 import { HomeIcon, AdminIcon, PackageIcon } from '../components/icons/SidebarIcons'
 import './AdminPage.css'
@@ -32,7 +36,7 @@ export function AdvisorClients({ clients, onCreate }: { clients: AdvisorClient[]
       <label className="admin-form__field">Integración<select value={provider} onChange={event => { setProvider(event.target.value); setPage(1) }}><option value="">Todas</option><option value="JARVIS">Jarvis</option><option value="SIIGO">Siigo</option></select></label>
       <label className="admin-form__field">Ordenar por<select value={sort} onChange={event => { setSort(event.target.value); setPage(1) }}><option value="recent">Más recientes</option><option value="name">Nombre</option></select></label>
     </div>
-    <table><thead><tr><th>Empresa</th><th>NIT</th><th>Planes</th><th>Creación</th></tr></thead><tbody>{rows.slice((current - 1) * 10, current * 10).map(item => <tr key={item.id}><td data-label="Empresa"><strong>{item.name}</strong></td><td data-label="NIT">{item.nit}</td><td data-label="Planes">{item.plans.map(plan => <span className="advisor-clients__plan" key={`${plan.provider}:${plan.name}`}>{plan.provider}: {plan.name}</span>)}{!item.plans.length && 'Sin plan'}</td><td data-label="Creación">{new Date(item.createdAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</td></tr>)}{!rows.length && <tr><td colSpan={4} className="business-empty">{clients.length ? 'No hay clientes con estos filtros.' : 'Tus empresas aparecerán aquí al crearlas.'}</td></tr>}</tbody></table>
+    <table><thead><tr><th>Empresa</th><th>NIT</th><th>Planes</th><th>Estado</th><th>Creación</th></tr></thead><tbody>{rows.slice((current - 1) * 10, current * 10).map(item => <tr key={item.id}><td data-label="Empresa"><strong>{item.name}</strong></td><td data-label="NIT">{item.nit}</td><td data-label="Planes">{item.plans.map(plan => <span className="advisor-clients__plan" key={`${plan.provider}:${plan.name}`}>{plan.provider}: {plan.name}</span>)}{!item.plans.length && 'Sin plan'}</td><td data-label="Estado"><span className={`business-badge${item.clientStatus === 'ACTIVE' ? '' : ' business-badge--warning'}`}>{item.clientStatus ? CLIENT_STATUS_LABELS[item.clientStatus] : item.paymentStatus === 'PAID' ? 'Pagado' : 'Verificar pago'}</span></td><td data-label="Creación">{new Date(item.createdAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</td></tr>)}{!rows.length && <tr><td colSpan={5} className="business-empty">{clients.length ? 'No hay clientes con estos filtros.' : 'Tus empresas aparecerán aquí al crearlas.'}</td></tr>}</tbody></table>
     {shouldShowTablePagination(rows.length) && <div className="advisor-panel__actions"><Button variant="outline" disabled={current === 1} onClick={() => setPage(current - 1)}>Anterior</Button><span>{current} / {pages}</span><Button variant="outline" disabled={current === pages} onClick={() => setPage(current + 1)}>Siguiente</Button></div>}
   </section>
 }
@@ -62,34 +66,69 @@ export function AdvisorOverview({ data, onClients, onCreate, onCommissions }: { 
   </>
 }
 
-export default function AdvisorAccountPage() {
+export function AdminAdvisorAccountPage() {
+  const { advisorId } = useParams()
+  return advisorId ? <AdvisorAccountPage key={advisorId} advisorId={advisorId} /> : <Navigate to="/admin?tab=advisors" replace />
+}
+
+export default function AdvisorAccountPage({ advisorId }: { advisorId?: string } = {}) {
   const { user, isLoading, isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
+  const adminView = Boolean(advisorId && isAdminRole(user?.role))
+  const canView = adminView || (!advisorId && isAdvisorRole(user?.role))
+  const [advisors, setAdvisors] = useState<AdminAdvisor[]>([])
+  useEffect(() => {
+    if (!adminView) return
+    let cancelled = false
+    void fetchAdminAdvisors().then(result => { if (!cancelled) setAdvisors(result.items) }).catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudo cargar el selector de comerciales.')) })
+    return () => { cancelled = true }
+  }, [adminView])
   const [tab, setTab] = useState<'overview' | 'clients' | 'create' | 'commissions'>('overview')
   const [menuOpen, setMenuOpen] = useState(false)
   const [data, setData] = useState<AdvisorDashboard | null>(null), [catalog, setCatalog] = useState<AdvisorCatalog | null>(null)
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [revision, setRevision] = useState(0)
+  const [catalogLoading, setCatalogLoading] = useState(false), [catalogError, setCatalogError] = useState('')
+  const [catalogRevision, setCatalogRevision] = useState(0)
+  const [commissionRevision, setCommissionRevision] = useState(0)
   const [notice, setNotice] = useState<{ status: 'SENT' | 'FAILED'; message: string } | null>(null)
   useEffect(() => {
-    if (!isAuthenticated || !isAdvisorRole(user?.role)) return
+    if (!isAuthenticated || !canView || (tab !== 'overview' && tab !== 'clients')) return
+    const refresh = () => setRevision(value => value + 1)
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [isAuthenticated, canView, user?.role, tab])
+  useEffect(() => {
+    if (!isAuthenticated || !canView) return
     let cancelled = false
-    void Promise.all([fetchAdvisorDashboard(), fetchAdvisorCatalog()]).then(([dashboard, available]) => { if (!cancelled) { setData(dashboard); setCatalog(available) } }).catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudo cargar tu panel.')) }).finally(() => { if (!cancelled) setLoading(false) })
+    void fetchAdvisorDashboard(advisorId).then(dashboard => { if (!cancelled) { setData(dashboard); setError('') } }).catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudo cargar tu panel.')) }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [isAuthenticated, user?.id, user?.role, revision])
+  }, [isAuthenticated, canView, advisorId, user?.id, user?.role, revision, tab])
+  useEffect(() => {
+    if (!isAuthenticated || !canView || tab !== 'create') return
+    let cancelled = false
+    setCatalogLoading(true); setCatalogError('')
+    void fetchAdvisorCatalog(advisorId).then(available => { if (!cancelled) setCatalog(available) })
+      .catch(failure => { if (!cancelled) setCatalogError(getApiErrorMessage(failure, 'No se pudo cargar el catálogo para crear empresas.')) })
+      .finally(() => { if (!cancelled) setCatalogLoading(false) })
+    return () => { cancelled = true }
+  }, [isAuthenticated, canView, advisorId, tab, catalogRevision])
   if (isLoading) return <LoadingIndicator message="Validando acceso…" />
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (!isAdvisorRole(user?.role)) return <Navigate to="/inicio" replace />
+  if (!canView) return <Navigate to="/inicio" replace />
   const sections = [{ id: 'overview', label: 'Resumen', Icon: HomeIcon }, { id: 'clients', label: 'Mis clientes', Icon: AdminIcon }, { id: 'create', label: 'Crear empresa', Icon: PackageIcon }, { id: 'commissions', label: 'Mis comisiones', Icon: AdminIcon }] as const
   return <div className="admin-shell advisor-shell"><aside className="admin-sidebar" aria-label="Panel de asesor"><div className="admin-sidebar__brand"><img src="/logo5.png" alt="Jarvis" /><span>Panel de asesor</span><button type="button" className="admin-sidebar__toggle" aria-expanded={menuOpen} aria-controls="advisor-menu" onClick={() => setMenuOpen(value => !value)}>{menuOpen ? 'Cerrar menú' : 'Abrir menú'}</button></div>
-    <div id="advisor-menu" className={`admin-sidebar__menu${menuOpen ? ' admin-sidebar__menu--open' : ''}`}><span className="admin-sidebar__caption">MI NEGOCIO</span><nav className="admin-sidebar__sections" aria-label="Secciones de asesor">{sections.map(({ id, label, Icon }) => <button type="button" key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => { setTab(id); setMenuOpen(false); setNotice(null) }}><Icon /><span>{label}</span></button>)}</nav><div className="admin-sidebar__footer"><button type="button" onClick={logout}>Cerrar sesión</button></div></div></aside>
-    <main className="admin-page advisor-panel"><PageHeader eyebrow="Panel de asesor" title={tab === 'overview' ? `Hola, ${user?.name ?? 'asesor'}` : sections.find(item => item.id === tab)?.label} actions={<Button variant="outline" disabled={loading} onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1) }}>Actualizar</Button>} />
-    {error && <ErrorMessage inline message={error} />}{notice && <Banner variant={notice.status === 'SENT' ? 'success' : 'warning'} message={notice.message} />}
-    {loading ? <LoadingIndicator message="Cargando tu panel…" /> : data && catalog && <div key={tab}>
-      {tab === 'overview' && <AdvisorOverview data={data} onClients={() => setTab('clients')} onCreate={() => setTab('create')} onCommissions={() => setTab('commissions')} />}
-      {tab === 'clients' && <AdvisorClients clients={data.clients} onCreate={() => setTab('create')} />}
-      {tab === 'create' && <CreateCompanyForm advisor plans={catalog.plans} cities={catalog.cities} topUpCatalog={catalog.topUps} onCancel={() => setTab('clients')} createCompany={createAdvisorCompany} lookupName={lookupAdvisorCompanyName}
+    <div id="advisor-menu" className={`admin-sidebar__menu${menuOpen ? ' admin-sidebar__menu--open' : ''}`}><span className="admin-sidebar__caption">MI NEGOCIO</span><nav className="admin-sidebar__sections" aria-label="Secciones de asesor">{sections.map(({ id, label, Icon }) => <button type="button" key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => { setTab(id); setMenuOpen(false); setNotice(null) }}><Icon /><span>{label}</span></button>)}</nav><div className="admin-sidebar__footer">{adminView && <Link to="/admin?tab=advisors">← Volver a administración</Link>}<button type="button" onClick={logout}>Cerrar sesión</button></div></div></aside>
+    <main className="admin-page advisor-panel">{adminView && <section className="admin-card advisor-admin-switcher" aria-label="Vista de comercial"><label className="admin-form__field">Comercial<select value={advisorId} onChange={event => navigate('/admin/asesores/' + encodeURIComponent(event.target.value))}>{!advisors.some(item => item.id === advisorId) && <option value={advisorId}>{data?.advisor.name ?? 'Cargando comercial…'}</option>}{advisors.map(item => <option key={item.id} value={item.id}>{item.name} · {item.email}</option>)}</select></label><Link className="btn btn--outline btn--md" to="/admin?tab=advisors">Volver a administración</Link></section>}<PageHeader eyebrow="Panel de asesor" title={tab === 'overview' ? `Hola, ${data?.advisor.name ?? (adminView ? advisors.find(item => item.id === advisorId)?.name ?? 'comercial' : user?.name ?? 'asesor')}` : sections.find(item => item.id === tab)?.label} actions={<Button variant="outline" disabled={tab === 'create' ? catalogLoading : (tab === 'overview' || tab === 'clients') && loading} onClick={() => { if (tab === 'create') { invalidateQueryCache('advisor:catalog'); setCatalogRevision(value => value + 1) } else if (tab === 'commissions') setCommissionRevision(value => value + 1); else { invalidateQueryCache('advisor:dashboard'); setLoading(true); setError(''); setRevision(value => value + 1) } }}>Actualizar</Button>} />
+    {error && (tab === 'overview' || tab === 'clients') && <ErrorMessage inline message={error} />}{notice && <Banner variant={notice.status === 'SENT' ? 'success' : 'warning'} message={notice.message} />}
+    {loading && (tab === 'overview' || tab === 'clients') ? <LoadingIndicator message="Cargando tu panel…" /> : <div key={tab}>
+      {tab === 'overview' && data && <AdvisorOverview data={data} onClients={() => setTab('clients')} onCreate={() => setTab('create')} onCommissions={() => setTab('commissions')} />}
+      {tab === 'clients' && data && <AdvisorClients clients={data.clients} onCreate={() => setTab('create')} />}
+      {tab === 'create' && catalogLoading && <LoadingIndicator message="Cargando planes y ciudades…" />}
+      {tab === 'create' && catalogError && <><ErrorMessage inline message={catalogError} /><Button variant="outline" onClick={() => setCatalogRevision(value => value + 1)}>Reintentar catálogo</Button></>}
+      {tab === 'create' && !catalogLoading && !catalogError && catalog && <CreateCompanyForm advisor plans={catalog.plans} cities={catalog.cities} topUpCatalog={catalog.topUps} onCancel={() => setTab('clients')} createCompany={input => createAdvisorCompany(input, advisorId)} lookupName={nit => lookupAdvisorCompanyName(nit, advisorId)}
         selectionSummary={(plans, topUps) => <AdvisorCommissionPreview plans={plans} topUps={topUps} rates={catalog.commissionRates} topUpCommissionBasis={catalog.topUpCommissionBasis} />}
         onCreated={response => { setNotice(response.welcome ?? { status: 'SENT', message: `Empresa ${response.company.name} creada.` }); setTab('clients'); setRevision(value => value + 1) }} />}
-      {tab === 'commissions' && <CommissionReport onPaid={() => setRevision(value => value + 1)} />}
+      {tab === 'commissions' && <CommissionReport key={advisorId + '-' + commissionRevision} admin={adminView} advisorId={advisorId} onPaid={() => setRevision(value => value + 1)} />}
     </div>}
     <footer className="advisor-panel__footer">{colombiaToday()} · Jarvis Comercial</footer>
   </main></div>

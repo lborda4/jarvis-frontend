@@ -1,3 +1,4 @@
+import { cachedQuery, invalidateQueryCache } from '../services/queryCache'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminPlans from '../components/AdminPlans'
 import AdminBoldSettings from '../components/AdminBoldSettings'
@@ -118,6 +119,11 @@ function AdminPage() {
   const [cities, setCities] = useState<AdminCityOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dataRevision, setDataRevision] = useState(0)
+  useEffect(() => {
+    const refresh = () => setDataRevision(value => value + 1)
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [])
   const [updatingIntegrationId, setUpdatingIntegrationId] = useState<
     string | null
   >(null)
@@ -160,21 +166,22 @@ function AdminPage() {
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([fetchAdminCompanies(), fetchAdminPlans(), fetchAdminCities(), fetchAdminJarvisTopUps()]).then(([companiesResponse, plansResponse, citiesResponse, topUpsResponse]) => {
-      if (cancelled) return
-      setCompanies(companiesResponse.items)
-      setPlans(plansResponse.items)
-      setTopUpCatalog(topUpsResponse.items)
-      setCities(citiesResponse.items)
-
-    }).catch(error => {
-      if (cancelled) return
-      setErrorMessage(
-        getApiErrorMessage(error, 'No se pudieron cargar los datos del panel.'),
-      )
-    }).finally(() => { if (!cancelled) setIsLoading(false) })
+    setIsLoading(true)
+    setErrorMessage(null)
+    const tasks: Promise<unknown>[] = []
+    const load = <T,>(key: string, fetcher: () => Promise<T>, apply: (value: T) => void) => {
+      tasks.push(cachedQuery('admin:' + key, key === 'cities' ? 24 * 60 * 60_000 : key === 'companies' ? 60_000 : 5 * 60_000, fetcher).then(value => { if (!cancelled) apply(value) }))
+    }
+    if (['overview', 'tracking', 'jarvis', 'bold', 'advisors'].includes(activeAdminTab)) load('companies', fetchAdminCompanies, value => setCompanies(value.items))
+    if (activeAdminTab === 'plans' || (activeAdminTab === 'jarvis' && (creating || expandedCompany))) {
+      load('plans', fetchAdminPlans, value => setPlans(value.items))
+      load('top-ups', fetchAdminJarvisTopUps, value => setTopUpCatalog(value.items))
+    }
+    if (activeAdminTab === 'jarvis' && (creating || editingCityCompanyId)) load('cities', fetchAdminCities, value => setCities(value.items))
+    void Promise.all(tasks).catch(error => { if (!cancelled) setErrorMessage(getApiErrorMessage(error, 'No se pudieron cargar los datos de esta sección.')) })
+      .finally(() => { if (!cancelled) setIsLoading(false) })
     return () => { cancelled = true }
-  }, [dataRevision])
+  }, [activeAdminTab, creating, expandedCompany, editingCityCompanyId, dataRevision])
 
   const applyIntegrationUpdate = (
     companyId: string,
@@ -503,7 +510,7 @@ function AdminPage() {
       <PageHeader
         eyebrow="Panel interno"
         title={titles[activeAdminTab]}
-        actions={<Button variant="outline" disabled={isLoading} onClick={() => { setIsLoading(true); setErrorMessage(null); setDataRevision(value => value + 1) }}>Actualizar</Button>}
+        actions={<Button variant="outline" disabled={isLoading} onClick={() => { invalidateQueryCache('admin'); setIsLoading(true); setErrorMessage(null); setDataRevision(value => value + 1) }}>Actualizar</Button>}
       />
       {successMessage && <SuccessMessage message={successMessage} />}
       {errorMessage && <ErrorMessage message={errorMessage} />}
@@ -518,7 +525,7 @@ function AdminPage() {
         {activeAdminTab === 'advisors' && <AdminAdvisors companies={companies} onCompanyAssigned={(companyId, advisorId, name) => setCompanies(current => current.map(company => company.id === companyId ? { ...company, advisorId, commercial: name } : company))} />}
       </div>
       <div id="admin-panel-plans" role="tabpanel" aria-labelledby="admin-tab-plans" hidden={activeAdminTab !== 'plans'}>
-        {activeAdminTab === 'plans' && <AdminPlans plans={plans} loading={isLoading} onUpdated={plan => {
+        {activeAdminTab === 'plans' && <AdminPlans plans={plans} topUps={topUpCatalog} loading={isLoading} onUpdated={plan => {
           setPlans(current => current.map(item => item.id === plan.id ? plan : item))
           setCompanies(current => current.map(company => ({ ...company, integrations: company.integrations.map(integration => integration.plan?.id === plan.id ? { ...integration, plan } : integration) })))
         }} />}

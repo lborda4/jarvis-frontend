@@ -28,7 +28,7 @@ import type {
 } from '../types/admin'
 import type { IntegrationProvider } from '../types/admin'
 import { apiClient } from './apiClient'
-import { companyQueryKey, invalidateQueryCache } from './queryCache'
+import { cachedQuery, companyQueryKey, invalidateQueryCache } from './queryCache'
 
 const ADMIN_COMPANIES_ENDPOINT = '/admin/companies'
 
@@ -96,7 +96,7 @@ export async function addAdminCompanyIntegration(companyId: string, provider: In
 }
 
 export async function fetchAdminCompanyDetails(companyId: string): Promise<import('../types/admin').AdminCompanyDetails> {
-  return (await apiClient.get<import('../types/admin').AdminCompanyDetails>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/details`)).data
+  return cachedQuery('admin:company-details:' + companyId, 60_000, async () => (await apiClient.get<import('../types/admin').AdminCompanyDetails>(`${ADMIN_COMPANIES_ENDPOINT}/${encodeURIComponent(companyId)}/details`)).data)
 }
 
 export async function addAdminCompanyComment(companyId: string, text: string): Promise<import('../types/admin').AdminCompanyDetails> {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminDocumentPackages from '../components/AdminDocumentPackages'
@@ -10,6 +10,7 @@ import SuccessMessage from '../components/SuccessMessage'
 import CompanyJarvisCommercialEditor from '../components/CompanyJarvisCommercialEditor'
 import { TrackingEditor } from '../components/AdminTracking'
 import CommissionReport from '../components/CommissionReport'
+import ClientPaymentCard from '../components/ClientPaymentCard'
 import { useAuth } from '../context/AuthContext'
 import { addAdminCompanyComment, fetchAdminCompanyDetails, fetchAdminJarvisTopUps, fetchAdminPlans, updateAdminCompanyProfile } from '../services/adminService'
 import { getApiErrorMessage } from '../services/apiClient'
@@ -17,6 +18,7 @@ import type { AdminCommercialActivity, AdminCompanyDetails, AdminCompanyListItem
 import { formatCop } from '../utils/adminPlan'
 import { colombiaToday, trackingDocumentBalance, trackingDueDate } from '../utils/companyTracking'
 import { shouldShowTablePagination } from '../utils/tablePagination'
+import { CLIENT_STATUS_LABELS } from '../utils/clientLifecycle'
 import './AdminPage.css'
 import './AdminClientDetailPage.css'
 
@@ -24,22 +26,33 @@ const dateLabel = (value?: string | null) => value ? new Date(value).toLocaleDat
 const yearOf = (value: string) => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', year: 'numeric' }).format(new Date(value)))
 const operationLabels = { APPLIED: 'Aplicada', PROCESSING: 'Procesando', UNCERTAIN: 'Por confirmar', FAILED: 'No aplicada' }
 
-export function ClientSummary({ company }: { company: AdminCompanyListItem }) {
+export function ClientSummary({ company, paymentCard, onRecharge, onPlan, onRenew }: { company: AdminCompanyListItem; paymentCard?: ReactNode; onRecharge?: () => void; onPlan?: () => void; onRenew?: () => void }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60000); return () => window.clearInterval(timer) }, [])
   const jarvis = company.integrations.find(item => item.provider === 'JARVIS')
   const terms = jarvis?.jarvisCertificateTerm
   const dueDate = trackingDueDate(company)
   const expired = terms ? now >= Date.parse(terms.endsAt) : Boolean(dueDate && dueDate <= colombiaToday(new Date(now)))
-  return <>
-    <div className="client-detail__identity"><span className={`client-detail__status${expired ? ' client-detail__status--expired' : ''}`}>{expired ? 'Vencido' : company.integrations.some(item => item.active && item.subscriptionStatus === 'ACTIVE') ? 'Activo' : 'Inactivo'}</span></div>
-    <div className="client-detail__metrics">
-      <article><span>Plan actual</span><strong>{company.integrations.filter(item => item.plan).map(item => item.plan!.name).join(' · ') || 'Sin plan'}</strong></article>
-      <article><span>Vigencia del plan</span><strong>{jarvis && !terms ? "Certificado sin consultar" : terms ? `${dateLabel(terms.startsAt)} — ${dateLabel(terms.endsAt)}` : `${dateLabel(company.trackingPeriodStart ? company.trackingPeriodStart + 'T12:00:00-05:00' : company.createdAt)} — ${dateLabel(company.subscriptionDueDate ? company.subscriptionDueDate + 'T00:00:00-05:00' : null)}`}</strong></article>
-      <article><span>Documentos disponibles</span>{company.integrations.filter(item => item.provider !== 'BOLD').map(item => <strong key={item.id}>{company.integrations.filter(value => value.provider !== 'BOLD').length > 1 ? `${item.provider}: ` : ''}{trackingDocumentBalance(item)}</strong>)}</article>
-      <article><span>Valor del plan</span><strong>{jarvis?.plan?.commercialTerms ? `${formatCop(jarvis.plan.commercialTerms.priceCop)} / año` : 'Sin registrar'}</strong></article>
-    </div>
-  </>
+  const active = company.integrations.some(item => item.active && item.subscriptionStatus === 'ACTIVE')
+  return <div className="client-detail__overview">
+    <section className="admin-card client-detail__general"><h2>Información general del cliente</h2>
+      <dl className="client-detail__facts">{[['NIT', company.nit], ['Tipo de persona', company.personType === 'LEGAL_ENTITY' ? 'Jurídica' : company.personType === 'NATURAL_PERSON' ? 'Natural' : null], ['Ciudad', company.cityName], ['Correo de bienvenida', company.registrationEmail ?? company.email], ['Descripción de la empresa', company.description]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Sin registrar'}</dd></div>)}</dl>
+      <div className="client-detail__group"><h3>Comercial asignado</h3><strong>{company.commercial || 'Sin asignar'}</strong><small>Creada el {dateLabel(company.createdAt)}</small></div>
+      <div className="client-detail__group"><h3>Información de contacto</h3><dl className="client-detail__facts"><div><dt>Nombre</dt><dd>{company.responsible?.name || 'Sin registrar'}</dd></div><div><dt>Teléfono</dt><dd>{company.responsible?.phone || 'Sin registrar'}</dd></div></dl></div>
+    </section>
+    <section className="admin-card client-detail__plans"><div className="client-detail__section-heading"><h2>Planes y suscripción</h2><span className={`client-detail__status${company.clientStatus && company.clientStatus !== 'ACTIVE' ? ' client-detail__status--pending' : expired ? ' client-detail__status--expired' : !active ? ' client-detail__status--inactive' : ''}`}>{expired && company.clientStatus === 'ACTIVE' ? 'Vencido' : company.clientStatus ? CLIENT_STATUS_LABELS[company.clientStatus] : expired ? 'Vencido' : active ? 'Activo' : 'Inactivo'}</span></div>
+      {company.integrations.filter(item => item.plan).map(item => <article className="client-detail__plan" key={item.id}>
+        <h3>{item.plan!.name}</h3><strong>{item.plan!.commercialTerms ? `${formatCop(item.plan!.commercialTerms.priceCop)} / ${item.provider === 'JARVIS' || item.plan!.commercialTerms.billingMonths === 12 ? 'año' : item.plan!.commercialTerms.billingMonths === 1 ? 'mes' : `${item.plan!.commercialTerms.billingMonths} meses`}` : item.plan!.salePriceCop != null ? `${formatCop(item.plan!.salePriceCop)}${item.provider === 'SIIGO' ? ' / mes' : ''}` : 'Valor sin registrar'}</strong>
+        {item.provider === 'JARVIS' && !terms ? <p>Certificado sin consultar</p> : <dl className="client-detail__facts"><div><dt>Inicio</dt><dd>{dateLabel(item.provider === 'JARVIS' ? terms?.startsAt : company.trackingPeriodStart ? company.trackingPeriodStart + 'T12:00:00-05:00' : company.createdAt)}</dd></div><div><dt>Vence</dt><dd>{dateLabel(item.provider === 'JARVIS' ? terms?.endsAt : company.subscriptionDueDate ? company.subscriptionDueDate + 'T00:00:00-05:00' : null)}</dd></div></dl>}
+      </article>)}
+      {!company.integrations.some(item => item.plan) && <p>Sin plan asignado.</p>}
+      <div className="client-detail__group"><h3>Integraciones habilitadas</h3><div className="client-detail__integrations">{company.integrations.map(item => <span key={item.id}>{item.provider} · {item.active ? 'Habilitada' : 'Inactiva'}</span>)}</div></div>
+      <div className="client-detail__actions">{jarvis && onPlan && <Button variant="outline" onClick={onPlan}>Asignar plan</Button>}{onRenew && <Button variant="outline" onClick={onRenew}>Renovar plan</Button>}</div>
+    </section>
+    <div className="client-detail__aside"><section className="admin-card"><div className="client-detail__section-heading"><h2>Recargas y documentos</h2>{jarvis?.plan && onRecharge && <Button variant="ghost" onClick={onRecharge}>Agregar recarga</Button>}</div>
+      {company.integrations.filter(item => item.provider !== 'BOLD').map(item => { const quota = item.documentQuota; return <div className="client-detail__quota" key={item.id}><span>{item.provider} · Documentos disponibles</span><strong>{trackingDocumentBalance(item)}</strong>{quota && quota.documentLimit !== null && quota.documentLimit > 0 && <progress aria-label={`Documentos disponibles en ${item.provider}`} value={quota.remaining ?? 0} max={quota.documentLimit} />}<small>Consumidos: {quota?.documentsUsed ?? 'Sin consultar'}</small></div> })}
+    </section>{paymentCard}</div>
+  </div>
 }
 
 function RechargeHistory({ company, onRecharge }: { company: AdminCompanyListItem; onRecharge: () => void }) {
@@ -88,14 +101,13 @@ function ProfileEditor({ company, onSaved, onCancel }: { company: AdminCompanyLi
   const [name, setName] = useState(company.name)
   const [contact, setContact] = useState(company.responsible?.name ?? '')
   const [phone, setPhone] = useState(company.responsible?.phone ?? '')
-  const [email, setEmail] = useState(company.responsible?.email ?? '')
   const [commercial, setCommercial] = useState(company.commercial ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (busy) return
     setBusy(true); setError('')
-    try { onSaved(await updateAdminCompanyProfile(company.id, { name, responsible: contact.trim() || phone.trim() || email.trim() ? { name: contact, phone, email } : null, commercial: commercial.trim() || null })) }
+    try { onSaved(await updateAdminCompanyProfile(company.id, { name, responsible: contact.trim() || phone.trim() ? { name: contact, phone, email: company.responsible?.email ?? '' } : null, commercial: commercial.trim() || null })) }
     catch (failure) { setError(getApiErrorMessage(failure, 'No se pudo guardar el cliente.')) }
     finally { setBusy(false) }
   }
@@ -103,7 +115,6 @@ function ProfileEditor({ company, onSaved, onCancel }: { company: AdminCompanyLi
     <label className="admin-form__field">Razón social<input value={name} onChange={event => setName(event.target.value)} required maxLength={200} disabled={busy} /></label>
     <label className="admin-form__field">Contacto<input value={contact} onChange={event => setContact(event.target.value)} maxLength={200} disabled={busy} /></label>
     <label className="admin-form__field">Teléfono<input value={phone} onChange={event => setPhone(event.target.value)} maxLength={50} disabled={busy} /></label>
-    <label className="admin-form__field">Correo<input type="email" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} disabled={busy} /></label>
     <label className="admin-form__field">{company.advisorId ? 'Asesor asignado' : 'Comercial'}<input value={commercial} onChange={event => setCommercial(event.target.value)} maxLength={120} disabled={busy || Boolean(company.advisorId)} /></label>
   </div>{error && <ErrorMessage inline message={error} />}<div className="client-detail__actions"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</Button><Button variant="outline" disabled={busy} onClick={onCancel}>Cancelar</Button></div></form></section>
 }
@@ -114,7 +125,8 @@ function ClientDetailContent({ companyId }: { companyId?: string }) {
   const [details, setDetails] = useState<AdminCompanyDetails | null>(null)
   const [plans, setPlans] = useState<AdminPlan[]>([])
   const [catalog, setCatalog] = useState<AdminJarvisTopUp[]>([])
-  const [tab, setTab] = useState<'topUps' | 'payments' | 'comments' | 'data'>('topUps')
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [tab, setTab] = useState<'topUps' | 'payments' | 'comments' | 'nextpyme' | null>(null)
   const [editor, setEditor] = useState<'plan' | 'topUps' | 'profile' | 'renew' | null>(null)
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
@@ -123,12 +135,26 @@ function ClientDetailContent({ companyId }: { companyId?: string }) {
   useEffect(() => {
     if (!companyId) return
     let cancelled = false
-    Promise.all([fetchAdminCompanyDetails(companyId), fetchAdminPlans(), fetchAdminJarvisTopUps()]).then(([data, availablePlans, topUps]) => {
-      if (cancelled) return
-      setDetails(data); setPlans(availablePlans.items); setCatalog(topUps.items)
+    fetchAdminCompanyDetails(companyId).then(data => {
+      if (!cancelled) setDetails(data)
     }).catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudo cargar el cliente.')) })
-    return () => { cancelled = true }
+    const refresh = () => {
+      void fetchAdminCompanyDetails(companyId).then(data => { if (!cancelled) setDetails(data) })
+        .catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudo actualizar el cliente.')) })
+    }
+    window.addEventListener('focus', refresh)
+    return () => { cancelled = true; window.removeEventListener('focus', refresh) }
   }, [companyId])
+  useEffect(() => {
+    if (editor !== 'plan' && editor !== 'topUps') return
+    let cancelled = false
+    setCatalogLoading(true)
+    void Promise.all([fetchAdminPlans(), fetchAdminJarvisTopUps()]).then(([availablePlans, topUps]) => {
+      if (!cancelled) { setPlans(availablePlans.items); setCatalog(topUps.items) }
+    }).catch(failure => { if (!cancelled) { setError(getApiErrorMessage(failure, 'No se pudo cargar el catálogo.')); setEditor(null) } })
+      .finally(() => { if (!cancelled) setCatalogLoading(false) })
+    return () => { cancelled = true }
+  }, [editor, companyId])
   const saved = (company: AdminCompanyListItem, message = 'Cambios guardados.') => {
     setDetails(current => current ? { ...current, company } : current); setEditor(null); setSuccess(message)
     void fetchAdminCompanyDetails(company.id).then(setDetails).catch(failure => setError(getApiErrorMessage(failure, 'Actualiza la página para consultar el detalle guardado.')))
@@ -143,23 +169,23 @@ function ClientDetailContent({ companyId }: { companyId?: string }) {
   const company = details?.company
   const jarvis = company?.integrations.find(item => item.provider === 'JARVIS')
   return <div className="admin-shell"><AdminSidebar active="tracking" onChange={section => navigate(`/admin?tab=${section}`)} onLogout={() => { logout(); navigate('/login') }} /><main className="admin-page client-detail">
-    <nav className="client-detail__breadcrumb" aria-label="Ubicación"><Link to="/admin?tab=tracking">Clientes</Link><span>/</span><span>{company?.name ?? 'Detalle del cliente'}</span></nav>
+    <nav className="client-detail__breadcrumb" aria-label="Ubicación"><Link to="/admin?tab=tracking">← Volver a clientes</Link></nav>
     {error && <ErrorMessage message={error} />}{success && <SuccessMessage message={success} />}
     {!company ? !error && <LoadingIndicator message="Cargando cliente…" /> : <>
-      <PageHeader title={company.name} description={`NIT ${company.nit}${company.responsible?.name ? ` · Contacto: ${company.responsible.name}` : ''}`} actions={<Button variant="outline" onClick={() => setEditor('profile')}>Editar cliente</Button>} />
-      <ClientSummary company={company} />
-      <AdminDocumentPackages key={company.id} company={company} />
+      <PageHeader title={company.name} description={`NIT ${company.nit}${company.responsible?.name ? ` · Contacto: ${company.responsible.name}` : ''}`} actions={<><Button variant="outline" onClick={() => setEditor('profile')}>Editar cliente</Button><Button onClick={() => { setTab('payments'); setEditor(null) }}>Registrar pago / recarga</Button></>} />
+      <ClientSummary company={company} onRecharge={() => setEditor('topUps')} onPlan={() => setEditor('plan')} onRenew={() => setEditor('renew')}
+        paymentCard={<ClientPaymentCard company={company} activity={details.activity} onPaid={message => saved(company, message)} />} />
       {editor === 'profile' && <ProfileEditor key={company.id} company={company} onCancel={() => setEditor(null)} onSaved={data => { setDetails(data); setEditor(null); setSuccess('Cliente actualizado.') }} />}
       {editor === 'renew' && <TrackingEditor inline company={company} onClose={() => setEditor(null)} onSaved={saved} />}
-      {(editor === 'plan' || editor === 'topUps') && jarvis && <section className="admin-card"><div className="client-detail__section-heading"><h2>{editor === 'plan' ? 'Asignar plan' : 'Agregar recarga'}</h2><Button variant="outline" onClick={() => setEditor(null)}>Cerrar</Button></div><CompanyJarvisCommercialEditor key={`${editor}:${jarvis.jarvisDocumentCycle?.id ?? jarvis.id}`} initialMode={editor} company={company} integration={jarvis} plans={plans.filter(item => item.provider === 'JARVIS')} catalog={catalog} onSaved={saved} /></section>}
-      <div className="client-detail__tabs" role="tablist" aria-label="Detalle del cliente">{([{ id: 'topUps', label: 'Recargas' }, { id: 'payments', label: 'Pagos' }, { id: 'comments', label: 'Comentarios' }, { id: 'data', label: 'Datos del cliente' }] as const).map(item => <button id={`client-tab-${item.id}`} aria-controls={`client-panel-${item.id}`} role="tab" aria-selected={tab === item.id} key={item.id} onClick={() => setTab(item.id)}>{item.label}</button>)}</div>
-      <div id={`client-panel-${tab}`} role="tabpanel" aria-labelledby={`client-tab-${tab}`}>
+      {(editor === 'plan' || editor === 'topUps') && jarvis && <section className="admin-card"><div className="client-detail__section-heading"><h2>{editor === 'plan' ? 'Asignar plan' : 'Agregar recarga'}</h2><Button variant="outline" onClick={() => setEditor(null)}>Cerrar</Button></div>{catalogLoading ? <LoadingIndicator message="Cargando planes y recargas…" /> : <CompanyJarvisCommercialEditor key={`${editor}:${jarvis.jarvisDocumentCycle?.id ?? jarvis.id}`} initialMode={editor} company={company} integration={jarvis} plans={plans.filter(item => item.provider === 'JARVIS')} catalog={catalog} onSaved={saved} />}</section>}
+      <div className="client-detail__tabs" role="tablist" aria-label="Detalle del cliente">{([{ id: 'topUps', label: 'Ver recargas' }, { id: 'payments', label: 'Pagos y recargas' }, { id: 'comments', label: 'Comentarios' }, { id: 'nextpyme', label: 'NextPyme' }] as const).map(item => <button id={`client-tab-${item.id}`} aria-controls={`client-panel-${item.id}`} role="tab" aria-selected={tab === item.id} key={item.id} onClick={() => setTab(current => current === item.id ? null : item.id)}>{item.label}</button>)}</div>
+      {tab && <div id={`client-panel-${tab}`} role="tabpanel" aria-labelledby={`client-tab-${tab}`}>
         {tab === 'topUps' && <RechargeHistory company={company} onRecharge={() => setEditor('topUps')} />}
-        {tab === 'payments' && <>{company.advisorId && <CommissionReport admin pendingOnly companyId={company.id} onPaid={() => saved(company, 'Pago registrado.')} />}<section className="admin-card"><div className="client-detail__section-heading"><h2>Pagos registrados</h2><Button onClick={() => setEditor('renew')}>Renovar plan</Button></div><PaymentHistory activity={details.activity} lastPaidAt={company.trackingLastPaidAt} /></section></>}
+        {tab === 'payments' && <><div className="client-detail__actions">{jarvis?.plan && <Button onClick={() => setEditor('topUps')}>Agregar recarga</Button>}</div>{company.advisorId && <CommissionReport admin pendingOnly companyId={company.id} onPaid={() => saved(company, 'Pago registrado.')} />}<section className="admin-card"><div className="client-detail__section-heading"><h2>Pagos registrados</h2><Button onClick={() => setEditor('renew')}>Renovar plan</Button></div><PaymentHistory activity={details.activity} lastPaidAt={company.trackingLastPaidAt} /></section></>}
         {tab === 'comments' && <section className="admin-card"><h2>Comentarios</h2><form className="admin-form" onSubmit={event => void saveComment(event)}><label className="admin-form__field">Nuevo comentario<textarea value={comment} onChange={event => setComment(event.target.value)} required maxLength={2000} rows={3} disabled={busy} /></label><Button type="submit" disabled={busy || !comment.trim()}>{busy ? 'Guardando…' : 'Guardar comentario'}</Button></form><div className="client-detail__comments">{details.activity.filter(item => item.kind === 'COMMENT').slice().reverse().map(item => <article key={item.id}><small>{dateLabel(item.createdAt)}</small><p>{item.text}</p></article>)}{!details.activity.some(item => item.kind === 'COMMENT') && <p>Sin comentarios.</p>}</div></section>}
-        {tab === 'data' && <section className="admin-card"><h2>Datos del cliente</h2><dl className="client-detail__data">{[['Razón social', company.name], ['NIT', company.nit], ['Contacto', company.responsible?.name], ['Teléfono', company.responsible?.phone], ['Correo', company.responsible?.email ?? company.email ?? company.registrationEmail], ['Comercial', company.commercial], ['Ciudad', company.cityName], ['Creación', dateLabel(company.createdAt)], ['Actividad', company.description], ['Integraciones', company.integrations.map(item => item.provider).join(' · ')]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Sin registrar'}</dd></div>)}</dl></section>}
-      </div>
-      <div className="client-detail__footer"><section className="admin-card"><h2>Contacto y seguimiento</h2><strong>{company.responsible?.name ?? 'Sin contacto'}{company.responsible?.phone ? ` · ${company.responsible.phone}` : ''}</strong><p>{details.activity.filter(item => item.kind === 'COMMENT').at(-1)?.text ?? 'Sin comentarios registrados.'}</p></section><section className="admin-card"><h2>Renovación del plan</h2><p>Vence: {dateLabel(trackingDueDate(company) ? trackingDueDate(company) + 'T12:00:00-05:00' : null)}</p><div className="client-detail__actions"><Button variant="outline" onClick={() => setEditor('renew')}>Renovar plan / ya pagó</Button>{jarvis && <Button variant="outline" onClick={() => setEditor('plan')}>Asignar plan</Button>}</div></section></div>
+        {tab === 'nextpyme' && <AdminDocumentPackages key={company.id} company={company} />}
+      </div>}
+
     </>}
   </main></div>
 }

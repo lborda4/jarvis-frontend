@@ -16,7 +16,9 @@
 .billing-simulator__products { flex-wrap: wrap; }
 .billing-simulator__products .btn:last-child { flex-basis: 100%; }
 .billing-simulator__packs { display: flex; flex-direction: column; gap: var(--space-2); }
-.billing-simulator__fields .billing-simulator__pack { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); background: var(--jarvis-card-bg); }
+.billing-simulator__fields .billing-simulator__pack { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); background: var(--jarvis-card-bg); }
+.billing-simulator__pack-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.billing-simulator__fields .billing-simulator__pack select { margin-top: 0; }
 .billing-simulator__pack small { display: block; margin-top: var(--space-1); font-weight: var(--font-weight-normal); }
 .billing-simulator__fields .billing-simulator__pack input { width: 82px; flex-shrink: 0; margin-top: 0; }
 .billing-simulator__fields input, .billing-simulator__fields select { width: 100%; box-sizing: border-box; min-height: var(--control-height); margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--jarvis-border); border-radius: var(--r-control); background: var(--jarvis-card-bg); color: var(--jarvis-text); font: inherit; }

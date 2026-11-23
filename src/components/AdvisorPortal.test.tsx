@@ -41,4 +41,6 @@ it('offers payment registration only to administrators and paginates the full re
 it('shows the advisor client list with no pagination for one page', () => {
   const html = renderToStaticMarkup(<AdvisorClients clients={[{ id: 'c', name: 'Cliente', nit: '900', createdAt: '2026-11-21T15:00:00Z', plans: [{ name: 'Plus', provider: 'SIIGO' }] }]} />)
   expect(html).toContain('Mis clientes (1)'); expect(html).toContain('SIIGO: Plus'); expect(html).not.toContain('Siguiente')
+  expect(html).toContain('Verificar pago')
+  expect(renderToStaticMarkup(<AdvisorClients clients={[{ id: 'c', name: 'Cliente', nit: '900', createdAt: '2026-11-21T15:00:00Z', paymentStatus: 'PAID', plans: [] }]} />)).toContain('Pagado')
 })

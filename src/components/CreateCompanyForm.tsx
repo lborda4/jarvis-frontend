@@ -233,7 +233,7 @@ return <form className="admin-form company-create" onSubmit={handleSubmit}>
     </label>)}</div>
   </fieldset>
   <div className="company-create__columns">
-    <section className="admin-card company-create__information"><h2>Información de la empresa</h2>
+    <section className="admin-card company-create__information"><h2><span className="company-create__step" aria-hidden="true">1</span>Información de la empresa</h2>
       <div className="admin-form__grid">
         <label className="admin-form__field" htmlFor="admin-company-nit">NIT<input id="admin-company-nit" inputMode="numeric" value={nit} onChange={event => setNit(event.target.value)} onBlur={() => void handleNitBlur()} required disabled={isSubmitting} /></label>
         <label className="admin-form__field" htmlFor="admin-company-name">Nombre de la empresa<input id="admin-company-name" value={name} onChange={event => setName(event.target.value)} required disabled={isSubmitting} placeholder={isLookingUpName ? 'Buscando empresa…' : undefined} /></label>
@@ -248,26 +248,30 @@ return <form className="admin-form company-create" onSubmit={handleSubmit}>
       </div></fieldset>
       {includesSiigo && <label className="admin-form__field" htmlFor="admin-company-description">Descripción de la empresa<textarea id="admin-company-description" value={description} onChange={event => setDescription(event.target.value.slice(0, 1000))} disabled={isSubmitting} rows={3} maxLength={1000} placeholder="Actividad de la empresa" /></label>}
     </section>
-    <section className="admin-card company-create__commercial"><h2>Planes y recargas</h2>
+    <section className="admin-card company-create__commercial"><h2><span className="company-create__step" aria-hidden="true">2</span>Elige tu plan</h2>
       {!selectedIntegrations.length && <p className="company-create__empty">Selecciona una integración para ver sus planes.</p>}
       {includesSiigo && <>
-        <CompanyPlanCards title="Plan Siigo" name="company-plan-siigo" plans={siigoPlans} value={siigoPlanId} onChange={plan => setSiigoPlanId(plan.id)} disabled={isSubmitting} />
+        <CompanyPlanCards compact title="Plan Siigo" name="company-plan-siigo" plans={siigoPlans} value={siigoPlanId} onChange={plan => setSiigoPlanId(plan.id)} disabled={isSubmitting} />
         {siigoPlanId && <label className="admin-form__field" htmlFor="admin-company-billing-months">Periodicidad del plan Siigo (meses)<input id="admin-company-billing-months" type="number" min="1" max="1200" step="1" required value={billingMonths} onChange={event => setBillingMonths(event.target.value)} disabled={isSubmitting} /></label>}
         <fieldset className="admin-form__integrations"><legend>Documentos incluidos</legend>{AVAILABLE_DOCUMENT_TYPES.map(item => <label key={item.value} className="admin-form__checkbox"><input type="checkbox" checked={selectedDocumentTypes.includes(item.value)} onChange={() => toggleCreateDocumentType(item.value)} disabled={isSubmitting} />{item.label}</label>)}</fieldset>
       </>}
       {includesJarvis && <>
-        <CompanyPlanCards title="Plan Jarvis" name="company-plan-jarvis" plans={jarvisPlans.filter(isJarvisPortfolioPlan)} value={jarvisPlanId} disabled={isSubmitting} onChange={plan => { setJarvisPlanId(plan.id); setJarvisTopUpCodes(compatibleTopUpCodes(plan, jarvisTopUpCodes, topUpCatalog)); setJarvisModules(jarvisPlanAssignment(plan).jarvisModules!) }} />
+        <CompanyPlanCards compact title="Plan Jarvis" name="company-plan-jarvis" plans={jarvisPlans.filter(isJarvisPortfolioPlan)} value={jarvisPlanId} disabled={isSubmitting} onChange={plan => { setJarvisPlanId(plan.id); setJarvisTopUpCodes(compatibleTopUpCodes(plan, jarvisTopUpCodes, topUpCatalog)); setJarvisModules(jarvisPlanAssignment(plan).jarvisModules!) }} />
         <p className="company-create__hint">Suscripción anual · Vence con el certificado digital.</p>
-        {selectedJarvisPlan && <>
-          <label className="company-create__topup-toggle"><input type="checkbox" role="switch" checked={hasTopUps} onChange={event => { setHasTopUps(event.target.checked); if (!event.target.checked) setJarvisTopUpCodes([]) }} disabled={isSubmitting || !topUpCatalog.some(item => isTopUpCompatible(selectedJarvisPlan, item))} />Agregar recargas</label>
-          {hasTopUps && <JarvisTopUpSelect idPrefix="create-company-top-up" plan={selectedJarvisPlan} catalog={topUpCatalog} value={jarvisTopUpCodes} onChange={setJarvisTopUpCodes} disabled={isSubmitting} />}
-          <JarvisCommercialSummary plan={selectedJarvisPlan} topUps={selectedTopUps} showDocumentCapacity />
-        </>}
+
       </>}
       {includesBold && !includesSiigo && !includesJarvis && <p className="company-create__hint">La integración Bold se configura después de crear la empresa.</p>}
-      {selectionSummary?.(plans.filter(plan => (includesJarvis && plan.id === jarvisPlanId) || (includesSiigo && plan.id === siigoPlanId)), selectedTopUps)}
+
     </section>
   </div>
+  {includesJarvis && selectedJarvisPlan && <section className="company-create__purchase" aria-label="Recargas y resumen">
+    <div className="admin-card company-create__recharges"><h2><span className="company-create__step" aria-hidden="true">3</span>Recargas</h2>
+      <label className="company-create__topup-toggle"><span>Agregar documentos o empleados</span><input type="checkbox" role="switch" checked={hasTopUps} onChange={event => { setHasTopUps(event.target.checked); if (!event.target.checked) setJarvisTopUpCodes([]) }} disabled={isSubmitting || !topUpCatalog.some(item => isTopUpCompatible(selectedJarvisPlan, item))} /></label>
+      {hasTopUps ? <JarvisTopUpSelect compact idPrefix="create-company-top-up" plan={selectedJarvisPlan} catalog={topUpCatalog} value={jarvisTopUpCodes} onChange={setJarvisTopUpCodes} disabled={isSubmitting} /> : <p className="company-create__hint">Comienza con el cupo de tu plan.</p>}
+    </div>
+    <aside className="admin-card company-create__order"><h2>Resumen Jarvis</h2><JarvisCommercialSummary plan={selectedJarvisPlan} topUps={selectedTopUps} showDocumentCapacity /><p className="company-create__hint">Plan y recargas vigentes hasta el vencimiento del certificado.</p></aside>
+  </section>}
+  {selectionSummary && <div className="company-create__commission">{selectionSummary(plans.filter(plan => (includesJarvis && plan.id === jarvisPlanId) || (includesSiigo && plan.id === siigoPlanId)), selectedTopUps)}</div>}
   {(includesSiigo || includesJarvis) && <details className="admin-card company-create__advanced"><summary>Configuración NextPyme (opcional)</summary><div className="admin-form__grid">
     {includesJarvis && <label className="admin-form__field" htmlFor="admin-company-id-software">IDSoftware<input id="admin-company-id-software" value={idSoftware} onChange={event => setIdSoftware(event.target.value)} disabled={isSubmitting} autoComplete="off" /></label>}
     <label className="admin-form__field" htmlFor="admin-company-nextpyme-token">Token NextPyme<input id="admin-company-nextpyme-token" type="password" value={companyNextPymeToken} onChange={event => setCompanyNextPymeToken(event.target.value)} placeholder="Usar token global" disabled={isSubmitting} autoComplete="new-password" /></label>

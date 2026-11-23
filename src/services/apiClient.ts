@@ -1,3 +1,4 @@
+import { invalidateBusinessReads } from './businessCacheInvalidation'
 import { CLIENT_ERROR_FALLBACK, clientFacingError } from '../utils/clientFacingError'
 import { blockedSubscriptionRequest } from './subscriptionAccessStore'
 import { companyQueryKey, getActiveCompanyId, peekCachedQuery } from './queryCache'
@@ -114,7 +115,10 @@ apiClient.interceptors.request.use((config) => {
 })
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    invalidateBusinessReads(response.config.method ?? 'get', response.config.url ?? '')
+    return response
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined
 

@@ -29,16 +29,16 @@ export const BILLING_TOP_UPS = [
   { documents: 500, amount: 480000, price: '$480.000' },
 ]
 
-// Importes del portafolio comercial. Facturación, nómina y combos se cobran anualmente.
+// Precios por venta de la hoja «Productos» de Modelo_costos_punto_equilibrio_JENIUS_actualizado.xlsx. Facturación, nómina y combos se cobran anualmente.
 export const BILLING_PLANS = [
   { name: 'Inscripción inicial de facturación', price: '$139.900', amount: 139900, documents: 50, capacity: '50 documentos de obsequio', description: 'El obsequio de 50 documentos aplica únicamente en la primera inscripción.', action: 'Quiero empezar a facturar' },
   { name: 'Inscripción regular de facturación', price: '$139.900', amount: 139900, documents: 25, capacity: '25 documentos incluidos', description: 'Para quienes ya realizaron su primera inscripción.', action: 'Consultar inscripción regular' },
 ] as const
 
-export const PAYROLL_PLAN = { name: 'Nómina electrónica básica', price: '$149.900', amount: 149900, employees: 2, capacity: 'Hasta 2 empleados' } as const
+export const PAYROLL_PLAN = { name: 'Nómina electrónica básica', price: '$129.900', amount: 129900, employees: 2, capacity: 'Hasta 2 empleados' } as const
 
 export const COMPLIANCE_COMBOS = [
-  { name: 'Combo cumplimiento inicial', price: '$220.000', amount: 220000, capacity: '50 documentos + nómina para 2 empleados', description: 'Combina la inscripción inicial de facturación con nómina electrónica básica.', features: ['50 documentos en la primera inscripción', 'Nómina para hasta 2 empleados', 'RADIAN incluido', 'Permite recargas de documentos y empleados'] },
+  { name: 'Combo cumplimiento inicial', price: '$230.000', amount: 230000, capacity: '50 documentos + nómina para 2 empleados', description: 'Combina la inscripción inicial de facturación con nómina electrónica básica.', features: ['50 documentos en la primera inscripción', 'Nómina para hasta 2 empleados', 'RADIAN incluido', 'Permite recargas de documentos y empleados'] },
   { name: 'Combo cumplimiento ilimitado', price: '$720.000', amount: 720000, capacity: 'Facturación y nómina ilimitadas', description: 'Una solución para facturar y enviar la nómina de todo tu equipo.', features: ['Facturación electrónica ilimitada', 'Nómina electrónica ilimitada', 'RADIAN incluido', 'Sin necesidad de recargas'] },
 ] as const
 
@@ -46,7 +46,15 @@ export const PAYROLL_TOP_UPS = [
   { employees: 1, amount: 20000, price: '$20.000' },
   { employees: 2, amount: 38000, price: '$38.000' },
   { employees: 3, amount: 55000, price: '$55.000' },
-  { employees: 5, amount: 90000, price: '$90.000' },
-  { employees: 10, amount: 170000, price: '$170.000' },
-  { employees: 20, amount: 320000, price: '$320.000' },
+  { employees: 4, amount: 72000, price: '$72.000' },
+  { employees: 5, amount: 88000, price: '$88.000' },
+  { employees: 6, amount: 104000, price: '$104.000' },
+  { employees: 7, amount: 119000, price: '$119.000' },
+  { employees: 8, amount: 134000, price: '$134.000' },
+  { employees: 9, amount: 148000, price: '$148.000' },
+  { employees: 10, amount: 162000, price: '$162.000' },
+  { employees: 11, amount: 175000, price: '$175.000' },
+  { employees: 15, amount: 225000, price: '$225.000' },
+  { employees: 20, amount: 290000, price: '$290.000' },
+  { employees: 30, amount: 405000, price: '$405.000' },
 ] as const

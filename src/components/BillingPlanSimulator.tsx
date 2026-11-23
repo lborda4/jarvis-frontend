@@ -26,11 +26,34 @@ export function BillingEstimateResult({ estimate, manual = false }: { estimate: 
 export function BillingManualPacks({ quantities, onChange, payroll = false, title = 'Elige tus recargas' }: { title?: string; quantities: Record<number, string>; onChange: (documents: number, quantity: string) => void; payroll?: boolean }) {
   const unit = payroll ? 'empleados' : 'documentos'
   const options = payroll ? PAYROLL_TOP_UPS.map(pack => ({ ...pack, documents: pack.employees })) : BILLING_TOP_UPS
+  const [order, setOrder] = useState<number[]>(() => Object.keys(quantities).map(Number))
+  const picker = useRef<HTMLSelectElement>(null)
+  const selected = options.filter(pack => quantities[pack.documents] !== undefined && quantities[pack.documents] !== '0')
+  const ordered = [...order.filter(count => selected.some(pack => pack.documents === count)), ...selected.filter(pack => !order.includes(pack.documents)).map(pack => pack.documents)]
+  const available = options.filter(pack => !selected.includes(pack))
+  const prefix = payroll ? 'payroll' : 'billing'
+  const label = (count: number) => `${count} ${payroll && count === 1 ? 'empleado' : unit}`
   return <fieldset className="billing-simulator__packs"><legend>{title}</legend>
-    {options.map(pack => <label key={pack.documents} className="billing-simulator__pack" htmlFor={`${payroll ? 'payroll' : 'billing'}-pack-${pack.documents}`}>
-      <span>{pack.documents} {unit}<small>{money(pack.amount)} por recarga</small></span>
-      <input id={`${payroll ? 'payroll' : 'billing'}-pack-${pack.documents}`} aria-label={`Cantidad de recargas de ${pack.documents} ${unit}`} type="number" inputMode="numeric" min="0" max="10000" step="1" value={quantities[pack.documents] ?? '0'} onChange={event => onChange(pack.documents, event.target.value)} />
-    </label>)}
+    {ordered.map(count => {
+      return <div key={count} className="billing-simulator__pack">
+        <select aria-label={`Recarga de ${label(count)}`} value={count} onChange={event => {
+          const next = Number(event.target.value)
+          setOrder(ordered.map(item => item === count ? next : item))
+          onChange(count, '0'); onChange(next, quantities[count])
+        }}>{options.filter(item => item.documents === count || available.includes(item)).map(item => <option key={item.documents} value={item.documents}>{label(item.documents)} · {money(item.amount)}</option>)}</select>
+        <div className="billing-simulator__pack-actions">
+          <input id={`${prefix}-pack-${count}`} aria-label={`Cantidad de recargas de ${count} ${unit}`} type="number" inputMode="numeric" min="1" max="10000" step="1" value={quantities[count]} onChange={event => onChange(count, event.target.value)} />
+          <Button variant="ghost" aria-label={`Quitar recarga de ${label(count)}`} onClick={() => {
+            onChange(count, '0'); setOrder(ordered.filter(item => item !== count)); picker.current?.focus()
+          }}>Quitar</Button>
+        </div>
+      </div>
+    })}
+    {available.length > 0 && <select ref={picker} aria-label={payroll ? 'Agregar recarga de nómina' : 'Agregar recarga de documentos'} value="" onChange={event => {
+      const count = Number(event.target.value)
+      if (!count) return
+      setOrder([...ordered, count]); onChange(count, '1')
+    }}><option value="">{selected.length ? '+ Agregar otra recarga' : 'Selecciona una recarga'}</option>{available.map(pack => <option key={pack.documents} value={pack.documents}>{label(pack.documents)} · {money(pack.amount)}</option>)}</select>}
   </fieldset>
 }
 

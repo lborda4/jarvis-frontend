@@ -1,3 +1,4 @@
+import { CLIENT_STATUS_LABELS } from '../utils/clientLifecycle'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { AdminCompanyListItem } from '../types/admin'
@@ -11,7 +12,7 @@ import ErrorMessage from './ErrorMessage'
 import LoadingIndicator from './LoadingIndicator'
 import './AdminTracking.css'
 
-const dateLabel = (date: string | null | undefined) => date ? new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+const dateLabel = (date: string | null | undefined) => date ? new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
 function SummaryIcon({ kind }: { kind: string }) {
   return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -55,6 +56,7 @@ export function TrackingEditor({ company, onClose, onSaved, inline = false }: { 
 export default function AdminTracking({ companies, loading, onUpdated, onCreate, initialStatus = '' }: { companies: AdminCompanyListItem[]; loading: boolean; onUpdated: (company: AdminCompanyListItem) => void; onCreate: () => void; initialStatus?: string }) {
   const [search, setSearch] = useState('')
   const [plan, setPlan] = useState('')
+  const [lifecycle, setLifecycle] = useState('')
   const [status, setStatus] = useState(initialStatus === 'UPCOMING' || Object.hasOwn(TRACKING_STATUS_LABELS, initialStatus) ? initialStatus : '')
   const [cycle, setCycle] = useState('')
   const [page, setPage] = useState(1)
@@ -65,14 +67,14 @@ export default function AdminTracking({ companies, loading, onUpdated, onCreate,
   const periods = [...new Set(companies.map(trackingBillingMonths).filter((months): months is number => months !== null))].sort((a, b) => a - b)
   const filtered = companies.filter(company => {
     const text = `${company.name} ${company.nit} ${company.responsible?.email ?? ''} ${company.commercial ?? ''}`.toLocaleLowerCase()
-    return text.includes(search.trim().toLocaleLowerCase()) && (!plan || company.integrations.some(item => item.plan?.id === plan)) && (!cycle || trackingBillingMonths(company) === Number(cycle)) && (!status || (status === 'UPCOMING' ? ['DUE_SOON', 'DUE_TODAY'].includes(companyTrackingStatus(company, today)) : companyTrackingStatus(company, today) === status))
+    return text.includes(search.trim().toLocaleLowerCase()) && (!lifecycle || company.clientStatus === lifecycle) && (!plan || company.integrations.some(item => item.plan?.id === plan)) && (!cycle || trackingBillingMonths(company) === Number(cycle)) && (!status || (status === 'UPCOMING' ? ['DUE_SOON', 'DUE_TODAY'].includes(companyTrackingStatus(company, today)) : companyTrackingStatus(company, today) === status))
   }).sort((a, b) => (trackingDueDate(a) ?? '9999').localeCompare(trackingDueDate(b) ?? '9999') || a.name.localeCompare(b.name))
   const pages = Math.max(1, Math.ceil(filtered.length / 10))
   const currentPage = Math.min(page, pages)
-  const active = companies.filter(company => company.integrations.some(item => item.active && (!item.subscriptionStatus || item.subscriptionStatus === 'ACTIVE'))).length
+  const active = companies.filter(company => (!company.clientStatus || company.clientStatus === 'ACTIVE') && company.integrations.some(item => item.active && (!item.subscriptionStatus || item.subscriptionStatus === 'ACTIVE'))).length
   const count = (statuses: TrackingStatus[]) => companies.filter(company => statuses.includes(companyTrackingStatus(company, today))).length
   const exportCsv = () => {
-    const rows = [['Cliente', 'NIT', 'Correo', 'Comercial', 'Integraciones', 'Planes', 'Documentos disponibles', 'Periodicidad', 'Creación', 'Vencimiento', 'Estado'], ...filtered.map(company => [company.name, company.nit, company.responsible?.email ?? '', company.commercial ?? '', company.integrations.map(item => item.provider).join(', '), company.integrations.map(item => item.plan?.name ?? 'Sin plan').join(', '), company.integrations.filter(item => item.provider !== 'BOLD').map(item => `${item.provider}: ${trackingDocumentBalance(item)}`).join(', ') || '—', trackingPeriodLabel(company), colombiaToday(new Date(company.createdAt)), trackingDueDate(company) ?? '', TRACKING_STATUS_LABELS[companyTrackingStatus(company, today)]])]
+    const rows = [['Cliente', 'NIT', 'Correo', 'Comercial', 'Integraciones', 'Planes', 'Documentos disponibles', 'Periodicidad', 'Creación', 'Vencimiento', 'Estado'], ...filtered.map(company => [company.name, company.nit, company.responsible?.email ?? '', company.commercial ?? '', company.integrations.map(item => item.provider).join(', '), company.integrations.map(item => item.plan?.name ?? 'Sin plan').join(', '), company.integrations.filter(item => item.provider !== 'BOLD').map(item => `${item.provider}: ${trackingDocumentBalance(item)}`).join(', ') || '—', trackingPeriodLabel(company), colombiaToday(new Date(company.createdAt)), trackingDueDate(company) ?? '', (company.clientStatus ? CLIENT_STATUS_LABELS[company.clientStatus] : TRACKING_STATUS_LABELS[companyTrackingStatus(company, today)])])]
     const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(row => row.map(trackingCsvCell).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }))
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `seguimiento-${today}.csv`; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -86,19 +88,20 @@ export default function AdminTracking({ companies, loading, onUpdated, onCreate,
         <label className="tracking__search"><span className="tracking__sr-only">Buscar cliente</span><input type="search" placeholder="Buscar cliente, NIT, correo o comercial…" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} /></label>
         <select aria-label="Filtrar por plan" value={plan} onChange={event => { setPlan(event.target.value); setPage(1) }}><option value="">Todos los planes</option>{plans.map(item => <option key={item.id} value={item.id}>{item.provider} · {item.name}</option>)}</select>
         <select aria-label="Filtrar por periodicidad" value={cycle} onChange={event => { setCycle(event.target.value); setPage(1) }}><option value="">Todas las periodicidades</option>{periods.map(months => <option key={months} value={months}>{trackingPeriodLabel({ billingMonths: months })}</option>)}</select>
+        <select aria-label="Filtrar por etapa del cliente" value={lifecycle} onChange={event => { setLifecycle(event.target.value); setPage(1) }}><option value="">Todas las etapas</option>{Object.entries(CLIENT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <select aria-label="Filtrar por vencimiento" value={status} onChange={event => { setStatus(event.target.value); setPage(1) }}><option value="">Todos los estados</option><option value="UPCOMING">Hoy y próximos 7 días</option>{Object.entries(TRACKING_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <Button variant="outline" onClick={exportCsv} disabled={loading || !filtered.length}>↓ Exportar</Button>
       </div>
       {loading ? <LoadingIndicator message="Cargando clientes…" /> : !filtered.length ? <div className="tracking__empty">{companies.length ? 'No hay clientes que coincidan con los filtros.' : 'Aún no hay empresas registradas.'}</div> : <>
-        <div className="tracking__table-wrap"><table className="tracking__table"><thead><tr><th>Cliente</th><th>Comercial</th><th>Integración / plan</th><th className="tracking__documents">Documentos<br />disponibles</th><th>Periodicidad</th><th>Creación</th><th>Vencimiento</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+        <div className="tracking__table-wrap"><table className="tracking__table"><colgroup><col className="tracking__col-client" /><col className="tracking__col-commercial" /><col className="tracking__col-plan" /><col className="tracking__col-documents" /><col className="tracking__col-period" /><col className="tracking__col-date" /><col className="tracking__col-date" /><col className="tracking__col-status" /><col className="tracking__col-actions" /></colgroup><thead><tr><th>Cliente</th><th>Comercial</th><th>Integración / plan</th><th className="tracking__documents">Documentos<br />disponibles</th><th>Periodicidad</th><th>Creación</th><th>Vencimiento</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
           {filtered.slice((currentPage - 1) * 10, currentPage * 10).map(company => { const state = companyTrackingStatus(company, today); return <tr key={company.id}>
-            <td><div className="tracking__client"><span className="tracking__avatar" aria-hidden="true">{company.name.trim().slice(0, 2).toUpperCase()}</span><div><Link to={`/admin/clientes/${encodeURIComponent(company.id)}`}><strong>{company.name}</strong></Link><small>NIT {company.nit}</small>{company.responsible?.email && <small>{company.responsible.email}</small>}</div></div></td>
-            <td>{company.commercial || <span className="tracking__muted">Sin asignar</span>}</td>
-            <td><div className="tracking__plans">{company.integrations.length ? company.integrations.map(item => <span key={item.id}><b>{item.provider}</b> {item.plan?.name ?? 'Sin plan'}{item.subscriptionStatus && item.subscriptionStatus !== 'ACTIVE' && <small>{item.subscriptionStatus === 'SUSPENDED' ? 'Suspendido' : 'Cancelado'}</small>}</span>) : 'Sin integración'}</div></td>
-            <td className="tracking__documents"><div className="tracking__balances">{company.integrations.some(item => item.provider !== 'BOLD') ? company.integrations.filter(item => item.provider !== 'BOLD').map(item => <span key={item.id}>{company.integrations.filter(value => value.provider !== 'BOLD').length > 1 && <small>{item.provider}</small>}<strong>{trackingDocumentBalance(item)}</strong></span>) : <span className="tracking__muted">—</span>}</div></td>
-            <td>{trackingPeriodLabel(company)}</td><td>{dateLabel(colombiaToday(new Date(company.createdAt)))}</td><td>{dateLabel(trackingDueDate(company))}</td>
-            <td><span className={`tracking__badge tracking__badge--${state.toLowerCase()}`}>{TRACKING_STATUS_LABELS[state]}</span></td>
-            <td><button type="button" className="tracking__edit" aria-label={`Configurar seguimiento de ${company.name}`} onClick={() => setEditing(company)}>Editar</button></td>
+            <td data-label="Cliente"><div className="tracking__client"><span className="tracking__avatar" aria-hidden="true">{company.name.trim().slice(0, 2).toUpperCase()}</span><div><Link to={`/admin/clientes/${encodeURIComponent(company.id)}`}><strong>{company.name}</strong></Link><small>NIT {company.nit}</small>{company.responsible?.email && <small>{company.responsible.email}</small>}</div></div></td>
+            <td data-label="Comercial">{company.commercial || <span className="tracking__muted">Sin asignar</span>}</td>
+            <td data-label="Integración / plan"><div className="tracking__plans">{company.integrations.length ? company.integrations.map(item => <span className="tracking__integration-row" key={item.id}><b>{item.provider === 'JARVIS' ? 'Jarvis' : item.provider === 'SIIGO' ? 'Siigo' : 'Bold'}</b><span title={item.plan?.name ?? 'Sin plan'}>{item.plan?.name ?? 'Sin plan'}{item.subscriptionStatus && item.subscriptionStatus !== 'ACTIVE' && <small>{item.subscriptionStatus === 'SUSPENDED' ? 'Suspendido' : 'Cancelado'}</small>}</span></span>) : 'Sin integración'}</div></td>
+            <td data-label="Documentos disponibles" className="tracking__documents"><div className="tracking__balances">{company.integrations.length ? company.integrations.map(item => <span className="tracking__balance-row" key={item.id}>{company.integrations.length > 1 && <small className="tracking__balance-provider">{item.provider}</small>}<strong aria-label={item.provider + ': ' + (item.provider === 'BOLD' ? 'No aplica' : trackingDocumentBalance(item))}>{item.provider === 'BOLD' ? '—' : trackingDocumentBalance(item)}</strong></span>) : <span className="tracking__muted">—</span>}</div></td>
+            <td data-label="Periodicidad">{trackingPeriodLabel(company)}</td><td data-label="Creación" className="tracking__date">{dateLabel(colombiaToday(new Date(company.createdAt)))}</td><td data-label="Vencimiento" className="tracking__date">{dateLabel(trackingDueDate(company))}</td>
+            <td data-label="Estado"><span className={`tracking__badge tracking__badge--${company.clientStatus && company.clientStatus !== 'ACTIVE' ? 'due_soon' : state.toLowerCase()}`}>{company.clientStatus ? CLIENT_STATUS_LABELS[company.clientStatus] : TRACKING_STATUS_LABELS[state]}</span></td>
+            <td data-label="Acciones"><button type="button" className="tracking__edit" aria-label={`Configurar seguimiento de ${company.name}`} onClick={() => setEditing(company)}>Editar</button></td>
           </tr> })}
         </tbody></table></div>
         {shouldShowTablePagination(filtered.length) && <footer className="tracking__pagination"><span>{(currentPage - 1) * 10 + 1}–{Math.min(currentPage * 10, filtered.length)} de {filtered.length} clientes</span><div><Button variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><span>{currentPage} / {pages}</span><Button variant="outline" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>Siguiente</Button></div></footer>}

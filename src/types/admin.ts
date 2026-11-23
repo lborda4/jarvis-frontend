@@ -112,6 +112,7 @@ export interface ApplyAdminJarvisTopUpResponse extends UpdateIntegrationSubscrip
 }
 
 export interface AdminCompanyListItem {
+  clientStatus?: import('../utils/clientLifecycle').ClientStatus | null
   advisorId?: string | null
   registrationEmail?: string | null
   jarvisModules?: import('./companyModules').JarvisModule[] | null

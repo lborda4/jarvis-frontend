@@ -33,6 +33,11 @@ export default function CommissionReport({ admin = false, advisorId, companyId, 
   const [search, setSearch] = useState(''), [provider, setProvider] = useState(''), [kind, setKind] = useState('')
   const [view, setView] = useState<'all' | 'paid' | 'pending'>('all')
   useEffect(() => {
+    const refresh = () => { setError(''); setLoading(true); setRevision(value => value + 1) }
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [])
+  useEffect(() => {
     let cancelled = false
     void fetchCommissionReport(month, admin, { advisorId, companyId }).then(value => { if (!cancelled) setData(value) }).catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudieron cargar las comisiones.')) }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

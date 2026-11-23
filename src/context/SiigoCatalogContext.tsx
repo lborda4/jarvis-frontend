@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -36,7 +37,8 @@ import {
   getActiveCompanyId,
   peekCachedQuery,
   QUERY_STALE_MS,
-  setCachedQuery,
+  isCachedQueryFresh,
+  invalidateQueryCache,
 } from '../services/queryCache'
 import { mapCatalogToAccountOptions } from '../utils/siigoAccounts'
 import { mapCatalogToCostCenterOptions } from '../utils/siigoCostCenters'
@@ -269,17 +271,18 @@ async function loadCatalogsFromApi(): Promise<SiigoCatalogBundle> {
 }
 
 async function loadCatalogsCached(force = false): Promise<SiigoCatalogBundle> {
-  return cachedQuery(
-    siigoCatalogCacheKey(),
-    QUERY_STALE_MS.siigoCatalogBundle,
-    loadCatalogsFromApi,
-    { force },
-  )
+  const key = siigoCatalogCacheKey()
+  const result = await cachedQuery(key, QUERY_STALE_MS.siigoCatalogBundle, loadCatalogsFromApi, { force })
+  // A partial failure must be retryable, rather than remaining fresh for 30 minutes.
+  if ([result.accountsError, result.paymentMethodsError, result.costCentersError, result.retentionsError, result.productsError, result.fixedAssetsError].some(Boolean)) invalidateQueryCache(key)
+  return result
 }
 
 export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user, isSwitchingCompany } = useAuth()
   const { isSiigoConfigured, isSiigoCompany, isCheckingSetup } = useIntegrationSetup()
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const companyId = user?.company?.id
   const cachedBundle = peekCachedQuery<SiigoCatalogBundle>(siigoCatalogCacheKey())
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(
@@ -341,6 +344,7 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refreshCatalogs = useCallback(async (options?: { force?: boolean }) => {
+    if (!mounted.current) return
     if (!isAuthenticated || !isSiigoConfigured || !isSiigoCompany || isCheckingSetup || isSwitchingCompany || getActiveCompanyId() !== companyId) {
       applyCatalogState(EMPTY_CATALOGS)
       setIsLoadingCatalogs(false)
@@ -351,9 +355,9 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
       setIsLoadingCatalogs(true)
       try {
         await syncSiigoCatalogs({ force: true })
-        if (getActiveCompanyId() !== companyId) return
+        if (!mounted.current || getActiveCompanyId() !== companyId) return
         const catalogs = await loadCatalogsCached(true)
-        if (getActiveCompanyId() !== companyId) return
+        if (!mounted.current || getActiveCompanyId() !== companyId) return
         applyCatalogState(catalogs)
         const errors = [
           catalogs.accountsError,
@@ -381,24 +385,17 @@ export function SiigoCatalogProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      if (!isCachedQueryFresh(siigoCatalogCacheKey(), QUERY_STALE_MS.siigoCatalogBundle)) {
+        await syncSiigoCatalogs().catch(() => undefined)
+        if (!mounted.current || getActiveCompanyId() !== companyId) return
+      }
       const catalogs = await loadCatalogsCached()
-      if (getActiveCompanyId() !== companyId) return
+      if (!mounted.current || getActiveCompanyId() !== companyId) return
       applyCatalogState(catalogs)
     } finally {
       setIsLoadingCatalogs(false)
     }
 
-    // Sync en background; solo reescribe UI si hay datos nuevos (sin spinner).
-    if (getActiveCompanyId() !== companyId) return
-    void syncSiigoCatalogs()
-      .then(async () => {
-        if (getActiveCompanyId() !== companyId) return
-        const catalogs = await loadCatalogsCached(true)
-        if (getActiveCompanyId() !== companyId) return
-        setCachedQuery(siigoCatalogCacheKey(), catalogs)
-        applyCatalogState(catalogs)
-      })
-      .catch(() => undefined)
   }, [applyCatalogState, companyId, isAuthenticated, isSiigoConfigured, isSiigoCompany, isCheckingSetup, isSwitchingCompany])
 
   useEffect(() => {

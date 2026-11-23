@@ -1,3 +1,4 @@
+import { invalidateQueryCache } from './queryCache'
 import type { AuthCompany, AuthTokens, AuthUser } from '../types/auth'
 import { clearIntegrationSetupSnapshots } from '../utils/integrationSetupSnapshot'
 
@@ -19,6 +20,7 @@ export function setTokens(tokens: AuthTokens): void {
 }
 
 export function clearTokens(): void {
+  invalidateQueryCache()
   clearIntegrationSetupSnapshots()
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)

@@ -1,3 +1,4 @@
+import { clearPersistedQueries, persistQuery, queryCacheScope, readPersistedQuery } from './persistentQueryCache'
 interface CacheEntry<T> {
   value: T
   fetchedAt: number
@@ -6,10 +7,27 @@ interface CacheEntry<T> {
 
 const store = new Map<string, CacheEntry<unknown>>()
 const MAX_CACHE_ENTRIES = 200
+let scope: string | null | undefined
+function ensureScope() {
+  const next = queryCacheScope()
+  if (scope !== undefined && scope !== next) { store.clear(); clearPersistedQueries() }
+  scope = next
+}
+function getEntry<T>(key: string): CacheEntry<T> | undefined {
+  ensureScope()
+  let entry = store.get(key) as CacheEntry<T> | undefined
+  if (!entry) {
+    const saved = readPersistedQuery(scope ?? null, key)
+    if (saved) { entry = saved as CacheEntry<T>; saveEntry(key, entry) }
+  }
+  return entry
+}
 
 function saveEntry<T>(key: string, entry: CacheEntry<T>): void {
+  ensureScope()
   store.delete(key)
   store.set(key, entry)
+  if (!entry.inflight) persistQuery(scope ?? null, key, entry)
   while (store.size > MAX_CACHE_ENTRIES) {
     const oldest = store.keys().next().value
     if (oldest === undefined) break
@@ -20,7 +38,7 @@ function saveEntry<T>(key: string, entry: CacheEntry<T>): void {
 let activeCompanyId: string | null = null
 
 export const QUERY_STALE_MS = {
-  catalogs: 5 * 60_000,
+  catalogs: 30 * 60_000,
   terceros: 60_000,
   taxes: 60_000,
   credentials: 60_000,
@@ -30,7 +48,7 @@ export const QUERY_STALE_MS = {
   jarvisHistory: 60_000,
   jarvisConfiguration: 24 * 60 * 60_000,
   jarvisQuota: 24 * 60 * 60_000,
-  siigoCatalogBundle: 5 * 60_000,
+  siigoCatalogBundle: 30 * 60_000,
 } as const
 
 export function setActiveCompanyId(companyId: string | null): void {
@@ -40,7 +58,7 @@ export function setActiveCompanyId(companyId: string | null): void {
     invalidateQueryCache()
   }
 
-  if (!next) {
+  if (!next && activeCompanyId) {
     invalidateQueryCache()
   }
 
@@ -57,12 +75,12 @@ export function companyQueryKey(parts: Array<string | number | null | undefined>
 }
 
 export function peekCachedQuery<T>(key: string): T | undefined {
-  const entry = store.get(key) as CacheEntry<T> | undefined
+  const entry = getEntry<T>(key)
   return entry?.value
 }
 
 export function isCachedQueryFresh(key: string, staleMs: number): boolean {
-  const entry = store.get(key)
+  const entry = getEntry<unknown>(key)
   if (!entry) return false
   return Date.now() - entry.fetchedAt < staleMs
 }
@@ -76,11 +94,13 @@ export function setCachedQuery<T>(key: string, value: T): void {
 
 /** Patch cached data without extending its freshness or creating a missing entry. */
 export function updateCachedQuery<T>(key: string, update: (value: T) => T): void {
-  const entry = store.get(key) as CacheEntry<T> | undefined
-  if (entry?.value !== undefined) entry.value = update(entry.value)
+  const entry = getEntry<T>(key)
+  if (entry?.value !== undefined) { entry.value = update(entry.value); persistQuery(scope ?? null, key, entry) }
 }
 
 export function invalidateQueryCache(prefix?: string): void {
+  ensureScope()
+  clearPersistedQueries(scope, prefix)
   if (!prefix) {
     store.clear()
     return
@@ -103,7 +123,7 @@ export async function cachedQuery<T>(
   fetcher: () => Promise<T>,
   options?: { force?: boolean },
 ): Promise<T> {
-  const existing = store.get(key) as CacheEntry<T> | undefined
+  const existing = getEntry<T>(key)
 
   if (
     !options?.force &&
@@ -121,13 +141,13 @@ export async function cachedQuery<T>(
   const inflight = Promise.resolve().then(fetcher)
     .then((value) => {
       // A mutation, company switch or newer refresh may have invalidated this request.
-      if (store.get(key)?.inflight === inflight) {
+      if (getEntry<T>(key)?.inflight === inflight) {
         saveEntry(key, { value, fetchedAt: Date.now() })
       }
       return value
     })
     .catch((error) => {
-      const current = store.get(key) as CacheEntry<T> | undefined
+      const current = getEntry<T>(key)
       if (current?.inflight === inflight) {
         saveEntry(key, {
           value: current.value,
@@ -157,7 +177,7 @@ export async function cachedQuerySWR<T>(
   staleMs: number,
   fetcher: () => Promise<T>,
 ): Promise<{ value: T; fromCache: boolean }> {
-  const existing = store.get(key) as CacheEntry<T> | undefined
+  const existing = getEntry<T>(key)
 
   if (existing && existing.fetchedAt > 0 && existing.value !== undefined) {
     const fresh = Date.now() - existing.fetchedAt < staleMs

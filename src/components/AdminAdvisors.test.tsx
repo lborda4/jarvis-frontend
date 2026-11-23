@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { AdvisorsTable } from './AdminAdvisors'
@@ -5,11 +6,13 @@ import { advisorCommissionLabel } from '../utils/advisorCommission'
 import type { AdminAdvisor } from '../types/admin'
 
 const advisor: AdminAdvisor = { id: 'a', name: 'Laura', email: 'laura@example.com', commissionType: 'PERCENT', commissionValue: 12.5, registered: false, active: false, lastDeliveryStatus: 'FAILED', lastInvitedAt: null, clients: [{ id: 'c', name: 'Empresa', nit: '900' }] }
-const render = (items: AdminAdvisor[]) => renderToStaticMarkup(<AdvisorsTable items={items} busy={false} onEdit={() => {}} onClients={() => {}} onSend={() => {}} />)
+const render = (items: AdminAdvisor[]) => renderToStaticMarkup(<MemoryRouter><AdvisorsTable items={items} busy={false} onEdit={() => {}} onClients={() => {}} onSend={() => {}} /></MemoryRouter>)
 describe('asesores del administrador', () => {
   it('muestra clientes, comisión y registro pendiente con reenvío disponible', () => {
     const html = render([advisor])
     for (const text of ['Laura', 'laura@example.com', '1 cliente', 'Según producto', 'Pendiente', 'Correo pendiente', 'Reenviar correo']) expect(html).toContain(text)
+    expect(html).toContain('Ver panel')
+    expect(html).toContain('/admin/asesores/a')
     expect(html).not.toContain('Anterior')
     expect(html).not.toContain('role="dialog"')
   })

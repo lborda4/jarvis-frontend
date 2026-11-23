@@ -1,9 +1,38 @@
-.admin-plans { display: grid; gap: 1.5rem; }
-.admin-plan-editor { padding: 1rem 0; border-top: 1px solid var(--jarvis-gray-300); }
-.admin-plan-editor__summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.admin-plan-editor h3, .admin-plan-editor p { margin: 0 0 .5rem; }
-.admin-plan-editor .admin-form { max-width: 36rem; }
-.admin-plan-editor__actions { display: flex; flex-wrap: wrap; gap: .75rem; }
-.admin-plan-editor button { padding: .6rem 1rem; border: 1px solid var(--jarvis-gray-400); border-radius: var(--r-md); background: var(--jarvis-white); color: var(--jarvis-primary-hover); font: inherit; cursor: pointer; }
-.admin-plan-editor button:disabled { opacity: .6; cursor: wait; }
-.admin-plan-editor__notice { color: var(--jarvis-text-muted); font-size: var(--text-base); }
+﻿.admin-plans { display: grid; gap: var(--space-5); }
+.admin-plans__toolbar { display: grid; gap: var(--space-5); }
+.admin-plans__heading, .admin-plans__result, .admin-plan-editor__footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.admin-plans__heading h2, .admin-plans__result h2 { margin: 0; color: var(--jarvis-navy); font-size: var(--text-2xl); font-weight: var(--font-weight-heading); }
+.admin-plans__heading p { margin: var(--space-2) 0 0; color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.admin-plans__tabs { display: flex; gap: var(--space-1); padding: var(--space-1); border: 1px solid var(--jarvis-border); border-radius: var(--r-md); background: var(--jarvis-input-bg); }
+.admin-plans__tabs .btn { display: flex; align-items: center; gap: var(--space-2); }
+.admin-plans__tabs .btn span { font-size: var(--text-xs); }
+.admin-plans__filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); }
+.admin-plans__filters .admin-form__field { flex: 1; min-width: min(100%, 180px); }
+.admin-plans__filters .admin-form__field:first-child { flex: 2; }
+.admin-plans__result > span, .admin-plans__result h2 span { font-size: var(--text-sm); color: var(--jarvis-text-muted); font-weight: var(--font-weight-normal); }
+.admin-plans__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: var(--space-4); align-items: start; }
+.admin-plan-editor { display: flex; flex-direction: column; min-width: 0; height: 100%; box-sizing: border-box; gap: var(--space-4); padding: var(--space-5); background: var(--jarvis-card-bg); border: 1px solid var(--jarvis-border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.admin-plan-editor--editing { border-color: var(--jarvis-primary); box-shadow: var(--shadow-md); }
+.admin-plan-editor__labels { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--jarvis-text-muted); font-size: var(--text-xs); }
+.admin-plans__badge { display: inline-flex; padding: var(--space-1) var(--space-2); border-radius: var(--r-sm); color: var(--jarvis-primary-hover); background: var(--jarvis-primary-soft); font-weight: var(--font-weight-label); }
+.admin-plans__badge--siigo { color: var(--jarvis-info); background: var(--jarvis-info-soft); }
+.admin-plan-editor h3 { color: var(--jarvis-navy); font-size: var(--text-xl); font-weight: var(--font-weight-heading); margin: 0; overflow-wrap: anywhere; }
+.admin-plan-editor .admin-plan-editor__price { margin: var(--space-3) 0 0; font-size: var(--text-2xl); font-weight: var(--font-weight-heading); color: var(--jarvis-navy); overflow-wrap: anywhere; }
+.admin-plan-editor__capacity { background: var(--jarvis-input-bg); border-radius: var(--r-md); padding: var(--space-3); font-size: var(--text-md); color: var(--jarvis-text); }
+.admin-plan-editor__features { padding: 0; margin: 0; list-style: none; display: grid; gap: var(--space-2); color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.admin-plan-editor__features li::before { content: '✓'; margin-right: var(--space-2); color: var(--jarvis-primary); }
+.admin-plan-editor__footer { margin-top: auto; padding-top: var(--space-4); border-top: 1px solid var(--jarvis-border); }
+.admin-plan-editor__commission { display: grid; gap: var(--space-1); color: var(--jarvis-text-muted); font-size: var(--text-xs); }
+.admin-plan-editor__commission strong { color: var(--jarvis-text); font-size: var(--text-sm); font-weight: var(--font-weight-label); }
+.admin-plan-editor__unit-price { color: var(--jarvis-text-muted); font-size: var(--text-sm); }
+.admin-plan-editor .admin-form { display: grid; gap: var(--space-4); }
+.admin-plan-editor__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.admin-plan-editor__notice { margin: 0; color: var(--jarvis-warning); font-size: var(--text-sm); }
+.admin-plans__empty { text-align: center; padding: var(--space-7); }
+.admin-plans__empty h3 { margin: 0; font-size: var(--text-xl); font-weight: var(--font-weight-heading); }
+.admin-plans__empty p { color: var(--jarvis-text-muted); font-size: var(--text-md); }
+@media (max-width: 600px) {
+  .admin-plans__tabs { width: 100%; }
+  .admin-plans__tabs .btn { flex: 1; justify-content: center; }
+  .admin-plans__filters { flex-direction: column; align-items: stretch; }
+}
