@@ -1,4 +1,5 @@
 import { invalidateBusinessReads } from './businessCacheInvalidation'
+import { radianVerificationError } from '../utils/radianVerificationError'
 import { CLIENT_ERROR_FALLBACK, clientFacingError } from '../utils/clientFacingError'
 import { blockedSubscriptionRequest } from './subscriptionAccessStore'
 import { companyQueryKey, getActiveCompanyId, peekCachedQuery } from './queryCache'
@@ -160,7 +161,7 @@ export function getApiErrorMessage(
       .trim()
 
   if (axios.isAxiosError(error)) {
-    if ((error.response?.status ?? 0) >= 500) return CLIENT_ERROR_FALLBACK
+    if ((error.response?.status ?? 0) >= 500) return radianVerificationError(error.response?.data) ?? CLIENT_ERROR_FALLBACK
     const data = error.response?.data
 
     if (typeof data === 'object' && data !== null && 'message' in data) {

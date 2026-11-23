@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoiceNoteBlockReason } from '../services/invoiceNoteEligibility'
+import { getApiErrorMessage } from '../services/apiClient'
 import DocumentNotice from './DocumentNotice'
 
 export default function InvoiceNoteAction({ invoiceId, kind, className, children }: {
@@ -23,8 +24,8 @@ export default function InvoiceNoteAction({ invoiceId, kind, className, children
       const reason = await invoiceNoteBlockReason(invoiceId)
       if (reason) setNotice(reason)
       else navigate(`/nota-${kind === 'debit' ? 'debito' : 'credito'}/nueva?factura=${encodeURIComponent(invoiceId)}`)
-    } catch {
-      setNotice('No se pudo verificar en NextPyme la aceptación RADIAN de esta factura. Intenta nuevamente antes de crear la nota.')
+    } catch (error) {
+      setNotice(getApiErrorMessage(error, 'No se pudo verificar la aceptación RADIAN. Intenta nuevamente antes de crear la nota.'))
     } finally {
       checkingRef.current = false
       setChecking(false)

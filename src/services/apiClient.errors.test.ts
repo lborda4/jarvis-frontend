@@ -11,3 +11,7 @@ it('conserva las validaciones que el usuario sí puede corregir', () => {
 it('no muestra códigos HTTP ni páginas de error cuando no hay mensaje JSON', () => {
   expect(getApiErrorMessage({ isAxiosError: true, response: { status: 404, data: 'Cannot GET /private' } }, 'No se pudo cargar la información.')).toBe('No se pudo cargar la información.')
 })
+it('identifica la consulta RADIAN fallida sin mostrar el mensaje privado del gateway', () => {
+  const error = { isAxiosError: true, response: { status: 502, data: { code: 'RADIAN_TIMEOUT', message: 'private-token' } } }
+  expect(getApiErrorMessage(error, 'No se pudo completar.')).toBe('La consulta RADIAN tardó demasiado. Intenta nuevamente en unos segundos.')
+})
