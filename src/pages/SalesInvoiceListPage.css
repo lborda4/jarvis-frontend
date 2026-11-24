@@ -24,9 +24,9 @@
 .sales-history__view, .sales-history__more { display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 36px; padding: .4rem .6rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-md); background: var(--jarvis-white); color: var(--jarvis-primary); cursor: pointer; font: inherit; white-space: nowrap; }
 .sales-history__more { min-width: 32px; font-size: var(--text-emphasis); }
 .invoice-note-actions { z-index: 1050; width: 180px; padding: .4rem; background: var(--jarvis-white); box-shadow: var(--shadow-md); border: 1px solid var(--jarvis-border); border-radius: var(--r-md); }
-.invoice-note-actions a, .invoice-note-actions button { display: block; width: 100%; box-sizing: border-box; padding: .7rem; text-decoration: none; font: inherit; font-size: var(--text-base); text-align: left; background: var(--jarvis-transparent); border: 0; border-radius: var(--r-control); color: var(--jarvis-text); }
+.invoice-note-actions a, .invoice-note-actions button { display: block; width: 100%; box-sizing: border-box; padding: .7rem; text-decoration: none; font: inherit; font-size: var(--text-base); text-align: left; background: var(--jarvis-transparent); border: 0; border-radius: var(--r-control); color: var(--jarvis-text); cursor: pointer; }
 .invoice-note-actions small { display: block; font-size: var(--text-xs); }
-.invoice-note-actions a:hover, .invoice-note-actions a:focus-visible { background: var(--jarvis-primary-soft); color: var(--jarvis-primary); }
+.invoice-note-actions a:hover, .invoice-note-actions a:focus-visible, .invoice-note-actions button:not(:disabled):hover, .invoice-note-actions button:not(:disabled):focus-visible { background: var(--jarvis-primary-soft); color: var(--jarvis-primary); }
 .invoice-note-actions button:disabled { opacity: .5; cursor: not-allowed; }
 .sales-history table { width: 100%; border-collapse: collapse; }
 .sales-history th { padding: .85rem 1.5rem; text-align: left; font-size: var(--text-xs); letter-spacing: .055em; text-transform: uppercase; color: var(--jarvis-text-muted); background: var(--jarvis-gray-50); white-space: nowrap; }

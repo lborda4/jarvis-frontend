@@ -153,6 +153,16 @@ export interface AdminAdvisor {
   clients: Array<{ id: string; name: string; nit: string }>
 }
 export interface AdminAdvisorInput { name: string; email?: string; commissionType: AdminAdvisor['commissionType']; commissionValue: number | null }
+export interface AdvisorConversionUser {
+  id: string
+  name: string
+  email: string
+  role: 'user' | 'admin' | 'advisor'
+  active: boolean
+  advisorId: string | null
+  canConvert: boolean
+  reason: string | null
+}
 export interface AdvisorAccessDelivery { status: 'SENT' | 'FAILED'; message: string }
 
 export interface AdminCityOption {

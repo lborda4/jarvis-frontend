@@ -1,8 +1,8 @@
 import { invalidateQueryCache } from '../services/queryCache'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import type { AdminAdvisor, AdminCompanyListItem, AdvisorAccessDelivery } from '../types/admin'
-import { assignAdvisorClient, createAdminAdvisor, fetchAdminAdvisors, sendAdvisorAccess, updateAdminAdvisor } from '../services/adminAdvisorsService'
+import type { AdminAdvisor, AdminCompanyListItem, AdvisorAccessDelivery, AdvisorConversionUser } from '../types/admin'
+import { assignAdvisorClient, convertUserToAdvisor, createAdminAdvisor, fetchAdminAdvisors, lookupAdvisorConversionUser, sendAdvisorAccess, updateAdminAdvisor } from '../services/adminAdvisorsService'
 import { getApiErrorMessage } from '../services/apiClient'
 import { shouldShowTablePagination } from '../utils/tablePagination'
 import Button from './Button'
@@ -63,6 +63,9 @@ export default function AdminAdvisors({ companies, onCompanyAssigned }: { compan
   const [showCommissions, setShowCommissions] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [converting, setConverting] = useState(false)
+  const [conversionEmail, setConversionEmail] = useState('')
+  const [conversionUser, setConversionUser] = useState<AdvisorConversionUser | null>(null)
   useEffect(() => {
     let cancelled = false
     void fetchAdminAdvisors().then(data => { if (!cancelled) setItems(data.items) }).catch(failure => { if (!cancelled) setError(getApiErrorMessage(failure, 'No se pudo cargar la lista de asesores.')) }).finally(() => { if (!cancelled) setLoading(false) })
@@ -70,8 +73,25 @@ export default function AdminAdvisors({ companies, onCompanyAssigned }: { compan
   }, [revision])
   const update = (advisor: AdminAdvisor) => setItems(current => current.some(item => item.id === advisor.id) ? current.map(item => item.id === advisor.id ? advisor : item) : [advisor, ...current])
   const openEditor = (advisor: AdminAdvisor | 'new') => {
-    setEditing(advisor); setError(''); setNotice(null)
+    setConverting(false); setEditing(advisor); setError(''); setNotice(null)
     setName(advisor === 'new' ? '' : advisor.name); setEmail(advisor === 'new' ? '' : advisor.email)
+  }
+  const findConversionUser = async (event: FormEvent) => {
+    event.preventDefault(); if (busy) return
+    setBusy(true); setError(''); setNotice(null); setConversionUser(null)
+    try { const result = await lookupAdvisorConversionUser(conversionEmail.trim()); setConversionUser(result.user) }
+    catch (failure) { setError(getApiErrorMessage(failure, 'No se pudo buscar el usuario.')) }
+    finally { setBusy(false) }
+  }
+  const convert = async () => {
+    if (busy || !conversionUser?.canConvert) return
+    setBusy(true); setError(''); setNotice(null)
+    try {
+      const result = await convertUserToAdvisor(conversionUser.id)
+      update(result.advisor); setRegistration(''); setSearch(''); setConverting(false); setConversionUser(null); setConversionEmail('')
+      setNotice({ status: 'SENT', message: result.changed ? 'Comercial habilitado. El usuario debe volver a iniciar sesión con su cuenta actual.' : 'El usuario ya tiene acceso comercial.' })
+    } catch (failure) { setError(getApiErrorMessage(failure, 'No se pudo convertir el usuario a comercial.')) }
+    finally { setBusy(false) }
   }
   const save = async (event: FormEvent) => {
     event.preventDefault(); if (!editing || busy) return
@@ -107,9 +127,20 @@ export default function AdminAdvisors({ companies, onCompanyAssigned }: { compan
       { label: 'Por registrarse', value: items.filter(item => !item.registered).length, detail: 'Invitaciones pendientes', tone: 'warning', onClick: () => setRegistration('pending') },
       { label: 'Correo por revisar', value: items.filter(item => item.lastDeliveryStatus === 'FAILED').length, detail: 'Reenviar acceso', tone: 'danger', onClick: () => setRegistration('failed') },
     ]} />}
-    <div className="advisors__heading"><h2>Equipo comercial</h2><div className="advisors__actions"><Button variant="outline" onClick={() => setShowCommissions(value => !value)}>{showCommissions ? 'Ocultar comisiones' : 'Comisiones mensuales'}</Button><Button disabled={busy || loading} onClick={() => openEditor('new')}>+ Crear asesor</Button></div></div>
+    <div className="advisors__heading"><h2>Equipo comercial</h2><div className="advisors__actions"><Button variant="outline" onClick={() => setShowCommissions(value => !value)}>{showCommissions ? 'Ocultar comisiones' : 'Comisiones mensuales'}</Button><Button variant="outline" disabled={busy || loading} onClick={() => { setConverting(value => !value); setEditing(null); setConversionUser(null); setConversionEmail(''); setError(''); setNotice(null) }}>Convertir a comercial</Button><Button disabled={busy || loading} onClick={() => openEditor('new')}>+ Crear asesor</Button></div></div>
     {showCommissions && <CommissionReport admin />}
     {error && <ErrorMessage inline message={error} />}{notice && <Banner variant={notice.status === 'SENT' ? 'success' : 'warning'} message={notice.message} />}
+    {converting && <section className="admin-card"><h2>Convertir a comercial</h2>
+      <form className="advisors__assign" onSubmit={event => void findConversionUser(event)}>
+        <label className="admin-form__field">Correo del usuario<input type="email" value={conversionEmail} onChange={event => { setConversionEmail(event.target.value); setConversionUser(null); setError('') }} required maxLength={254} disabled={busy} autoComplete="off" /></label>
+        <Button type="submit" variant="outline" disabled={busy || !conversionEmail.trim()}>{busy && !conversionUser ? 'Buscando…' : 'Buscar usuario'}</Button>
+      </form>
+      {conversionUser && <div className="advisors__conversion-user" role="status"><strong>{conversionUser.name}</strong><span>{conversionUser.email}</span>
+        {conversionUser.reason ? <span>{conversionUser.reason}</span> : <span>Conservará su contraseña y su historial comercial.</span>}
+        {!conversionUser.canConvert && conversionUser.active && conversionUser.role === 'advisor' && conversionUser.advisorId && <Link to={`/admin/asesores/${encodeURIComponent(conversionUser.advisorId)}`}>Ver panel comercial</Link>}
+      </div>}
+      <div className="advisors__actions"><Button disabled={busy || !conversionUser?.canConvert} onClick={() => void convert()}>{busy && conversionUser ? 'Convirtiendo…' : 'Convertir a comercial'}</Button><Button variant="outline" disabled={busy} onClick={() => setConverting(false)}>Cancelar</Button></div>
+    </section>}
     {editing && <section className="admin-card"><h2>{editing === 'new' ? 'Crear asesor' : 'Editar asesor'}</h2><form className="admin-form" onSubmit={event => void save(event)}><div className="admin-form__grid">
       <label className="admin-form__field">Nombre<input value={name} onChange={event => setName(event.target.value)} required maxLength={120} disabled={busy} /></label>
       <label className="admin-form__field">Correo<input type="email" value={email} onChange={event => setEmail(event.target.value)} required maxLength={254} disabled={busy || editing !== 'new'} /></label>

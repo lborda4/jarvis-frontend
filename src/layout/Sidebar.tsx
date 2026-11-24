@@ -295,12 +295,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
             ]
               .filter(Boolean)
               .join(' ')}
-            onClick={() => {
-              if (item.to === 'nomina-electronica') {
-                setExpandedGroups(current => ({ ...current, [item.to]: true }))
-                navigate('/nomina')
-              } else setExpandedGroups(current => ({ ...current, [item.to]: !isExpanded }))
-            }}
+            onClick={() => setExpandedGroups(current => ({ ...current, [item.to]: !isExpanded }))}
             aria-controls={isExpanded ? groupId : undefined}
             aria-expanded={isExpanded}
           >

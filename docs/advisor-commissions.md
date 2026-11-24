@@ -4,6 +4,8 @@ El asesor puede crear empresas Siigo o Jarvis con el mismo `CreateCompanyForm` d
 
 El panel muestra sus clientes y comisiones mensuales. Los endpoints `/advisor/*` exigen una cuenta de asesor registrada y activa; el asesor no puede elegir el ID de otro asesor ni acceder a administración, documentos, tokens o configuración de clientes.
 
+En **Administración → Asesores → Convertir a comercial**, el administrador busca una cuenta existente por correo y confirma la conversión. Se conserva la contraseña y se crea o reutiliza su perfil comercial sin borrar clientes, comisiones ni vínculos anteriores. El usuario debe volver a iniciar sesión. La conversión no envía correos, no activa cuentas inactivas ni cambia cuentas de administrador. Crear un asesor nuevo continúa siendo un flujo separado con invitación.
+
 ## Reglas comerciales confirmadas
 
 - Básica: 10 % en venta inicial y 5 % en renovación del plan.

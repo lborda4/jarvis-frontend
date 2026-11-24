@@ -8,6 +8,7 @@
 .advisors__search { width: min(100%, 360px); }
 .advisors__assign { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; margin-bottom: var(--space-4); }
 .advisors__assign .admin-form__field { flex: 1 1 250px; }
+.advisors__conversion-user { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); margin-bottom: var(--space-4); background: var(--jarvis-input-bg); border: 1px solid var(--jarvis-border); border-radius: var(--r-md); overflow-wrap: anywhere; }
 .advisors__clients > .advisors__search { margin-bottom: var(--space-4); }
 .advisors__table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--text-sm); }
 .advisors__table th, .advisors__table td { padding: var(--space-3) var(--space-2); text-align: left; vertical-align: top; border-bottom: 1px solid var(--jarvis-border); overflow-wrap: anywhere; }
