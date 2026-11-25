@@ -2,11 +2,24 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import SalesInvoiceListPage from './SalesInvoiceListPage'
-const mocks = vi.hoisted(() => ({ cached: null as unknown }))
+const mocks = vi.hoisted(() => ({ cached: null as unknown, noteActions: vi.fn() }))
 vi.mock('../services/queryCache', () => ({ peekCachedQuery: () => mocks.cached, companyQueryKey: () => 'test', invalidateQueryCache: vi.fn() }))
-vi.mock('../components/InvoiceNoteActions', () => ({ default: () => null }))
+vi.mock('../components/InvoiceNoteActions', () => ({ default: (props: unknown) => { mocks.noteActions(props); return null } }))
 vi.mock('../components/DateRangeFilter', () => ({ default: () => null }))
-beforeEach(() => { mocks.cached = { items: [], total: 0, page: 1, pageSize: 20 } })
+beforeEach(() => { mocks.noteActions.mockClear(); mocks.cached = { items: [], total: 0, page: 1, pageSize: 20 } })
+
+it('habilita la descarga XML solo para facturas de venta enviadas', () => {
+  mocks.cached = { items: [
+    { id: 'sent', prefix: 'FE', number: '1', status: 'SENT', issueDate: '2026-11-11', total: '100' },
+    { id: 'draft', prefix: '', number: '', status: 'SAVED', issueDate: '2026-11-11', total: '100' },
+  ], total: 2, page: 1, pageSize: 20 }
+  renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
+  expect(mocks.noteActions).toHaveBeenCalledTimes(1)
+  expect(mocks.noteActions.mock.calls[0][0]).toMatchObject({ invoiceId: 'sent', onDownloadXml: expect.any(Function) })
+  mocks.noteActions.mockClear()
+  renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage supportDocument /></MemoryRouter>)
+  expect(mocks.noteActions.mock.calls[0][0]).toMatchObject({ invoiceId: 'sent', onDownloadXml: undefined })
+})
 
 it('abre la importación de documentos soporte mediante un enlace a su propia pantalla', () => {
   const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage supportDocument /></MemoryRouter>)

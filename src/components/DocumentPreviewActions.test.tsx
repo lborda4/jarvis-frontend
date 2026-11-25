@@ -17,6 +17,8 @@ describe('acciones en la visualización de documentos', () => {
     expect(html).toContain('Enviar correo')
     expect(html).toContain('aria-label="Más opciones"')
     expect(html).toContain('Descargar XML')
+    const menu = html.slice(html.indexOf('<details'), html.indexOf('</details>'))
+    for (const action of ['Enviar correo', 'Nota Débito', 'Nota Crédito', 'Descargar XML']) expect(menu).toContain(action)
     expect(html).not.toContain('/nota-ajuste/nueva')
   })
 

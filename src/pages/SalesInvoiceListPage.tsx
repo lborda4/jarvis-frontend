@@ -13,7 +13,7 @@ import LoadingIndicator from '../components/LoadingIndicator'
 import { ImportIcon, PlusIcon } from '../components/icons/ImportIcons'
 import { SALES_INVOICE_BULK_IMPORT_ENABLED, SUPPORT_DOCUMENT_BULK_IMPORT_ENABLED } from '../constants/featureFlags'
 import { getApiErrorMessage } from '../services/apiClient'
-import { fetchJarvisInvoicePdfData } from '../services/jarvisService'
+import { fetchJarvisInvoicePdfData, fetchJarvisInvoiceXml } from '../services/jarvisService'
 import { loadSalesInvoicePdfRenderer } from '../utils/loadSalesInvoicePdfRenderer'
 import { triggerBrowserDownload } from '../utils/downloadFile'
 import { jarvisHistoryQueryKey, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSalesInvoices, fetchJarvisSupportCreditNotes, fetchJarvisSupportInvoices, type JarvisSalesInvoiceList } from '../services/jarvisService'
@@ -112,6 +112,18 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
       triggerBrowserDownload(blob, `Factura-${number}.pdf`)
     } catch (failure) {
       setDownloadError(getApiErrorMessage(failure, 'No se pudo descargar el PDF. Intenta nuevamente.'))
+    } finally { downloadInProgress.current = false; setDownloadingId(null) }
+  }
+
+  const downloadXml = async (id: string, number: string) => {
+    if (downloadInProgress.current) return
+    downloadInProgress.current = true
+    setDownloadingId(id); setDownloadError('')
+    try {
+      const blob = await fetchJarvisInvoiceXml(id)
+      triggerBrowserDownload(blob, `Factura-${number.replace(/[^a-zA-Z0-9_-]/g, '_') || 'venta'}.xml`)
+    } catch (failure) {
+      setDownloadError(getApiErrorMessage(failure, 'No se pudo descargar el XML. Intenta nuevamente.'))
     } finally { downloadInProgress.current = false; setDownloadingId(null) }
   }
 
@@ -232,7 +244,8 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                   </Link>
                   <button type="button" className="sales-history__view" title="Enviar correo" aria-label={`Enviar correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
                   {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`}
-                    onDownload={isSalesInvoice ? () => void downloadPdf(invoice.id) : undefined} downloadDisabled={Boolean(downloadingId)} />}
+                    onDownload={isSalesInvoice ? () => void downloadPdf(invoice.id) : undefined}
+                    onDownloadXml={isSalesInvoice ? () => void downloadXml(invoice.id, invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`) : undefined} downloadDisabled={Boolean(downloadingId)} />}
                   </>}
                 </div></td>
               </tr>)}</tbody>
