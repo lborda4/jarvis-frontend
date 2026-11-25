@@ -148,6 +148,7 @@ export interface CreateJarvisInvoiceRequest {
   number?: number
   prefix?: string
   billingReference?: { number: string; uuid: string; issueDate: string }
+  purchaseOrder?: import('../utils/purchaseOrder').PurchaseOrder
   discrepancyResponseCode?: number
   discrepancyResponseDescription?: string
   seze?: string

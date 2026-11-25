@@ -46,6 +46,22 @@ it('conserva los campos de pago para facturas y documentos soporte', () => {
   }
 })
 
+it.each([
+  [{}, true],
+  [{ supportDocument: true }, false],
+  [{ creditNote: true }, false],
+  [{ debitNote: true }, false],
+  [{ adjustmentNote: true }, false],
+] as const)('muestra la orden de compra solo en facturas de venta: %j', (props, visible) => {
+  const html = renderToStaticMarkup(<MemoryRouter><SalesInvoicePage {...props} /></MemoryRouter>)
+  expect(html.includes('Orden de compra (opcional)')).toBe(visible)
+  if (visible) {
+    expect(html).toContain('Prefijo de la orden de compra')
+    expect(html).toContain('Consecutivo de la orden de compra')
+    expect(html).toContain('Fecha de la orden de compra')
+  }
+})
+
 it.each([{ creditNote: true }, { debitNote: true }])('permite buscar la factura por consecutivo desde una nota nueva: %j', props => {
   const html = renderToStaticMarkup(<MemoryRouter><SalesInvoicePage {...props} /></MemoryRouter>)
   const field = html.match(/Número de factura[\s\S]*?<\/label>/)?.[0]

@@ -30,6 +30,7 @@ export interface InvoiceDraftState {
   selectedCustomer: InvoiceDraftCustomer | null
   customerQuery: string
   issueDate: string
+  purchaseOrder?: import('../utils/purchaseOrder').PurchaseOrder
   dueDate: string
   currency: string
   notes: string

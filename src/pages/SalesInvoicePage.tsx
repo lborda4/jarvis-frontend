@@ -5,6 +5,7 @@ import InvoiceAttachmentAction from '../components/InvoiceAttachmentAction'
 import { uploadInvoiceAttachment, deleteInvoiceAttachment, fetchInvoiceAttachment, type InvoiceAttachment } from '../services/invoiceAttachmentService'
 import { fetchJarvisSellers, type JarvisSeller } from '../services/jarvisSellerService'
 import { duplicateInvoicePrefill } from '../utils/documentDuplication'
+import { isValidPurchaseOrder } from '../utils/purchaseOrder'
 import { saveInvoiceDraft, fetchInvoiceDraft, deleteInvoiceDraft, type InvoiceDraftKind } from '../services/invoiceDraftService'
 import { balancePayments, type PaymentEntry } from '../utils/paymentBalance'
 import { alignPaymentMethods, paymentMethodsForNegotiation, isCreditPaymentMethod, buildPaymentBreakdown, primaryPaymentForNegotiation } from '../utils/paymentNegotiation'
@@ -232,6 +233,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
   }, [automaticIssueDate])
   const [dueDate, setDueDate] = useState(todayLocalDate)
+  const [purchaseOrder, setPurchaseOrder] = useState({ prefix: '', consecutive: '', issueDate: '' })
   const [currency, setCurrency] = useState('COP')
   const [notes, setNotes] = useState('')
   const [headNote, setHeadNote] = useState('')
@@ -435,6 +437,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
           setSelectedSellers(state.selectedSellers ?? [])
           setSelectedCustomer(state.selectedCustomer); setCustomerQuery(state.customerQuery)
           setIssueDate(state.issueDate); setDueDate(state.dueDate); setCurrency(state.currency)
+          setPurchaseOrder(state.purchaseOrder ?? { prefix: '', consecutive: '', issueDate: '' })
           setNotes(state.notes); setHeadNote(state.headNote); setFootNote(state.footNote)
           setDiscountIsPercent(state.discountIsPercent); setGeneralDiscount(state.generalDiscount)
           setLines(state.lines); setPaymentFormId(state.paymentFormId); setPayments(state.paymentEntries)
@@ -553,6 +556,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     setGeneralDiscount('0')
     setSourceWarning('')
     setBillingNumber(''); setBillingUuid(''); setBillingDate(''); setReasonCode(''); setReasonDescription(''); setSeze('')
+    setPurchaseOrder({ prefix: '', consecutive: '', issueDate: '' })
     setIssueDate(todayLocalDate())
     setDueDate(todayLocalDate())
     setNotes('')
@@ -707,6 +711,8 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     const nextErrors: Record<string, string> = {}
     if (!selectedCustomer) nextErrors.customer = `Debe seleccionar un ${partyLabel.toLowerCase()}.`
     if (!documentDate.trim()) nextErrors.issueDate = 'La fecha es obligatoria.'
+    if (!isNote && !supportDocument && !isValidPurchaseOrder(purchaseOrder))
+      nextErrors.purchaseOrder = 'Completa el prefijo, consecutivo y una fecha válida de la orden de compra.'
     if (!isNote) {
       if (payments.some(payment => !paymentMethods.some(method => method.id === payment.methodId))) nextErrors.payment = 'Selecciona una forma de pago para cada importe. Puedes crearlas en el catálogo de formas de pago.'
       if (payments.some(payment => parseAmount(payment.amount) < 0) || Math.round(payments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0) * 100) !== Math.round(documentTotal * 100)) nextErrors.payment = 'Los importes de las formas de pago deben sumar el total del documento.'
@@ -732,7 +738,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
     }
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
-  }, [automaticIssueDate, dueDate, isCreditPayment, isMixedPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
+  }, [automaticIssueDate, dueDate, isCreditPayment, isMixedPayment, issueDate, lines, selectedCustomer, partyLabel, paymentMethods, payments, isNote, supportDocument, purchaseOrder, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, rejectionTypes, debitNote, generalDiscount, documentSubtotal, documentTax, reteIcaTax, reteIvaTax, itemRetentionsTotal, documentTotal, affectedCodeLabel, affectedDocumentLabel])
 
   const buildRequest = useCallback((attachmentDraftId?: string) => {
     const documentDate = automaticIssueDate ? getColombiaToday() : issueDate.trim()
@@ -759,6 +765,9 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         seze: seze.trim(), sendmail: false, sendmailtome: true,
       } : {}),
       issueDate: documentDate,
+      ...(!isNote && !supportDocument && purchaseOrder.prefix.trim() ? { purchaseOrder: {
+        prefix: purchaseOrder.prefix.trim(), consecutive: purchaseOrder.consecutive.trim(), issueDate: purchaseOrder.issueDate.trim(),
+      } } : {}),
       ...(!isNote && !supportDocument ? { sellerIds: selectedSellers.map(seller => seller.id) } : {}),
       ...(!isNote && !supportDocument ? { paymentBreakdown: buildPaymentBreakdown(payments, paymentMethods) } : {}),
       customerDocumentType: selectedCustomer.document_type,
@@ -792,11 +801,12 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       ...(uniqueRetentions.length > 0 ? { retentions: uniqueRetentions } : {}),
       ...(methodId != null && Number.isFinite(methodId) && methodId > 0 ? { payment: { id: methodId, payment_form_id: Number.isFinite(formId) ? formId : 1, due_date: paymentDueDate } } : {}),
     }
-  }, [automaticIssueDate, currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument])
+  }, [automaticIssueDate, currency, discountIsPercent, dueDate, footNote, headNote, isCreditPayment, isMixedPayment, paymentForms, issueDate, lines, notes, paymentFormId, payments, reteIcaId, reteIvaId, selectedCustomer, taxes, partyLabel, paymentMethods, isNote, billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze, debitNote, generalDiscount, selectedSellers, supportDocument, purchaseOrder])
 
   const draftState = (): InvoiceDraftState => ({
     sourceInvoiceId: isNote ? sourceInvoiceId || draftSourceInvoiceId : null,
     documentTotal, selectedSellers, selectedCustomer, customerQuery, issueDate, dueDate, currency, notes, headNote, footNote,
+    ...(!isNote && !supportDocument ? { purchaseOrder } : {}),
     discountIsPercent, generalDiscount, lines, paymentFormId, paymentEntries, reteIcaId, reteIvaId,
     billingNumber, billingUuid, billingDate, reasonCode, reasonDescription, seze,
   })
@@ -1028,6 +1038,30 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             </div>
           </div>
         </section>
+
+        {!isNote && !supportDocument && <section className="ds-individual__section">
+          <h2>Orden de compra (opcional)</h2>
+          <div className="ds-individual__info-grid">
+            <div className="ds-individual__col">
+              <label className={`ds-individual__field${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
+                <span>Prefijo de la orden de compra</span>
+                <input value={purchaseOrder.prefix} placeholder="Ej. OC-" onChange={e => setPurchaseOrder(current => ({ ...current, prefix: e.target.value }))} />
+              </label>
+              <label className={`ds-individual__field${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
+                <span>Consecutivo de la orden de compra</span>
+                <input value={purchaseOrder.consecutive} placeholder="Ej. 12345" onChange={e => setPurchaseOrder(current => ({ ...current, consecutive: e.target.value }))} />
+              </label>
+            </div>
+            <div className="ds-individual__col">
+              <label className={`ds-individual__field ds-individual__field--date${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
+                <span>Fecha de la orden de compra</span>
+                <DatePicker value={purchaseOrder.issueDate} onChange={value => setPurchaseOrder(current => ({ ...current, issueDate: value }))} invalid={Boolean(fieldErrors.purchaseOrder)} />
+              </label>
+              <p>Incluye el separador en el prefijo, si aplica. Ejemplo: OC- y 12345 forman OC-12345.</p>
+              {fieldErrors.purchaseOrder && <p className="ds-individual__error" role="alert">{fieldErrors.purchaseOrder}</p>}
+            </div>
+          </div>
+        </section>}
 
         {/* Detalle productos/servicios */}
         <section className="ds-individual__section">
