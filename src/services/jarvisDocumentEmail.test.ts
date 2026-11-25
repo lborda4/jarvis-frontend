@@ -7,7 +7,7 @@ beforeEach(() => vi.clearAllMocks())
 
 it('reenvía el documento existente con los destinatarios adicionales y el mensaje', async () => {
   vi.mocked(apiClient.post).mockResolvedValue({ data: { success: true } })
-  const request = { additionalEmails: ['contabilidad@empresa.com'], message: 'Hola, adjuntamos la nota.' }
+  const request = { recipientEmail: 'nuevo@empresa.com', additionalEmails: ['contabilidad@empresa.com'], message: 'Hola, adjuntamos la nota.' }
   expect(await sendJarvisDocumentEmail('note-1', request)).toEqual({ success: true })
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/integrations/jarvis/invoices/note-1/send-email', request, { timeout: 90000 })
 })

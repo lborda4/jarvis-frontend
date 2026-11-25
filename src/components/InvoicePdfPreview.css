@@ -6,6 +6,12 @@
 .invoice-pdf__action { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .45rem .8rem; border: 1px solid var(--jarvis-primary); border-radius: var(--r-md); background: var(--jarvis-white); color: var(--jarvis-primary); font: inherit; font-weight: var(--font-weight-semibold); text-decoration: none; white-space: nowrap; cursor: pointer; }
 .invoice-pdf__action:hover { background: var(--jarvis-primary-soft); }
 .invoice-pdf__action:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 3px; }
+.invoice-pdf__more { position: relative; }
+.invoice-pdf__more summary { list-style: none; }
+.invoice-pdf__more summary::-webkit-details-marker { display: none; }
+.invoice-pdf__more-menu { position: absolute; right: 0; z-index: 3; min-width: 180px; padding: .5rem; border: 1px solid var(--jarvis-border); border-radius: var(--r-md); background: var(--jarvis-white); box-shadow: var(--shadow-md); }
+.invoice-pdf__more-menu p { color: var(--jarvis-danger); font-size: var(--text-sm); }
+.invoice-pdf__more-menu button { width: 100%; }
 .invoice-pdf__download { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .65rem 1rem; border: 1px solid var(--jarvis-primary); border-radius: var(--r-md); color: var(--jarvis-white); background: var(--jarvis-primary); font: inherit; font-weight: var(--font-weight-semibold); text-decoration: none; }
 .invoice-pdf__download:hover { filter: brightness(.95); }
 .invoice-pdf__download:focus-visible { outline: 2px solid var(--jarvis-primary); outline-offset: 3px; }

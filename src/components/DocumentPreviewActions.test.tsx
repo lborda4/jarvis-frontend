@@ -15,6 +15,8 @@ describe('acciones en la visualización de documentos', () => {
     expect(html).not.toContain('href="/nota-debito/nueva')
     expect(html).not.toContain('href="/nota-credito/nueva')
     expect(html).toContain('Enviar correo')
+    expect(html).toContain('aria-label="Más opciones"')
+    expect(html).toContain('Descargar XML')
     expect(html).not.toContain('/nota-ajuste/nueva')
   })
 
@@ -22,6 +24,7 @@ describe('acciones en la visualización de documentos', () => {
     const html = render('SUPPORT_DOCUMENT')
     expect(html).toContain('href="/nota-ajuste/nueva?documento=document%2F1"')
     expect(html).toContain('Enviar correo')
+    expect(html).not.toContain('Descargar XML')
     expect(html).not.toContain('/nota-debito/nueva')
     expect(html).not.toContain('/nota-credito/nueva')
   })
@@ -29,6 +32,7 @@ describe('acciones en la visualización de documentos', () => {
   it.each(['CREDIT_NOTE', 'DEBIT_NOTE', 'SUPPORT_CREDIT_NOTE'])('permite correo para %s sin crear notas desde otras notas', kind => {
     const html = render(kind)
     expect(html).toContain('Enviar correo')
+    expect(html).not.toContain('Descargar XML')
     expect(html).not.toContain('/nueva?')
   })
 })

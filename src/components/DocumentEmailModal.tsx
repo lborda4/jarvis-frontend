@@ -37,13 +37,17 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
     event.preventDefault()
     if (saving || loading) return
     const additionalEmails = [...new Set(additional.split(',').map(value => value.trim().toLowerCase()).filter(Boolean))]
+    const recipientEmail = email.trim().toLowerCase()
+    if (recipientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+      setError('Revisa el correo del destinatario.'); return
+    }
     if (additionalEmails.some(value => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) {
       setError('Revisa los correos adicionales y sepáralos con coma.'); return
     }
-    if (!email && !additionalEmails.length && !copyEmails.length) { setError('Agrega al menos un correo para enviar el documento.'); return }
+    if (!recipientEmail && !additionalEmails.length && !copyEmails.length) { setError('Agrega al menos un correo para enviar el documento.'); return }
     setSaving(true); setError(null)
     try {
-      const result = await sendJarvisDocumentEmail(id, { additionalEmails, message: message.trim() })
+      const result = await sendJarvisDocumentEmail(id, { recipientEmail, additionalEmails, message: message.trim() })
       if (!result.success) throw new Error('El envío no fue confirmado.')
       setSuccess(true)
       if (result.delivery) onSent?.(result.delivery)
@@ -56,7 +60,7 @@ export default function DocumentEmailModal({ id, number, documentLabel, partyLab
     {success ? <><p role="status" className="document-email__success">Correo enviado correctamente.</p><footer className="document-email__footer"><Button onClick={onClose}>Cerrar</Button></footer></>
       : loading ? <LoadingIndicator message="Consultando correo registrado..." />
       : <form onSubmit={event => void send(event)}>
-        <label className="document-email__field">Correo del {partyLabel.toLowerCase()}<span className="document-email__registered"><input aria-label={`Correo del ${partyLabel.toLowerCase()}`} value={email} readOnly placeholder="Sin correo registrado" />{email && <span>Correo registrado</span>}</span></label>
+        <label className="document-email__field">Correo del {partyLabel.toLowerCase()}<input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Ingresa el correo del destinatario" disabled={saving} /><small>Puedes cambiar el destinatario para este envío sin modificar el tercero.</small></label>
         {copyEmails.length > 0 && <label className="document-email__field">Copias guardadas del tercero (CC)<input readOnly value={copyEmails.join(', ')} /><small>Estas copias se incluyen automáticamente al enviar el documento.</small></label>}
         <label className="document-email__field">Correos adicionales (opcional)<input value={additional} onChange={event => setAdditional(event.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" disabled={saving} /><small>Separa los correos con coma (,)</small></label>
         <label className="document-email__field">Mensaje (opcional)<textarea value={message} maxLength={500} rows={4} onChange={event => setMessage(event.target.value)} disabled={saving} /><small className="document-email__counter">{message.length}/500</small></label>

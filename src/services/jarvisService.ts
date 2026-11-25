@@ -195,7 +195,12 @@ export async function fetchJarvisInvoicePdfData(id: string): Promise<import('../
   return data
 }
 
-export async function sendJarvisDocumentEmail(id: string, request: { additionalEmails: string[]; message: string }): Promise<{ success: boolean; delivery?: import('../types/electronicDocument').DocumentEmailDelivery }> {
+export async function fetchJarvisInvoiceXml(id: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/xml`, { responseType: 'blob', timeout: 90000 })
+  return data
+}
+
+export async function sendJarvisDocumentEmail(id: string, request: { recipientEmail?: string; additionalEmails: string[]; message: string }): Promise<{ success: boolean; delivery?: import('../types/electronicDocument').DocumentEmailDelivery }> {
   const { data } = await apiClient.post<{ success: boolean; delivery?: import('../types/electronicDocument').DocumentEmailDelivery }>(`${JARVIS_INVOICES_ENDPOINT}/${encodeURIComponent(id)}/send-email`, request, { timeout: 90000 })
   return data
 }
