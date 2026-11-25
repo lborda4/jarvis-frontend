@@ -509,10 +509,12 @@ function JarvisIntegrationSettings() {
                       onChange={(event) =>
                         setEconomicActivity(event.target.value)
                       }
-                      placeholder="Ej. Consultoría, comercio, servicios"
+                      placeholder="Ej. 6201 - Desarrollo de sistemas"
                       disabled={isBusy}
+                      aria-describedby="jarvis-economic-activity-hint"
                       required
                     />
+                    <small id="jarvis-economic-activity-hint">Para incluir el CIIU en la factura, comienza con el código de cuatro dígitos.</small>
                   </div>
 
                   <div className="settings-form__field">
