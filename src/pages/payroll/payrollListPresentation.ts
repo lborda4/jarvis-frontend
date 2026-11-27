@@ -2,6 +2,7 @@ import type { PayrollDocument } from '../../services/payrollService'
 import { cents, money } from '../../utils/payrollDomain'
 import { employeeName, statusLabels } from './payrollDefaults'
 import { groupPayrollPeriods, payrollPeriodKey } from './payrollPeriods'
+import { formatJarvisDocumentNumber } from '../../utils/jarvisDocumentNumber'
 
 export function filterPayrollList(
   documents: PayrollDocument[],
@@ -21,7 +22,7 @@ export function filterPayrollList(
       (!status || document.status === status) &&
       (!query ||
         periodText.get(payrollPeriodKey(document))?.includes(query) ||
-        normalize(`${employeeName(document.employee)} ${document.employee.identification} ${document.prefix ?? ''}${document.number ?? ''}`)
+        normalize(`${employeeName(document.employee)} ${document.employee.identification} ${document.prefix ?? ''}${document.number ?? ''} ${document.number ?? ''} ${formatJarvisDocumentNumber(document.prefix, document.number)}`)
           .includes(query)),
   )
 }

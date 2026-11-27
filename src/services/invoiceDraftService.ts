@@ -17,6 +17,14 @@ export async function saveInvoiceDraft(id: string, documentKind: InvoiceDraftKin
 export async function fetchInvoiceDraft<T>(id: string): Promise<{ documentKind: InvoiceDraftKind; state: T }> {
   return (await apiClient.get<{ draft: { documentKind: InvoiceDraftKind; state: T } }>(`${endpoint}/${encodeURIComponent(id)}`)).data.draft
 }
+export async function claimSalesImportDraft(id: string, state: object): Promise<string> {
+  const { data } = await apiClient.post<{ token: string }>(`${endpoint}/${encodeURIComponent(id)}/sales-import-claim`, { state })
+  if (!data.token) throw new Error('No se pudo confirmar la reserva del envío. Revisa el historial.')
+  return data.token
+}
+export async function completeSalesImportDraft(id: string, token: string, invoiceId?: string): Promise<void> {
+  await apiClient.post(`${endpoint}/${encodeURIComponent(id)}/sales-import-complete`, { token, ...(invoiceId ? { invoiceId } : {}) })
+}
 export async function fetchInvoiceDrafts(kind: InvoiceDraftKind): Promise<InvoiceDraftSummary[]> {
   return (await apiClient.get<{ items: InvoiceDraftSummary[] }>(endpoint, { params: { kind } })).data.items
 }

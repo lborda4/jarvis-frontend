@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { JarvisReportColumn, JarvisReportResult, JarvisReportRow } from '../services/jarvisReportsService'
 import { shouldShowTablePagination } from '../utils/tablePagination'
+import { formatJarvisDocumentNumber } from '../utils/jarvisDocumentNumber'
 import Button from './Button'
 
 function formatReportValue(value: JarvisReportRow[string] | undefined, format: JarvisReportColumn['format']): string {
@@ -73,9 +74,9 @@ export default function JarvisReportResults({ data, onPage, onPageSize }: {
       <div className="jarvis-reports__result-heading"><span>{data.total.toLocaleString('es-CO')} registros filtrados</span>{hasCompactView && <Button variant="ghost" aria-pressed={fullColumns} onClick={() => setFullColumns(value => !value)}>{fullColumns ? 'Vista compacta' : 'Ver todas las columnas'}</Button>}</div>
       {data.items.length ? <div className="jarvis-reports__table-scroll"><table className="integration-table">
         <thead><tr>{columns.map(column => <th scope="col" className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'} key={column.key}>{column.label}</th>)}{isSalesDetail && <th scope="col">Acciones</th>}</tr></thead>
-        <tbody>{data.items.map((item, index) => { const row = isSalesDetail ? salesAmounts(item) : item; return <tr key={`${row.id ?? ''}:${row.sellerId ?? ''}:${index}`}>
-          {columns.map(column => <td key={column.key} className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'}>{column.key === 'kind' ? <span className={kindBadge(row[column.key])}>{formatReportValue(row[column.key], column.format)}</span> : column.key === 'date' && typeof row[column.key] === 'string' ? String(row[column.key]).slice(0, 10).split('-').reverse().join('/') : formatReportValue(row[column.key], column.format)}</td>)}
-          {isSalesDetail && <td>{row.id ? <Link className="jarvis-reports__document-link" to={`${String(row.kind).toLowerCase().includes('crédito') ? '/nota-credito' : String(row.kind).toLowerCase().includes('débito') ? '/nota-debito' : '/factura-venta'}/${encodeURIComponent(String(row.id))}/visualizar`} aria-label={`Visualizar comprobante ${row.number}`}>Ver</Link> : '—'}</td>}
+        <tbody>{data.items.map((item, index) => { const row = isSalesDetail ? salesAmounts(item) : item; const displayNumber = typeof row.number === 'string' ? formatJarvisDocumentNumber(typeof row.prefix === 'string' ? row.prefix : '', row.number) : row.number; return <tr key={`${row.id ?? ''}:${row.sellerId ?? ''}:${index}`}>
+          {columns.map(column => <td key={column.key} className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'}>{column.key === 'kind' ? <span className={kindBadge(row[column.key])}>{formatReportValue(row[column.key], column.format)}</span> : column.key === 'date' && typeof row[column.key] === 'string' ? String(row[column.key]).slice(0, 10).split('-').reverse().join('/') : formatReportValue(column.key === 'number' ? displayNumber : row[column.key], column.format)}</td>)}
+          {isSalesDetail && <td>{row.id ? <Link className="jarvis-reports__document-link" to={`${String(row.kind).toLowerCase().includes('crédito') ? '/nota-credito' : String(row.kind).toLowerCase().includes('débito') ? '/nota-debito' : '/factura-venta'}/${encodeURIComponent(String(row.id))}/visualizar`} aria-label={`Visualizar comprobante ${displayNumber}`}>Ver</Link> : '—'}</td>}
         </tr> })}</tbody>
         <tfoot>{data.totals.map(item => { const total = isSalesDetail ? salesAmounts(item) : item; return <tr key={String(total.currency)}>{columns.map((column, index) => <td key={column.key} className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'}>{index === 0 ? `Total general · ${total.currency}` : column.key === 'unitValue' || column.format === 'text' ? '—' : formatReportValue(total[column.key === 'quantity' ? 'netQuantity' : column.key], column.format)}</td>)}{isSalesDetail && <td />}</tr> })}</tfoot>
       </table></div> : <p className="jarvis-reports__empty">No hay registros para los filtros seleccionados.</p>}

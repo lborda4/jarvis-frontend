@@ -94,3 +94,13 @@ it('no interpreta un impuesto desconocido como cero al agrupar importes', () => 
   expect(html).toContain('Sin dato')
   expect(html).not.toContain('NaN')
 })
+
+it.each(['sales', 'customers', 'products', 'sellers', 'taxes'] as const)('muestra el número formateado en el detalle de %s', report => {
+  const data = result(1)
+  data.filters.report = report
+  data.items = [{ id: 'invoice', kind: 'Factura de venta', prefix: 'FV', number: 'FV001' }]
+  const html = render(data)
+  expect(html).toContain('FV-001')
+  if (report === 'sales') expect(html).toContain('aria-label="Visualizar comprobante FV-001"')
+  expect(data.items[0].number).toBe('FV001')
+})

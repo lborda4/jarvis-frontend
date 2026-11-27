@@ -46,13 +46,19 @@ it('separa los proveedores y no llama módulos Jarvis para una empresa SIIGO', a
   expect(availableSearchCategories(siigo).map(item => item.id)).toEqual(['purchases', 'support', 'products'])
 })
 
+it('conserva el número de documento soporte de Siigo sin reformatearlo', async () => {
+  vi.mocked(fetchElectronicDocuments).mockResolvedValue({ items: [{ id: 's', invoiceNumber: 'DS001', supplierName: 'Proveedor', supplierNit: '900' }], total: 1 } as never)
+  const [group] = await searchGlobally('DS', 'support', { ...access, provider: 'SIIGO' })
+  expect(group.items[0].title).toBe('DS001')
+})
+
 it('abre facturas emitidas y borradores en su vista previa correspondiente', async () => {
   vi.mocked(fetchJarvisSalesInvoices).mockResolvedValue({ items: [
     { id: 'sent', prefix: 'FV', number: 'FV123', status: 'SENT', customerName: 'Cliente', customerIdentification: '900' },
     { id: 'draft/id', prefix: '', number: '', status: 'SAVED', customerName: 'Cliente' },
   ], total: 2 } as never)
   const [group] = await searchGlobally('Cliente', 'sales', access)
-  expect(group.items[0]).toMatchObject({ title: 'FV123', to: '/factura-venta/sent/visualizar' })
+  expect(group.items[0]).toMatchObject({ title: 'FV-123', to: '/factura-venta/sent/visualizar' })
   expect(group.items[1]).toMatchObject({ title: 'Borrador', to: '/factura-venta/draft%2Fid/visualizar?borrador=1' })
 })
 

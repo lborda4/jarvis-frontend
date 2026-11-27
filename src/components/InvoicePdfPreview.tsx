@@ -7,13 +7,13 @@ import './InvoicePdfPreview.css'
 
 const JarvisPdfViewer = lazy(() => import('./JarvisPdfViewer'))
 
-export default function InvoicePdfPreview({ number, pdfUrl, onClose, standalone = false, documentLabel = 'Factura', actions, documentCode, codeLabel = 'CUFE', footer }: {
-  number: string; pdfUrl?: string; onClose: () => void; standalone?: boolean; documentLabel?: string; actions?: ReactNode; documentCode?: string; codeLabel?: string; footer?: ReactNode
+export default function InvoicePdfPreview({ number, displayNumber, pdfUrl, onClose, standalone = false, documentLabel = 'Factura', actions, documentCode, codeLabel = 'CUFE', footer }: {
+  number: string; displayNumber?: string; pdfUrl?: string; onClose: () => void; standalone?: boolean; documentLabel?: string; actions?: ReactNode; documentCode?: string; codeLabel?: string; footer?: ReactNode
 }) {
   const Title = standalone ? 'h1' : 'h2'
   const content = <>
     <header className="invoice-pdf__header">
-      <Title id="invoice-pdf-title">{documentLabel} {number}</Title>
+      <Title id="invoice-pdf-title">{documentLabel} {displayNumber ?? number}</Title>
       <div className="invoice-pdf__actions">
       {actions}
       {pdfUrl ? <a className="invoice-pdf__download" href={pdfUrl} download={`${documentLabel}-${number}.pdf`}>

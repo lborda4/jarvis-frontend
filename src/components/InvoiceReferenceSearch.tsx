@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 import { fetchJarvisSalesInvoices, type JarvisSalesInvoice } from '../services/jarvisService'
+import { formatJarvisDocumentNumber } from '../utils/jarvisDocumentNumber'
 
 interface Props {
   value: string
@@ -7,9 +8,10 @@ interface Props {
   onSelect: (invoice: JarvisSalesInvoice) => void
   readOnly: boolean
   invalid?: boolean
+  formatNumbers?: boolean
 }
 
-export default function InvoiceReferenceSearch({ value, onChange, onSelect, readOnly, invalid }: Props) {
+export default function InvoiceReferenceSearch({ value, onChange, onSelect, readOnly, invalid, formatNumbers = true }: Props) {
   const id = useId()
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<{ query: string; items: JarvisSalesInvoice[]; total: number; failed: boolean } | null>(null)
@@ -55,7 +57,7 @@ export default function InvoiceReferenceSearch({ value, onChange, onSelect, read
       {items.map((invoice, index) => <li key={invoice.id} id={`${id}-option-${index}`} role="option" aria-selected={activeIndex === index}>
         <button type="button" className={`ds-individual__supplier-option${activeIndex === index ? ' is-selected' : ''}`}
           onMouseDown={event => event.preventDefault()} onMouseEnter={() => setHighlighted(index)} onClick={() => select(invoice)}>
-          <strong>{invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`}</strong>
+          <strong>{formatNumbers ? formatJarvisDocumentNumber(invoice.prefix, invoice.number) : (invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`)}</strong>
           <span>{invoice.customerName} · {invoice.issueDate}</span>
         </button>
       </li>)}

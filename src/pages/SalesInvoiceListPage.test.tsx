@@ -15,7 +15,7 @@ it('habilita la descarga XML solo para facturas de venta enviadas', () => {
   ], total: 2, page: 1, pageSize: 20 }
   renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
   expect(mocks.noteActions).toHaveBeenCalledTimes(1)
-  expect(mocks.noteActions.mock.calls[0][0]).toMatchObject({ invoiceId: 'sent', onDownloadXml: expect.any(Function) })
+  expect(mocks.noteActions.mock.calls[0][0]).toMatchObject({ invoiceId: 'sent', number: 'FE1', onDownloadXml: expect.any(Function) })
   mocks.noteActions.mockClear()
   renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage supportDocument /></MemoryRouter>)
   expect(mocks.noteActions.mock.calls[0][0]).toMatchObject({ invoiceId: 'sent', onDownloadXml: undefined })
@@ -45,8 +45,8 @@ it.each(['CREDIT_NOTE', 'CREDIT_AND_DEBIT'])('abre cada nota crédito vinculada 
   const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
   expect(html).toContain('href="/nota-credito/note%2F1/visualizar"')
   expect(html).toContain('href="/nota-credito/note2/visualizar"')
-  expect(html).toContain('aria-label="Ver nota crédito NC1"')
-  expect(html).toContain('aria-label="Ver nota crédito NC2"')
+  expect(html).toContain('aria-label="Ver nota crédito NC-1"')
+  expect(html).toContain('aria-label="Ver nota crédito NC-2"')
   expect(html).not.toContain('NCNC2')
   expect(html.match(/Con nota crédito/g)).toHaveLength(1)
   expect(html.match(/href="\/nota-credito\/note%2F1\/visualizar"/g)).toHaveLength(1)
@@ -54,7 +54,7 @@ it.each(['CREDIT_NOTE', 'CREDIT_AND_DEBIT'])('abre cada nota crédito vinculada 
   if (adjustmentStatus === 'CREDIT_AND_DEBIT') {
     expect(html.match(/Con nota débito/g)).toHaveLength(1)
     expect(html).toContain('href="/nota-debito/debit%2F1/visualizar"')
-    expect(html).toContain('aria-label="Ver nota débito ND1"')
+    expect(html).toContain('aria-label="Ver nota débito ND-1"')
     expect(html).not.toContain('NDND1')
   }
 })
@@ -69,7 +69,7 @@ it.each([
   const html = renderToStaticMarkup(<MemoryRouter><SalesInvoiceListPage /></MemoryRouter>)
   expect(html.match(/sales-history__status--adjusted/g)).toHaveLength(1)
   expect(html).toContain(`href="/${path}/note%2F1/visualizar"`)
-  expect(html).toContain(`>Con nota ${label} · ${prefix}1</a>`)
+  expect(html).toContain(`>Con nota ${label} · ${prefix}-1</a>`)
 })
 
 it('muestra un enlace de cada tipo cuando la factura tiene ambas notas', () => {

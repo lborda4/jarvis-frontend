@@ -1,5 +1,6 @@
 import { peekCachedQuery } from '../services/queryCache'
 import { shouldShowTablePagination } from '../utils/tablePagination'
+import { formatJarvisDocumentNumber } from '../utils/jarvisDocumentNumber'
 import PageHeader from '../components/PageHeader'
 import { deleteInvoiceDraft } from '../services/invoiceDraftService'
 import DateRangeFilter from '../components/DateRangeFilter'
@@ -59,7 +60,7 @@ function AdjustmentStatus({ invoice }: { invoice: JarvisSalesInvoiceList['items'
     const notes = [...new Map(group.notes.map(note => [note.id, note])).values()]
     const className = 'sales-history__status sales-history__status--adjusted'
     const links = notes.map(note => {
-      const number = note.number.startsWith(note.prefix) ? note.number : `${note.prefix}${note.number}`
+      const number = formatJarvisDocumentNumber(note.prefix, note.number)
       return <Link key={note.id} className={notes.length === 1 ? className : undefined} to={`${group.path}/${encodeURIComponent(note.id)}/visualizar`} aria-label={`Ver ${group.label} ${number}`}>
         {notes.length === 1 ? `Con ${group.label} · ${number}` : number}
       </Link>
@@ -225,7 +226,7 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
               </colgroup>
               <thead><tr><th>{debitNote ? 'Nota débito' : adjustmentNote ? 'Nota de ajuste' : creditNote ? 'Nota crédito' : supportDocument ? 'Documento soporte' : 'Factura'}</th><th>Fecha de emisión</th><th>{partyLabel}</th><th className="sales-history__amount">Total</th><th className="sales-history__state-cell">Estado</th>{isSalesInvoice && <th className="sales-history__state-cell">Estado de ajuste</th>}<th>Acciones</th></tr></thead>
               <tbody>{data.items.map((invoice) => <tr key={invoice.id}>
-                <td data-label={isNoteList ? 'Nota' : supportDocument ? 'Documento soporte' : 'Factura'}>{invoice.status === 'SAVED' ? <span className="sales-history__muted">—</span> : <strong className="sales-history__number">{`${invoice.prefix}${invoice.number.startsWith(invoice.prefix) ? invoice.number.slice(invoice.prefix.length) : invoice.number}`}</strong>}
+                <td data-label={isNoteList ? 'Nota' : supportDocument ? 'Documento soporte' : 'Factura'}>{invoice.status === 'SAVED' ? <span className="sales-history__muted">—</span> : <strong className="sales-history__number">{formatJarvisDocumentNumber(invoice.prefix, invoice.number)}</strong>}
                   {invoice.cufe && <><button type="button" className="sales-history__detail" aria-expanded={expandedId === invoice.id} onClick={() => setExpandedId(expandedId === invoice.id ? null : invoice.id)}>{expandedId === invoice.id ? `Ocultar ${codeLabel}` : `Ver ${codeLabel}`}</button>{expandedId === invoice.id && <p className="sales-history__cufe">{invoice.cufe}</p>}</>}
                 </td>
                 <td data-label="Fecha de emisión">{displayDate(invoice.issueDate)}{invoice.status === 'SENT' && <SentTime sentAt={invoice.sentAt} />}</td>
@@ -239,10 +240,10 @@ export default function SalesInvoiceListPage({ supportDocument = false, creditNo
                     <Link className="sales-history__view" to={`${newPath}?borrador=${encodeURIComponent(invoice.id)}`} title="Editar" aria-label={`Editar ${documentLabel} sin enviar`}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m16 3 5 5L8 21H3v-5L16 3ZM13 6l5 5" strokeLinecap="round" strokeLinejoin="round" /></svg></Link>
                     <button type="button" className="sales-history__view" title={deletingId === invoice.id ? 'Eliminando...' : 'Eliminar'} aria-label={`Eliminar ${documentLabel} sin enviar`} aria-busy={deletingId === invoice.id} disabled={deletingId !== null} onClick={() => void removeSaved(invoice.id)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
                   </> : <>
-                  <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar`} title="Visualizar" aria-label={`Visualizar ${documentLabel} ${invoice.prefix}${invoice.number}`}>
+                  <Link className="sales-history__view" to={`${listPath}/${encodeURIComponent(invoice.id)}/visualizar`} title="Visualizar" aria-label={`Visualizar ${documentLabel} ${formatJarvisDocumentNumber(invoice.prefix, invoice.number)}`}>
                     <ViewIcon />
                   </Link>
-                  <button type="button" className="sales-history__view" title="Enviar correo" aria-label={`Enviar correo ${documentLabel} ${invoice.prefix}${invoice.number}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
+                  <button type="button" className="sales-history__view" title="Enviar correo" aria-label={`Enviar correo ${documentLabel} ${formatJarvisDocumentNumber(invoice.prefix, invoice.number)}`} onClick={() => setEmailDocument(invoice)}><MailIcon /></button>
                   {showNoteActions && <InvoiceNoteActions supportDocument={supportDocument} invoiceId={invoice.id} number={invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`}
                     onDownload={isSalesInvoice ? () => void downloadPdf(invoice.id) : undefined}
                     onDownloadXml={isSalesInvoice ? () => void downloadXml(invoice.id, invoice.number.startsWith(invoice.prefix) ? invoice.number : `${invoice.prefix}${invoice.number}`) : undefined} downloadDisabled={Boolean(downloadingId)} />}

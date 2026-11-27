@@ -30,6 +30,11 @@ describe('Listado de nóminas desplegable', () => {
     expect(filterPayrollList(docs, 'administracion', '')).toHaveLength(2)
     expect(filterPayrollList(docs, 'perez', '')).toHaveLength(2)
   })
+  it('encuentra documentos por su número original y el mostrado', () => {
+    const docs = [{ ...document(1), prefix: 'NI', number: 'NI001' }]
+    expect(filterPayrollList(docs, 'NI001', '')).toHaveLength(1)
+    expect(filterPayrollList(docs, 'NI-001', '')).toHaveLength(1)
+  })
   it('filtra estados de empleados en un período mixto y calcula los totales del resultado', () => {
     const docs = [document(1, 'Ana'), document(2, 'Pedro', 'ACCEPTED')]
     const visible = filterPayrollList(docs, '', 'DRAFT')

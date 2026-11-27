@@ -2,6 +2,7 @@ import { fetchElectronicDocuments } from './electronicDocumentService'
 import { fetchProducts } from './productService'
 import { fetchJarvisSalesInvoices, fetchJarvisSupportInvoices, fetchJarvisCreditNotes, fetchJarvisDebitNotes, fetchJarvisSupportCreditNotes, fetchJarvisTerceros, type JarvisSalesInvoice } from './jarvisService'
 import { getActiveCompanyId } from './queryCache'
+import { formatJarvisDocumentNumber } from '../utils/jarvisDocumentNumber'
 
 export const SEARCH_CATEGORIES = [
   { id: 'sales', label: 'Facturas de venta', path: '/factura-venta', keywords: 'facturas ventas clientes cufe' },
@@ -50,7 +51,7 @@ async function searchCategory(category: SearchCategory, query: string, provider:
   const fetcher = category === 'support' ? fetchJarvisSupportInvoices : category === 'credit' ? fetchJarvisCreditNotes : category === 'debit' ? fetchJarvisDebitNotes : category === 'adjustment' ? fetchJarvisSupportCreditNotes : fetchJarvisSalesInvoices
   const data = await fetcher({ search: query, page: 1 })
   return { category, total: data.total, items: data.items.slice(0, 5).map((item: JarvisSalesInvoice) => ({
-    id: item.id, title: item.status === 'SAVED' ? 'Borrador' : item.number.startsWith(item.prefix) ? item.number : `${item.prefix}${item.number}`,
+    id: item.id, title: item.status === 'SAVED' ? 'Borrador' : formatJarvisDocumentNumber(item.prefix, item.number),
     description: [item.customerName, item.customerIdentification].filter(Boolean).join(' · '),
     to: `${config.path}/${encodeURIComponent(item.id)}/visualizar${item.status === 'SAVED' ? '?borrador=1' : ''}`,
   })) }

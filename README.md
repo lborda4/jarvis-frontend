@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## Importación de facturas de venta Jarvis
+
+Desde el listado de facturas, selecciona **Importar facturas de venta**, descarga la plantilla y completa una fila por producto o servicio. Usa un grupo único por factura, también entre archivos, y repítelo en todas sus filas. La plantilla incluye listas de las opciones configuradas para la empresa; el cliente debe existir en Terceros o crearse durante la revisión.
+
+La fecha de emisión debe ser la fecha actual de Colombia, ya que el servicio de facturación asigna esa fecha al emitir. Revisa los errores y los importes antes de enviar a DIAN. Si un envío queda **por confirmar**, consulta el historial y no lo reenvíes sin verificarlo; la reserva del intento se conserva para evitar duplicados. Esta funcionalidad es exclusiva de Jarvis.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

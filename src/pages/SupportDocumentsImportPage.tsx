@@ -147,6 +147,7 @@ export default function SupportDocumentsImportPage({ kind = 'support' }: { kind?
     onFile={readFile} onImport={() => send()} onClose={() => navigate(listPath)}
     notice={<>{error && <ErrorMessage inline message={error} />}{success && <SuccessMessage message={success} />}</>}
   >
+    {sales && <p>Usa un grupo único para cada factura, incluso entre archivos, y repítelo en sus ítems. Las facturas se emiten con la fecha actual de Colombia; usa esa fecha en el Excel. Si un envío queda por confirmar, revisa el historial antes de intentar nuevamente.</p>}
     {rows.length > 0 && <>
       <p role="status" className="support-import__summary">{summary}</p>
       {uncertain > 0 && <p role="alert">Envíos por confirmar. Revisa el historial antes de reenviar.</p>}

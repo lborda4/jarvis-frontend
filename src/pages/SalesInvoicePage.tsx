@@ -6,6 +6,7 @@ import { uploadInvoiceAttachment, deleteInvoiceAttachment, fetchInvoiceAttachmen
 import { fetchJarvisSellers, type JarvisSeller } from '../services/jarvisSellerService'
 import { duplicateInvoicePrefill } from '../utils/documentDuplication'
 import { isValidPurchaseOrder } from '../utils/purchaseOrder'
+import { formatJarvisDocumentNumber } from '../utils/jarvisDocumentNumber'
 import { saveInvoiceDraft, fetchInvoiceDraft, deleteInvoiceDraft, type InvoiceDraftKind } from '../services/invoiceDraftService'
 import { balancePayments, type PaymentEntry } from '../utils/paymentBalance'
 import { alignPaymentMethods, paymentMethodsForNegotiation, isCreditPaymentMethod, buildPaymentBreakdown, primaryPaymentForNegotiation } from '../utils/paymentNegotiation'
@@ -858,7 +859,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
       const attachment = await persistAttachment()
       const response = await (debitNote ? createJarvisDebitNote : adjustmentNote ? createJarvisSupportCreditNote : isNote ? createJarvisCreditNote : supportDocument ? createJarvisSupportInvoice : createJarvisInvoice)(buildRequest(attachment ? draftIdRef.current : undefined))
       const consecutive = response.invoice?.consecutive || response.invoice?.number
-      setSuccessMessage(`${documentTitle} ${consecutive ?? ""} ${supportDocument ? "enviado" : "enviada"} a DIAN.`)
+      setSuccessMessage(`${documentTitle} ${isSiigoCompany && creditNote ? consecutive ?? '' : formatJarvisDocumentNumber(response.invoice?.prefix, consecutive)} ${supportDocument ? "enviado" : "enviada"} a DIAN.`)
       const creditPending = response.noteDocumentCredit && response.noteDocumentCredit !== 'APPLIED'
       const usedNumber = Number(response.invoice?.number)
       setNextConsecutive(
@@ -921,7 +922,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
             <div className="ds-individual__col">
               <label className={`ds-individual__field${fieldErrors.reference ? ' is-invalid' : ''}`}><span>Número de {affectedDocumentLabel} *</span>{adjustmentNote
                 ? <input value={billingNumber} readOnly={isBillingReferenceLocked} onChange={e => setBillingNumber(e.target.value)} placeholder={`Prefijo y número del ${affectedDocumentLabel}`} />
-                : <InvoiceReferenceSearch value={billingNumber} readOnly={isBillingReferenceLocked} invalid={Boolean(fieldErrors.reference)} onChange={setBillingNumber} onSelect={invoice => void selectReferenceInvoice(invoice)} />}</label>
+                : <InvoiceReferenceSearch value={billingNumber} readOnly={isBillingReferenceLocked} invalid={Boolean(fieldErrors.reference)} formatNumbers={!(isSiigoCompany && creditNote)} onChange={setBillingNumber} onSelect={invoice => void selectReferenceInvoice(invoice)} />}</label>
               {!adjustmentNote && !sourceInvoiceId && draftSourceInvoiceId && <Button variant="ghost" size="sm" onClick={() => {
                 setDraftSourceInvoiceId(null); setBillingNumber(''); setBillingUuid(''); setBillingDate('')
                 setSelectedCustomer(null); setCustomerQuery(''); setLines([createEmptyLine()])
@@ -1024,7 +1025,7 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
                 <span>Número</span>
                 <p className="ds-individual__readonly">
                   {nextConsecutive != null
-                    ? `${resolutionPrefix}${isNote ? String(nextConsecutive).padStart(3, '0') : nextConsecutive} (Numeración automática)`
+                    ? `${isSiigoCompany && creditNote ? `${resolutionPrefix}${String(nextConsecutive).padStart(3, '0')}` : formatJarvisDocumentNumber(resolutionPrefix, nextConsecutive)} (Numeración automática)`
                     : 'Numeración automática'}
                 </p>
               </div>
@@ -1040,27 +1041,23 @@ function SalesInvoicePage({ supportDocument = false, creditNote = false, debitNo
         </section>
 
         {!isNote && !supportDocument && <section className="ds-individual__section">
-          <h2>Orden de compra (opcional)</h2>
-          <div className="ds-individual__info-grid">
-            <div className="ds-individual__col">
-              <label className={`ds-individual__field${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
-                <span>Prefijo de la orden de compra</span>
-                <input value={purchaseOrder.prefix} placeholder="Ej. OC-" onChange={e => setPurchaseOrder(current => ({ ...current, prefix: e.target.value }))} />
-              </label>
-              <label className={`ds-individual__field${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
-                <span>Consecutivo de la orden de compra</span>
-                <input value={purchaseOrder.consecutive} placeholder="Ej. 12345" onChange={e => setPurchaseOrder(current => ({ ...current, consecutive: e.target.value }))} />
-              </label>
-            </div>
-            <div className="ds-individual__col">
-              <label className={`ds-individual__field ds-individual__field--date${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
-                <span>Fecha de la orden de compra</span>
-                <DatePicker value={purchaseOrder.issueDate} onChange={value => setPurchaseOrder(current => ({ ...current, issueDate: value }))} invalid={Boolean(fieldErrors.purchaseOrder)} />
-              </label>
-              <p>Incluye el separador en el prefijo, si aplica. Ejemplo: OC- y 12345 forman OC-12345.</p>
-              {fieldErrors.purchaseOrder && <p className="ds-individual__error" role="alert">{fieldErrors.purchaseOrder}</p>}
-            </div>
+          <h2 className="ds-individual__purchase-order-title">Orden de compra (opcional)</h2>
+          <div className="ds-individual__purchase-order-grid">
+            <label className={`ds-individual__field${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
+              <span>Prefijo</span>
+              <input value={purchaseOrder.prefix} placeholder="Ej. OC-" onChange={e => setPurchaseOrder(current => ({ ...current, prefix: e.target.value }))} />
+            </label>
+            <label className={`ds-individual__field${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
+              <span>Consecutivo</span>
+              <input value={purchaseOrder.consecutive} placeholder="Ej. 12345" onChange={e => setPurchaseOrder(current => ({ ...current, consecutive: e.target.value }))} />
+            </label>
+            <label className={`ds-individual__field ds-individual__field--date${fieldErrors.purchaseOrder ? ' is-invalid' : ''}`}>
+              <span>Fecha</span>
+              <DatePicker value={purchaseOrder.issueDate} onChange={value => setPurchaseOrder(current => ({ ...current, issueDate: value }))} invalid={Boolean(fieldErrors.purchaseOrder)} />
+            </label>
           </div>
+          <p className="ds-individual__purchase-order-hint">Incluye el separador en el prefijo, si aplica. Ejemplo: OC- y 12345 forman OC-12345.</p>
+          {fieldErrors.purchaseOrder && <p className="ds-individual__error" role="alert">{fieldErrors.purchaseOrder}</p>}
         </section>}
 
         {/* Detalle productos/servicios */}

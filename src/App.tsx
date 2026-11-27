@@ -3,6 +3,7 @@ import AdminRoute from './components/AdminRoute'
 import AdminClientDetailPage from './pages/AdminClientDetailPage'
 import AdvisorRegistrationPage from './pages/AdvisorRegistrationPage'
 import AdvisorAccountPage, { AdminAdvisorAccountPage } from './pages/AdvisorAccountPage'
+import AdvisorDemoPage from './pages/AdvisorDemoPage'
 import DefaultAppRedirect from './components/DefaultAppRedirect'
 import ProtectedRoute from './components/ProtectedRoute'
 import SupportDocumentRoute from './components/SupportDocumentRoute'
@@ -57,6 +58,7 @@ function App() {
             <Route path="/registro" element={<RegisterPage />} />
             <Route path="/registro/asesor" element={<AdvisorRegistrationPage />} />
             <Route path="/asesor" element={<AdvisorAccountPage />} />
+            <Route path="/asesor/demo" element={<AdvisorDemoPage />} />
             <Route path="/politica-de-tratamiento-de-datos" element={<PrivacyPolicyPage />} />
             <Route path="/admin" element={<AdminRoute />} />
             <Route path="/admin/asesores/:advisorId" element={<AdminRoute><AdminAdvisorAccountPage /></AdminRoute>} />

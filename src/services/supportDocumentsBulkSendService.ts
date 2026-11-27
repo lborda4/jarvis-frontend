@@ -1,5 +1,5 @@
 import { getApiErrorMessage } from './apiClient'
-import { fetchInvoiceDraft, saveInvoiceDraft } from './invoiceDraftService'
+import { claimSalesImportDraft, completeSalesImportDraft, fetchInvoiceDraft, saveInvoiceDraft } from './invoiceDraftService'
 import { createJarvisInvoice, createJarvisSupportInvoice, type CreateJarvisInvoiceRequest } from './jarvisService'
 import { getActiveCompanyId } from './queryCache'
 import { fetchSupportImportCatalogs, saveImportedSupportDocuments } from './supportDocumentsImportService'
@@ -8,6 +8,7 @@ import { calculateSalesInvoiceTax, requireSalesInvoiceTaxCatalogId } from '../ut
 import { supportReferenceKey, type InvoiceImportKind, type SupportImportCatalogs, type SupportImportRow } from '../utils/supportDocumentsExcel'
 import { buildPaymentBreakdown } from '../utils/paymentNegotiation'
 import type { InvoiceDraftState } from '../types/invoiceDraft'
+import { getColombiaToday } from '../utils/colombiaDate'
 
 type ImportedDraftState = InvoiceDraftState & { importSource?: string; importReference?: string }
 
@@ -60,7 +61,11 @@ export async function sendImportedSupportDocuments(rows: SupportImportRow[], onP
   const catalogs = await fetchSupportImportCatalogs(kind)
   checkCompany()
   // Validate the entire batch before saving or issuing any document.
-  rows.filter(row => row.status !== 'duplicate' && !row.delivery).forEach(buildRequest)
+  rows.filter(row => row.status !== 'duplicate' && !row.delivery).forEach(row => {
+    if (kind === 'sales' && row.state.issueDate !== getColombiaToday())
+      throw new Error('Las facturas de venta se emiten con la fecha actual de Colombia. Actualiza la fecha de emisión del Excel antes de enviar.')
+    buildRequest(row)
+  })
   const result = await saveImportedSupportDocuments(rows, onProgress, kind)
   checkCompany()
   if (result.some(row => row.status === 'failed')) return result
@@ -84,9 +89,17 @@ export async function sendImportedSupportDocuments(rows: SupportImportRow[], onP
             || JSON.stringify(buildRequest({ ...row, state: draft.state })) !== JSON.stringify(buildRequest(row))) continue
           row = { ...row, state: draft.state, status: 'saved' }
         }
+        if (kind === 'sales' && row.state.issueDate !== getColombiaToday())
+          throw new Error('La fecha cambió durante el envío. Actualiza el Excel con la fecha actual de Colombia antes de continuar.')
         const request = buildRequest(row)
-        await saveInvoiceDraft(row.draftId!, documentKind, { ...row.state, importReference: row.reference, importSource, importDelivery: { status: 'sending' } })
-        attempted = true
+        let claimToken = ''
+        if (kind === 'sales') {
+          attempted = true
+          claimToken = await claimSalesImportDraft(row.draftId!, draft.state)
+        } else {
+          await saveInvoiceDraft(row.draftId!, documentKind, { ...row.state, importReference: row.reference, importSource, importDelivery: { status: 'sending' } })
+          attempted = true
+        }
         checkCompany()
         onProgress({ ...row, delivery: 'sending', message: 'Enviando a DIAN…' })
         // Sequential issuance lets the existing endpoint allocate official consecutives.
@@ -97,7 +110,8 @@ export async function sendImportedSupportDocuments(rows: SupportImportRow[], onP
         onProgress(row)
         try {
           checkCompany()
-          await saveInvoiceDraft(row.draftId!, documentKind, { ...row.state, importReference: row.reference, importSource, importDelivery: { status: 'sent', invoiceId: row.invoiceId } })
+          if (kind === 'sales') await completeSalesImportDraft(row.draftId!, claimToken, row.invoiceId)
+          else await saveInvoiceDraft(row.draftId!, documentKind, { ...row.state, importReference: row.reference, importSource, importDelivery: { status: 'sent', invoiceId: row.invoiceId } })
         } catch {
           row = { ...row, message: `${row.message} No se pudo actualizar el borrador; el envío está confirmado.` }
         }

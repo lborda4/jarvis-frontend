@@ -3,10 +3,17 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import SalesInvoicePage from './SalesInvoicePage'
 
-vi.mock('../context/IntegrationSetupContext', () => ({ useIntegrationSetup: () => ({ isSiigoCompany: false }) }))
+const mocks = vi.hoisted(() => ({ isSiigoCompany: false }))
+vi.mock('../context/IntegrationSetupContext', () => ({ useIntegrationSetup: () => ({ isSiigoCompany: mocks.isSiigoCompany }) }))
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { company: { id: 'company' } } }) }))
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => { vi.useRealTimers(); mocks.isSiigoCompany = false })
+
+it('muestra la numeración de nota Jarvis con guion sin alterar la de Siigo', () => {
+  expect(renderToStaticMarkup(<MemoryRouter><SalesInvoicePage creditNote /></MemoryRouter>)).toContain('NC-1 (Numeración automática)')
+  mocks.isSiigoCompany = true
+  expect(renderToStaticMarkup(<MemoryRouter><SalesInvoicePage creditNote /></MemoryRouter>)).toContain('NC001 (Numeración automática)')
+})
 
 it.each([{}, { creditNote: true }, { debitNote: true }])('fija la fecha de elaboración en hoy en Colombia para %j', props => {
   vi.useFakeTimers()
@@ -56,9 +63,12 @@ it.each([
   const html = renderToStaticMarkup(<MemoryRouter><SalesInvoicePage {...props} /></MemoryRouter>)
   expect(html.includes('Orden de compra (opcional)')).toBe(visible)
   if (visible) {
-    expect(html).toContain('Prefijo de la orden de compra')
-    expect(html).toContain('Consecutivo de la orden de compra')
-    expect(html).toContain('Fecha de la orden de compra')
+    const section = html.match(/<section class="ds-individual__section"><h2 class="ds-individual__purchase-order-title">Orden de compra \(opcional\)<\/h2>[\s\S]*?<\/section>/)?.[0]
+    expect(section).toBeDefined()
+    expect(section).toContain('<span>Prefijo</span>')
+    expect(section).toContain('<span>Consecutivo</span>')
+    expect(section).toContain('<span>Fecha</span>')
+    expect(section).toContain('date-picker__trigger')
   }
 })
 

@@ -12,6 +12,7 @@ import { fetchJarvisInvoicePdfData } from '../services/jarvisService'
 import { fetchInvoiceDraftPreview } from '../services/invoiceDraftPreviewService'
 import { useAuth } from '../context/AuthContext'
 import { jarvisPdfCopy, jarvisPdfKindFromFlags } from '../utils/jarvisPdfDocument'
+import { formatJarvisDocumentNumber } from '../utils/jarvisDocumentNumber'
 import { loadSalesInvoicePdfRenderer, PdfModuleLoadError } from '../utils/loadSalesInvoicePdfRenderer'
 
 export default function SalesInvoicePreviewPage({
@@ -34,7 +35,7 @@ export default function SalesInvoicePreviewPage({
   const fallback = jarvisPdfCopy(jarvisPdfKindFromFlags({ supportDocument, creditNote, debitNote, adjustmentNote }))
   const companyId = user?.company?.id
   const [attempt, setAttempt] = useState(0)
-  const [result, setResult] = useState<{ key: string; url: string; number: string; documentLabel: string; listPath: string; kind: string; code: string; codeLabel: string; attachment?: InvoiceAttachment; emailDeliveries: DocumentEmailDelivery[] } | null>(null)
+  const [result, setResult] = useState<{ key: string; url: string; number: string; displayNumber: string; documentLabel: string; listPath: string; kind: string; code: string; codeLabel: string; attachment?: InvoiceAttachment; emailDeliveries: DocumentEmailDelivery[] } | null>(null)
   const [failure, setFailure] = useState<{ key: string; reload: boolean } | null>(null)
   const key = `${companyId}:${id}:${isDraft}:${attempt}`
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function SalesInvoicePreviewPage({
         url = URL.createObjectURL(blob)
         const kind = data.documentKind ?? jarvisPdfKindFromFlags({ supportDocument, creditNote, debitNote, adjustmentNote })
         const copy = jarvisPdfCopy(kind)
-        setResult({ key, url, number: data.invoiceNumber || id, documentLabel: isDraft ? `${copy.shortTitle} · Borrador` : copy.shortTitle, listPath: copy.listPath, kind, code: data.cufe ?? '', codeLabel: copy.uniqueCode, attachment: data.attachment, emailDeliveries: data.emailDeliveries ?? [] })
+        setResult({ key, url, number: data.invoiceNumber || id, displayNumber: isDraft || !data.invoiceNumber ? data.invoiceNumber || id : formatJarvisDocumentNumber(data.prefix, data.invoiceNumber), documentLabel: isDraft ? `${copy.shortTitle} · Borrador` : copy.shortTitle, listPath: copy.listPath, kind, code: data.cufe ?? '', codeLabel: copy.uniqueCode, attachment: data.attachment, emailDeliveries: data.emailDeliveries ?? [] })
       } catch (error) {
         if (active) {
           console.error('[Jarvis PDF] Falló la preparación de la factura.', { documentId: id, stage }, error)
@@ -78,7 +79,7 @@ export default function SalesInvoicePreviewPage({
       if (failure?.reload) window.location.reload()
       else setAttempt(value => value + 1)
     }} />
-      : current ? <InvoicePdfPreview standalone number={current.number} documentLabel={current.documentLabel} documentCode={current.code} codeLabel={current.codeLabel} pdfUrl={current.url} onClose={() => navigate(listPath)}
+      : current ? <InvoicePdfPreview standalone number={current.number} displayNumber={current.displayNumber} documentLabel={current.documentLabel} documentCode={current.code} codeLabel={current.codeLabel} pdfUrl={current.url} onClose={() => navigate(listPath)}
         footer={!isDraft && <DocumentEmailHistory deliveries={current.emailDeliveries} />}
         actions={<>{isDraft ? <Link className="invoice-pdf__download" to={editPath}>Editar</Link> : <DocumentPreviewActions key={`${companyId}:${id}`} id={id} number={current.number} kind={current.kind} onEmailSent={delivery => setResult(previous => previous?.key === key ? { ...previous, emailDeliveries: [...previous.emailDeliveries, delivery] } : previous)} />}{current.attachment && <InvoiceAttachmentAction key={`attachment:${companyId}:${id}`} id={id} draft={isDraft} attachment={current.attachment} />}</>} />
       : <LoadingIndicator message={`Preparando el PDF de ${fallback.shortTitle.toLowerCase()}…`} />}

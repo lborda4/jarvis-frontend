@@ -84,8 +84,8 @@ function buildSingleSheetSupportTemplate(catalogs?: SupportImportCatalogs, kind:
   sheet['!cols'] = columns.map((header, c) => ({ wch: /Descripción|Observaciones|Nota/.test(header) ? 40 : 25, z: formats[c] }))
   sheet['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(columns.length - 1)}${SUPPORT_IMPORT_LIMIT + 1}` }
   const help: Record<string, string> = {
-    'Grupo de documento *': `Etiqueta libre para unir filas de un mismo ${sales ? 'documento de venta' : 'soporte'}. Jarvis asigna el consecutivo oficial al enviar.`,
-    'Fecha de emisión *': 'Fecha de emisión. Escribe AAAA-MM-DD, DD/MM/AAAA o una fecha de Excel.',
+    'Grupo de documento *': `Etiqueta libre para unir filas de un mismo ${sales ? 'documento de venta. Usa una etiqueta única incluso entre archivos' : 'soporte'}. Jarvis asigna el consecutivo oficial al enviar.`,
+    'Fecha de emisión *': sales ? 'Las facturas se emiten con la fecha actual de Colombia. Escribe AAAA-MM-DD, DD/MM/AAAA o una fecha de Excel.' : 'Fecha de emisión. Escribe AAAA-MM-DD, DD/MM/AAAA o una fecha de Excel.',
     'Tipo de documento *': `Selecciona el tipo de identificación del ${party}: NIT, CC, CE o PA.`,
     'NIT / identificación *': `Identificación del ${party}, sin puntos, guiones ni dígito de verificación. Conserva el formato Texto y los ceros iniciales.`,
     'Producto': 'Opcional. Selecciona un código de producto de tu empresa. Si lo dejas vacío, el código se completa automáticamente al emitir.',

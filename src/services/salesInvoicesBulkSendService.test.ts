@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as XLSX from 'xlsx'
 import { apiClient } from './apiClient'
 import { setActiveCompanyId } from './queryCache'
@@ -6,8 +6,10 @@ import { sendImportedSupportDocuments } from './supportDocumentsBulkSendService'
 import { LEGACY_SALES_INVOICE_EXCEL_COLUMNS, readSalesInvoicesWorkbook } from '../utils/salesInvoicesExcel'
 import type { JarvisTercero } from '../types/jarvis'
 import type { InvoiceDraftState } from '../types/invoiceDraft'
+import { claimSalesImportDraft, completeSalesImportDraft } from './invoiceDraftService'
 
 vi.mock('./apiClient', () => ({ apiClient: { get: vi.fn(), put: vi.fn(), post: vi.fn() }, getApiErrorMessage: (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback }))
+vi.mock('./invoiceDraftService', async importOriginal => ({ ...await importOriginal<typeof import('./invoiceDraftService')>(), claimSalesImportDraft: vi.fn(), completeSalesImportDraft: vi.fn() }))
 const customer = { id: 'customer', document_type: 'NIT', document_number: '900123', name: 'Mi cliente' } as JarvisTercero
 const catalogs = { products: [], currencies: ['COP'], taxes: [], sellers: [{ id: 'seller', name: 'Ana' }], paymentMethods: [{ id: 'cash', name: 'Efectivo', negotiation: 'CASH' as const, nextpymeMethodId: 10, nextpymeMethodName: 'Efectivo' }] }
 type StoredState = InvoiceDraftState & { importSource?: string; importReference?: string }
@@ -21,6 +23,7 @@ const rows = (references = ['VENTA-A']) => {
 const send = (input = rows()) => sendImportedSupportDocuments(input, vi.fn(), 'sales')
 
 beforeEach(() => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-19T15:00:00Z'))
   vi.resetAllMocks(); stored.clear(); setActiveCompanyId(null); setActiveCompanyId('company-a')
   vi.mocked(apiClient.get).mockImplementation(async (url, config) => ({ data:
     url === '/integrations/jarvis/catalogs' ? { taxes: [], currencies: [{ code: 'COP' }] }
@@ -33,7 +36,17 @@ beforeEach(() => {
     return { data: {} }
   })
   vi.mocked(apiClient.post).mockResolvedValue({ data: { success: true, invoice: { id: 'provider-id', historyId: 'history-id', number: 42, date: '2026-11-19' } } })
+  vi.mocked(claimSalesImportDraft).mockImplementation(async id => {
+    const draft = stored.get(id)!
+    if (draft.state.importDelivery) throw new Error('El borrador ya tiene un envío en curso.')
+    draft.state.importDelivery = { status: 'sending' }
+    return 'claim'
+  })
+  vi.mocked(completeSalesImportDraft).mockImplementation(async (id, _token, invoiceId) => {
+    stored.get(id)!.state.importDelivery = { status: 'sent', ...(invoiceId ? { invoiceId } : {}) }
+  })
 })
+afterEach(() => vi.useRealTimers())
 
 it('guarda como factura de venta y envía al endpoint de facturas con vendedores, notas y pago', async () => {
   vi.mocked(apiClient.post).mockImplementation(async () => {
@@ -106,12 +119,36 @@ it('no emite un borrador de soporte como factura de venta', async () => {
 })
 
 it('detiene la emisión si cambia la empresa después de guardar el intento', async () => {
-  const original = vi.mocked(apiClient.put).getMockImplementation()!
-  vi.mocked(apiClient.put).mockImplementation(async (url, payload) => {
-    const response = await original(url, payload)
-    if ((payload as { state: StoredState }).state.importDelivery) setActiveCompanyId('company-b')
-    return response
+  const original = vi.mocked(claimSalesImportDraft).getMockImplementation()!
+  vi.mocked(claimSalesImportDraft).mockImplementation(async (id, state) => {
+    const token = await original(id, state)
+    setActiveCompanyId('company-b')
+    return token
   })
   await send()
   expect(apiClient.post).not.toHaveBeenCalled()
+})
+
+it('no emite con una fecha distinta a la fecha actual de Colombia', async () => {
+  const input = rows()
+  input[0].state.issueDate = '2026-11-18'
+  await expect(send(input)).rejects.toThrow('fecha actual de Colombia')
+  expect(apiClient.put).not.toHaveBeenCalled()
+  expect(apiClient.post).not.toHaveBeenCalled()
+})
+
+it('no envía si otra pestaña reservó la referencia o se pierde la respuesta de la reserva', async () => {
+  vi.mocked(claimSalesImportDraft).mockRejectedValue(new Error('Reserva no confirmada'))
+  const result = await send()
+  expect(result[0].delivery).toBe('uncertain')
+  expect(apiClient.post).not.toHaveBeenCalled()
+})
+
+it('dos sesiones con el mismo borrador no emiten dos veces', async () => {
+  await send()
+  delete [...stored.values()][0].state.importDelivery
+  vi.mocked(apiClient.post).mockClear()
+  const [first, second] = await Promise.all([send(), send()])
+  expect(apiClient.post).toHaveBeenCalledTimes(1)
+  expect([first[0].delivery, second[0].delivery]).toEqual(expect.arrayContaining(['sent']))
 })

@@ -466,6 +466,31 @@
   justify-content: flex-end;
 }
 
+.ds-individual--without-subtitles .ds-individual__section h2.ds-individual__purchase-order-title {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0 0 0.7rem;
+  padding: 0 0 0.4rem;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  border-bottom: 2px solid var(--jarvis-primary);
+  font-size: var(--text-xl);
+}
+
+.ds-individual__purchase-order-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.ds-individual__purchase-order-hint {
+  margin: 0.75rem 0 0;
+  color: var(--jarvis-text);
+  font-size: var(--text-sm);
+}
+
 /* ─── Grilla info general (2 columnas) ─── */
 .ds-individual__info-grid {
   display: grid;
@@ -1365,6 +1390,10 @@
 }
 
 @media (max-width: 768px) {
+  .ds-individual__purchase-order-grid {
+    grid-template-columns: 1fr;
+  }
+
   .ds-individual {
     padding: 1rem 0.85rem 2rem;
   }

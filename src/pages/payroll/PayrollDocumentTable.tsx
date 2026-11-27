@@ -112,7 +112,7 @@ export default function PayrollDocumentTable({
                 <small>
                   {document.employee.identification} ·{' '}
                   {document.number
-                    ? `${document.prefix ?? ''}${document.number}`
+                    ? formatJarvisDocumentNumber(document.prefix, document.number)
                     : 'Sin documento asignado'}
                   {document.originalId ? ' · Nota de ajuste' : ''}
                 </small>
@@ -155,3 +155,4 @@ export default function PayrollDocumentTable({
     </div>
   )
 }
+import { formatJarvisDocumentNumber } from '../../utils/jarvisDocumentNumber'

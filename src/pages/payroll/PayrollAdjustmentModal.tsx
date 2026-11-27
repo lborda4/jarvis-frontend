@@ -105,7 +105,7 @@ export default function PayrollAdjustmentModal({ month, noteType, concepts, onCl
       {error && <div className="payroll__notice payroll__notice--error" role="alert">{error}{!draft && <button className="payroll__link" onClick={() => setAttempt(value => value + 1)}>Reintentar</button>}</div>}
       {original && draft && <>
         <p><strong>{employeeName(original.employee_snapshot)}</strong> · {original.employee_snapshot.identification}</p>
-        <p className="payroll__muted">Documento {`${original.prefix ?? ''}${original.number ?? ''}`} · {dateLabel(original.state.startDate)} – {dateLabel(original.state.endDate)} · Emitido el {dateLabel(original.state.issueDate)}</p>
+        <p className="payroll__muted">Documento {formatJarvisDocumentNumber(original.prefix, original.number)} · {dateLabel(original.state.startDate)} – {dateLabel(original.state.endDate)} · Emitido el {dateLabel(original.state.issueDate)}</p>
         <div className="payroll-employee-modal__totals"><div><span>Ingresos</span><strong>{currency(accrued)}</strong></div><div><span>Deducciones</span><strong>{currency(deductions)}</strong></div><div><span>Neto a pagar</span><strong>{currency(money(cents(accrued) - cents(deductions)))}</strong></div></div>
         <div className="payroll-adjustment-modal__fields">
           <label>Fecha del ajuste *<input type="date" value={draft.state.issueDate} disabled={busy || locked} onChange={event => update({ issueDate: event.target.value })} required /></label>
@@ -132,3 +132,4 @@ export default function PayrollAdjustmentModal({ month, noteType, concepts, onCl
     <DocumentSendOverlay open={busy} documentTitle={noteType === 2 ? 'anulación de nómina' : 'reemplazo de nómina'} />
   </>
 }
+import { formatJarvisDocumentNumber } from '../../utils/jarvisDocumentNumber'
