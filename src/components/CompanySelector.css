@@ -1,0 +1,17 @@
+.company-selector {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--jarvis-border);
+  border-radius: var(--r-control);
+  color: var(--jarvis-navy);
+  background: var(--jarvis-white);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.company-selector__error {
+  display: block;
+  color: var(--jarvis-danger);
+  font-size: var(--text-sm);
+}

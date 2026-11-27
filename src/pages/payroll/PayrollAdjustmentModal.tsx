@@ -3,7 +3,6 @@ import Modal from '../../components/Modal'
 import DocumentSendOverlay from '../../components/DocumentSendOverlay'
 import { payrollService, type Concept, type PayrollDetail, type PayrollState } from '../../services/payrollService'
 import { getApiErrorMessage } from '../../services/apiClient'
-import { payrollSubmissionErrors } from '../../utils/payrollSubmissionErrors'
 import { cents, money } from '../../utils/payrollDomain'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
 import { currency, employeeName, localDate, statusLabels } from './payrollDefaults'
@@ -67,18 +66,18 @@ export default function PayrollAdjustmentModal({ month, noteType, concepts, onCl
         const sent = await payrollService.send(prepared.id)
         setDraft(sent); setResult(sent)
       } catch (error) {
-        setError(getApiErrorMessage(error, 'No se pudo confirmar el ajuste. Verifica su estado antes de reintentar.'))
+        setError('Error al enviar el ajuste. Verifica su estado antes de reintentar.')
         try { const saved = await payrollService.get(prepared.id); setDraft(saved); setResult(saved) } catch { /* Conservar la solicitud preparada para verificarla. */ }
       }
       try { await onReload() } catch { setError(previous => previous || 'El resultado se conservó, pero no se pudo actualizar el listado. Vuelve a consultarlo.') }
-    } catch (error) { setError(getApiErrorMessage(error, 'No se pudo preparar el ajuste.')) }
+    } catch { setError('Error al preparar el ajuste. Intenta nuevamente.') }
     finally { submitting.current = false; setBusy(false); onBusyChange(false) }
   }
   const checkStatus = async () => {
     if (!draft || submitting.current) return
     submitting.current = true; setBusy(true); onBusyChange(true); setError('')
     try { const checked = await payrollService.status(draft.id); setDraft(checked); setResult(checked); await onReload() }
-    catch (error) { setError(getApiErrorMessage(error, 'No se pudo consultar el estado del ajuste.')) }
+    catch { setError('No se pudo confirmar el estado del ajuste. Verifica nuevamente antes de reintentar.') }
     finally { submitting.current = false; setBusy(false); onBusyChange(false) }
   }
   const lines = draft?.state.lines ?? []
@@ -91,7 +90,6 @@ export default function PayrollAdjustmentModal({ month, noteType, concepts, onCl
   const pages = Math.max(1, Math.ceil(lines.length / pageSize))
   const currentPage = Math.min(page, pages)
   const locked = Boolean(result && !['DRAFT', 'REJECTED'].includes(result.status))
-  const messages = result && result.status !== 'ACCEPTED' ? payrollSubmissionErrors(result.transmissions[0]) : []
   return <>
     <Modal isOpen size="lg" busy={busy || editing} labelledBy={titleId} className="payroll payroll-adjustment-modal" onClose={onClose}>
       <h2 className="modal-dialog__title" id={titleId}>{noteType === 2 ? 'Eliminar envío de nómina' : 'Reemplazar nómina'} · {month.label}</h2>
@@ -119,7 +117,6 @@ export default function PayrollAdjustmentModal({ month, noteType, concepts, onCl
         {result && <div className={`payroll__notice${result.status === 'REJECTED' ? ' payroll__notice--error' : ''}`} role="status">
           {result.status === 'ACCEPTED' ? noteType === 2 ? 'La DIAN aceptó la anulación de este envío.' : 'La DIAN aceptó el reemplazo de la nómina.' : `Ajuste: ${statusLabels[result.status] ?? 'Pendiente de confirmación'}.`}
           {result.noteDocumentCredit && result.noteDocumentCredit !== 'APPLIED' && <p>El abono de un documento en NextPyme requiere revisión. No vuelvas a enviar el ajuste.</p>}
-          {messages.length > 0 && <ul>{messages.map(message => <li key={message}>{message}</li>)}</ul>}
         </div>}
         <div className="payroll__toolbar">
           {noteType === 1 && <button className="payroll__button" disabled={busy || locked} onClick={() => setEditing(true)}>Gestionar novedades</button>}

@@ -5,7 +5,7 @@ import AdvisorDemoPage from './AdvisorDemoPage'
 import AdvisorAccountPage from './AdvisorAccountPage'
 
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'advisor', name: 'Asesor', role: 'advisor' }, isAuthenticated: true, isLoading: false, logout: vi.fn() }),
+  useAuth: () => ({ user: { id: 'advisor', name: 'Asesor', role: 'advisor' }, companies: [], isAuthenticated: true, isLoading: false, logout: vi.fn() }),
 }))
 
 it('ofrece el acceso a la demo en el panel comercial', () => {

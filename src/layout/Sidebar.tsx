@@ -1,6 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { type ChangeEvent, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import CompanySelector from '../components/CompanySelector'
 import IntegrationPolicyModal from '../components/IntegrationPolicyModal'
 import { getIntegrationPolicy } from '../constants/integrationPolicies'
 import { useAuth } from '../context/AuthContext'
@@ -67,7 +68,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const navigate = useNavigate()
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [policyOpen, setPolicyOpen] = useState(false)
-  const { user, companies, isLoading, isSwitchingCompany, logout, switchCompany } =
+  const { user, companies, isLoading, logout } =
     useAuth()
   const {
     isSupportDocumentEnabled,
@@ -95,7 +96,6 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const hasBilling = modules.includes('BILLING')
   const hasPayroll = modules.includes('PAYROLL')
   const companyName = user?.company?.name ?? 'Mi Empresa'
-  const activeCompanyId = user?.company?.id ?? ''
   const userName = user?.name?.trim() || 'Usuario'
   const userEmail = user?.email?.trim() || ''
   const settingsLabel = isJarvisCompany ? 'Configuración' : 'Configuración SIIGO'
@@ -221,16 +221,6 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
   if (isJarvisCompany) {
     navItems.push({ label: settingsLabel, to: setupPath, icon: SettingsIcon })
-  }
-
-  const handleCompanyChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextCompanyId = event.target.value
-
-    if (!nextCompanyId || nextCompanyId === activeCompanyId) {
-      return
-    }
-
-    void switchCompany(nextCompanyId)
   }
 
   const handleLogout = () => {
@@ -388,20 +378,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         {isOpen && (
           <div className="app-sidebar__brand-row">
             {companies.length > 0 ? (
-              <select
-                className="app-sidebar__company-select"
-                value={activeCompanyId}
-                onChange={handleCompanyChange}
-                disabled={isLoading || isSwitchingCompany || companies.length === 0}
-                aria-label="Empresa activa"
-                title={companyName}
-              >
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
+              <CompanySelector location="company" />
             ) : (
               <span className="app-sidebar__brand-title" title={companyName}>
                 {isLoading ? 'Cargando...' : companyName}

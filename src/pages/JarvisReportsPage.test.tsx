@@ -17,6 +17,8 @@ it('ofrece los cinco reportes y filtros antes de consultar', () => {
   expect(html.match(/role="combobox"/g)).toHaveLength(3)
   expect(html).not.toContain('<datalist')
   expect(html).toContain('Mostrar opciones de cliente')
+  expect(html).not.toContain('La exportación incluye')
+  expect(html).not.toContain('Consulta el detalle de todas tus ventas')
 })
 it('no muestra reportes JARVIS en empresas SIIGO', () => {
   setup.isJarvisCompany = false

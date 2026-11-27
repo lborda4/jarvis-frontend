@@ -33,6 +33,16 @@ function kindBadge(kind: JarvisReportRow[string] | undefined): string {
   return 'jarvis-reports__badge'
 }
 
+const descriptiveColumns = new Set(['productName', 'customerName', 'seller'])
+function reportCellClass(column: JarvisReportColumn) {
+  return column.format !== 'text' ? 'jarvis-reports__numeric' : descriptiveColumns.has(column.key) ? 'jarvis-reports__description' : undefined
+}
+
+function reportCellValue(value: string, key: string) {
+  if (!descriptiveColumns.has(key) || value.length <= 60) return value
+  return <details className="jarvis-reports__long-text"><summary><span>{value}</span><small className="jarvis-reports__expand">Ver completo</small><small className="jarvis-reports__collapse">Ver menos</small></summary></details>
+}
+
 const salesColumns: JarvisReportColumn[] = [
   { key: 'date', label: 'Fecha', format: 'text' },
   { key: 'kind', label: 'Tipo de comprobante', format: 'text' },
@@ -62,23 +72,23 @@ export default function JarvisReportResults({ data, onPage, onPageSize }: {
   const compactKeys = data.filters.report === 'taxes' ? taxKeys : productKeys
   const hasCompactView = ['sales', 'products', 'taxes'].includes(data.filters.report) && data.filters.view === 'detail'
   if (!data.filters.currency || data.totals.length > 1) compactKeys.push('currency')
-  const columns = !fullColumns && isSalesDetail
+  const columns = (!fullColumns && isSalesDetail
     ? [...salesColumns, ...(!data.filters.currency || data.totals.length > 1 ? data.columns.filter(column => column.key === 'currency') : [])]
     : !fullColumns && hasCompactView
     ? compactKeys.flatMap(key => data.columns.filter(column => column.key === key))
-    : data.columns
+    : data.columns).filter(column => column.key !== 'direction')
   const start = data.total ? (data.page - 1) * data.pageSize + 1 : 0
   const end = Math.min(data.page * data.pageSize, data.total)
   return <>
     <section className="integration-card jarvis-reports__result">
       <div className="jarvis-reports__result-heading"><span>{data.total.toLocaleString('es-CO')} registros filtrados</span>{hasCompactView && <Button variant="ghost" aria-pressed={fullColumns} onClick={() => setFullColumns(value => !value)}>{fullColumns ? 'Vista compacta' : 'Ver todas las columnas'}</Button>}</div>
-      {data.items.length ? <div className="jarvis-reports__table-scroll"><table className="integration-table">
-        <thead><tr>{columns.map(column => <th scope="col" className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'} key={column.key}>{column.label}</th>)}{isSalesDetail && <th scope="col">Acciones</th>}</tr></thead>
+      {data.items.length ? <div className="jarvis-reports__table-scroll" role="region" aria-label="Tabla del reporte" tabIndex={0}><table className="integration-table">
+        <thead><tr>{columns.map(column => <th scope="col" className={reportCellClass(column)} key={column.key}>{column.label}</th>)}{isSalesDetail && <th scope="col">Acciones</th>}</tr></thead>
         <tbody>{data.items.map((item, index) => { const row = isSalesDetail ? salesAmounts(item) : item; const displayNumber = typeof row.number === 'string' ? formatJarvisDocumentNumber(typeof row.prefix === 'string' ? row.prefix : '', row.number) : row.number; return <tr key={`${row.id ?? ''}:${row.sellerId ?? ''}:${index}`}>
-          {columns.map(column => <td key={column.key} className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'}>{column.key === 'kind' ? <span className={kindBadge(row[column.key])}>{formatReportValue(row[column.key], column.format)}</span> : column.key === 'date' && typeof row[column.key] === 'string' ? String(row[column.key]).slice(0, 10).split('-').reverse().join('/') : formatReportValue(column.key === 'number' ? displayNumber : row[column.key], column.format)}</td>)}
+          {columns.map(column => <td key={column.key} className={reportCellClass(column)}>{column.key === 'kind' ? <span className={kindBadge(row[column.key])}>{formatReportValue(row[column.key], column.format)}</span> : column.key === 'date' && typeof row[column.key] === 'string' ? String(row[column.key]).slice(0, 10).split('-').reverse().join('/') : reportCellValue(formatReportValue(column.key === 'number' ? displayNumber : row[column.key], column.format), column.key)}</td>)}
           {isSalesDetail && <td>{row.id ? <Link className="jarvis-reports__document-link" to={`${String(row.kind).toLowerCase().includes('crédito') ? '/nota-credito' : String(row.kind).toLowerCase().includes('débito') ? '/nota-debito' : '/factura-venta'}/${encodeURIComponent(String(row.id))}/visualizar`} aria-label={`Visualizar comprobante ${displayNumber}`}>Ver</Link> : '—'}</td>}
         </tr> })}</tbody>
-        <tfoot>{data.totals.map(item => { const total = isSalesDetail ? salesAmounts(item) : item; return <tr key={String(total.currency)}>{columns.map((column, index) => <td key={column.key} className={column.format === 'text' ? undefined : 'jarvis-reports__numeric'}>{index === 0 ? `Total general · ${total.currency}` : column.key === 'unitValue' || column.format === 'text' ? '—' : formatReportValue(total[column.key === 'quantity' ? 'netQuantity' : column.key], column.format)}</td>)}{isSalesDetail && <td />}</tr> })}</tfoot>
+        <tfoot>{data.totals.map(item => { const total = isSalesDetail ? salesAmounts(item) : item; return <tr key={String(total.currency)}>{columns.map((column, index) => <td key={column.key} className={reportCellClass(column)}>{index === 0 ? `Total general · ${total.currency}` : column.key === 'unitValue' || column.format === 'text' ? '—' : formatReportValue(total[column.key === 'quantity' ? 'netQuantity' : column.key], column.format)}</td>)}{isSalesDetail && <td />}</tr> })}</tfoot>
       </table></div> : <p className="jarvis-reports__empty">No hay registros para los filtros seleccionados.</p>}
       {data.total > 0 && <footer className="jarvis-reports__pagination"><span className="jarvis-reports__record-count">Mostrando {start} a {end} de {data.total} registros</span>
       {showPagination && <>
@@ -99,6 +109,6 @@ export default function JarvisReportResults({ data, onPage, onPageSize }: {
         {data.filters.report === 'products' && <p>Cantidad vendida: {formatReportValue(total.soldQuantity, 'number')} · Devuelta: {formatReportValue(total.returnedQuantity, 'number')} · Notas débito: {formatReportValue(total.debitQuantity, 'number')} · Neta: {formatReportValue(total.netQuantity, 'number')}</p>}
       </section>)}
     </details>
-    <details className="integration-card jarvis-reports__criteria"><summary>Criterios y observaciones del reporte</summary><ul>{data.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></details>
+    {data.warnings.length > 0 && <div className="integration-card jarvis-reports__criteria" role="status"><strong>Advertencias del reporte</strong><ul>{data.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div>}
   </>
 }

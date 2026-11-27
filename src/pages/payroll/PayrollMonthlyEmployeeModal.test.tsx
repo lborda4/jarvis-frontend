@@ -31,7 +31,7 @@ describe('Detalle mensual de empleado en modal', () => {
   })
   it('presenta un modal con tres vistas, conceptos, fechas y cierre mediante X', () => {
     const month = groupPayrollMonths([source(1), source(2)])[0]
-    const html = renderToStaticMarkup(<PayrollMonthlyEmployeeModal employee={month.employees[0]} monthLabel={month.label} status="DRAFT" errors={[]} busy={false} onClose={() => {}} onEditEmployee={() => {}} />)
+    const html = renderToStaticMarkup(<PayrollMonthlyEmployeeModal employee={month.employees[0]} monthLabel={month.label} status="DRAFT" busy={false} onClose={() => {}} onEditEmployee={() => {}} />)
     expect(html).toContain('role="dialog"')
     expect(html).toContain('aria-modal="true"')
     expect(html).toContain('aria-label="Cerrar"')
@@ -62,6 +62,14 @@ describe('Detalle mensual de empleado en modal', () => {
     expect(html).toContain('Siguiente')
     expect(html).toContain('Empleado 9')
     expect(html).not.toContain('Empleado 10')
+  })
+  it('oculta el detalle técnico y permite verificar un envío por confirmar', () => {
+    const document = { ...source(1), status: 'UNCERTAIN', submissionErrors: ['Regla: 90 secreto de prueba'], monthlySubmission: { id: 'monthly', status: 'UNCERTAIN', number: '1', prefix: 'NI', cune: 'a'.repeat(96) } }
+    const month = groupPayrollMonths([document])[0]
+    const html = renderToStaticMarkup(<PayrollMonthlyReview month={month} onBack={() => {}} />)
+    expect(html).toContain('Verificar envío')
+    expect(html).not.toContain('Regla: 90 secreto de prueba')
+    expect(html).not.toContain('avisos')
   })
   it('oculta la precaución cuando todos los empleados del mes están aceptados', () => {
     const document = source(1)

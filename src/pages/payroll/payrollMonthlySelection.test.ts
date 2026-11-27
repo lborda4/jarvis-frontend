@@ -29,4 +29,9 @@ describe('Selección de empleados para envío mensual', () => {
     expect(result).toHaveLength(9)
     expect(result.some(employee => ['employee-0', 'employee-1', 'employee-2'].includes(employee.id))).toBe(false)
   })
+  it('permite mantener seleccionados los rechazos confirmados para reintentar', () => {
+    const rejected = { ...documents[0], status: 'REJECTED', monthlySubmission: { id: 'monthly', status: 'REJECTED', cune: null, prefix: 'NI', number: '1' } }
+    const [month] = groupPayrollMonths([rejected])
+    expect(payrollMonthlySendQueue(month.employees, [rejected.employeeId], { [rejected.employeeId]: { status: 'REJECTED' } })).toHaveLength(1)
+  })
 })

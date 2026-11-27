@@ -105,7 +105,8 @@ export function SalesInvoicePdfDocument({ data, qr }: { data: PurchaseInvoiceDow
       <View style={s.dian} wrap={false}>
         <View style={s.dianRow}>
         {!data.isDraft && <Image src={qr} style={s.qr} />}
-        <View style={s.half}>{data.isDraft ? <Text style={s.name}>{data.isPreviewSample ? 'Datos ilustrativos para personalizar tu factura' : 'Documento guardado sin enviar a la DIAN'}</Text> : <><Text style={s.name}>Documento electrónico validado por la DIAN</Text>{generationDateTime && <><Text style={[s.field, { marginTop: 7 }]}>Fecha y hora de generación:</Text><Text style={s.small}>{generationDateTime}</Text></>}</>}</View>
+        <View style={s.half}>{data.isDraft ? <Text style={s.name}>{data.isPreviewSample ? 'Datos ilustrativos para personalizar tu factura' : 'Documento guardado sin enviar a la DIAN'}</Text> : <><Text style={s.name}>Documento electrónico validado por la DIAN</Text>{generationDateTime && <><Text style={[s.field, { marginTop: 7 }]}>Fecha y hora de generación:</Text><Text style={s.small}>{generationDateTime}</Text></>}</>}
+          {data.documentKind === 'ELECTRONIC_INVOICE' && optionalValue(data.orderNumber) && <><Text style={[s.field, { marginTop: 7 }]}>Orden de compra: {optionalValue(data.orderNumber)}</Text>{optionalValue(data.orderDate) && <Text style={s.small}>Fecha de orden de compra: {optionalValue(data.orderDate)}</Text>}</>}</View>
         {taxDetails.lines.length > 0 && <View style={s.half}><Text style={s.name}>{taxDetails.title}</Text>
           {taxDetails.lines.map(line => <Text key={line} style={s.small}>{line}</Text>)}</View>}
         </View>

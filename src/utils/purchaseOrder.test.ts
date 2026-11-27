@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isValidPurchaseOrder } from './purchaseOrder'
+import { isValidPurchaseOrder, purchaseOrderNumber } from './purchaseOrder'
 
 describe('orden de compra', () => {
   it('permite omitirla o completar todos los datos', () => {
@@ -13,7 +13,13 @@ describe('orden de compra', () => {
     { prefix: 'OC-', consecutive: '1', issueDate: '' },
     { prefix: 'OC-', consecutive: '1', issueDate: '2023-02-29' },
     { prefix: 'OC-', consecutive: '1', issueDate: '10/01/2024' },
+    { prefix: '---', consecutive: '1', issueDate: '2024-01-10' },
+    { prefix: 'OC', consecutive: '--', issueDate: '2024-01-10' },
   ])('rechaza datos incompletos o fecha inválida: %j', order => {
     expect(isValidPurchaseOrder(order)).toBe(false)
+  })
+
+  it.each([['OC', '001', 'OC-001'], ['OC-', '-001', 'OC-001'], ['OC- -', '- -001', 'OC-001'], ['OC-BOG', '001', 'OC-BOG-001']])('normaliza la unión sin perder ceros', (prefix, consecutive, expected) => {
+    expect(purchaseOrderNumber({ prefix, consecutive })).toBe(expected)
   })
 })

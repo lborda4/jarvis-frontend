@@ -49,6 +49,24 @@ describe('sales invoice HTML template adaptation', () => {
     return ''
   }
 
+  it('muestra la orden de compra debajo de la generación solo en facturas', async () => {
+    const withOrder = { ...data, documentKind: 'ELECTRONIC_INVOICE', orderNumber: 'OC-001', orderDate: '2024-01-10' }
+    const document = SalesInvoicePdfDocument({ data: withOrder, qr: '' })
+    const text = textContent(document)
+    expect(text).toContain('Orden de compra: OC-001')
+    expect(text).toContain('Fecha de orden de compra: 2024-01-10')
+    expect(text.indexOf('Orden de compra:')).toBeGreaterThan(text.indexOf('Fecha y hora de generación:'))
+    expect((await renderToBuffer(document)).subarray(0, 5).toString()).toBe('%PDF-')
+    expect(textContent(SalesInvoicePdfDocument({ data: { ...withOrder, documentKind: 'CREDIT_NOTE' }, qr: '' }))).not.toContain('Orden de compra:')
+    expect(textContent(SalesInvoicePdfDocument({ data, qr: '' }))).not.toContain('Orden de compra:')
+  })
+
+  it('muestra en el borrador la orden normalizada sin exigir todos los datos', async () => {
+    const { invoiceDraftPdfData } = await import('../../utils/invoiceDraftPdf')
+    const draft = invoiceDraftPdfData({ id: 'draft', kind: 'ELECTRONIC_INVOICE', state: { purchaseOrder: { prefix: 'OC', consecutive: '001', issueDate: '2024-01-10' } }, settings: {}, company: { id: 'company', name: 'Empresa', nit: '123' } })
+    expect(textContent(SalesInvoicePdfDocument({ data: draft, qr: '' }))).toContain('Orden de compra: OC-001')
+  })
+
   it('omite datos opcionales vacíos en enviados y conserva la identificación y los datos presentes', () => {
     const missing = { ...party, address: ' ', cityName: null, phone: '-', email: '—' }
     const text = textContent(SalesInvoicePdfDocument({ data: { ...data, issuer: missing, buyer: { ...missing, email: 'cliente@example.com' }, observations: '   ' }, qr: '' }))

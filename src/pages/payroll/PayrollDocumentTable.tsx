@@ -2,7 +2,6 @@ import type { PayrollDocument } from '../../services/payrollService'
 import { payrollAdjustmentLabel } from './payrollAdjustmentTargets'
 import { currency, employeeName, statusLabels } from './payrollDefaults'
 import PayrollRowActions, { type PayrollRowAction } from './PayrollRowActions'
-import PayrollSubmissionFeedback from './PayrollSubmissionFeedback'
 
 export default function PayrollDocumentTable({
   documents,
@@ -116,7 +115,6 @@ export default function PayrollDocumentTable({
                     : 'Sin documento asignado'}
                   {document.originalId ? ' · Nota de ajuste' : ''}
                 </small>
-                <PayrollSubmissionFeedback errors={document.submissionErrors ?? []} />
               </td>
               <td data-label="Ingresos">{currency(document.accrued)}</td>
               <td data-label="Deducciones">{currency(document.deductions)}</td>

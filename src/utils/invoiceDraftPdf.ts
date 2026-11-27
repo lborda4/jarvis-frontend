@@ -9,6 +9,7 @@ import { isCreditPaymentMethod } from './paymentNegotiation'
 import { calculateSalesInvoiceTax } from './salesInvoiceTaxes'
 import { calculateJarvisRetention } from './jarvisTaxTechnical'
 import { JARVIS_TAX_RATES, normalizeJarvisTaxType } from './jarvisTaxPresets'
+import { purchaseOrderNumber } from './purchaseOrder'
 
 const amount = (value: unknown): number => {
   const parsed = Number(String(value ?? '').replace(/\s/g, '').replace(',', '.'))
@@ -84,6 +85,9 @@ export function invoiceDraftPdfData(input: {
   const [nit, dv] = company.nit.split('-')
   return {
     id, isDraft: true, documentKind: kind, invoiceNumber: 'Sin número', prefix: resolution?.prefix ?? null,
+    ...(kind === 'ELECTRONIC_INVOICE' && state.purchaseOrder ? {
+      orderNumber: purchaseOrderNumber(state.purchaseOrder), orderDate: state.purchaseOrder.issueDate?.trim() || null,
+    } : {}),
     cufe: '', dianQrText: '', dianQrUrl: '', issueDate: state.issueDate || null, dueDate: state.dueDate || null,
     isCreditPayment: state.paymentFormId ? credit : null, currency: state.currency || 'COP',
     observations: [state.headNote, state.notes, state.footNote].filter(note => note?.trim()).join('\n') || null,

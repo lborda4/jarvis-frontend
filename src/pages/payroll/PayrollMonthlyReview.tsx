@@ -1,10 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import axios from 'axios'
 import type { PayrollMonth } from './payrollMonths'
 import { currency, employeeName, statusLabels } from './payrollDefaults'
 import { payrollService, type Concept } from '../../services/payrollService'
-import { getApiErrorMessage } from '../../services/apiClient'
-import { payrollSubmissionErrors } from '../../utils/payrollSubmissionErrors'
 import Modal from '../../components/Modal'
 import PayrollMonthlyEmployeeModal from './PayrollMonthlyEmployeeModal'
 import { shouldShowTablePagination } from '../../utils/tablePagination'
@@ -32,7 +29,7 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
   const currentPage = Math.min(page, pages)
   const visibleEmployees = month.employees.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const employeeDetail = month.employees.find(employee => employee.id === employeeId)
-  const [attempts, setAttempts] = useState<Record<string, { status: string; errors: string[] }>>({})
+  const [attempts, setAttempts] = useState<Record<string, { status: string }>>({})
   const allAccepted = month.employees.length > 0 && month.employees.every(employee =>
     (employee.submission?.status ?? attempts[employee.id]?.status ?? employee.status) === 'ACCEPTED')
   const pending = payrollMonthlySendQueue(month.employees, undefined, attempts)
@@ -63,19 +60,26 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
           }))) })
           if (missing.length) throw new Error(missing.join(' '))
           const result = await payrollService.sendMonthlyEmployee(month.key, employee.id, employee.documents)
-          const last = result.transmissions[0]
-          const errors = result.status === 'ACCEPTED' ? [] : payrollSubmissionErrors([last?.error, last?.validation, last?.response])
           statuses.push(result.status)
-          setAttempts(previous => ({ ...previous, [employee.id]: { status: result.status, errors } }))
-        } catch (error) {
+          setAttempts(previous => ({ ...previous, [employee.id]: { status: result.status } }))
+        } catch {
           statuses.push('REJECTED')
-          const messages = payrollSubmissionErrors(axios.isAxiosError(error) ? error.response?.data : null)
-          setAttempts(previous => ({ ...previous, [employee.id]: { status: 'REJECTED', errors: messages.length ? messages : [getApiErrorMessage(error, 'No se pudo confirmar el envío. Revisa el resultado antes de reintentar.')] } }))
+          setAttempts(previous => ({ ...previous, [employee.id]: { status: 'REJECTED' } }))
         }
         await onReload?.()
       }
-    } catch (error) { setError(getApiErrorMessage(error, 'No se pudo actualizar el resumen. Actualízalo antes de volver a enviar.')) }
-    finally { setBusy(false); setSelectedIds([]); setProgress(''); onBusyChange?.(false); setNotice(payrollMonthlySendNotice(statuses, queue.length)) }
+    } catch { setError('No se pudo actualizar el resumen. Actualízalo antes de volver a enviar.') }
+    finally { setBusy(false); setProgress(''); onBusyChange?.(false); setNotice(payrollMonthlySendNotice(statuses, queue.length)) }
+  }
+  const verify = async (id: string) => {
+    if (busy) return
+    setBusy(true); onBusyChange?.(true); setError('')
+    try {
+      await payrollService.status(id)
+      await onReload?.()
+    } catch {
+      setError('No se pudo confirmar el estado del envío. Verifica nuevamente antes de reenviar.')
+    } finally { setBusy(false); onBusyChange?.(false) }
   }
   return <section className="payroll__card payroll-month-review">
     <div className="payroll-period__toolbar">
@@ -101,7 +105,6 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
           onChange={event => setSelectedIds(event.target.checked ? pending.map(employee => employee.id) : [])} /></th><th>Empleado</th><th>Ingresos</th><th>Deducciones</th><th>Neto del mes</th><th>Estado</th><th>Detalle</th></tr></thead>
           <tbody>{visibleEmployees.map(employee => {
             const status = employee.submission?.status ?? attempts[employee.id]?.status ?? employee.status
-            const errors = attempts[employee.id]?.errors ?? employee.errors
             return <tr key={employee.id}>
               <td><input type="checkbox" aria-label={`Enviar nómina de ${employeeName(employee.employee)}`} checked={selected.has(employee.id)} disabled={busy || !pendingIds.has(employee.id)}
                 onChange={event => setSelectedIds(previous => event.target.checked ? [...new Set([...previous, employee.id])] : previous.filter(id => id !== employee.id))} /></td>
@@ -110,7 +113,8 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
               <td><span className={`payroll__badge payroll__badge--${status}`}>{statusLabels[status] ?? status}</span>
                 {employee.documents.find(document => document.adjustment)?.adjustment && <small>{payrollAdjustmentLabel(employee.documents.find(document => document.adjustment)?.adjustment)}</small>}
               </td>
-              <td><button type="button" className="payroll__link" onClick={() => setEmployeeId(employee.id)}>Ver detalle{errors.length > 0 ? ` · ${errors.length} avisos` : ''}</button></td>
+              <td><button type="button" className="payroll__link" onClick={() => setEmployeeId(employee.id)}>Ver detalle</button>
+                {status === 'UNCERTAIN' && employee.submission && <button type="button" className="payroll__link" disabled={busy} onClick={() => void verify(employee.submission!.id)}>Verificar envío</button>}</td>
             </tr>
           })}</tbody>
         </table>
@@ -124,7 +128,7 @@ export default function PayrollMonthlyReview({ month, onBack, onReload, onBusyCh
     {notice && <DocumentNotice {...notice} onDismiss={() => setNotice(null)} />}
     {employeeDetail && <PayrollMonthlyEmployeeModal key={employeeDetail.id} employee={employeeDetail} monthLabel={month.label} concepts={concepts}
       status={employeeDetail.submission?.status ?? attempts[employeeDetail.id]?.status ?? employeeDetail.status}
-      errors={attempts[employeeDetail.id]?.errors ?? employeeDetail.errors} busy={busy} onClose={() => setEmployeeId(null)}
+      busy={busy} onClose={() => setEmployeeId(null)}
       onEditEmployee={onEditEmployee ? () => { if (!busy) { setEmployeeId(null); onEditEmployee(employeeDetail.id) } } : undefined} />}
     {confirm && <Modal isOpen busy={busy} labelledBy={`${modalId}-confirm`} className="payroll-month-modal" onClose={() => setConfirm(false)}>
       <h2 id={`${modalId}-confirm`}>Confirmar envío mensual</h2>

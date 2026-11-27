@@ -8,6 +8,7 @@ import LoadingIndicator from '../components/LoadingIndicator'
 import ErrorMessage from '../components/ErrorMessage'
 import Banner from '../components/Banner'
 import PageHeader from '../components/PageHeader'
+import CompanySelector from '../components/CompanySelector'
 import { DocumentIcon, HomeIcon } from '../components/icons/SidebarIcons'
 import AdvisorDemoInvoices from './AdvisorDemoInvoices'
 import './AdminPage.css'
@@ -52,6 +53,7 @@ export default function AdvisorDemoPage() {
         <button type="button" className="admin-sidebar__toggle" aria-expanded={menuOpen} aria-controls="demo-menu" onClick={() => setMenuOpen(value => !value)}>{menuOpen ? 'Cerrar menú' : 'Abrir menú'}</button>
       </div>
       <div id="demo-menu" className={`admin-sidebar__menu${menuOpen ? ' admin-sidebar__menu--open' : ''}`}>
+        <CompanySelector location="demo" demoName={company?.name} />
         <span className="admin-sidebar__caption">APLICACIÓN DEMO</span>
         <nav className="admin-sidebar__sections" aria-label="Facturación electrónica">
           <button type="button" aria-current={section === 'home' ? 'page' : undefined} onClick={() => { setSection('home'); setMenuOpen(false) }}><HomeIcon /><span>Inicio</span></button>

@@ -83,13 +83,6 @@ export default function JarvisReportsPage() {
     setDraft(next); setFilters(next); setAttempt(value => value + 1)
   }
   const title = reportOptions.find(([value]) => value === filters.report)?.[1] ?? 'Reportes'
-  const descriptions: Record<JarvisReportFilters['report'], string> = {
-    sales: 'Consulta el detalle de todas tus ventas, notas crédito, notas débito, impuestos a cargo y retenciones.',
-    products: 'Consulta el detalle de tus ventas por producto, con el cliente, vendedor y número de comprobante.',
-    customers: 'Consulta las ventas y devoluciones registradas para cada cliente.',
-    sellers: 'Consulta las ventas y devoluciones atribuidas a cada vendedor.',
-    taxes: 'Consulta el detalle de impuestos a cargo y retenciones por comprobante.',
-  }
   const download = async () => {
     if (exporting || !data) return
     const exportKey = requestKey
@@ -112,7 +105,7 @@ export default function JarvisReportsPage() {
   return <main className="jarvis-reports integration-page">
     <nav className="jarvis-reports__breadcrumb" aria-label="Ubicación">Reportes <span aria-hidden="true">›</span> {title}</nav>
     <div className="jarvis-reports__selector"><label htmlFor="jarvis-report-select">Seleccionar reporte</label><select id="jarvis-report-select" value={filters.report} onChange={event => selectReport(event.target.value as JarvisReportFilters['report'])}>{reportOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-    <header className="jarvis-reports__header"><div><h1>{title}</h1><p>{descriptions[filters.report]}</p></div><div className="jarvis-reports__header-actions"><div className="jarvis-reports__dates"><CalendarIcon /><DateRangeFilter from={filters.from} to={filters.to} onApply={range => {
+    <header className="jarvis-reports__header"><div><h1>{title}</h1></div><div className="jarvis-reports__header-actions"><div className="jarvis-reports__dates"><CalendarIcon /><DateRangeFilter from={filters.from} to={filters.to} onApply={range => {
       const next = { ...filters, from: range.dateFrom ?? initialFilters().from, to: range.dateTo ?? initialFilters().to, page: 1 }
       setFilters(next); setDraft(current => ({ ...current, from: next.from, to: next.to }))
     }} /></div><Button disabled={!data || exporting || loading} onClick={() => void download()}><InvoiceIcon />{exporting ? 'Generando Excel…' : 'Exportar a Excel'}</Button></div></header>
@@ -139,7 +132,7 @@ export default function JarvisReportsPage() {
       {suggestionEntry?.key === suggestionKey && suggestionEntry.failed && <p className="jarvis-reports__suggestions-status" role="status">No pudimos cargar las sugerencias. Puedes escribir el filtro y consultar. <Button variant="ghost" onClick={() => setSuggestionAttempt(value => value + 1)}>Reintentar sugerencias</Button></p>}
     </form>
     <div className="jarvis-reports__view"><span>Vista del reporte</span><div role="group" aria-label="Vista del reporte">{(['detail', 'summary'] as const).map(view => <Button key={view} variant={filters.view === view ? 'primary' : 'outline'} aria-pressed={filters.view === view} onClick={() => setFilters({ ...filters, view, page: 1 })}>{view === 'summary' ? 'Consolidado' : 'Registros individuales'}</Button>)}</div></div>
-    <p className="jarvis-reports__period">Período consultado: {filters.from} a {filters.to}. {filters.report === 'customers' || filters.report === 'sellers' || filters.report === 'products' ? `La exportación incluye el consolidado por ${filters.report === 'customers' ? 'cliente' : filters.report === 'sellers' ? 'vendedor' : 'producto'}${filters.view === 'detail' ? ' y los comprobantes' : ''}, con totales por moneda en una hoja.` : filters.report === 'taxes' && filters.view === 'detail' ? 'La exportación incluye todos los comprobantes filtrados y totales por moneda en una hoja.' : 'La exportación incluye todos los registros filtrados, sus consolidados y totales por moneda.'}</p>
+    <p className="jarvis-reports__period">Período consultado: {filters.from} a {filters.to}.</p>
     {loading && <LoadingIndicator message="Consultando registros…" />}
     {error && <ErrorMessage message={error} />}
     {exportError?.key === requestKey && <ErrorMessage message={exportError.message} />}
