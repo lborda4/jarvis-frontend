@@ -7,6 +7,7 @@ it('ofrece descargar XML junto con las acciones de una factura enviada', () => {
   const html = renderToStaticMarkup(<MemoryRouter><InvoiceNoteMenuItems invoiceId="invoice" number="FE1" onDownload={vi.fn()} onDownloadXml={vi.fn()} onClose={vi.fn()} /></MemoryRouter>)
   expect(html).toContain('Descargar XML de factura FE1')
   expect(html).toContain('Descargar factura FE1')
+  expect(html).toContain('href="/factura-venta/nueva?duplicar=invoice"')
   expect(html).toContain('Nota débito')
   expect(html).toContain('Nota crédito')
 })
@@ -14,5 +15,6 @@ it('ofrece descargar XML junto con las acciones de una factura enviada', () => {
 it('no ofrece XML para documentos soporte', () => {
   const html = renderToStaticMarkup(<MemoryRouter><InvoiceNoteMenuItems invoiceId="support" number="DS1" supportDocument onClose={vi.fn()} /></MemoryRouter>)
   expect(html).not.toContain('Descargar XML')
+  expect(html).toContain('href="/documento-soporte/nuevo?duplicar=support"')
   expect(html).toContain('Nota de ajuste')
 })

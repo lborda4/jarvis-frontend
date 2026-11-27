@@ -6,6 +6,7 @@ import InvoiceNoteAction from './InvoiceNoteAction'
 import type { DocumentEmailDelivery } from '../types/electronicDocument'
 import { fetchJarvisInvoiceXml } from '../services/jarvisService'
 import { triggerBrowserDownload } from '../utils/downloadFile'
+import { invoiceDuplicatePath } from '../utils/invoiceDuplicatePath'
 
 function NoteIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 12h8M8 16h5" strokeLinejoin="round" /></svg>
@@ -46,6 +47,7 @@ export default function DocumentPreviewActions({ id, number, kind, onEmailSent }
       <summary className="invoice-pdf__action" aria-label="Más opciones">⋮</summary>
       <div className="invoice-pdf__more-menu">
         <button type="button" className="invoice-pdf__action" onClick={() => { if (menuRef.current) menuRef.current.open = false; setEmailOpen(true) }}><MailIcon />Enviar correo</button>
+        <Link className="invoice-pdf__action" to={invoiceDuplicatePath(id)}><NoteIcon />Duplicar</Link>
         <InvoiceNoteAction className="invoice-pdf__action" invoiceId={id} kind="debit"><NoteIcon />Nota Débito</InvoiceNoteAction>
         <InvoiceNoteAction className="invoice-pdf__action" invoiceId={id} kind="credit"><NoteIcon />Nota Crédito</InvoiceNoteAction>
         <button type="button" className="invoice-pdf__action" disabled={downloading} onClick={() => void downloadXml()}>{downloading ? 'Descargando XML...' : 'Descargar XML'}</button>

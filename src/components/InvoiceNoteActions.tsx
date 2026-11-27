@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import InvoiceNoteAction from './InvoiceNoteAction'
+import { invoiceDuplicatePath } from '../utils/invoiceDuplicatePath'
 
 export function InvoiceNoteMenuItems({ invoiceId, number, supportDocument = false, onDownload, onDownloadXml, downloadDisabled = false, onClose }: { invoiceId: string; number: string; supportDocument?: boolean; onDownload?: () => void; onDownloadXml?: () => void; downloadDisabled?: boolean; onClose: () => void }) {
   return <>
     {onDownload && <button type="button" disabled={downloadDisabled} aria-label={`Descargar factura ${number}`} onClick={() => { onClose(); onDownload() }}>Descargar</button>}
     {onDownloadXml && <button type="button" disabled={downloadDisabled} aria-label={`Descargar XML de factura ${number}`} onClick={() => { onClose(); onDownloadXml() }}>Descargar XML</button>}
-    <Link to={`${supportDocument ? '/documento-soporte/nuevo' : '/factura-venta/nueva'}?duplicar=${encodeURIComponent(invoiceId)}`} onClick={onClose}>Duplicar</Link>
+    <Link to={invoiceDuplicatePath(invoiceId, supportDocument)} onClick={onClose}>Duplicar</Link>
     {supportDocument
       ? <Link to={`/nota-ajuste/nueva?documento=${encodeURIComponent(invoiceId)}`}>Nota de ajuste</Link>
       : <>
