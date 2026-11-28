@@ -1,4 +1,5 @@
 export interface AuthCompany {
+  isDemo?: boolean
   jarvisModules?: import('./companyModules').JarvisModule[] | null
   id: string
   name: string

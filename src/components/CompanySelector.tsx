@@ -14,7 +14,9 @@ export default function CompanySelector({ location, demoName }: {
   const navigate = useNavigate()
   const [error, setError] = useState('')
   const advisor = isAdvisorRole(user?.role)
-  const value = location === 'demo' ? ADVISOR_DEMO_SELECTION : location === 'panel' ? '' : user?.company?.id ?? ''
+  const demo = location === 'demo' || user?.company?.isDemo === true
+  const realCompanies = companies.filter(company => !company.isDemo)
+  const value = location === 'panel' ? '' : demo ? ADVISOR_DEMO_SELECTION : user?.company?.id ?? ''
 
   const handleChange = async (event: ChangeEvent<HTMLSelectElement>) => {
     const selection = event.target.value
@@ -26,7 +28,7 @@ export default function CompanySelector({ location, demoName }: {
     }
   }
 
-  if (!companies.length && !(advisor && location === 'company')) return null
+  if (!realCompanies.length && !advisor) return null
   return <>
     <select
       className={location === 'company' ? 'app-sidebar__company-select' : 'company-selector'}
@@ -34,11 +36,11 @@ export default function CompanySelector({ location, demoName }: {
       onChange={event => void handleChange(event)}
       disabled={isLoading || isSwitchingCompany}
       aria-label="Empresa activa"
-      title={location === 'demo' ? demoName ?? 'Aplicación demo' : user?.company?.name}
+      title={demo ? demoName ?? 'Empresa demo Jarvis' : user?.company?.name}
     >
       {location === 'panel' && <option value="" disabled>Elegir empresa</option>}
-      {advisor && <option value={ADVISOR_DEMO_SELECTION}>{demoName ?? 'Aplicación demo'}</option>}
-      {companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}
+      {advisor && <option value={ADVISOR_DEMO_SELECTION}>{demoName ?? 'Empresa demo Jarvis'}</option>}
+      {realCompanies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}
     </select>
     {error && <span className="company-selector__error" role="alert">{error}</span>}
   </>

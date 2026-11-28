@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { useIntegrationSetup } from '../context/IntegrationSetupContext'
 import { hydrateFromStorage } from '../services/realtime/purchaseInvoiceImportJobsStore'
 import './AppLayout.css'
+import Banner from '../components/Banner'
 
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -42,6 +43,7 @@ function AppLayout() {
 
       <div className="app-layout__content" ref={contentRef}>
         <GlobalSearch />
+        {user?.company?.isDemo && <Banner variant="info" message="Empresa demo compartida · Los cambios son visibles para todos los comerciales. Los envíos a la DIAN y los correos se simulan." />}
         <SubscriptionExpiryNotice key={user?.company?.id} />
         <JarvisDocumentQuotaNotice />
         <JarvisBackNavigation key={user?.company?.id} enabled={isJarvisCompany}>

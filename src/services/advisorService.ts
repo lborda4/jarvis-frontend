@@ -5,8 +5,8 @@ import type { CreateAdminCompanyRequest, CreateAdminCompanyResponse } from '../t
 
 const advisorEndpoint = (advisorId?: string) => advisorId ? `/admin/advisors/${encodeURIComponent(advisorId)}` : '/advisor'
 
-export const fetchAdvisorDemo = async (): Promise<{ company: { name: string; isDemo: boolean } }> =>
-  (await apiClient.get('/advisor/demo')).data
+export const openAdvisorDemo = async (): Promise<{ company: import('../types/auth').AuthCompany }> =>
+  (await apiClient.post('/advisor/demo/access')).data
 
 export const fetchAdvisorCatalog = async (advisorId?: string): Promise<AdvisorCatalog> => cachedQuery('advisor:catalog:' + (advisorId ? 'admin' : 'self'), 5 * 60_000, async () => (await apiClient.get(advisorId ? '/admin/advisors/portal/catalog' : '/advisor/catalog')).data)
 export const fetchAdvisorDashboard = async (advisorId?: string): Promise<AdvisorDashboard> => cachedQuery('advisor:dashboard:' + (advisorId ?? 'self'), 60_000, async () => (await apiClient.get(`${advisorEndpoint(advisorId)}/dashboard`)).data)

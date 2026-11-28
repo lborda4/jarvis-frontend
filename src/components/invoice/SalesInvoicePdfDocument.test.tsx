@@ -13,6 +13,15 @@ const data: PurchaseInvoiceDownload = {
   subtotal: 180, taxExclusiveAmount: 180, taxInclusiveAmount: 214.2, iva: 34.2, discount: 0, total: 214.2, withholdings: [], dianQrText: 'https://example.com/invoice/test', dianQrUrl: '',
 }
 describe('sales invoice HTML template adaptation', () => {
+  it('identifica los documentos demo y omite el QR y la afirmación de validación DIAN', async () => {
+    const document = SalesInvoicePdfDocument({ data: { ...data, isDemo: true }, qr: '' })
+    expect(textContent(document)).toContain('DEMOSTRACIÓN · SIN VALIDEZ TRIBUTARIA')
+    expect(textContent(document)).toContain('Código de simulación:')
+    expect(textContent(document)).not.toContain('Documento electrónico validado por la DIAN')
+    const buffer = await renderToBuffer(document)
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(buffer.toString('latin1')).not.toContain('/Subtype /Image')
+  }, 30000)
   it('aplica el diseño a un PDF de prueba sin logo, CUFE ni afirmaciones de validación', async () => {
     const { invoiceAppearanceSample } = await import('../../utils/invoiceAppearanceSample')
     const logo = await QRCode.toDataURL('logo-de-prueba')

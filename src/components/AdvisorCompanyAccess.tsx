@@ -7,7 +7,8 @@ import Button from './Button'
 import ErrorMessage from './ErrorMessage'
 
 export default function AdvisorCompanyAccess() {
-  const { user, companies, switchCompany } = useAuth()
+  const { user, companies: memberships, switchCompany } = useAuth()
+  const companies = memberships.filter(company => !company.isDemo)
   const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState('')
   const [opening, setOpening] = useState(false)

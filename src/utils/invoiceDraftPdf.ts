@@ -84,7 +84,7 @@ export function invoiceDraftPdfData(input: {
       : kind === 'SUPPORT_CREDIT_NOTE' ? settings.supportCreditNoteResolution : settings.electronicInvoiceResolution
   const [nit, dv] = company.nit.split('-')
   return {
-    id, isDraft: true, documentKind: kind, invoiceNumber: 'Sin número', prefix: resolution?.prefix ?? null,
+    id, isDraft: true, isDemo: company.isDemo, documentKind: kind, invoiceNumber: 'Sin número', prefix: resolution?.prefix ?? null,
     ...(kind === 'ELECTRONIC_INVOICE' && state.purchaseOrder ? {
       orderNumber: purchaseOrderNumber(state.purchaseOrder), orderDate: state.purchaseOrder.issueDate?.trim() || null,
     } : {}),

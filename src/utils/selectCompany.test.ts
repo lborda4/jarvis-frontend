@@ -30,6 +30,15 @@ describe('selección de empresa del comercial', () => {
     expect(state.navigate).not.toHaveBeenCalled()
   })
 
+  it('cambia del tenant demo a cualquiera de las empresas reales vinculadas', async () => {
+    for (const company of companies) {
+      const state = { ...setup(), activeCompanyId: 'shared-demo-company' }
+      await selectCompany({ ...state, selection: company.id })
+      expect(state.switchCompany).toHaveBeenCalledWith(company.id)
+      expect(state.navigate).toHaveBeenCalledWith('/inicio')
+    }
+  })
+
   it('rechaza opciones ajenas y mantiene el cambio normal sin redirección', async () => {
     const state = setup()
     await expect(selectCompany({ ...state, selection: 'other' })).rejects.toThrow()

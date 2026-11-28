@@ -2,12 +2,13 @@ import type { ReactNode } from 'react'
 import { AlertIcon, CheckIcon } from './icons/SidebarIcons'
 import './Banner.css'
 
-export type BannerVariant = 'error' | 'success' | 'warning' | 'loading'
+export type BannerVariant = 'error' | 'success' | 'warning' | 'info' | 'loading'
 
 const ROOT_CLASS: Record<BannerVariant, string> = {
   error: 'error-message',
   success: 'success-message',
   warning: 'warning-message',
+  info: 'info-message',
   loading: 'loading-indicator',
 }
 
@@ -15,6 +16,7 @@ const ROLE: Record<BannerVariant, 'alert' | 'status'> = {
   error: 'alert',
   success: 'status',
   warning: 'status',
+  info: 'status',
   loading: 'status',
 }
 

@@ -14,13 +14,10 @@ it('ofrece el acceso a la demo en el panel comercial', () => {
   expect(html).toContain('Ir a la aplicación demo')
 })
 
-it('presenta la navegación de facturación y señala lo que aún no está disponible', () => {
+it('abre una sesión de empresa sin renderizar una aplicación demo distinta', () => {
   const html = renderToStaticMarkup(<MemoryRouter><AdvisorDemoPage /></MemoryRouter>)
-  expect(html).toContain('Facturación electrónica')
-  expect(html).toContain('Documentos electrónicos')
-  expect(html).toContain('Facturas de venta')
-  expect(html).toContain('aria-disabled="true"')
-  expect(html).toContain('no se conecta a NextPyme ni a la DIAN')
-  expect(html).toContain('href="/asesor"')
+  expect(html).toContain('Abriendo empresa demo compartida')
+  expect(html).not.toContain('aria-disabled="true"')
+  expect(html).not.toContain('Facturas de venta simuladas')
   expect(html).not.toContain('href="/factura-venta"')
 })

@@ -67,6 +67,7 @@ export function SalesInvoicePdfDocument({ data, qr }: { data: PurchaseInvoiceDow
       <View style={themed ? [s.header, { borderColor: colors.accent }] : s.header} wrap={false}>
         {data.logoDataUrl && appearance.showLogo ? <Image src={data.logoDataUrl} style={{ width: '45%', height: 80, objectFit: 'contain' }} /> : <View style={s.brandWrap}><Text style={themed ? [s.brand, { color: colors.heading }] : s.brand} hyphenationCallback={keepPdfWordIntact}>{data.issuer.tradeName || data.issuer.name || ''}</Text></View>}
         <View style={{ width: '49%' }}><Text style={s.title}>{copy.title}</Text>{optionalValue(data.invoiceNumber) && <Text style={s.number}>No. {optionalValue(data.invoiceNumber)}</Text>}
+          {data.isDemo && <Text style={s.name}>DEMOSTRACIÓN · SIN VALIDEZ TRIBUTARIA</Text>}
           {data.isDraft && <Text style={s.name}>{data.isPreviewSample ? 'FACTURA DE EJEMPLO · SIN VALIDEZ' : 'BORRADOR · SIN ENVIAR A DIAN'}</Text>}
           {optionalValue(data.issueDate) && <Text style={s.field}>Fecha de elaboración: {optionalValue(data.issueDate)}</Text>}{data.isCreditPayment && optionalValue(data.dueDate) && <Text style={s.field}>Fecha de vencimiento: {optionalValue(data.dueDate)}</Text>}{optionalValue(data.currency) && <Text>Moneda: {data.currency}</Text>}</View>
       </View>
@@ -104,14 +105,14 @@ export function SalesInvoicePdfDocument({ data, qr }: { data: PurchaseInvoiceDow
       {themed && appearance.footerText && <View style={s.words} wrap={false}><Text style={s.small}>{appearance.footerText}</Text></View>}
       <View style={s.dian} wrap={false}>
         <View style={s.dianRow}>
-        {!data.isDraft && <Image src={qr} style={s.qr} />}
-        <View style={s.half}>{data.isDraft ? <Text style={s.name}>{data.isPreviewSample ? 'Datos ilustrativos para personalizar tu factura' : 'Documento guardado sin enviar a la DIAN'}</Text> : <><Text style={s.name}>Documento electrónico validado por la DIAN</Text>{generationDateTime && <><Text style={[s.field, { marginTop: 7 }]}>Fecha y hora de generación:</Text><Text style={s.small}>{generationDateTime}</Text></>}</>}
+        {!data.isDraft && !data.isDemo && <Image src={qr} style={s.qr} />}
+        <View style={s.half}>{data.isDraft ? <Text style={s.name}>{data.isPreviewSample ? 'Datos ilustrativos para personalizar tu factura' : 'Documento guardado sin enviar a la DIAN'}</Text> : <><Text style={s.name}>{data.isDemo ? 'Documento de demostración · Envío simulado' : 'Documento electrónico validado por la DIAN'}</Text>{generationDateTime && <><Text style={[s.field, { marginTop: 7 }]}>Fecha y hora de generación:</Text><Text style={s.small}>{generationDateTime}</Text></>}</>}
           {data.documentKind === 'ELECTRONIC_INVOICE' && optionalValue(data.orderNumber) && <><Text style={[s.field, { marginTop: 7 }]}>Orden de compra: {optionalValue(data.orderNumber)}</Text>{optionalValue(data.orderDate) && <Text style={s.small}>Fecha de orden de compra: {optionalValue(data.orderDate)}</Text>}</>}</View>
         {taxDetails.lines.length > 0 && <View style={s.half}><Text style={s.name}>{taxDetails.title}</Text>
           {taxDetails.lines.map(line => <Text key={line} style={s.small}>{line}</Text>)}</View>}
         </View>
         {taxDetails.activity && <Text style={s.small}>{taxDetails.activity}</Text>}
-        {!data.isDraft && optionalValue(data.cufe) && <Text style={s.uniqueCode} hyphenationCallback={keepPdfWordIntact}>{copy.uniqueCode}: {data.cufe}</Text>}
+        {!data.isDraft && optionalValue(data.cufe) && <Text style={s.uniqueCode} hyphenationCallback={keepPdfWordIntact}>{data.isDemo ? 'Código de simulación' : copy.uniqueCode}: {data.cufe}</Text>}
       </View>
       <Text style={s.footer}>{data.isDraft ? 'Vista previa con la información guardada hasta el momento.' : `Esta es una representación gráfica de la ${copy.footer}.\nEmitido por Jarvis Colombia`}</Text>
       <Text fixed style={s.pageNumber} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />

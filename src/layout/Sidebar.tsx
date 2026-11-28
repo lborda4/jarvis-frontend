@@ -380,7 +380,7 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
         {isOpen && (
           <div className="app-sidebar__brand-row">
-            {companies.length > 0 ? (
+            {companies.length > 0 || isAdvisorRole(user?.role) ? (
               <CompanySelector location="company" />
             ) : (
               <span className="app-sidebar__brand-title" title={companyName}>

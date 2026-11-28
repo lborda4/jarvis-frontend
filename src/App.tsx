@@ -20,7 +20,7 @@ import JarvisIntegrationRoute from './components/JarvisIntegrationRoute'
 import JarvisCreditNoteRoute from './components/JarvisCreditNoteRoute'
 import SiigoIntegrationRoute from './components/SiigoIntegrationRoute'
 import RadianRoute from './components/RadianRoute'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { SubscriptionAccessProvider } from './context/SubscriptionAccessContext'
 import { SiigoSetupProvider } from './context/SiigoSetupContext'
 import { SiigoCatalogProvider } from './context/SiigoCatalogContext'
@@ -41,7 +41,8 @@ import RegisterPage from './pages/RegisterPage'
 import './styles/integration.css'
 
 function CompanyApplicationProviders() {
-  return <SubscriptionAccessProvider><SiigoSetupProvider><SiigoCatalogProvider><ImportSessionProvider><Outlet /></ImportSessionProvider></SiigoCatalogProvider></SiigoSetupProvider></SubscriptionAccessProvider>
+  const { user } = useAuth()
+  return <SubscriptionAccessProvider key={user?.company?.id}><SiigoSetupProvider><SiigoCatalogProvider><ImportSessionProvider><Outlet /></ImportSessionProvider></SiigoCatalogProvider></SiigoSetupProvider></SubscriptionAccessProvider>
 }
 
 function App() {

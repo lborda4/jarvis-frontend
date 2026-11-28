@@ -57,7 +57,7 @@ export default function SalesInvoicePreviewPage({
         stage = 'apertura de la vista previa'
         url = URL.createObjectURL(blob)
         const kind = data.documentKind ?? jarvisPdfKindFromFlags({ supportDocument, creditNote, debitNote, adjustmentNote })
-        const copy = jarvisPdfCopy(kind)
+        const copy = { ...jarvisPdfCopy(kind), ...(data.isDemo ? { uniqueCode: 'Código de simulación' } : {}) }
         setResult({ key, url, number: data.invoiceNumber || id, displayNumber: isDraft || !data.invoiceNumber ? data.invoiceNumber || id : formatJarvisDocumentNumber(data.prefix, data.invoiceNumber), documentLabel: isDraft ? `${copy.shortTitle} · Borrador` : copy.shortTitle, listPath: copy.listPath, kind, code: data.cufe ?? '', codeLabel: copy.uniqueCode, attachment: data.attachment, emailDeliveries: data.emailDeliveries ?? [] })
       } catch (error) {
         if (active) {

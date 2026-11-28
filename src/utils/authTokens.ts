@@ -54,6 +54,7 @@ function extractCompany(
     id: companyId,
     name: companyName,
     nit: companyNit,
+    ...(companyRecord.isDemo === true ? { isDemo: true } : {}),
     ...(Array.isArray(companyRecord.jarvisModules) ? {
       jarvisModules: companyRecord.jarvisModules.filter((module): module is JarvisModule => JARVIS_MODULES.includes(module as JarvisModule)),
     } : {}),

@@ -1,6 +1,7 @@
 .error-message,
 .success-message,
 .warning-message,
+.info-message,
 .loading-indicator {
   display: flex;
   align-items: center;
@@ -28,6 +29,12 @@
   background-color: var(--jarvis-warning-soft);
   border: 1px solid var(--jarvis-warning-border);
   color: var(--jarvis-warning-hover);
+}
+
+.info-message {
+  background-color: var(--jarvis-info-soft);
+  border: 1px solid var(--jarvis-info-border);
+  color: var(--jarvis-info);
 }
 
 .loading-indicator {
