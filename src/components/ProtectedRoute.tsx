@@ -20,7 +20,7 @@ function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
-  if (isAdvisorRole(user?.role) && !user?.company) return <Navigate to="/asesor" replace />
+  if (isAdvisorRole(user?.role) && !user?.company?.id) return <Navigate to="/asesor" replace />
   return <Outlet />
 }
 

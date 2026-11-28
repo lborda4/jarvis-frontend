@@ -22,7 +22,7 @@ import {
   // PulseIcon,
   SettingsIcon,
 } from '../components/icons/SidebarIcons'
-import { isAdminRole } from '../constants/userRole'
+import { isAdminRole, isAdvisorRole } from '../constants/userRole'
 import { companyJarvisModules } from '../types/companyModules'
 
 // const BANK_STATEMENTS_ROOT = '/extractos-bancarios'
@@ -208,6 +208,9 @@ function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
     // Extractos bancarios oculto temporalmente a pedido explícito — la ruta y
     // la página siguen intactas, solo se saca el ítem del menú (ver las
     // constantes comentadas arriba para volver a habilitarlo).
+    ...(isAdvisorRole(user?.role)
+      ? [{ label: 'Panel comercial', to: '/asesor', icon: AdminIcon }]
+      : []),
     ...(isAdminRole(user?.role)
       ? [
           {

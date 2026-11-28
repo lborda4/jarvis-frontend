@@ -2,7 +2,9 @@
 
 El asesor puede crear empresas Siigo o Jarvis con el mismo `CreateCompanyForm` del administrador. El servidor asigna la empresa al asesor autenticado y fija el nombre del comercial. No crea un vínculo operativo `UserCompany` para el asesor: el cliente recibe su propio enlace de registro y el asesor continúa en su panel comercial.
 
-El panel muestra sus clientes y comisiones mensuales. Los endpoints `/advisor/*` exigen una cuenta de asesor registrada y activa; el asesor no puede elegir el ID de otro asesor ni acceder a administración, documentos, tokens o configuración de clientes.
+El panel muestra sus clientes y comisiones mensuales. Los endpoints `/advisor/*` exigen una cuenta de asesor registrada y activa; el asesor no puede elegir el ID de otro asesor ni acceder a administración. La cartera comercial no concede acceso operativo a sus clientes.
+
+Si el asesor también tiene empresas vinculadas mediante `UserCompany`, el panel muestra **Mi empresa → Ir a la aplicación**. Puede operar esas empresas como un usuario normal y regresar desde **Panel comercial** en el menú de la aplicación. Inicia sesión en el panel comercial; al seleccionar una empresa se verifica su vínculo y se conserva el rol de asesor. El token de empresa y su renovación vuelven a comprobar ese vínculo. Los catálogos de integración se cargan únicamente dentro de la aplicación, no desde el panel comercial.
 
 En **Administración → Asesores → Convertir a comercial**, el administrador busca una cuenta existente por correo y confirma la conversión. Se conserva la contraseña y se crea o reutiliza su perfil comercial sin borrar clientes, comisiones ni vínculos anteriores. El usuario debe volver a iniciar sesión. La conversión no envía correos, no activa cuentas inactivas ni cambia cuentas de administrador. Crear un asesor nuevo continúa siendo un flujo separado con invitación.
 

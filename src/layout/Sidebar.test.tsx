@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
-import { expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import Sidebar from './Sidebar'
 import type { JarvisModule } from '../types/companyModules'
 
-const state = vi.hoisted(() => ({ modules: undefined as JarvisModule[] | undefined }))
+const state = vi.hoisted(() => ({ modules: undefined as JarvisModule[] | undefined, role: 'user' }))
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({
-  user: { name: 'Usuario', email: 'user@example.com', company: { id: 'company', name: 'Empresa', jarvisModules: state.modules } },
+  user: { name: 'Usuario', role: state.role, email: 'user@example.com', company: { id: 'company', name: 'Empresa', jarvisModules: state.modules } },
   companies: [], logout: vi.fn(), switchCompany: vi.fn(),
 }) }))
 vi.mock('../context/IntegrationSetupContext', () => ({ useIntegrationSetup: () => ({
@@ -14,6 +14,7 @@ vi.mock('../context/IntegrationSetupContext', () => ({ useIntegrationSetup: () =
   setupPath: '/configuracion/integracion-jarvis',
 }) }))
 
+beforeEach(() => { state.role = 'user' })
 function render(modules?: JarvisModule[], pathname = '/') {
   state.modules = modules
   return renderToStaticMarkup(<MemoryRouter initialEntries={[pathname]}><Sidebar isOpen onClose={() => {}} onOpen={() => {}} /></MemoryRouter>)
@@ -22,6 +23,13 @@ it('oculta nómina cuando solo se elige facturación', () => {
   const html = render(['BILLING'])
   expect(html).toContain('Documentos electrónicos')
   expect(html).not.toContain('Nómina electrónica')
+})
+it('permite al comercial regresar a su panel desde la aplicación', () => {
+  state.role = 'advisor'
+  const html = render(['BILLING'])
+  expect(html).toContain('href="/asesor"')
+  expect(html).toContain('Panel comercial')
+  expect(html).not.toContain('href="/admin"')
 })
 it('oculta facturación y sus catálogos cuando solo se elige nómina', () => {
   const html = render(['PAYROLL'])
